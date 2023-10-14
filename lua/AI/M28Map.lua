@@ -179,7 +179,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
         --Capture and repair (done on zone rather than team basis, since intended for civilian targets and/or objectives so want to consider for all M28 teams; same ref used for water zones
         subreftoUnitsToCapture = 'UnitsToCap' --AGAINST ZONEData not TEAMZoneData
-        subreftoUnitsToRepair = 'UnitsToRep'
+        subreftoUnitsToRepair = 'UnitsToRep' --AGAINST ZONEData not TEAMZoneData
         --Mission objective specific - disable targeting logic
         subrefbPacifistArea = 'PacAre' --true if this is a pacificst area
 

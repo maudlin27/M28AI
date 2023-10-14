@@ -5086,7 +5086,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                 --Mex specific - build a separate unit
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Were building a mex at tBuildLocation='..repru(tBuildLocation)..'; however have already assigned an engineer and have more to assign, so will build at a different mex now') end
-                                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                                    --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
                                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil,                                false,                          nil,             nil,                                   false,                  tLZOrWZData,    tLZOrWZTeamData)
                                                     if M28Utilities.IsTableEmpty(tBuildLocation) then break end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': New mex build location='..repru(tBuildLocation)) end
@@ -9041,14 +9041,16 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Units to repair
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to repair empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))..'; iTeam='..iTeam) end
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
         if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)..'; will flag we want some BP for this') end
             HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
         end
     end
+    bDebugMessages = false
 
     --late game power (in case running out of space in core zone)
     iCurPriority = iCurPriority + 1
@@ -10368,7 +10370,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Start of code, iTeam=' .. iTeam .. '; iPlateauOrPond=' .. iPlateauOrPond .. '; iLandOrWaterZone=' .. iLandOrWaterZone .. '; is tEngineers empty=' .. tostring(M28Utilities.IsTableEmpty(tEngineers)) .. '; Is this a core base LZ=' .. tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; bIsWaterZone=' .. tostring(bIsWaterZone or false)..'; tLZOrWZTeamData[M28Map.subrefTbWantBP] before reset='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false))
+        LOG(sFunctionRef .. ': Start of code, iTeam=' .. iTeam .. '; iPlateauOrPond=' .. iPlateauOrPond .. '; iLandOrWaterZone=' .. iLandOrWaterZone .. '; is tEngineers empty=' .. tostring(M28Utilities.IsTableEmpty(tEngineers)) .. '; Is this a core base LZ=' .. tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; bIsWaterZone=' .. tostring(bIsWaterZone or false)..'; tLZOrWZTeamData[M28Map.subrefTbWantBP] before reset='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false)..'; iTeam='..iTeam)
     end
 
     --First clear any faction requests (will set to true again if we want to build something and dont have an engineer of the right faction for it)
@@ -10430,8 +10432,11 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
                         iCurEngiTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                         for iTech = iCurEngiTechLevel, 1, -1 do
                             if tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] > 0 then
-                                tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] = tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] - oUnit:GetBlueprint().Economy.BuildRate
-                                break
+                                --Dont ignore traveling engineers for fortify zone (so UEF M2 we still try doing a drop)
+                                if iTech > 1 or not(M28Map.bIsCampaignMap) or not(tLZOrWZTeamData[M28Map.subrefLZFortify]) then
+                                    tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] = tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] - oUnit:GetBlueprint().Economy.BuildRate
+                                    break
+                                end
                             end
                         end
                     end
@@ -10451,18 +10456,28 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
         local iBPCap
         if (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 10 or (bIsWaterZone and tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) then
             iBPCap = 0
+            --Exception - cap of 5 for campaign with objective to repair (i.e. M2 UEF)
+            if M28Map.bIsCampaignMap and tLZOrWZTeamData[M28Map.subrefLZFortify] and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 1000 and M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1] and M28UnitInfo.GetUnitHealthPercent(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1]) < 0.15 then
+                iBPCap = 5
+            end
             --Clear any engineers already traveling here
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Setting BP cap to 0 and clearing engineers traveling here')
+                LOG(sFunctionRef .. ': Setting BP cap to 0 (or 5 if unit to repair) and clearing engineers traveling here, iBPCap='..iBPCap..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Fortify='..tostring(tLZOrWZTeamData[M28Map.subrefLZFortify] or false)..'; Fortify based on plateau and zone='..tostring(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false)..'; Enemy combat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..';1st unit to repair if there is one='..(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1]) or 'nil')..'; flag for iTeam '..iTeam)
             end
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
                 local tTravelingEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere])
                 if M28Utilities.IsTableEmpty(tTravelingEngineers) == false then
                     for iEngi, oEngi in tTravelingEngineers do
-                        M28Orders.IssueTrackedClearCommands(oEngi)
+                        if iBPCap > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will hold off clearing engineer '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' and will set BP cap to 0') end
+                            iBPCap = 0
+                        else
+                            M28Orders.IssueTrackedClearCommands(oEngi)
+                        end
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iBPCap after clearing traveling engineers='..iBPCap) end
         elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
             iBPCap = 5
         end
@@ -11042,7 +11057,9 @@ function CheckForSpecialCampaignCaptureTargets()
                     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                         if oBrain.M28AI then
                             oFirstM28Brain = oBrain
-                            break
+                            if not(oBrain.CampaignAI) then
+                                break
+                            end
                         end
                     end
                 end

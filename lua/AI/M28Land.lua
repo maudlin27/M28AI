@@ -4941,7 +4941,6 @@ function ManageAllLandZones(aiBrain, iTeam)
             local iACUPlateau, iACULZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOurACU[1]:GetPosition(), true, tOurACU[1])
             LOG(sFunctionRef..': ACU is at plateau '..iACUPlateau..'; LZ='..iACULZ)
         end
-        LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subreftoLZOrWZAlliedUnits])))
     end
 
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] or -100) >= 10 then
@@ -4956,7 +4955,6 @@ function ManageAllLandZones(aiBrain, iTeam)
         if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
             if bDebugMessages == true then
                 LOG(sFunctionRef..': About to cycle through every land zone in plateau '..iPlateau..'; subrefLandZoneCount='..tPlateauData[M28Map.subrefLandZoneCount])
-                LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subreftoLZOrWZAlliedUnits])))
             end
             for iLandZone, tLandZoneDataByTeam in tPlateauData[M28Map.subrefPlateauLandZones] do
                 local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]

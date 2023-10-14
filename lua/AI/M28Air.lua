@@ -2948,7 +2948,7 @@ function ApplyEngiHuntingBomberLogic(oUnit, iAirSubteam, iTeam)
 end
 
 function ManageBombers(iTeam, iAirSubteam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
@@ -3077,7 +3077,7 @@ function ManageBombers(iTeam, iAirSubteam)
 
                         --If have air control and lots of bombers available consider further away targets
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..iAvailableBombers..'; iOurBomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
-                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2500 and (iAvailableBombers >= 80 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000) then
+                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and (iAvailableBombers >= 60 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableBombers >= 12)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
@@ -4641,6 +4641,8 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     local sFunctionRef = 'UpdateTransportShortlistForFarAwayLandZoneDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --Dont even consider for small maps
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for team '..iTeam..'; iMapSize='..M28Map.iMapSize) end
     if M28Map.iMapSize > 256 then
@@ -4742,6 +4744,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) == false then
         local tiPlateauAndZoneWithAdjacentEngineers = {}
+        local bCampaignMap = M28Map.bIsCampaignMap
         --Dont drop if we have engineers in this zone or adjacent, or there are dangerous enemy units
         for iPlateau, tLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau] do
             for iEntry, iLandZone in tLandZones do
@@ -4752,8 +4755,12 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                     --Check we havent already got mexes on any of the positions
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
                     if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')) end
-                        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) == 0 then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; Is table of units to repair empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))..'; Is midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]))..'; bCampaignMap='..tostring(bCampaignMap)..'; First unit to repair='..(tLZData[M28Map.subreftoUnitsToRepair][1].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subreftoUnitsToRepair][1]) or 'nil'))
+                            if tLZData[M28Map.subreftoUnitsToRepair][1] then LOG(sFunctionRef..': Health percent of first unit to repair='..M28UnitInfo.GetUnitHealthPercent(tLZData[M28Map.subreftoUnitsToRepair][1])) end
+                        end
+
+                        if (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) == 0) or (bCampaignMap and M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false and M28UnitInfo.GetUnitHealthPercent(tLZData[M28Map.subreftoUnitsToRepair][1]) <= 0.15) then
                             --Do we want BP for this zone?
                             if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)..'; tLZTeamData[M28Map.subrefTBuildPowerByTechWanted]='..repru(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
                             local bBPWanted = tLZTeamData[M28Map.subrefTbWantBP]
@@ -4804,7 +4811,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                             if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
-                                            if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 then
+                                            if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 and not(bCampaignMap) then
                                                 bHaveNearbyFactoriesOrLargeThreat = true
                                                 break
                                             else
@@ -5087,8 +5094,8 @@ function UpdateTransportLocationShortlist(iTeam)
     --Now consider adding land zonesi n same island:
     local bFirstTimeConsidering = false
     if not( M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) and not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialPondDropZones]) then bFirstTimeConsidering = true end
+    UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam) --want to run every time, has code in it to make sure one part only runs at start of game
     if bFirstTimeConsidering then
-        UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
         --Also drop locations for ponds
         UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOrIslandDrop)
     end
@@ -5387,7 +5394,7 @@ function ManageTransports(iTeam, iAirSubteam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': bRemovedEntry='..tostring(bRemovedEntry or false)) end
                     --if bRemovedEntry then
-                        table.remove(tAvailableTransports, iCurTransportEntry)
+                    table.remove(tAvailableTransports, iCurTransportEntry)
                     --end
                 end
             end

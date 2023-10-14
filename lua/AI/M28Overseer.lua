@@ -1444,7 +1444,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
     local aiBrain
     for iBrain, oBrain in tAllActiveM28Brains do
-        if oBrain.M28AI then aiBrain = oBrain break end
+        if oBrain.M28AI and not(oBrain.CampaignAI) then aiBrain = oBrain break end
     end
     if aiBrain then
         local iTeam = aiBrain.M28Team

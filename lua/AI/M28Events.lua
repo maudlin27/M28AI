@@ -1853,6 +1853,7 @@ function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
             if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
                 for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                     aiBrain = oBrain
+                    if not(oBrain.CampaignAI) then break end
                 end
                 if not(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is not an ally so will record as a capture target') end
@@ -1866,7 +1867,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete
@@ -1898,13 +1899,14 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     local oFirstM28Brain
                     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                         oFirstM28Brain = oBrain
-                        break
+                        if not(oBrain.CampaignAI) then
+                            break
+                        end
                     end
                     local iTeam = oFirstM28Brain.M28Team
-
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
                     tUnitLZTeamData[M28Map.subrefLZFortify] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for unit '..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iTeam='..iTeam) end
                 end
             end
         elseif M28Utilities.IsTableEmpty(Target.Units) == false then
@@ -1913,7 +1915,9 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             local oFirstM28Brain
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
-                break
+                if not(oBrain.CampaignAI) then
+                    break
+                end
             end
             local iTeam = oFirstM28Brain.M28Team
             local tUnitsToRepair = {}
@@ -1960,7 +1964,9 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 for iBrain, oBrain in ArmyBrains do
                     if oBrain.M28AI then
                         iTeam = oBrain.M28Team
-                        break
+                        if not(oBrain.CampaignAI) then
+                            break
+                        end
                     end
                 end
                 for iEntry, oUnit in tUnitsToRepair do
@@ -1998,7 +2004,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                                         end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
                                 if not(bAdjacentToCoreBase) then
                                     --Add to locations for priority transport drop
                                     M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
@@ -2014,13 +2020,18 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     local oFirstM28Brain
                     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                         oFirstM28Brain = oBrain
-                        break
+                        if not(oFirstM28Brain.CampaignAI) then
+                            break
+                        end
                     end
                     local iTeam = oFirstM28Brain.M28Team
 
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
                     tUnitLZTeamData[M28Map.subrefLZFortify] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for repair target') end
+                    if bDebugMessages == true then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        LOG(sFunctionRef..': flagged to fortify zone for repair target, ='..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Fortify zone flag='..tostring(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false))
+                    end
                 end
             elseif bOnlyHaveAllies then
                 if bDebugMessages == true then LOG(sFunctionRef..': Only have allies so setting priority air defence target') end
@@ -2064,7 +2075,9 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
             local oFirstM28Brain
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
-                break
+                if not(oBrain.CampaignAI) then
+                    break
+                end
             end
             local iPlateauOrZero, iLandOrWaterZone
             local iTeam = oFirstM28Brain.M28Team
