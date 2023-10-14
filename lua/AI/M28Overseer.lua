@@ -1795,3 +1795,81 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end
+
+
+function RemoveUnitsFromPlatoon(oPlatoon, tUnits, bReturnToBase, oPlatoonToAddTo)
+    --Intended to remove a particular unit from a platoon e.g. to avoid campaign AI overriding M28 AI
+    --if bReturnToBase is true then units will be told to move to aiBrain's base
+    --if tUnits isnt in oPlatoon then does nothing
+    --oPlatoonToAddTo - optional, if empty, then will try to assign to army pool instead
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RemoveUnitsFromPlatoon'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oPlatoon and oPlatoon.GetBrain and oPlatoon.GetPlan and not(oPlatoon.Dead) then
+        local aiBrain = oPlatoon:GetBrain()
+
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to list out every unit that is about to be removed')
+            for iUnit, oUnit in tUnits do
+                if oUnit.GetUnitId then LOG('iUnit='..iUnit..'; oUnitId='..oUnit.UnitId)
+                else LOG('iUnit='..iUnit..'; Unit has no unitId') end
+            end
+        end
+        if not(oPlatoonToAddTo == oPlatoon) then
+            local oArmyPool = aiBrain:GetPlatoonUniquelyNamed('ArmyPool')
+            --if not(oPlatoon==oArmyPool) then if oPlatoon:GetPlan() == 'M27ACUMain' then bDebugMessages = true end end
+            local sName
+            if oPlatoonToAddTo == nil then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will add units to army pool') end
+                oPlatoonToAddTo = oArmyPool
+                sName = 'ArmyPool'
+            else
+                if oPlatoonToAddTo == oArmyPool then sName = 'ArmyPool'
+                else
+                    if oPlatoonToAddTo.GetPlan then
+                        sName = oPlatoonToAddTo:GetPlan()
+                    end
+                    if sName == nil then sName = 'nil' end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to '..sName) end
+                end
+            end
+            if oPlatoonToAddTo == nil then
+                LOG(sFunctionRef..': WARNING: oPlatoonToAddTo is nil')
+            else
+                local sCurPlatoonName
+                if oPlatoon == oArmyPool then
+                    sCurPlatoonName = 'ArmyPool'
+                else
+                    sCurPlatoonName = oPlatoon:GetPlan()
+                    if sCurPlatoonName == nil then sCurPlatoonName = 'None' end
+                    if bDebugMessages == true then LOG(sFunctionRef..': sCurPlatoonName='..sCurPlatoonName) end
+                end
+
+                if not(sCurPlatoonName == sName) then
+                    if bDebugMessages == true then
+                        if oPlatoon == oArmyPool then
+                            M28Utilities.ErrorHandler('ideally shouldnt have any units using armypool platoon now, see if can figure out where this came from')
+                            LOG(sFunctionRef..': About to remove units from ArmyPool platoon and add to platoon '..sName)
+                        else
+                            LOG(sFunctionRef..': About to remove units from platoon '..oPlatoon:GetPlan())
+                        end
+                    end
+
+                    if bReturnToBase == true then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Issuing move command to tUnits') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Clearing commands; Gametime='..GetGameTimeSeconds()) end
+                        local tBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+                        for iUnit, oUnit in tUnits do
+                            M28Orders.IssueTrackedClearCommands(oUnit)
+                            M28Orders.IssueTrackedMove(oUnit, tBase, 10, false, 'PlatRB', false)
+                        end
+                    end
+                    aiBrain:AssignUnitsToPlatoon(oPlatoonToAddTo, tUnits, 'Support', 'GrowthFormation')
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
