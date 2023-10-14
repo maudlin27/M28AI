@@ -3006,7 +3006,6 @@ function GetACUOrder(aiBrain, oACU)
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                     local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
                     if iACUHealthPercent < 0.6 and (1 - iACUHealthPercent) + 0.1 > oACU:GetWorkProgress() then
-                        bDebugMessages = true
                         --Do we no longer consider this location safe?
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU health relatively low, iACUHealthPercent='..iACUHealthPercent..'; Work progress='..oACU:GetWorkProgress()..'; woudl it be safe to start an ugprade here='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
                         if not(M28Conditions.SafeToUpgradeUnit(oACU)) then

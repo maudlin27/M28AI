@@ -696,7 +696,6 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             end
 
             --Campaign specific - remove unit from platoon if it has one
-            bDebugMessages = true
             if M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
                 local oExistingPlatoon = oUnit.PlatoonHandle
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if have existing platoon for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingPlatoon is nil?='..tostring(oExistingPlatoon == nil)..'; Is getplan nil='..tostring(oExistingPlatoon.GetPlan == nil)) end

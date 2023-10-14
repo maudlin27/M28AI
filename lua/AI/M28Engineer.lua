@@ -9050,7 +9050,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
         end
     end
-    bDebugMessages = false
 
     --late game power (in case running out of space in core zone)
     iCurPriority = iCurPriority + 1
