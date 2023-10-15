@@ -8557,10 +8557,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if tLZTeamData[M28Map.subrefLZCoreExpansion] or (bAdjacentToCoreZone and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750) then
         local tExistingFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tExistingFactory) == false then
-            iExistingFactory = table.getn(tExistingFactory)
             for iUnit, oUnit in tExistingFactory do
                 if oUnit:GetFractionComplete() == 1 then
                     bExistingFactoryIsComplete = true
+                    iExistingFactory = iExistingFactory + 1
                     if M28UnitInfo.GetUnitTechLevel(oUnit) >= 2 then
                         iExistingFactory = iExistingFactory + 1
                     end
@@ -9608,6 +9608,28 @@ end--]]
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; have spare engis so will send any spare to assist any active upgrades') end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
             HaveActionToAssign(refActionAssistUpgrade, 1, 1000, false, true)
+            iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+        end
+    end
+
+    --Spare engi - assist part complete buildings
+    iCurPriority = iCurPriority + 1
+    if iHighestTechEngiAvailable > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a spare engi, will look to see to see if htere are any part complete buildings in the area') end
+        local tFriendlyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tFriendlyBuildings) == false then
+            local oUnitToAssist
+            local iClosestToCompletion = 0
+            for iUnit, oUnit in tFriendlyBuildings do
+                if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iClosestToCompletion then
+                    iClosestToCompletion = oUnit:GetFractionComplete()
+                    oUnitToAssist = oUnit
+                end
+            end
+            if oUnitToAssist then
+                HaveActionToAssign(refActionRepairUnit, 1, 1000, oUnitToAssist, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try assisting unit '..oUnitToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist)) end
+            end
         end
     end
 
