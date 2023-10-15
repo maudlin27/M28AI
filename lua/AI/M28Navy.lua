@@ -371,7 +371,7 @@ function ManageAllWaterZones(aiBrain, iTeam)
                     UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iWaterZone, false, false, tWZTeamData)
                 end
 
-                ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
+                ForkThread(ManageSpecificWaterZone, aiBrain, iTeam, iPond, iWaterZone)
                 iCurCycleRefreshCount = iCurCycleRefreshCount + 1
 
                 if iCurCycleRefreshCount >= iRefreshThreshold then
