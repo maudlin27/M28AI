@@ -3801,7 +3801,6 @@ function ManageGunships(iTeam, iAirSubteam)
     local tViaFromFrontGunshipPoint
     local iDistToMoveToAltPoint = 150
     local iAngleFromRallyToGunship, iDistFromRallyToGunship
-
     if bDebugMessages == true then LOG(sFunctionRef..': Is front gunship valid='..tostring(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]))) end
     if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
         --If we go from the rally point to the last front gunship, do we come across any zones with a large ground threat? if so then want to try an alt rally point
@@ -3820,7 +3819,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 tGunshipLandOrWaterZoneTeamData = tGunshipLandOrWaterZoneData[M28Map.subrefLZTeamData][iTeam]
                 iEnemyGroundAAThreatByGunship = (tGunshipLandOrWaterZoneTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
             end
-            
+
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAThreatByGunship='..iEnemyGroundAAThreatByGunship..'; Gunship threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]) end
 
             if iEnemyGroundAAThreatByGunship <= math.min(3600, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.2) then
@@ -4115,14 +4114,30 @@ function ManageGunships(iTeam, iAirSubteam)
                 AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false)
             end
             if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
-                --Consider land zones adjacent to a land start position
+                --Consider land zones adjacent to a land start position provided the zone midpoint is within 25% of the closest base (since we aren't doing an AirAA check)
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                     if tiPlateauAndZone[1] > 0 then
                         local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            local iCurDistToBase
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], iAdjLZ, 3, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enem ytargets empty after checking iAdjLZ='..iAdjLZ..'='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
+
+                                --Land zone
+                                local tAdjLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
+                                    iCurDistToBase = M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZData[M28Map.subrefMidpoint])
+                                    if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 220 then
+                                        --Check actual % dist to base
+                                        if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 100 or iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]) <= 0.275 then
+                                            AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], iAdjLZ, 3, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enem ytargets empty after checking iAdjLZ='..iAdjLZ..'='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; iCurDistToBase='..iCurDistToBase..'; % of dist from friendl yto enemy='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase])..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]) end
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Actual % is too far, iCurDistToBase='..iCurDistToBase..'; tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Actual %='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]))
+                                        end
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Midpoint is too far away, iCurDistToBase='..iCurDistToBase)
+                                    end
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': Wont consider iAdjLZ='..iAdjLZ..' as a high priority since tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent])
+                                end
                             end
                         end
                     end
@@ -4431,7 +4446,7 @@ function ManageGunships(iTeam, iAirSubteam)
     if tViaFromRallyPoint and M28Utilities.IsTableEmpty(tGunshipsForRefueling) == false and iAngleFromRallyToGunship then
 
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Want to avoid going directly to the rally point for refueling, number of gunships for refueling='..table.getn(tGunshipsForRefueling)..', tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; will draw in blue, and will draw gunship rally '..repru(tViaFromFrontGunshipPoint)..' in red. Is table of gunships near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNearFront))..'; is table of gunships not near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNotNearFront))..'; Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Is gunship via point in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint)))
+            LOG(sFunctionRef..': Want to avoid going directly to the rally point for refueling, number of gunships for refueling='..table.getn(tGunshipsForRefueling)..', tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; will draw in blue, and will draw gunship rally '..repru(tViaFromFrontGunshipPoint)..' in red. Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Is gunship via point in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint)))
             M28Utilities.DrawLocation(tViaFromRallyPoint, 1)
             M28Utilities.DrawLocation(tViaFromFrontGunshipPoint, 2)
         end
