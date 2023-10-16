@@ -294,6 +294,8 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                             end
                                         end
                                     end
+                                elseif oUnit:IsUnitState('Teleporting') then
+                                    bDontTryAndDodge = true
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': bDontTryAndDodge after checking if upgrading='..tostring(bDontTryAndDodge)) end
                                 if not(bDontTryAndDodge) then
@@ -453,9 +455,12 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                             --Are we not underwater?
                             if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                 --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
-                                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28Conditions.CanUnitUseOvercharge(oUnit:GetAIBrain(), oUnit) and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
-                                    if oUnit:IsUnitState('Teleporting') then bCancelDodge = true
-                                    else
+                                if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
+                                    if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
+                                        --Dont cancel upgrade/teleport
+                                        bCancelDodge = true
+                                    elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
+
                                         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                                         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
                                         if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
@@ -467,7 +472,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                             end
                                         end
                                     end
-                                elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
                                     --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
                                     iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
                                 end

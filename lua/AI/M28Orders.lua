@@ -145,6 +145,7 @@ function IssueTrackedClearCommands(oUnit)
     end
 
     --Clear orders:
+    if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
     --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0001' and oUnit:IsUnitState('Upgrading') then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
@@ -1129,6 +1130,7 @@ function IssueTrackedTeleport(oUnit, tOrderPosition, iDistanceToReissueOrder, bA
         oUnit[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
         import('/mods/M28AI/lua/AI/M28Micro.lua').TrackTemporaryUnitMicro(oUnit, 10) --Additional redundancy to reduce risk we cancel ACU orders while its teleporting
         if bDebugMessages == true then LOG(sFunctionRef..': Have given teleport order to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+
     end
     if M28Config.M28ShowUnitNames and oUnit[reftiLastOrders][1] and (not(oUnit[M28UnitInfo.refbSpecialMicroActive]) or bOverrideMicroOrder) then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

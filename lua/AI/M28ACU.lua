@@ -2738,7 +2738,8 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             end
         end
 
-
+        local bConsiderVolatileHealth = false
+        if ScenarioInfo.Options.Victory == "demoralization" and ( not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1) then bConsiderVolatileHealth = true end
         if bDebugMessages == true then LOG(sFunctionRef..': iBaseTargetPDDPS='..iBaseTargetPDDPS) end
         if iBaseTargetPDDPS >= 700 then
             --Want to search for locations with lower PD threat, if there are any
@@ -2750,7 +2751,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
                 iMaxDPSWanted = iBaseTargetPDDPS * 0.8
             end
             local iVolatileHealthLevel = nil
-            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 and ScenarioInfo.Options.Victory == "demoralization" then iVolatileHealthLevel = 9000 end
+            if bConsiderVolatileHealth then iVolatileHealthLevel = 9000 end
             UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iMaxDistFromTarget, iTargetBuildingSize + 4 * 4, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iMaxDPSWanted, iVolatileHealthLevel)
             if bDebugMessages == true then LOG(sFunctionRef..': Attempted to change target to avoid PD, tBestTarget after change='..repru(tBestTarget)) end
             if bJustCheckIfLocationWithLowPDThreat and tBestTarget then
@@ -2762,8 +2763,8 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             else
-                --avoid aoe on the target itself unless iti s a game ender with heavy shielding
-                if not(EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId)) then --(dont want to mvoe away from mobile units such as ACUs in case they then move out of our range; exceptino for scathis due to how slow it is and itneeding to pack up)
+                --avoid aoe on the target itself unless iti s a game ender with heavy shielding, or it doesnt matter if we die
+                if bConsiderVolatileHealth and not(EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId)) then --(dont want to mvoe away from mobile units such as ACUs in case they then move out of our range; exceptino for scathis due to how slow it is and itneeding to pack up)
                     if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                         --First move away if targeting a highly volatile unit that could kill us, and we outrange the volatile radius (e.g. paragon and yolona)
                         local iBaseTargetVolatileDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oSnipeTarget)
@@ -2932,7 +2933,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will teleport back to base') end
                     bGivenACUOrder = true
-                    M28Orders.IssueTrackedTeleport(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, true, 'ACUTelB')
+                    M28Orders.IssueTrackedTeleport(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, true, 'ACUTelB', true)
                 else
                     --Do we have enough health to target
                     if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 then
@@ -2948,7 +2949,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                 bGivenACUOrder = false --redundancy
                             else
                                 local tTeleportTarget = GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam)
-                                M28Orders.IssueTrackedTeleport(oACU, tTeleportTarget, 5, true, 'ACUTelA')
+                                M28Orders.IssueTrackedTeleport(oACU, tTeleportTarget, 5, true, 'ACUTelA', true)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just tried to give ACU a teleport order') end
                                 bGivenACUOrder = true
                             end
