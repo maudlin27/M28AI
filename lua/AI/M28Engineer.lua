@@ -2972,7 +2972,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
 
     local bCheckForReclaim
-    if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35)) then
+    if (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0) >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35)) then
         bCheckForReclaim = true
     end
 
@@ -3992,7 +3992,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         if iMaxDistanceToEngineer < math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ) then bCheckTerrain = true end
         local sReclaimTableRef
         if bWantEnergyNotMass then sReclaimTableRef = M28Map.refSegmentReclaimTotalEnergy
-        else sReclaimTableRef = M28Map.refReclaimHighestIndividualReclaim --M28Map.refReclaimTotalMass
+        else sReclaimTableRef = M28Map.refReclaimHighestIndividualMassReclaim --M28Map.refReclaimTotalMass
         end
 
         local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
@@ -6873,7 +6873,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --High priority reclaim if are low on mass or energy
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we will want to reclaim mass in LZ, bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefTotalMassReclaim]='..tLZData[M28Map.subrefTotalMassReclaim]) end
-    if bHaveLowMass and tLZData[M28Map.subrefTotalMassReclaim] >= 50 then
+    if bHaveLowMass and tLZData[M28Map.subrefTotalMassReclaim] >= 50 and tLZData[M28Map.subrefTotalSignificantMassReclaim] > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
         HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefTotalMassReclaim] / 50)), false)
     elseif M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
@@ -8703,7 +8703,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --High reclaim zone when ahve low mass - want to be reclaiming ahead of building mexes
     iCurPriority = iCurPriority + 1
-    if bHaveLowMass and tLZData[M28Map.subrefTotalMassReclaim] >= 300 then
+    if bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
         HaveActionToAssign(refActionReclaimArea, 1, 5, false)
     end
@@ -8927,7 +8927,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         LOG(sFunctionRef..': Considering if we want high priority reclaim, bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefTotalMassReclaim]='..(tLZData[M28Map.subrefTotalMassReclaim] or 'nil'))
         --M28Land.DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
     end
-    if bHaveLowMass and tLZData[M28Map.subrefTotalMassReclaim] >= 50 then
+    if bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 25 then
         local iReclaimFactor = 60
         if GetGameTimeSeconds() <= 540 then iReclaimFactor = 90 end
         iBPWanted = math.min(40, math.max(5, tLZData[M28Map.subrefTotalMassReclaim] / iReclaimFactor))

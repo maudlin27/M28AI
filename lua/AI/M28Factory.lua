@@ -4059,10 +4059,10 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
         end
 
-        --Build engineer if we have lots of reclaim in this zone and large enemy threat
+        --Build engineer if we have lots of reclaim in this zone and dont have a large enemy threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Engineer for reclaim builder - mass in LZ='..tLZData[M28Map.subrefTotalMassReclaim]..'; Enemy mobile DF='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
-        if tLZData[M28Map.subrefTotalMassReclaim] >= 1000 and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an engineer') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
