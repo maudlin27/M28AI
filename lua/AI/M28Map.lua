@@ -63,11 +63,13 @@ tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmen
     refReclaimSegmentMidpoint = 2
     refReclaimHighestIndividualMassReclaim = 3
     refReclaimTotalSignificantMass = 4 --Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
+    refSegmentReclaimTotalEnergy = 8
+iSignificantMassThreshold = 10 --global variable (not part of above table), being the threshold for recording mass reclaim as significant mass
 --reftReclaimTimeOfLastEngineerDeathByArmyIndex = 4 --Table: [a] where a is the army index, and it returns the time the last engineer died
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
     --refiReclaimTotalPrev = 7 --Previous total reclaim mass in a segment
-    refSegmentReclaimTotalEnergy = 8
+
 --tLastReclaimRefreshByGroup = {} --time that last refreshed reclaim positions for [x] group
 --iLastReclaimRefresh = 0 --stores time that last refreshed reclaim positions
 --refiLastRefreshOfReclaimAreasOfInterest = 'M28MapLastRefreshOfReclaim'
@@ -166,7 +168,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         --Reclaim related (same values used for water zone)
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
-        subrefTotalSignificantMassReclaim = 'RecSigM' --Total mass recalim above a hhigher threshold (e.g. 10)
+        subrefTotalSignificantMassReclaim = 'RecSigM' --Total mass recalim that is at least the value of iSignificantMassThreshold individually
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefiTimeFailedToGetReclaim = 'RecTmFl' --Gametimeseconds that engineers failed to be given an order to reclaim something when on reclaimorder duty for this land or water zone (same ref for both types of zone)
@@ -4389,6 +4391,8 @@ function GetReclaimInRectangle(iReturnType, rRectangleToSearch, bForceDebug)
     --NOTE: Best to try and debug via forcedebug, as dont want to run for everything due to how intensive the log of reclaim is
     --Have also commented out one of the logs to help with performance
 
+
+
     local tReclaimables = GetReclaimablesInRect(rRectangleToSearch)
     local iWreckCount = 0
     local iTotalResourceValue
@@ -7064,7 +7068,7 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
+    if not(tReclaimAreas[iReclaimSegmentX]) then tReclaimAreas[iReclaimSegmentX] = {} end
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ] = {}
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
@@ -7182,7 +7186,7 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
     local iLargestCurReclaim = 0
     local iLargestReclaimRef = 0
     local iTotalMassAboveThreshold = 0
-    local iMassThreshold = math.max(10, iMinMass or 0) --Will consider anything >= this for iTotalMassAboveThreshold
+    local iMassThreshold = math.max(iSignificantMassThreshold, iMinMass or 0) --Will consider anything >= this for iTotalMassAboveThreshold
 
     if tReclaimables and table.getn( tReclaimables ) > 0 then
         for iReclaimRef, v in tReclaimables do
@@ -7218,6 +7222,15 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
     return iTotalMass, tReclaimPos, iLargestCurReclaim, iTotalEnergy, iTotalMassAboveThreshold
 end
 
+function GetReclaimSegmentRectangle(iSegmentX, iSegmentZ, iOptionalSizeIncrease)
+    --iOptionalSizeIncrease - will do the higher of this and the reclaim segment sizeX/Z value if this is specified
+    if iOptionalSizeIncrease then
+        return Rect((iSegmentX - 1) * math.max(iReclaimSegmentSizeX, iOptionalSizeIncrease), (iSegmentZ - 1) * math.max(iReclaimSegmentSizeZ, iOptionalSizeIncrease), iSegmentX * math.max(iReclaimSegmentSizeX, iOptionalSizeIncrease), iSegmentZ * math.max(iReclaimSegmentSizeZ, iOptionalSizeIncrease))
+    else
+        return Rect((iSegmentX - 1) * iReclaimSegmentSizeX, (iSegmentZ - 1) * iReclaimSegmentSizeZ, iSegmentX * iReclaimSegmentSizeX, iSegmentZ * iReclaimSegmentSizeZ)
+    end
+end
+
 function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange)
     --Updates reclaim data for all segments within iSegmentRange of tLocation
 
@@ -7240,10 +7253,9 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
     for iCurX = iBaseSegmentX - iSegmentRange, iBaseSegmentX + iSegmentRange do
         for iCurZ = iBaseSegmentZ - iSegmentRange, iBaseSegmentZ + iSegmentRange do
             iTotalMassValue = 0
-            tReclaimables = GetReclaimablesInRect(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))
+            tReclaimables = GetReclaimablesInRect(GetReclaimSegmentRectangle(iCurX, iCurZ))
             iLargestCurReclaim = 0
-
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurX='..iCurX..'; iCurZ='..iCurZ..'; iReclaimSegmentSizeX='..iReclaimSegmentSizeX..'; iReclaimSegmentSizeZ='..iReclaimSegmentSizeZ..'; Reclaim search rect='..repru(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))..'; Is tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurX='..iCurX..'; iCurZ='..iCurZ..'; iReclaimSegmentSizeX='..iReclaimSegmentSizeX..'; iReclaimSegmentSizeZ='..iReclaimSegmentSizeZ..'; Reclaim search rect='..repru(GetReclaimSegmentRectangle(iCurX, iCurZ))..'; Is tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))) end
 
             if tReclaimables and table.getn( tReclaimables ) > 0 then
                 -- local iWreckCount = 0
@@ -7284,8 +7296,14 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                         end
                     end
                 end
-
-
+            else
+                if tReclaimAreas[iCurX][iCurZ] == nil then
+                    CreateReclaimSegment(iCurX, iCurZ)
+                end
+                tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = 0
+                tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualMassReclaim] = 0
+                tReclaimAreas[iCurX][iCurZ][refReclaimTotalSignificantMass] = 0
+                tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = 0
             end
             iCumulativeMassValue = iCumulativeMassValue + iTotalMassValue
         end

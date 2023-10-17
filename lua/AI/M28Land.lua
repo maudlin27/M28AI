@@ -5179,7 +5179,7 @@ end
     return true
 end--]]
 
-function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
+function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone, bIncludeMassValues)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DrawReclaimSegmentsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5193,6 +5193,7 @@ function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
         for iCount, tSegmentXZ in tLZData[M28Map.subrefReclaimSegments] do
             rCurRect = M28Utilities.GetRectAroundLocation(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimSegmentMidpoint], M28Map.iReclaimSegmentSizeX * 0.5)
             M28Utilities.DrawRectangle(rCurRect)
+            if bIncludeMassValues then LOG(sFunctionRef..': Considering segment '..reprs(tSegmentXZ)..'; Total mass reclaim='..M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalMass]..'; Signif mass reclaim='..M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalSignificantMass]) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
