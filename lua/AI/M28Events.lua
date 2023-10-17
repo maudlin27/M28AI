@@ -821,8 +821,8 @@ function OnMissileBuilt(self, weapon)
                 --If 2+ missiles then pause, and consider unpausing later
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
                     if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or
-                        --SMD specific
-                        (iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers])) then
+                            --SMD specific
+                            (iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers])) then
                         local iTeam = self:GetAIBrain().M28Team
                         --Dont pause if overflowing
                         if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.99))) then
@@ -833,6 +833,33 @@ function OnMissileBuilt(self, weapon)
                             --Recheck every minute
                             ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
                         end
+                    end
+                end
+                if EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId) then
+                    --Do we have any SMD without missiles, and no yolona on the team? If so then change the flag about needing resources for missiles
+                    local bHaveSMDOrSMLNeedingMissiles = false
+                    local iTeam = self:GetAIBrain().M28Team
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML) > 0 then
+                            bHaveSMDOrSMLNeedingMissiles = true
+                            break
+                        else
+                            local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
+                            if M28Utilities.IsTableEmpty(tSMD) == false then
+                                for iSMD, oSMD in tSMD do
+                                    if not(oSMD == self) then
+                                        if oSMD:GetFractionComplete() < 1 or oSMD:GetNukeSiloAmmoCount() == 0 then
+                                            bHaveSMDOrSMLNeedingMissiles = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if bHaveSMDOrSMLNeedingMissiles then break end
+                            end
+                        end
+                    end
+                    if not(bHaveSMDOrSMLNeedingMissiles) then
+                        M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = false
                     end
                 end
             end
@@ -1091,11 +1118,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
                     local aiBrain = oJustBuilt:GetAIBrain()
                     local iTeam = aiBrain.M28Team
+                    --experimental level construction count, and paragon and yolona specific logic
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
                         M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
                             ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                            M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                         end
+
                     end
 
                     --Experimental air - no longer record in land/water zone
@@ -1243,6 +1274,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
+                            --If enemy has nuke then flag we need resources for missile
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+                                M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                            end
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
