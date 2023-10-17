@@ -9696,6 +9696,34 @@ end--]]
         end
     end
 
+    --Adjacent core zones if we have spare engis in this zone
+    if iHighestTechEngiAvailable > 0 then
+        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+            local iTotalAvailableEngineerBP = 0
+            for iTech, tEngineers in toAvailableEngineersByTech do
+                if M28Utilities.IsTableEmpty(tEngineers) == false then
+                    iTotalAvailableEngineerBP = iTotalAvailableEngineerBP + tiBPByTech[iTech] * table.getn(tEngineers)
+                end
+            end
+            if iTotalAvailableEngineerBP >= 80 then
+                local iBPToSend = iTotalAvailableEngineerBP - 80
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                        if tAdjLZTeamData[M28Map.subrefLZbCoreBase] or tAdjLZTeamData[M28Map.subrefTbWantBP] then
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Minor zone spare engi overflow - will send to adjacent zone '..iAdjLZ..'; iPlateau='..iPlateau..'; iBPToSend='..iBPToSend) end
+                            HaveActionToAssign(refActionMoveToLandZone, 1, iBPToSend, iAdjLZ, true)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
 
     --Do we have stuff to reclaim in this LZ and arent about to overflow mass? Decided to leave this out as looks like it can do more harm than good
     --[[iCurPriority = iCurPriority + 1
