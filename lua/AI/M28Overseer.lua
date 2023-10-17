@@ -484,6 +484,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    M28Map.DrawSpecificLandZone(18, 10, 4)
     --ScenarioInfo.Options
     --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
 
