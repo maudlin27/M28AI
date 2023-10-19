@@ -1642,7 +1642,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 LOG(sFunctionRef .. ': Checking threat ratios for if we want more indirect, DF threat=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] .. '; Indirect=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat])
             end
             if not (bSaveMassDueToEnemyFirebaseOrOurExperimental) then
-                local iIndirectRatioWanted
+                local iIndirectRatioWanted = 0
                 if iFactoryTechLevel == 1 then
                     iIndirectRatioWanted = 6
                 elseif iFactoryTechLevel == 2 then
