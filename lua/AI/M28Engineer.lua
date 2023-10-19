@@ -8423,7 +8423,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                 iCurBPWanted = iCurBPWanted + iBP
                             end
                             if iCurBPWanted > 0 and iMinTechWanted <= iHighestTechEngiAvailable then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have BP wanted, iCurBPWanted='..iCurBPWanted..'; PlateauorPond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; Land or water zone ref='..(tSubtable[M28Map.subrefiLandOrWaterZoneRef] or 'nil')..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)) end
                                 if tSubtable[M28Map.subrefbIsWaterZone] then
                                     --HaveActionToAssign(iActionToAssign,   iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable,                      bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
@@ -8441,7 +8440,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
             end
         end
-        bDebugMessages = false
 
         iCurPriority = iCurPriority + 1
         --Spare engi action - assist air factory if it isnt idle and we dont have low mass
@@ -10575,9 +10573,8 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 end
             end
         end
-        bDebugMessages = false
     end
-    
+
 
     UpdateSpareEngineerNumber(tWZTeamData, toAvailableEngineersByTech)
 
