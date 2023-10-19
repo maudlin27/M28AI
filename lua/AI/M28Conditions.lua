@@ -1166,51 +1166,58 @@ function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
     local sFunctionRef = 'CanUnitUseOvercharge'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local oBP = oUnit:GetBlueprint()
-    local iEnergyNeeded
     local bCanUseOC = false
-    if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
-        for iWeapon, oWeapon in oBP.Weapon do
-            if oWeapon.OverChargeWeapon then
-                if oWeapon.EnergyRequired then
-                    iEnergyNeeded = oWeapon.EnergyRequired
-                    break
-                end
-            end
-        end
-
-        if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 7500) then bCanUseOC = true end
-        if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
-        if bCanUseOC == true then
-            --Check if underwater
-            local oUnitPosition = oUnit:GetPosition()
-            local iHeightAtWhichConsideredUnderwater = M28Map.IsUnderwater(oUnitPosition, true) + 0.25 --small margin of error
-            local tFiringPositionStart = M28Logic.GetDirectFireWeaponPosition(oUnit)
-            if tFiringPositionStart then
-                local iFiringHeight = tFiringPositionStart[2]
-                if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
-                    bCanUseOC = false
-                end
-            end
-        else
-            --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
-            local iTeam = aiBrain.M28Team
-            if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
-            if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                --Is ACU in dangerous zone?
-                if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
-                    --Do we have dangerous enemies within our combat range that we could be overcharging?
-                    local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
-                    if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
-                        --Need to get power asap
-                        M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] = GetGameTimeSeconds()
-                        if bDebugMessages == true then LOG(sFunctionRef..': Flagging we need power asap for overcharge') end
+    if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+        local oBP = oUnit:GetBlueprint()
+        local iEnergyNeeded
+        if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
+            local bHaveOverchargeWeapon = false
+            for iWeapon, oWeapon in oBP.Weapon do
+                if oWeapon.OverChargeWeapon then
+                    bHaveOverchargeWeapon = true
+                    if oWeapon.EnergyRequired then
+                        iEnergyNeeded = oWeapon.EnergyRequired
+                        break
                     end
                 end
             end
+
+            if bHaveOverchargeWeapon then
+                if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 7500) then bCanUseOC = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
+                if bCanUseOC == true then
+                    --Check if underwater
+                    local oUnitPosition = oUnit:GetPosition()
+                    local iHeightAtWhichConsideredUnderwater = M28Map.IsUnderwater(oUnitPosition, true) + 0.25 --small margin of error
+                    local tFiringPositionStart = M28Logic.GetDirectFireWeaponPosition(oUnit)
+                    if tFiringPositionStart then
+                        local iFiringHeight = tFiringPositionStart[2]
+                        if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
+                            if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
+                            bCanUseOC = false
+                        end
+                    end
+                else
+                    --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
+                    local iTeam = aiBrain.M28Team
+                    if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
+                    if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                        --Is ACU in dangerous zone?
+                        if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
+                            --Do we have dangerous enemies within our combat range that we could be overcharging?
+                            local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
+                            if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
+                                --Need to get power asap
+                                M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] = GetGameTimeSeconds()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Flagging we need power asap for overcharge') end
+                            end
+                        end
+                    end
+                end
+            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Utilities.ErrorHandler('Dealing with an ACU with ID '..oUnit.UnitId..' but dont think it has an overcharge weapon')
+            end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Has been less tahn 5s since last overcharged')
         end
-    elseif bDebugMessages == true then LOG(sFunctionRef..': Has been less tahn 5s since last overcharged')
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bCanUseOC
@@ -1244,13 +1251,20 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
 
     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]) end
     if iOurCombatThreat > iEnemyCombatThreat * iDefaultThreatRatioWanted then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5 or M28Map.iMapSize <= 256 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
         --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
     elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false))) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    elseif M28Team.tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false) then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
@@ -1273,10 +1287,14 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
                 iNovaxCount = iNovaxCount + 1
             end
             iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount * 0.5)
-            if iEnemyArtiCount >= 3 then return true end
+            if iEnemyArtiCount >= 3 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
         end
     end
-        return false
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
 end
 
 function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
@@ -1792,49 +1810,51 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local bAreInScenario2 = false
-    local iModMod = (iOptionalThreatAbsolutePercentIncrease or 0)
-    local iEnemyAntiNavyMod = 1.5 + iModMod
-    local iEnemyCombatModHigh = 1.3 + iModMod
-    local iEnemyCombatModLow = 1.1 + iModMod
+    if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
+    else
+        local iModMod = (iOptionalThreatAbsolutePercentIncrease or 0)
+        local iEnemyAntiNavyMod = 1.5 + iModMod
+        local iEnemyCombatModHigh = 1.3 + iModMod
+        local iEnemyCombatModLow = 1.1 + iModMod
 
-    if (bConsideringSubmarinesNotSurface and (iAdjacentAlliedSubmersibleThreat >= 40000 or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
-            --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
-            (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then bAreInScenario2 = true
-    elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
-        --Consider attacking if naval fac is vulnerable, or we have slightly more threat
-        if  iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat then
-            if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy so want to attack') end
-            bAreInScenario2 = true
-        else
-            --Are in core zone, and have enemies either in this zone ro an adjacent one; if enemies are in this zone still attack; if they are in adjacent zone then only attack if nearest enemy is almost in range of our naval fac
-            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units in oure core water zone so want to attack') end
+        if (bConsideringSubmarinesNotSurface and (iAdjacentAlliedSubmersibleThreat >= 40000 or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
+                --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
+                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then bAreInScenario2 = true
+        elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
+            --Consider attacking if naval fac is vulnerable, or we have slightly more threat
+            if  iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat then
+                if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy so want to attack') end
                 bAreInScenario2 = true
-            elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                --No enemies in this water zone, so must only be in adjacent zone, check if are close to being in range of our naval factory
+            else
+                --Are in core zone, and have enemies either in this zone ro an adjacent one; if enemies are in this zone still attack; if they are in adjacent zone then only attack if nearest enemy is almost in range of our naval fac
+                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units in oure core water zone so want to attack') end
+                    bAreInScenario2 = true
+                elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                    --No enemies in this water zone, so must only be in adjacent zone, check if are close to being in range of our naval factory
 
-                local tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
-                    --Greater search range as dont know how close to midpoint the naval fac build location would be
-                    if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our core zone midpoint so will attack') end
-                        bAreInScenario2 = true
-                    end
-                else
-                    --Cycle through each naval fac and see if enemy is close
-                    for iNavalFac, oNavalFac in tFriendlyNavalFac do
-                        if CloseToEnemyUnit(oNavalFac:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 15, iTeam, true) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
+                    local tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
+                        --Greater search range as dont know how close to midpoint the naval fac build location would be
+                        if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our core zone midpoint so will attack') end
                             bAreInScenario2 = true
-                            break
+                        end
+                    else
+                        --Cycle through each naval fac and see if enemy is close
+                        for iNavalFac, oNavalFac in tFriendlyNavalFac do
+                            if CloseToEnemyUnit(oNavalFac:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 15, iTeam, true) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
+                                bAreInScenario2 = true
+                                break
+                            end
                         end
                     end
                 end
             end
-        end
 
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bAreInScenario2

@@ -2696,7 +2696,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
 
 
-    if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 then
+    if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
         --Retreat to rally point
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
             for iUnit, oUnit in tAvailableCombatUnits do

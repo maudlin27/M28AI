@@ -1419,7 +1419,11 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     end
 
     local bLocationBuildableImmediately, bBestLocationBuildableImmediately
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local bDontCheckPlayableArea = false
+    if M28Map.bIsCampaignMap then
+        bDontCheckPlayableArea = true
+        if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = false end
+    end
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
         --Do we have hydro in this LZ? dont want to consider if water zone
@@ -1574,8 +1578,9 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         end
                     end
                 else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Not within max range, so will just try and pick the closest location within range') end
                     --Not within range, so have priority factor in range so at least we pick the cloesst to being in range
-                    iCurPriority = iCurPriority - 10 + 1 * iCurDistance / 1000
+                    iCurPriority = iCurPriority - 5 - 1 * iCurDistance / 1000
                 end
             else
                 iCurPriority = iCurPriority - 100
@@ -1635,12 +1640,12 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     if bDebugMessages == true then
 
-        LOG(sFunctionRef..': Finished searching, is iBestLocationRef nil='..tostring(iBestLocationRef == nil)..'; Are we trying to build a shield='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)))
+        LOG(sFunctionRef..': Finished searching, is iBestLocationRef nil='..tostring(iBestLocationRef == nil)..'; Are we trying to build a shield='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild))..'; iHighestPriority='..(iHighestPriority or 'nil'))
         if iBestLocationRef then
             local tCurLocation = tPotentialBuildLocations[iBestLocationRef]
             local rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
             local tUnitsInBuildArea = GetUnitsInRect(rBuildAreaRect)
-            LOG(sFunctionRef..': Are there mobile units in this rect='..tostring(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect))..'; is tUnitsInBuildArea empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInBuildArea))..'; Will draw build area rect')
+            LOG(sFunctionRef..': Best location='..repru(tPotentialBuildLocations[iBestLocationRef])..'; Are there mobile units in this rect='..tostring(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect))..'; is tUnitsInBuildArea empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInBuildArea))..'; Will draw build area rect')
             if tUnitsInBuildArea then
                 for iUnit, oUnit in tUnitsInBuildArea do
                     LOG(sFunctionRef..': Unit in build area: iUnit='..iUnit..'; Unit ID and LC='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit is mobile land='..tostring(EntityCategoryContains(categories.MOBILE * categories.LAND, oUnit.UnitId)))
@@ -5853,7 +5858,7 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
 
     local tiBPWantedByTech
     local tAltLZ = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-    if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tAltLZ[M28Map.subrefMidpoint]) then
+    if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tAltLZ[M28Map.subrefMidpoint]) or M28Team.tTeamData[iTeam][M28Team.rebTeamOnlyHasCampaignAI] then
         local tAltLZTeamData = tAltLZ[M28Map.subrefLZTeamData][iTeam]
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Does iAdjLZ '..iAdjLZ..' for plateau '..iPlateau..' want BP='..tostring(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefTbWantBP])..'; bIslandPathing='..tostring(bIslandPathing or false)..'; base tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iAdjLZ tAltLZ[M28Map.subrefLZIslandRef]='..(tAltLZ[M28Map.subrefLZIslandRef] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefMexUnbuiltLocations]))..'; bRequireUnbuiltMexes='..tostring(bRequireUnbuiltMexes or false)) end
         if not(bRequireUnbuiltMexes) or (M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefMexUnbuiltLocations]) == false and (not(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryEngineer, tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) then
@@ -6101,7 +6106,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local toAvailableEngineersByTech, toAssignedEngineers = FilterToAvailableEngineersByTech(tEngineers, true, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local bDontCheckPlayableArea = false
+    if M28Map.bIsCampaignMap then
+        bDontCheckPlayableArea = true
+        if M28Team.tTeamData[iTeam][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = false end
+    end
+
     tLZTeamData[M28Map.subrefTBuildPowerByTechWanted] = {[1]=0,[2]=0,[3]=0}
     if bDebugMessages == true then LOG(sFunctionRef..': Have just reset BPByTech to 0 for Plateau'..iPlateau..'; LZ='..iLandZone..'; repru='..repru(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
     --local iCurCondition = 0
@@ -8510,7 +8520,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local bDontCheckPlayableArea = false
+    if M28Map.bIsCampaignMap then
+        bDontCheckPlayableArea = true
+        if M28Team.tTeamData[iTeam][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = false end
+    end
 
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
@@ -8549,15 +8563,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     if bDebugMessages == true then LOG(sFunctionRef..': do we want this zone as an expansion point? iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; tLZTeamData[M28Map.subrefLZCoreExpansion] is nil='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] == nil)..'; tLZTeamData[M28Map.subrefLZExpansionOverride]='..tostring(tLZTeamData[M28Map.subrefLZExpansionOverride] or false)..'; tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1]='..(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1] or 'nil')) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] == nil or (tLZTeamData[M28Map.subrefLZExpansionOverride] and not(tLZTeamData[M28Map.subrefLZCoreExpansion])) then
-        local bCheckTravelPath = M28Map.bIsCampaignMap
-        if not(bCheckTravelPath) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
             local iEnemyBaseStraightLineDist = 200
             local iTravelLimit = 600 --If takes more than this to travel to the nearest friendly base, and we are more than iEnemyBaseStraightLineDist from the nearest enemy base on a straight line basis, then will consider a land expansion point
 
             bExpansionOnSameIslandAsBase = false
             if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                 bExpansionOnSameIslandAsBase = true
-                if bCheckTravelPath then
+                if not(bDontCheckPlayableArea) then
                     bExpansionOnSameIslandAsBase = false
                     --Check we can actually travel here by land
                     local iNearestBasePlateau, iNearestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
@@ -8600,8 +8613,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     local bHaveCoreLZ = false
                     for iEntry, iIslandLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][tLZData[M28Map.subrefLZIslandRef]] do
                         if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
-                            if bDebugMessages == true then LOG(sFunctionRef..': iIslandlZ'..iIslandLZ..' in the island '..tLZData[M28Map.subrefLZIslandRef]..' is either a core base or expansion, Is core base='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; Is core expansion='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)..'; bCheckTravelPath='..tostring(bCheckTravelPath)) end
-                            if not(bCheckTravelPath) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iIslandlZ'..iIslandLZ..' in the island '..tLZData[M28Map.subrefLZIslandRef]..' is either a core base or expansion, Is core base='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; Is core expansion='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)) end
+                            if bDontCheckPlayableArea then
                                 bHaveCoreLZ = true
                                 break
                             else
@@ -9901,7 +9914,11 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
     local iHighestTechEngiAvailable
     local iExistingWaterFactory = 0
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local bDontCheckPlayableArea = false
+    if M28Map.bIsCampaignMap then
+        bDontCheckPlayableArea = true
+        if M28Team.tTeamData[iTeam][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = false end
+    end
     if tWZTeamData[M28Map.subrefWZbCoreBase] then
         local tExistingWaterFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tExistingWaterFactory) == false then
