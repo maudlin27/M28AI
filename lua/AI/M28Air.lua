@@ -694,6 +694,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(iCategory, false, true)
             local iFuelPercent
+            local iHealthPercent
             local bSendUnitForRefueling
             local iSegmentX, iSegmentZ
             local iTeam = oBrain.M28Team
@@ -753,10 +754,22 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                         iFuelPercent = oUnit:GetFuelRatio()
                                     else iFuelPercent = 1
                                     end
-                                    if iFuelPercent < iLowFuelThreshold or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
+                                    if iFuelPercent < iLowFuelThreshold then
                                         --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                             bSendUnitForRefueling = true
+                                        end
+                                    else
+                                        iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
+                                        if iHealthPercent <= iLowHealthThreshold then
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                bSendUnitForRefueling = true
+                                            end
+                                        elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
+                                            --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
+                                            if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                bSendUnitForRefueling = true
+                                            end
                                         end
                                     end
                                 else
@@ -3938,6 +3951,11 @@ function ManageGunships(iTeam, iAirSubteam)
                 table.insert(tGunshipsNearFront, oUnit)
             else
                 table.insert(tGunshipsNotNearFront, oUnit)
+            end
+            --Track available gunship health
+            if EntityCategoryContains(categories.TECH3, oUnit.UnitId) then
+                oUnit[M28UnitInfo.refiHealthSecondLastCheck] = oUnit[M28UnitInfo.refiHealthWhenLastChecked]
+                oUnit[M28UnitInfo.refiHealthWhenLastChecked] = oUnit:GetHealth()
             end
         end
         local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, false, false, true, false, false)

@@ -57,6 +57,8 @@ refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
 reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
 refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt
 refbTriedToKill = 'M28TryKill' --true if tried to kill unit
+refiHealthWhenLastChecked = 'M28HlthCh' --Unit health when last checked - used for gunships
+refiHealthSecondLastCheck = 'M28HlthSLC' --Unit health in the previous check - used for gunships
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
