@@ -310,7 +310,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoUnitsForSpecialShieldProtection = 'GmEnd' --I.e. gameenders (and possibly T3 arti) that we want to protect with special shield covering logic
             reftFactoriesWantedForEngineers = 'FEng' --table of factory units that are assigend against a unit (e.g. a gameender) as providing engineers of a particular faction (e.g. for shields)
             --Misc
-            reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
+            reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position (same for water zone)
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)
             refiModDistancePercent = 'ModDPC' --For LZ and WZ; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not

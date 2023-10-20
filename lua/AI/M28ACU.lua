@@ -1997,58 +1997,59 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
     local sFunctionRef = 'ConsiderNearbyReclaimForACUOrEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if EntityCategoryContains(categories.RECLAIM, oEngineer.UnitId) then
 
-
-    local iTotalReclaimWanted
-    local iIndividualReclaimThreshold
-    local bGetEnergy = false
-    if bOnlyConsiderIfInBuildRange then
-        if (oEngineer[refiUpgradeCount] or 0) > 0 and not(oEngineer:HasEnhancement('AdvancedEngineering')) then
-            if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or not(M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team)) then
-                iTotalReclaimWanted = 200
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 24
+        local iTotalReclaimWanted
+        local iIndividualReclaimThreshold
+        local bGetEnergy = false
+        if bOnlyConsiderIfInBuildRange then
+            if (oEngineer[refiUpgradeCount] or 0) > 0 and not(oEngineer:HasEnhancement('AdvancedEngineering')) then
+                if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or not(M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team)) then
+                    iTotalReclaimWanted = 200
+                    iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 24
+                else
+                    iTotalReclaimWanted = 80
+                    iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 15
+                end
+                if oEngineer[refiUpgradeCount] >= 2 and (oEngineer[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oEngineer.UnitId))) then
+                    iTotalReclaimWanted = iTotalReclaimWanted * 1.5
+                end
             else
-                iTotalReclaimWanted = 80
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 15
+                if M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team) then
+                    iTotalReclaimWanted = 25
+                    iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 10
+                else
+                    iTotalReclaimWanted = 40
+                    iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 10
+                end
             end
-            if oEngineer[refiUpgradeCount] >= 2 and (oEngineer[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oEngineer.UnitId))) then
-                iTotalReclaimWanted = iTotalReclaimWanted * 1.5
+            if oEngineer:GetAIBrain():GetEconomyStored('ENERGY') <= 50 then
+                bGetEnergy = true
+                iTotalReclaimWanted = 15
+                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 15
             end
         else
             if M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team) then
-                iTotalReclaimWanted = 25
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 10
+                iTotalReclaimWanted = 75
+                iIndividualReclaimThreshold = 20
             else
-                iTotalReclaimWanted = 40
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 10
+                iTotalReclaimWanted = 125
+                iIndividualReclaimThreshold = 25
             end
+            if tLZTeamData[M28Map.subrefLZbCoreBase] and (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]) <= 5 then iTotalReclaimWanted = iTotalReclaimWanted * 2 end
         end
-        if oEngineer:GetAIBrain():GetEconomyStored('ENERGY') <= 50 then
-            bGetEnergy = true
-            iTotalReclaimWanted = 15
-            iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 15
-        end
-    else
-        if M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team) then
-            iTotalReclaimWanted = 75
-            iIndividualReclaimThreshold = 20
-        else
-            iTotalReclaimWanted = 125
-            iIndividualReclaimThreshold = 25
-        end
-        if tLZTeamData[M28Map.subrefLZbCoreBase] and (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]) <= 5 then iTotalReclaimWanted = iTotalReclaimWanted * 2 end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': LZ reclaim mass='..tLZData[M28Map.subrefTotalMassReclaim]..'; subrefTotalSignificantMassReclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; Team mass % stored='..M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored]..'; iTotalReclaimWanted='..iTotalReclaimWanted..'; iIndividualReclaimThreshold='..iIndividualReclaimThreshold..'; bOnlyConsiderIfInBuildRange='..tostring(bOnlyConsiderIfInBuildRange or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': LZ reclaim mass='..tLZData[M28Map.subrefTotalMassReclaim]..'; subrefTotalSignificantMassReclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; Team mass % stored='..M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored]..'; iTotalReclaimWanted='..iTotalReclaimWanted..'; iIndividualReclaimThreshold='..iIndividualReclaimThreshold..'; bOnlyConsiderIfInBuildRange='..tostring(bOnlyConsiderIfInBuildRange or false)) end
 
-    if (bGetEnergy and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= iTotalReclaimWanted) or (not(bGetEnergy) and tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= iIndividualReclaimThreshold and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6) then
-        --If any reclaim of iIndividualReclaimThreshold+ value then get ACU to reclaim
-        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, 1, tLZTeamData, iPlateau, iLandZone, bGetEnergy, (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold)
-        if bDebugMessages == true then LOG(sFunctionRef..': ACU last order after checking for reclaim in area='..reprs(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]])) end
-        local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
-        if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
-            if bDebugMessages == true then LOG(sFunctionRef..': ACU has a reclaim order so will stop') end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return true
+        if (bGetEnergy and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= iTotalReclaimWanted) or (not(bGetEnergy) and tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= iIndividualReclaimThreshold and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6) then
+            --If any reclaim of iIndividualReclaimThreshold+ value then get ACU to reclaim
+            M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, 1, tLZTeamData, iPlateau, iLandZone, bGetEnergy, (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold)
+            if bDebugMessages == true then LOG(sFunctionRef..': ACU last order after checking for reclaim in area='..reprs(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]])) end
+            local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
+            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU has a reclaim order so will stop') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3386,7 +3387,7 @@ function GetACUOrder(aiBrain, oACU)
                                 --Priority reclaim - if reclaim that is in ACU build radius and have <30% mass stored even if nearby enemies (provided arent in range, unless shot is blocked), if have no upgrade or T2 upgrade
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to check for priority reclaim, mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 0)..'; Does ACU have adanced engineering='..tostring(oACU:HasEnhancement('AdvancedEngineering'))..'; ACU health %='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
                                 if aiBrain:GetEconomyStoredRatio('MASS') < 0.3 and ((oACU[refiUpgradeCount] or 0) == 0 or oACU:HasEnhancement('AdvancedEngineering')) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and
-                                        (oACU[M28UnitInfo.refbLastShotBlocked] or M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, oACU:GetPosition(), oACU[M28UnitInfo.refiDFRange], 'Enemy'))) and
+                                        (oACU[M28UnitInfo.refbLastShotBlocked] or M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, oACU:GetPosition(), (oACU[M28UnitInfo.refiDFRange] or 0), 'Enemy'))) and
                                         ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true) then
                                     --ACU wants to get reclaim
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end

@@ -28,8 +28,9 @@ sProfilerActiveFunctionForThisTick = 'nil'
 refiLongestTickAfterStartRef = 0
 refiLongestTickAfterStartTime = 0
 bFullOutputAlreadyDone = {} -- true if have done the full output for the nth time; n being based on how long an interval we want
-iFullOutputIntervalInTicks = 10 --every second (will do a full output of every log every 10s, this will just do every 30 functions)
+iFullOutputIntervalInTicks = 30 --every second (will do a full output of every log every 10s, this will just do every 30 functions)
 iFullOutputCount = 0 --increased each time do a full output
+iFullOutputFunctionCap = 100 --Will list the top x functions when doing full output if this is specified; set to -1 if dont want any limit
 iFullOutputCycleCount = 0 --Increased each time do a full output, and reset to 0 when reach
 tProfilerCountByTickByFunction = {}
 tbProfilerOutputGivenForTick = {} --true if already given output for [iTick]
@@ -41,7 +42,8 @@ tiProfilerStartCountByFunction = {} --[functionref] - Used if want to temporaril
 --example of usage of the above: --M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerStartCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerStartCountByFunction[sFunctionRef])
 tiProfilerEndCountByFunction = {} --[functionref] - Used if want to temporarily check how many times a function is called - have this update in the function itself, along with the end count
 --Example of usage of the above: M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerEndCountByFunction[sFunctionRef])
-
+tMemoryOverloadTable = {} --If want to test high memory usage
+iMemoryOverloadCurFactor = 0 --To avoid rerunning exact same logic
 
 function FunctionProfiler(sFunctionRef, sStartOrEndRef)
     --sStartOrEndRef: refProfilerStart or refProfilerEnd (0 or 1)
@@ -172,27 +174,30 @@ function ProfilerOutput()
         local iCurTick = math.floor(GetGameTimeSeconds()*10) - 1
         if not(tbProfilerOutputGivenForTick[iCurTick]) then
             tbProfilerOutputGivenForTick[iCurTick] = true
-            LOG(sFunctionRef..': Tick='..iCurTick..'; Time taken='..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'nil')..'; Entire time for tick='..(tProfilerActualTimeTakenInTick[iCurTick] or 'nil')..'; About to list out top 10 functions in this tick')
-            local iCount = 0
-            if M28Utilities.IsTableEmpty(tProfilerTimeTakenInTickByFunction[iCurTick]) == false then
-                for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerTimeTakenInTickByFunction[iCurTick], true) do
-                    iCount = iCount + 1
-                    LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
-                    if iCount >= 10 then break end
-                end
+            local bIncludePerTickLog = M28Config.M28ProfilingIncludePerTick
+            if bIncludePerTickLog then
+                LOG(sFunctionRef..': Tick='..iCurTick..'; Time taken='..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'nil')..'; Entire time for tick='..(tProfilerActualTimeTakenInTick[iCurTick] or 'nil')..'; About to list out top 10 functions in this tick')
+                local iCount = 0
+                if M28Utilities.IsTableEmpty(tProfilerTimeTakenInTickByFunction[iCurTick]) == false then
+                    for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerTimeTakenInTickByFunction[iCurTick], true) do
+                        iCount = iCount + 1
+                        LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
+                        if iCount >= 10 then break end
+                    end
 
-                LOG(sFunctionRef..': About to list top 10 called functions in this tick')
-                iCount = 0
-                for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerCountByTickByFunction[iCurTick], true) do
-                    iCount = iCount + 1
-                    LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
-                    if iCount >= 10 then break end
+                    LOG(sFunctionRef..': About to list top 10 called functions in this tick')
+                    iCount = 0
+                    for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerCountByTickByFunction[iCurTick], true) do
+                        iCount = iCount + 1
+                        LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
+                        if iCount >= 10 then break end
+                    end
                 end
             end
-            --else
-            --LOG(sFunctionRef..': Tick='..iCurTick..'; Below threshold at '..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'missing'))
-            --end
-            --end
+        --else
+        --LOG(sFunctionRef..': Tick='..iCurTick..'; Below threshold at '..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'missing'))
+        --end
+        --end
 
             --Include full output of function cumulative time taken every interval
             local bFullOutputNow = false
@@ -202,6 +207,12 @@ function ProfilerOutput()
                 if bFullOutputAlreadyDone[iFullOutputCount + 1] then
                     --Already done
                 else
+                    local bLimitFunction = false
+                    local iFunctionLimit
+                    if iFullOutputFunctionCap > 0 then
+                        bLimitFunction = true
+                        iFunctionLimit = iFullOutputFunctionCap
+                    end
                     iFullOutputCount = iFullOutputCount + 1
                     bFullOutputAlreadyDone[iFullOutputCount] = true
                     LOG(sFunctionRef..': About to print detailed output of all functions cumulative values')
@@ -212,6 +223,7 @@ function ProfilerOutput()
                         else
                             LOG(sFunctionRef..': No.'..iCount..'='..sFunctionName..'; TimesRun='..tProfilerStartCount[sFunctionName]..'; Time='..iValue)
                         end
+                        if bLimitFunction and iCount >= iFunctionLimit then break end
                     end
                     --Give the total time taken to get to this point based on time per tick
                     local iTotalTimeTakenToGetHere = 0
@@ -250,5 +262,26 @@ function OutputRecentFunctionCalls(sRef, iCycleSize)
         iFunctionCurCount = 0
         LOG('Every function hook: tFunctionCallByName='..repru(tFunctionCallByName)..'; debug.traceback='..debug.traceback())
         tFunctionCallByName = {}
+    end
+end
+
+function IncreaseMemoryUsage(iFactor)
+    --To help debuging by generating high memory scenarios.  Examples of rough increased memory based on iFactor (very rough guides based on running once on a simple replay on flat 512 map and checking taskmanager):
+    --10k = +50mb
+    --20k = +110mb
+    --30k = +280mb
+    --40k = +360mb
+    --50k = +440mb
+    --100k = +836mb
+    --150 = +1224mb
+    if not(iMemoryOverloadCurFactor == iFactor) then
+        tMemoryOverloadTable = {}
+        for iLoop = 1, iFactor do
+            tMemoryOverloadTable[iLoop] = { }
+            for iSecondLoop = 1, 1000 do
+                tMemoryOverloadTable[iLoop][iSecondLoop] = math.random(1, 100000)
+            end
+        end
+        iMemoryOverloadCurFactor = iFactor
     end
 end

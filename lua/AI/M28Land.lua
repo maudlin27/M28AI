@@ -1380,11 +1380,14 @@ end
 function RefreshLandRallyPoints(iTeam)
     --For now just has core bases and core expansion points as rally points, may adjust htis in the future
     M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {}
+    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
     for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
         M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}
         for iLandZone, tLandZoneInfo in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-            if tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
-                table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLandZoneInfo[M28Map.subrefMidpoint]) then
+                if tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+                end
             end
         end
     end
@@ -5529,7 +5532,14 @@ function UpdateZoneIntelForRadar(oRadar)
 end
 
 function TrackWallSegment(oWall, bJustBuilt)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TrackWallSegment'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oWall:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oWall='..(oWall.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oWall) or 'nil')..'; bJustBuilt='..tostring(bJustBuilt)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if iLandZone > 0 then
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
         if bJustBuilt then
@@ -5542,6 +5552,7 @@ function TrackWallSegment(oWall, bJustBuilt)
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to add wall, bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
             if not(bAlreadyRecorded) then
                 table.insert(tLZData[M28Map.subrefLZPlayerWallSegments], oWall)
             end
@@ -5550,10 +5561,10 @@ function TrackWallSegment(oWall, bJustBuilt)
                 --Remove any old entries
                 local iRevisedIndex = 1
                 local iTableSize = table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])
-
+                if bDebugMessages == true then LOG(sFunctionRef..': Will remove wall from table, iTableSize='..iTableSize) end
                 for iOrigIndex=1, iTableSize do
                     if tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] then
-                        if tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] == oWall or not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                        if not(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] == oWall) and M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                             --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
                             if (iOrigIndex ~= iRevisedIndex) then
                                 tLZData[M28Map.subrefLZPlayerWallSegments][iRevisedIndex] = tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex];
@@ -5563,6 +5574,12 @@ function TrackWallSegment(oWall, bJustBuilt)
                         else
                             tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
                         end
+                    end
+                end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Finished removing, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments])))
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+                        LOG(sFunctionRef..': Table size after removing='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]))
                     end
                 end
             end

@@ -38,6 +38,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
     subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyActiveBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
+    rebTeamOnlyHasCampaignAI = 'M28TeamOnlyCampAI' --True if team only has campaign AI on it (so can e.g. disable the 'check playable area' tests in some scenarios
     refiHighestBrainResourceMultipler = 'M28HighestMult' --Highest AiX Resource on team (as a number)
     refiHighestBrainBuildMultiplier = 'M28HighestBPMult' --Highest AiX BP modifier on team (as a number)
 
@@ -193,6 +194,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoPotentialTeleSnipeTargets = 'M28TeamTeleSnipe' --Table of locations we think woudl be good to teleport to
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
+    refbDontHaveBuildingsOrACUInPlayableArea = 'M28BldInA' --for campaign AI, true if dont have buildings or ACU in the playable area, so can decide how aggressive to be with units
 
 
 
@@ -544,7 +546,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
 
 
-
+    local bHaveCampaignM28AI = false
     local bHaveM28BrainInTeam = false
     local bHaveOmniVision = false
     for iCurBrain, oBrain in ArmyBrains do
@@ -558,6 +560,7 @@ function CreateNewTeam(aiBrain)
 
 
         if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+            if oBrain.M28AI and oBrain.CampaignAI then bHaveCampaignM28AI = true end
             oBrain.M28Team = iTotalTeamCount
             table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
             if oBrain.M28AI then
@@ -592,7 +595,7 @@ function CreateNewTeam(aiBrain)
                 tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
             end
         end
-        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Setup a team with team ref/iTotalTeamCount='..iTotalTeamCount..'; do we have M28 brain in this team='..tostring(bHaveM28BrainInTeam)) end
     if bHaveM28BrainInTeam then
         UpdateTeamHighestAndLowestFactories(iTotalTeamCount)
@@ -624,6 +627,19 @@ function CreateNewTeam(aiBrain)
         ForkThread(TeamInitialisation, iTotalTeamCount)
     end
     ForkThread(TeamDeathChecker)
+    if bHaveCampaignM28AI then
+        local bTeamHasPlayerM28AI = false
+        for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
+            if not(oBrain.CampaignAI) then
+                bTeamHasPlayerM28AI = true
+                break
+            end
+        end
+        if not(bTeamHasPlayerM28AI) then
+            tTeamData[iTotalTeamCount][rebTeamOnlyHasCampaignAI] = true
+        end
+        ForkThread(CheckIfCampaignTeamHasBuildings, iTotalTeamCount)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3223,7 +3239,6 @@ function MonitorEnemyMobileTMLThreats(iTeam)
             end
             if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(50 - iTicksWaitedThisCycle)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
@@ -3328,6 +3343,45 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
     if bDebugMessages == true then
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoPotentialTeleSnipeTargets]) then LOG(sFunctionRef..': End of code, no telesnipe targets')
         else LOG(sFunctionRef..': End of code, size of telesnipe targets table='..table.getn(tTeamData[iTeam][reftoPotentialTeleSnipeTargets]))
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckIfCampaignTeamHasBuildings(iTeam)
+    --Call via forkthread; will check if the aiBrain in question has any buildings (so can decide if should be very aggressive)
+    local sFunctionRef = 'CheckIfCampaignAIHasBuildings'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if not(tTeamData[iTeam]['M28ActiveBuildingChecker']) then
+        tTeamData[iTeam]['M28ActiveBuildingChecker'] = true
+        tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] = false
+        --Wait number of ticks based on army index
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        while tTeamData[iTeam][subrefiActiveM28BrainCount] >= 1 do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(10)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            local bHaveBuildingsInPlayableArea = false
+
+            for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                local tStructuresOrACU = oBrain:GetListOfUnits(M28UnitInfo.refCategoryStructure + categories.COMMAND, false, true)
+                if M28Utilities.IsTableEmpty(tStructuresOrACU) == false then
+                    for iUnit, oUnit in tStructuresOrACU do
+                        if oUnit:GetFractionComplete() == 1 then
+                            if M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
+                                bHaveBuildingsInPlayableArea = true
+                                break
+                            end
+                        end
+                    end
+                end
+                if bHaveBuildingsInPlayableArea then break end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if iTeam='..iTeam..' has any buildings or ACU at time='..GetGameTimeSeconds()..'; bHaveBuildingsInPlayableArea='..tostring(bHaveBuildingsInPlayableArea or false)) end
+            tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] = not(bHaveBuildingsInPlayableArea)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

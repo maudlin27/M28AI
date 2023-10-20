@@ -133,7 +133,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     else
         --Dont have an upgrade ID; if the unit has an UpgradesTo value in the blueprint and that unit is restricted, then dont show an error
         local sExpectedUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
-        if sExpectedUpgradeID and import("/lua/game.lua").IsRestricted('xeb2402', oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
+        if sExpectedUpgradeID and import("/lua/game.lua").IsRestricted(sExpectedUpgradeID, oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
             --Restricted e.g. due to campaign or other settings
         else
             M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. (oUnitToUpgrade.UnitId or 'nil'))
@@ -2275,6 +2275,7 @@ function TeamResourceSharingMonitor(iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateTableOfUpgradingMexesForTeam(iTeam)
