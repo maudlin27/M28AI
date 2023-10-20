@@ -2919,6 +2919,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
     --Returns a table of available engineers by tech
@@ -2982,6 +2983,16 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     end
 
     if tEngineers then
+        local bCheckForWallsToReclaim = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of wall segments empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+            if table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 10 then
+                if GetGameTimeSeconds() >= 14*60 then
+                    bCheckForWallsToReclaim = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Size of wall segment table='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])..'; bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)) end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Time='..GetGameTimeSeconds()) end
         for iEngineer, oEngineer in tEngineers do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
@@ -2989,8 +3000,18 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             bEngiIsUnavailable = false
             if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then
                 --First check for enemies that we want to run from/take action from
-                if bCheckForEnemies then
+                if bCheckForEnemies or bCheckForWallsToReclaim then
                     local bReclaimingDangerousEnemy = false
+                    if GetGameTimeSeconds() >= 14 * 60 then
+                        iNearestReclaimableEnemy = 10000
+                        iNearestReclaimableDangerousEnemy = 10000
+                        iClosestDistUntilInRangeOfMobileEnemy = 10000
+                        iClosestDistUntilInRangeOfStaticEnemy = 10000
+                        oNearestReclaimableDangerousEnemy = nil
+                        oNearestReclaimableEnemy = nil
+                        oNearestEnemy = nil
+                    end
+
                     --If engi is building emergency PD or Arti then dont run
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall) then
                         --Is the engineer reclaiming an engineer or combat unit, or alternatively building something whose fraction complete is almost done?
@@ -3043,6 +3064,21 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     end
                                 end
                                 --end
+                            end
+                            --Consider reclaiming wall segment instead
+                            if bDebugMessages == true then LOG(sFunctionRef..': bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)..'; iNearestReclaimableEnemy='..(iNearestReclaimableEnemy or 'nil')..'; iClosestDistUntilInRangeOfStaticEnemy='..(iClosestDistUntilInRangeOfStaticEnemy or 'nil')..'; iClosestDistUntilInRangeOfMobileEnemy='..(iClosestDistUntilInRangeOfMobileEnemy or 'nil')) end
+                            if bCheckForWallsToReclaim and (iNearestReclaimableEnemy or 100) >= 10 and (iClosestDistUntilInRangeOfStaticEnemy or 100) >= 8 and (iClosestDistUntilInRangeOfMobileEnemy or 100) >= 10 then
+                                local iEngiIndex = oEngineer:GetAIBrain():GetArmyIndex()
+                                for iUnit, oUnit in tLZData[M28Map.subrefLZPlayerWallSegments] do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering wall '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Dist to engi='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())..'; Is enemy='..tostring(IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()))) end
+                                    if M28UnitInfo.IsUnitValid(oUnit) and IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()) then
+                                        iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
+                                        if iCurDistToEnemy < (iNearestReclaimableEnemy or 10000) then
+                                            iNearestReclaimableEnemy = iCurDistToEnemy
+                                            oNearestReclaimableEnemy = oUnit
+                                        end
+                                    end
+                                end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)) end
                             local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
