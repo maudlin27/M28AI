@@ -141,24 +141,25 @@ function RefreshWaterRallyPoints(iTeam)
                             end
                         end
                     end
-                    --Check all zones without the 'adjacent to land zone' restriction if we dont have any water zone
-                    if not(iClosestWZRef) then
-                        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
-                                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                                iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
-                                if iCurDistToRallyLZ < iClosestDistToRallyLZ then
-                                    iClosestDistToRallyLZ = iCurDistToRallyLZ
-                                    iClosestWZRef = iWaterZone
-                                end
+                end
+                --Check all zones without the 'adjacent to land zone' restriction if we dont have any water zone
+                if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZRef under default approach='..(iClosestWZRef or 'nil')..'; if is nil then will try every WZ and get closest to base') end
+                if not(iClosestWZRef) then
+                    for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
+                            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                            iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
+                            if iCurDistToRallyLZ < iClosestDistToRallyLZ then
+                                iClosestDistToRallyLZ = iCurDistToRallyLZ
+                                iClosestWZRef = iWaterZone
                             end
                         end
                     end
+                end
 
-                    if iClosestWZRef then
-                        table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iClosestWZRef)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added iClosestWZRef='..(iClosestWZRef or 'nil')..' as a water zone rally') end
-                    end
+                if iClosestWZRef then
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iClosestWZRef)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added iClosestWZRef='..(iClosestWZRef or 'nil')..' as a water zone rally') end
                 end
             end
         end
