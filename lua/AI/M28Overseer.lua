@@ -484,7 +484,8 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificLandZone(18, 10, 4)
+    --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
+    --M28Map.DrawSpecificLandZone(18, 10, 4)
     --ScenarioInfo.Options
     --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
 
@@ -1120,6 +1121,7 @@ function OverseerManager(aiBrain)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function CheckIfScenarioMap()

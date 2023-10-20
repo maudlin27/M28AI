@@ -2275,6 +2275,7 @@ function TeamResourceSharingMonitor(iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateTableOfUpgradingMexesForTeam(iTeam)

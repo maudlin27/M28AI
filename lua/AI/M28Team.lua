@@ -3239,7 +3239,6 @@ function MonitorEnemyMobileTMLThreats(iTeam)
             end
             if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(50 - iTicksWaitedThisCycle)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
@@ -3354,7 +3353,6 @@ function CheckIfCampaignTeamHasBuildings(iTeam)
     local sFunctionRef = 'CheckIfCampaignAIHasBuildings'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if not(iTeam == 1) then bDebugMessages = true end
     if not(tTeamData[iTeam]['M28ActiveBuildingChecker']) then
         tTeamData[iTeam]['M28ActiveBuildingChecker'] = true
         tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] = false

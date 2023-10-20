@@ -42,7 +42,8 @@ tiProfilerStartCountByFunction = {} --[functionref] - Used if want to temporaril
 --example of usage of the above: --M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerStartCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerStartCountByFunction[sFunctionRef])
 tiProfilerEndCountByFunction = {} --[functionref] - Used if want to temporarily check how many times a function is called - have this update in the function itself, along with the end count
 --Example of usage of the above: M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerEndCountByFunction[sFunctionRef])
-
+tMemoryOverloadTable = {} --If want to test high memory usage
+iMemoryOverloadCurFactor = 0 --To avoid rerunning exact same logic
 
 function FunctionProfiler(sFunctionRef, sStartOrEndRef)
     --sStartOrEndRef: refProfilerStart or refProfilerEnd (0 or 1)
@@ -261,5 +262,26 @@ function OutputRecentFunctionCalls(sRef, iCycleSize)
         iFunctionCurCount = 0
         LOG('Every function hook: tFunctionCallByName='..repru(tFunctionCallByName)..'; debug.traceback='..debug.traceback())
         tFunctionCallByName = {}
+    end
+end
+
+function IncreaseMemoryUsage(iFactor)
+    --To help debuging by generating high memory scenarios.  Examples of rough increased memory based on iFactor (very rough guides based on running once on a simple replay on flat 512 map and checking taskmanager):
+    --10k = +50mb
+    --20k = +110mb
+    --30k = +280mb
+    --40k = +360mb
+    --50k = +440mb
+    --100k = +836mb
+    --150 = +1224mb
+    if not(iMemoryOverloadCurFactor == iFactor) then
+        tMemoryOverloadTable = {}
+        for iLoop = 1, iFactor do
+            tMemoryOverloadTable[iLoop] = { }
+            for iSecondLoop = 1, 1000 do
+                tMemoryOverloadTable[iLoop][iSecondLoop] = math.random(1, 100000)
+            end
+        end
+        iMemoryOverloadCurFactor = iFactor
     end
 end

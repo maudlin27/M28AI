@@ -4900,7 +4900,8 @@ function ConsiderAssigningRaidingNavalUnit(oRaider, oFactory)
             CheckWaterZoneForRaiders(iFactoryWaterZone, tFactoryWZTeamData, iFactoryWaterZone, tFactoryWZTeamData, iTeam)
         end
 
-        ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFactoryWZTeamData) --So we can pick up any former raiders that are now available for raiding
+        ForkThread(ManageWaterZoneRaiders, iFactoryWaterZone, iTeam, tFactoryWZData, tFactoryWZTeamData) --So we can pick up any former raiders that are now available for raiding
+        --Forked above to avoid affecting profiling
 
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

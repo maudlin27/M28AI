@@ -240,6 +240,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                     --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available, unless it has special micro active
                     if oEngineer[M28UnitInfo.refbSpecialMicroActive] then
                         if bDebugMessages == true then LOG(sFunctionRef..': Special micro is active') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return false
                     else
                         local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
@@ -258,6 +259,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerStuckCheckCount]='..oEngineer[refiEngineerStuckCheckCount]) end
                                         M28Orders.IssueTrackedClearCommands(oEngineer)
                                         oEngineer[reftEngineerStuckCheckLastPosition] = nil
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return true
                                     end
                                 end
@@ -390,6 +392,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --redundancy for profiling
 end
 
 function IsResourceBlockedByResourceBuilding(iResourceCategory, sResourceBlueprint, tResourceLocation)
@@ -1015,9 +1018,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                     end
                 end
             end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             if iFriendlyLand > 0 and iFriendlyOtherFactory > 0 then
                 --Dont want more factories
+                bWantMoreFactories = false --redundancy
             else
                 bWantMoreFactories = true
             end
@@ -1278,7 +1281,10 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
                     else
                         iEnemyArtiCount = iEnemyArtiCount + 1
                     end
-                    if iEnemyArtiCount >= 3 then return true end
+                    if iEnemyArtiCount >= 3 then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
         end
