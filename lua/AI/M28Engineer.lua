@@ -2919,7 +2919,6 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
     --Returns a table of available engineers by tech
@@ -2991,10 +2990,17 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then
                 --First check for enemies that we want to run from/take action from
                 if bCheckForEnemies then
+                    local bReclaimingDangerousEnemy = false
                     --If engi is building emergency PD or Arti then dont run
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall) then
-                        --Is the engineer reclaiming, or alternatively building something whose fraction complete is almost done?
-                        if not(oEngineer:IsUnitState('Reclaiming') or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
+                        --Is the engineer reclaiming an engineer or combat unit, or alternatively building something whose fraction complete is almost done?
+                        if oEngineer:IsUnitState('Reclaiming') then
+                            local oReclaimTarget = oEngineer:GetFocusUnit()
+                            if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
+                                bReclaimingDangerousEnemy = true
+                            end
+                        end
+                        if not(bReclaimingDangerousEnemy or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
                             local tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine, oEngineer:GetPosition(), iEnemyUnitSearchRange, 'Enemy')
                             --for iSubtable, tSubtable in tNearbyEnemiesByZone do
                             --if M28Utilities.IsTableEmpty(tSubtable) == false then
@@ -3033,7 +3039,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             end
                                         end
                                     else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit is dead or is being built, is table of g etguards empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetGuards()))) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' is dead or is being built (cant reclaim under construction units), is table of g etguards empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetGuards()))) end
                                     end
                                 end
                                 --end
