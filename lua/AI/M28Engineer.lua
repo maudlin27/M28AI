@@ -2987,9 +2987,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of wall segments empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
             if table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 10 then
-                if GetGameTimeSeconds() >= 14*60 then
-                    bCheckForWallsToReclaim = true
-                end
+                bCheckForWallsToReclaim = true
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Size of wall segment table='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])..'; bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)) end
         end
@@ -3002,15 +3000,13 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                 --First check for enemies that we want to run from/take action from
                 if bCheckForEnemies or bCheckForWallsToReclaim then
                     local bReclaimingDangerousEnemy = false
-                    if GetGameTimeSeconds() >= 14 * 60 then
-                        iNearestReclaimableEnemy = 10000
-                        iNearestReclaimableDangerousEnemy = 10000
-                        iClosestDistUntilInRangeOfMobileEnemy = 10000
-                        iClosestDistUntilInRangeOfStaticEnemy = 10000
-                        oNearestReclaimableDangerousEnemy = nil
-                        oNearestReclaimableEnemy = nil
-                        oNearestEnemy = nil
-                    end
+                    iNearestReclaimableEnemy = 10000
+                    iNearestReclaimableDangerousEnemy = 10000
+                    iClosestDistUntilInRangeOfMobileEnemy = 10000
+                    iClosestDistUntilInRangeOfStaticEnemy = 10000
+                    oNearestReclaimableDangerousEnemy = nil
+                    oNearestReclaimableEnemy = nil
+                    oNearestEnemy = nil
 
                     --If engi is building emergency PD or Arti then dont run
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall) then
