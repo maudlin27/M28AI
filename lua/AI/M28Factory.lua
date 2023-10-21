@@ -874,7 +874,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iNearbyAirToGroundThreat = iNearbyAirToGroundThreat + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
             end
         end
-        if iNearbyMAAThreat < 165 or iNearbyAirToGroundThreat > 0 then
+        if (iNearbyMAAThreat < 165 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) or iNearbyAirToGroundThreat > 0 then
             --If enemy has any air units then want at least 110 MAA; if they have any air to ground want at least 165; if air to ground threat for this LZ then want
             if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 and iNearbyMAAThreat < 110) or iNearbyAirToGroundThreat > iNearbyMAAThreat then
                 if bDebugMessages == true then
@@ -884,7 +884,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     --Only build if we ahve <2 under construction in this LZ
                     if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMAA) < 2 then
                         if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Will try and get MAA to combat enemy air to ground threat')
+                            LOG(sFunctionRef .. ': Will try and get MAA to combat enemy air to ground threat, iNearbyMAAThreat='..iNearbyMAAThreat..'; iNearbyAirToGroundThreat='..iNearbyAirToGroundThreat)
                         end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then
                             return sBPIDToBuild
@@ -920,6 +920,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 return sBPIDToBuild
             end
         end
+    end
+
+    --core expansion and enemies nearby - build tank
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 4 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
+        if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
     end
 
     --First engineer of cur tech level
