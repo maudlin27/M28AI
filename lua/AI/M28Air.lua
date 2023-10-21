@@ -3296,7 +3296,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = false
+    local iTorpBomberThreat = 0
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
         local tEnemyTargets = {}
         local tbAdjacentWaterZonesConsidered = {}
@@ -3362,7 +3364,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
 
         if M28Utilities.IsTableEmpty(tiWaterZoneByDistance) == false then
             --Cycle through in order of distance
-            local iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
+            iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
 
             local iAAThreatThreshold
 
@@ -3377,16 +3379,24 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
                     iAAThreatThreshold = iTorpBomberThreat * 5
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have a large torp bomber threat so setting a high enemy AA threshold as even if we will lose the torps we may want to suicide them') end
                 elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
                     --Havnet attacked for a while, so want more threat than enemy
                     iAAThreatThreshold = iTorpBomberThreat / 1.5
+                    if iDistance >= 200 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iAAThreatThreshold = iAAThreatThreshold * 0.5 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
                 else
                     --Recently chose to attack here
                     iAAThreatThreshold = iTorpBomberThreat
+                    if bDebugMessages == true then LOG(sFunctionRef..': We recently chose to attack this zone, so will be much more likely to attack with torps') end
                 end
-                if tWZTeamData[M28Map.subrefWZbCoreBase] or iDistance <= 150 then iAAThreatThreshold = iAAThreatThreshold * 0.8 end
+                if tWZTeamData[M28Map.subrefWZbCoreBase] or iDistance <= 150 then
+                    iAAThreatThreshold = iAAThreatThreshold * 0.8
+                elseif iDistance >= 300 then
+                    iAAThreatThreshold = iAAThreatThreshold * (1 + (iDistance - 300) / 300)
+                end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
 
@@ -3456,9 +3466,12 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if want torp bombers - considering iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
-                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': We want more torp bombers as we lack available torp bombers') end
-                    break
+                    --Check enemy doesnt have a naval fac in this zone if we have a significant torp bomber threat already
+                    if iTorpBomberThreat < 2500 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefTEnemyUnits])) then
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': We want more torp bombers as we lack available torp bombers') end
+                        break
+                    end
                 end
             end
         end
