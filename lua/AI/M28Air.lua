@@ -3090,7 +3090,7 @@ function ManageBombers(iTeam, iAirSubteam)
         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
             local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
             for iUnit, oUnit in tPotentialTargets do
-                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
                     if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
                         table.insert(tEnemyTargets, oUnit)
                     end
@@ -4097,7 +4097,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
                             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
                                 --Ignore land scouts - both because they are low threat, and also because in the case of selens they might be cloaked
-                                if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryMobileLand - M28UnitInfo.refCategoryLandScout, oUnit.UnitId) and not (M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                                if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryMobileLand - M28UnitInfo.refCategoryLandScout, oUnit.UnitId) and not (M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) and not(oUnit:IsUnitState('Attached')) then
                                     if bReplaceOnFirstValidUnit then
                                         tEnemyGroundTargets = {}
                                         bReplaceOnFirstValidUnit = false
@@ -6473,7 +6473,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tPriorityTargets) == false then
                                     local iCurUnitSegmentX, iCurUnitSegmentZ, bAddUnit
                                     for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
-                                        if M28UnitInfo.IsUnitValid(oUnit) and not(M28Map.IsUnderwater(oUnit:GetPosition(), false, math.max(0, iAOE - 4))) then
+                                        if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28Map.IsUnderwater(oUnit:GetPosition(), false, math.max(0, iAOE - 4))) then
                                             --Is enemy still in this zone if we no longer have intel?
                                             bAddUnit = false
                                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if have a mobile unit that has moved far from the lastk nown position such that we will end up targeting a different zone by mistake, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Dist between position and last known position='..M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])) end
