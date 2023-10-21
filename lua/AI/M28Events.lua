@@ -480,6 +480,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityTeleSnipeExclACU, false)
                     end
                 end
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                    --Consider being more aggressive with ACU again (mainly relevant for team games)
+                    oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
+                end
             end
             --Fix AiX modifier
             if oUnit:GetAIBrain().CheatEnabled then

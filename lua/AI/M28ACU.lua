@@ -1722,10 +1722,18 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
             local oUnitToOvercharge = M28Micro.GetOverchargeTarget(tLZData, oACU:GetAIBrain(), oACU, bDoesACUWantToRun)
             if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid OC target='..tostring(M28UnitInfo.IsUnitValid(oUnitToOvercharge))) end
             if oUnitToOvercharge then
-                M28Orders.IssueTrackedOvercharge(oACU, oUnitToOvercharge, false, 'OC', true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)) end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
+                --Redundancy - in some cases when we want to overcharge (e.g. replay 21026248 at 13m08) we can be stuck and not overcharge; therefore if we were already trying to overcharge this unit, and haven't fired our weapon in 2 seconds, then abort
+                local tLastOrder = oACU[M28Orders.reftiLastOrders][1]
+                if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderOvercharge and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnitToOvercharge and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -100) >= 2.5 and GetGameTimeSeconds() >= 780 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU weapon might be stuck so clearing overcharge order') end
+                    M28Orders.IssueTrackedClearCommands(oACU)
+                    oACU[M28UnitInfo.refbSpecialMicroActive] = false
+                else
+                    M28Orders.IssueTrackedOvercharge(oACU, oUnitToOvercharge, false, 'OC', true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
             end
         end
     end
@@ -3032,7 +3040,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-
+    if oACU.UnitId == 'ual0001' and GetGameTimeSeconds() >= 690 then bDebugMessages = true end
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -3266,6 +3274,7 @@ function GetACUOrder(aiBrain, oACU)
 
                             tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true)
                             --If the rally point takes us further away from the closest friendly base, and is more than 50 from the closest friendly base, then head towards the base (exception if rally point is a core base or is a location with friendly PD and/or factories or significantly friendly combat)
+                            if bDebugMessages == true then LOG(sFunctionRef..': tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())..'; ACU angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
                             if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 50 then
                                 local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
 
@@ -3558,33 +3567,38 @@ function GetACUOrder(aiBrain, oACU)
 end
 
 function DoWeStillWantToBeAggressiveWithACU(oACU)
-    --Intended for early game mostly on smaller maps to make ACU more aggressive
+    --Intended for early game mostly on smaller maps to make ACU more aggressive, or teamgames where we have 3+ ACUs alive
     local bStillBeAggressive = true
     local aiBrain = oACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
     if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
         bStillBeAggressive = false
     else
-        --If significant time elapsed then remove this flag, unless lots of reclaim in cur land zone
-        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
-        if GetGameTimeSeconds() >= 600 and (GetGameTimeSeconds() >= 900 or tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] < 350) then
-            bStillBeAggressive = false
+        local bHaveLotsOfSpareACUs = false
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+            bStillBeAggressive = true --redundancy
         else
-            local iThresholdFactor = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.25
-            if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
-            if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
-            elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then
+            --If significant time elapsed then remove this flag, unless lots of reclaim in cur land zone
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
+            if GetGameTimeSeconds() >= 600 and (GetGameTimeSeconds() >= 900 or tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] < 350) then
                 bStillBeAggressive = false
-            elseif M28Map.iMapSize > 512 then
-                bStillBeAggressive = false
-            elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
-                bStillBeAggressive = false
-            elseif M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and (oACU[refiUpgradeCount] or 0) == 0 then
-                bStillBeAggressive = false
-            elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 50 * iThresholdFactor then
-                bStillBeAggressive = false
-            elseif M28Map.bIsCampaignMap then
-                bStillBeAggressive = false
+            else
+                local iThresholdFactor = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.25
+                if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
+                if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
+                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then
+                    bStillBeAggressive = false
+                elseif M28Map.iMapSize > 512 then
+                    bStillBeAggressive = false
+                elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                    bStillBeAggressive = false
+                elseif M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and (oACU[refiUpgradeCount] or 0) == 0 then
+                    bStillBeAggressive = false
+                elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 50 * iThresholdFactor then
+                    bStillBeAggressive = false
+                elseif M28Map.bIsCampaignMap then
+                    bStillBeAggressive = false
+                end
             end
         end
     end

@@ -1304,7 +1304,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Gets the location of the nearest rally point; if bAmphibiousPathing is true then will consider other islands, otherwise will only consider current island
 
-
+    if iPlateau == 16 and iLandZone == 64 and GetGameTimeSeconds() >= 690 then bDebugMessages = true end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) == false then
         local iCurDist
         local iClosestDist = 100000
@@ -1393,20 +1393,30 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshLandRallyPoints(iTeam)
+function RefreshLandRallyPoints(iTeam, iPlateau)
     --For now just has core bases and core expansion points as rally points, may adjust htis in the future
-    M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {}
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-    for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
-        M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}
-        for iLandZone, tLandZoneInfo in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshLandRallyPoints'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iPlateau == 16 and GetGameTimeSeconds() >= 660 then bDebugMessages = true end
+
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {} end
+    M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones]) == false then
+        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        for iLandZone, tLandZoneInfo in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLandZoneInfo[M28Map.subrefMidpoint]) then
-                if tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
+                if bDebugMessages == true then LOG(sFunctionRef..': considering if we want zone '..iLandZone..' in iPlateau='..iPlateau..' to be a rally point, is core base='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; is core expansion='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)) end
+                local tLZTeamData = tLandZoneInfo[M28Map.subrefLZTeamData][iTeam]
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and tLZTeamData[M28Map.subrefLZSValue] >= math.max(200, (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))) then
                     table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
                 end
             end
         end
     end
+    M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] = GetGameTimeSeconds()
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSupport, iMAAFactorAdjust, bWaterZone, tHoverMAAToAdvance)
@@ -5029,15 +5039,11 @@ function ManageAllLandZones(aiBrain, iTeam)
         end
     end
 
-    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] or -100) >= 10 then
-        RefreshLandRallyPoints(iTeam)
-    end
-
-
-
     --Cycle through land zones
     local bAlwaysUpdateEnemyAirUnitPositions = M28Map.bIsCampaignMap --campaign map players are more likely to know when air attacks iwll attack and from where
     for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+        RefreshLandRallyPoints(iTeam, iPlateau)
+
         if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
             if bDebugMessages == true then
                 LOG(sFunctionRef..': About to cycle through every land zone in plateau '..iPlateau..'; subrefLandZoneCount='..tPlateauData[M28Map.subrefLandZoneCount])
