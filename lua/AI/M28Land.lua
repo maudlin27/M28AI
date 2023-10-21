@@ -3778,33 +3778,37 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local sRetreatMessage = 'GenRetr'
 
                     --Rescue ACU - move slightly infront of ACU relative to our closest base instead of retreating
-                    if tLZTeamData[M28Map.refbACUInTrouble] and oNearestEnemyToMidpoint and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
+                    if tLZTeamData[M28Map.refbACUInTrouble] and oNearestEnemyToMidpoint and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefAlliedACU]) then
                         local oACUToProtect
                         local iLowestHealthACU = 100000
                         for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
-                            if oACU:GetHealth() < iLowestHealthACU then
+                            if M28UnitInfo.IsUnitValid(oACU) and oACU:GetHealth() < iLowestHealthACU then
                                 iLowestHealthACU = oACU:GetHealth()
                                 oACUToProtect = oACU
                             end
                         end
-                        local iDistInfrontOfACUWanted = math.min(20, 5 + table.getn(tAvailableCombatUnits) * 0.25)
-                        local tProtectiveMovePoint = M28Utilities.MoveInDirection(oACUToProtect:GetPosition(), M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.reftClosestFriendlyBase], oACUToProtect:GetPosition()), iDistInfrontOfACUWanted, true, false, M28Map.bIsCampaignMap)
-                        local iAltPlateau, iAltLandZone
-                        if tProtectiveMovePoint then iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tProtectiveMovePoint) end
-                        if not(iAltPlateau == iPlateau) then
-                            --GetPositionAtOrNearTargetInPathingGroup(tStartPos,                 tTargetPos,            iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
-                            tProtectiveMovePoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(tProtectiveMovePoint,         oACUToProtect:GetPosition(),        iDistInfrontOfACUWanted,  0,    oACUToProtect,       true,                              false,                           nil)
-                            if not(tProtectiveMovePoint) then tProtectiveMovePoint = oACUToProtect:GetPosition() end
-                        end
-                        local iACUDistToAlliedBase = M28Utilities.GetDistanceBetweenPositions(oACUToProtect:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to try and protect ACU, iACUDistToAlliedBase='..iACUDistToAlliedBase..'; tProtectiveMovePoint='..repru(tProtectiveMovePoint)..'; ACU position='..repru(oACUToProtect:GetPosition())) end
-                        for iUnit, oUnit in tAvailableCombatUnits do
-                            --If further from allied base than ACU then move to the move point, otherwise attack-move
-                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > iACUDistToAlliedBase then
-                                M28Orders.IssueTrackedMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUM', false)
-                            else
-                                M28Orders.IssueTrackedAttackMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUA', false)
+                        if oACUToProtect then --Redundancy
+                            local iDistInfrontOfACUWanted = math.min(20, 5 + table.getn(tAvailableCombatUnits) * 0.25)
+                            local tProtectiveMovePoint = M28Utilities.MoveInDirection(oACUToProtect:GetPosition(), M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.reftClosestFriendlyBase], oACUToProtect:GetPosition()), iDistInfrontOfACUWanted, true, false, M28Map.bIsCampaignMap)
+                            local iAltPlateau, iAltLandZone
+                            if tProtectiveMovePoint then iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tProtectiveMovePoint) end
+                            if not(iAltPlateau == iPlateau) then
+                                --GetPositionAtOrNearTargetInPathingGroup(tStartPos,                 tTargetPos,            iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
+                                tProtectiveMovePoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(tProtectiveMovePoint,         oACUToProtect:GetPosition(),        iDistInfrontOfACUWanted,  0,    oACUToProtect,       true,                              false,                           nil)
+                                if not(tProtectiveMovePoint) then tProtectiveMovePoint = oACUToProtect:GetPosition() end
                             end
+                            local iACUDistToAlliedBase = M28Utilities.GetDistanceBetweenPositions(oACUToProtect:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to try and protect ACU, iACUDistToAlliedBase='..iACUDistToAlliedBase..'; tProtectiveMovePoint='..repru(tProtectiveMovePoint)..'; ACU position='..repru(oACUToProtect:GetPosition())) end
+                            for iUnit, oUnit in tAvailableCombatUnits do
+                                --If further from allied base than ACU then move to the move point, otherwise attack-move
+                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > iACUDistToAlliedBase then
+                                    M28Orders.IssueTrackedMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUM', false)
+                                else
+                                    M28Orders.IssueTrackedAttackMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUA', false)
+                                end
+                            end
+                        else
+                            M28Utilities.ErrorHandler('Thought we would be protecting an ACU but no ACU to protect')
                         end
                     else
                         if bConsolidateAtMidpoint then
