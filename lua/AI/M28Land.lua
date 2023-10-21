@@ -1304,7 +1304,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Gets the location of the nearest rally point; if bAmphibiousPathing is true then will consider other islands, otherwise will only consider current island
 
-    if iPlateau == 16 and iLandZone == 64 and GetGameTimeSeconds() >= 690 then bDebugMessages = true end
+
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) == false then
         local iCurDist
         local iClosestDist = 100000
@@ -1399,7 +1399,7 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
     local sFunctionRef = 'RefreshLandRallyPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 16 and GetGameTimeSeconds() >= 660 then bDebugMessages = true end
+
 
     if not(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {} end
     M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}

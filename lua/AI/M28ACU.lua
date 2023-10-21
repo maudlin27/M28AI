@@ -1724,7 +1724,7 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
             if oUnitToOvercharge then
                 --Redundancy - in some cases when we want to overcharge (e.g. replay 21026248 at 13m08) we can be stuck and not overcharge; therefore if we were already trying to overcharge this unit, and haven't fired our weapon in 2 seconds, then abort
                 local tLastOrder = oACU[M28Orders.reftiLastOrders][1]
-                if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderOvercharge and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnitToOvercharge and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -100) >= 2.5 and GetGameTimeSeconds() >= 780 then
+                if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderOvercharge and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnitToOvercharge and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -100) >= 2.5 then
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU weapon might be stuck so clearing overcharge order') end
                     M28Orders.IssueTrackedClearCommands(oACU)
                     oACU[M28UnitInfo.refbSpecialMicroActive] = false
@@ -3040,7 +3040,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if oACU.UnitId == 'ual0001' and GetGameTimeSeconds() >= 690 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
