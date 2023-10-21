@@ -408,6 +408,7 @@ tPondDetails = {}
             subrefWZThreatEnemyAA = 'EnEAA' --Think this is just the ground based AA not airaa
             subrefWZBestEnemyDFRange = 'EnDFRnge'
             subrefWZBestEnemyAntiNavyRange = 'EnANavRng'
+            subrefWZBestEnemySubmersibleRange = 'EnSNavRng' --antinavy range of underwater units
 
             reftoNearestCombatEnemies = 'WNrSufE'
             subreftEnemyLongRangeUnits = 'WEnLRU' --Table of enemy 'longer range' units (e.g. T2PD+ in range), based on iLongRangeThreshold
@@ -5797,6 +5798,7 @@ function SetupWaterZones()
             LOG(sFunctionRef..': Finished running CreateWaterZones, Systemtime='..GetSystemTimeSecondsOnlyForProfileUse()..'; will draw water zones now')
             DrawWaterZones()
         end
+
 
 
 

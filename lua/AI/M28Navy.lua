@@ -463,6 +463,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatEnemyAA] = 0
         tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = 0
         tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = 0
+        tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = 0
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
     else
@@ -483,8 +484,15 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                     LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; Submersible threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true,     false,              false,                      false,      false,          true)..'; Unit SegX='..(iUnitSegmentX or 'nil')..'Z='..(iUnitSegmentZ or 'nil')..'; WZ at this segment='..(M28Map.tWaterZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; LZ at this segment='..(M28Map.tLandZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil'))
                 end
                 --Simplification to approach taken for land zone logic - will ignore threat (since only relevant for aeon land scout)
-                if oUnit[M28UnitInfo.refiDFRange] >  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] then  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = oUnit[M28UnitInfo.refiDFRange] end
-                if oUnit[M28UnitInfo.refiAntiNavyRange] >  tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] then  tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = oUnit[M28UnitInfo.refiAntiNavyRange] end
+                if (oUnit[M28UnitInfo.refiDFRange] or 0) >  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] then  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = oUnit[M28UnitInfo.refiDFRange] end
+                if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) >  tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] then
+                    tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = oUnit[M28UnitInfo.refiAntiNavyRange]
+                end
+                if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] then
+                    if EntityCategoryContains(categories.SUBMERSIBLE + categories.AMPHIBIOUS, oUnit.UnitId) then
+                        tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = oUnit[M28UnitInfo.refiAntiNavyRange]
+                    end
+                end
                 if oUnit[M28UnitInfo.refiCombatRange] > iLRThreshold then
                     table.insert(tWZTeamData[M28Map.subreftEnemyLongRangeUnits], oUnit)
                 end
@@ -1790,12 +1798,14 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
     
     local iEnemyBestAntiNavyRange = 0
     local iEnemyBestCombatRange = 0
+    local iBestEnemyUnderwaterRange = 0
 
     
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Enemies in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
     if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then        
         iEnemyBestAntiNavyRange = tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]
         iEnemyBestCombatRange = math.max(tWZTeamData[M28Map.subrefWZBestEnemyDFRange], iEnemyBestAntiNavyRange)
+        iBestEnemyUnderwaterRange = tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange]
 
 
         --Adjust the ranges to factor in adjacent water zones
@@ -1811,6 +1821,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                 local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZTeamData][iTeam]
                 iEnemyBestAntiNavyRange = math.max(iEnemyBestAntiNavyRange, tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange])
                 iEnemyBestCombatRange = math.max(iEnemyBestCombatRange, iEnemyBestAntiNavyRange, tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange])
+                iBestEnemyUnderwaterRange = math.max(iBestEnemyUnderwaterRange, tAltWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange])
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ '..iAdjWaterZone..'; tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..'; tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]) end
                 if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
@@ -1839,9 +1850,9 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..'; iEnemyBestCombatRange='..iEnemyBestCombatRange) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..'; iEnemyBestCombatRange='..iEnemyBestCombatRange..'; iBestEnemyUnderwaterRange='..iBestEnemyUnderwaterRange) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return iEnemyBestAntiNavyRange, iEnemyBestCombatRange
+    return iEnemyBestAntiNavyRange, iEnemyBestCombatRange, iBestEnemyUnderwaterRange
 end
 
 function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
@@ -2644,7 +2655,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local bWantReinforcements = false
 
     --Record which untis in adjacent zones are nearest to us:
-    local iEnemyBestAntiNavyRange, iEnemyBestCombatRange = RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWaterZone, iTeam)
+    local iEnemyBestAntiNavyRange, iEnemyBestCombatRange, iEnemyBestUnderwaterRange = RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWaterZone, iTeam)
     local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
 
     --If enemy has units in this or adjacent WZ, then decide what to do
@@ -3127,6 +3138,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 end
                 local bNearestEnemyToMidpointIsUnderwater = M28UnitInfo.IsUnitUnderwater(oNearestEnemyToMidpoint)
                 local iRangeToUseForChecks
+                local iEnemyAntiNavyOverride
+                if bNearestEnemyToMidpointIsUnderwater and (oNearestEnemyToMidpoint[M28UnitInfo.refiAntiNavyRange] or 0) < iEnemyBestUnderwaterRange then
+                    iEnemyAntiNavyOverride = (oNearestEnemyToMidpoint[M28UnitInfo.refiAntiNavyRange] or 0)
+                end
 
                 if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then bCheckIfNearestUnitVisible = true end
                 for iUnit, oUnit in tCombatUnitsOfUse do
@@ -3134,7 +3149,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
                         oEnemyToFocusOn = oNearestEnemyToMidpoint
                         tEnemiesToConsider =  tWZTeamData[M28Map.reftoNearestCombatEnemies]
-                        if bNearestEnemyToMidpointIsUnderwater then iRangeToUseForChecks = oUnit[M28UnitInfo.refiAntiNavyRange]
+                        if bNearestEnemyToMidpointIsUnderwater and (oEnemyToFocusOn[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then iRangeToUseForChecks = oUnit[M28UnitInfo.refiAntiNavyRange]
                         else iRangeToUseForChecks = math.max(oUnit[M28UnitInfo.refiAntiNavyRange], (oUnit[M28UnitInfo.refiDFRange] or 0))
                         end
                     else
@@ -3147,9 +3162,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                     end
 
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if our unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' outrangs enemy, iRangeToUseForChecks='..iRangeToUseForChecks..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..'; iEnemyBestUnderwaterRange='..iEnemyBestUnderwaterRange) end
 
-
-                    if iRangeToUseForChecks > iEnemyBestAntiNavyRange then
+                    if iRangeToUseForChecks > (iEnemyAntiNavyOverride or iEnemyBestUnderwaterRange) then
                         table.insert(tUnitsToSupport, oUnit)
                         --Consider kiting logic unless want to use shot blocked override logic
                         if bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
@@ -3232,6 +3247,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         if oUnit[M28UnitInfo.refiAntiNavyRange] > 0 or oUnit[M28UnitInfo.refiDFRange] > 0 then
                             --We dont outrange the enemy, but we do have other units that do
                             table.insert(tOutrangedCombatUnits, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding to table of outranged units') end
                         end
                     end
                 end
