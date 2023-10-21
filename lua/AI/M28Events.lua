@@ -480,6 +480,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityTeleSnipeExclACU, false)
                     end
                 end
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                    --Consider being more aggressive with ACU again (mainly relevant for team games)
+                    oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
+                end
             end
             --Fix AiX modifier
             if oUnit:GetAIBrain().CheatEnabled then
@@ -606,11 +610,54 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                 end
 
                 --Logic specific to M28 units dealt damage
-                if self:GetAIBrain().M28AI and EntityCategoryContains(categories.COMMAND, self.UnitId) then
-                    if self:IsUnitState('Upgrading') then
-                        --Do we want to cancel the upgrade? If were hit by a TML then want to
-                        if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
-                            M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                if self:GetAIBrain().M28AI then
+                    if EntityCategoryContains(categories.COMMAND, self.UnitId) then
+                        if self:IsUnitState('Upgrading') then
+                            --Do we want to cancel the upgrade? If were hit by a TML then want to
+                            if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
+                                M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                            end
+                        end
+                    end
+                    --General - if enemy has non-long range direct fire structure that hit an M28 unit, then check if it is in the same or adjacen tzone, so can record if it isnt
+                    if oUnitCausingDamage.GetPosition and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitCausingDamage.UnitId) and oUnitCausingDamage[M28UnitInfo.refiDFRange] and oUnitCausingDamage[M28UnitInfo.refiDFRange] < 100 and oUnitCausingDamage[M28UnitInfo.refiDFRange] > 0 and self.GetPosition then
+                        if oUnitCausingDamage[M28UnitInfo.refiDFRange] < 60 or M28Utilities.GetDistanceBetweenPositions(oUnitCausingDamage:GetPosition(), self:GetPosition()) < 60 then
+                            local iPDPlateauOrZero, iPDZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitCausingDamage:GetPosition())
+                            local iDamagedPlateauOrZero, iDamagedZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
+                            if not(iPDPlateauOrZero == iDamagedPlateauOrZero and iPDZone == iDamagedZone) and (iPDPlateauOrZero or 0) > 0 and iDamagedPlateauOrZero > 0 then
+                                --Arent in the same zone, but are both in land zones are we in an adjacent zone?
+                                local tDamagedLZData = M28Map.tAllPlateaus[iDamagedPlateauOrZero][M28Map.subrefPlateauLandZones][iDamagedZone]
+                                local bPDIsInAdjacentZone = false
+                                if iDamagedPlateauOrZero == iPDPlateauOrZero and M28Utilities.IsTableEmpty(tDamagedLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                    for _, iAdjLZ in tDamagedLZData[M28Map.subrefLZAdjacentLandZones] do
+                                        if iAdjLZ == iPDZone then
+                                            bPDIsInAdjacentZone = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if not(bPDIsInAdjacentZone) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have PD in a nearby non-adjacent zone, oUnitCausingDamage='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..'; iPDPlateauOrZero='..iPDPlateauOrZero..'; iPDZone='..iPDZone..'; iDamagedPlateauOrZero='..iDamagedPlateauOrZero..'; iDamagedZone='..iDamagedZone..'; Time='..GetGameTimeSeconds()) end
+                                    local bAlreadyRecorded = false
+                                    if not(tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones]) then
+                                        tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones] = {}
+                                    else
+                                        for iEntry, tPlateauAndZone in tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
+                                            if tPlateauAndZone[2] == iPDZone and tPlateauAndZone[1] == iPDPlateauOrZero then
+                                                bAlreadyRecorded = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if not(bAlreadyRecorded) then
+                                        table.insert(tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones], {iPDPlateauOrZero, iPDZone})
+                                        local tPDLZData = M28Map.tAllPlateaus[iPDPlateauOrZero][M28Map.subrefPlateauLandZones][iPDZone]
+                                        if not(tPDLZData[M28Map.subrefDangerousNearbyPlateauAndZones]) then tPDLZData[M28Map.subrefDangerousNearbyPlateauAndZones] = {} end
+                                        table.insert(tPDLZData[M28Map.subrefDangerousNearbyPlateauAndZones], {iDamagedPlateauOrZero, iDamagedZone})
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones]='..reprs(tDamagedLZData[M28Map.subrefDangerousNearbyPlateauAndZones])) end
+                                end
+                            end
                         end
                     end
                 end

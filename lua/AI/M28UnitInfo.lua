@@ -39,6 +39,7 @@ reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 
 reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
+refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
@@ -503,6 +504,11 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
             end
         end
         oUnit[refiDFMassThreatOverride] = iTotalMassValue
+        if oUnit:HasEnhancement('NaniteTorpedoTube') then
+            oUnit[refiAntiNavyMassThreatOverride] = math.max(iTotalMassValue, 2500)
+        else
+            oUnit[refiAntiNavyMassThreatOverride] = math.min(iTotalMassValue * 0.1, 800)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -546,6 +552,9 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             --Get the base threat for the unit
             if IsUnitValid(oUnit) then
                 iBaseThreat = (oUnit[refiDFMassThreatOverride] or tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef])
+                if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
+                    iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
                 if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
                     iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
@@ -683,7 +692,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
                                     end
                                     if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(categories.ANTINAVY  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
-                                    --Increase mass mod for certain units
+                                        --Increase mass mod for certain units
                                         if iMassMod < 0.25 then iMassMod = 0.25 end
                                         if EntityCategoryContains(categories.SUBMERSIBLE + categories.ANTINAVY, oUnit.UnitId) then
                                             iMassMod = 1 --Subs
