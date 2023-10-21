@@ -924,7 +924,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --core expansion and enemies nearby - build tank
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 4 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
         if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
     end
