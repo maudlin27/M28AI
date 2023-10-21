@@ -144,6 +144,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], i.e. ordered 1,2,3,...; and returns the LZ ref (based on the order it was added)
+        subrefDangerousNearbyPlateauAndZones = 'NrLZ' --Ideally adjacent zones capture all units that can hit into the zone; this table is for any adidtional zones that have managed to hit units in this zone, returns table of entries, 1,2,...,x, which return {iPlateau, iLandZone}
         subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of some (but not all) other LZs where have recorded the paths and time taken, sorted by closest LZ first
             subrefLZNumber = 1 --Land zone reference number
             subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable, returns a table [x]=1,2,3...; which returns the land zone reference for each land zone that will go through on a path from these
