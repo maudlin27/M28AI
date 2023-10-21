@@ -622,7 +622,6 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                             local iDamagedPlateauOrZero, iDamagedZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
                             if not(iPDPlateauOrZero == iDamagedPlateauOrZero and iPDZone == iDamagedZone) and (iPDPlateauOrZero or 0) > 0 and iDamagedPlateauOrZero > 0 then
                                 --Arent in the same zone, but are both in land zones are we in an adjacent zone?
-                                bDebugMessages = true
                                 local tDamagedLZData = M28Map.tAllPlateaus[iDamagedPlateauOrZero][M28Map.subrefPlateauLandZones][iDamagedZone]
                                 local bPDIsInAdjacentZone = false
                                 if iDamagedPlateauOrZero == iPDPlateauOrZero and M28Utilities.IsTableEmpty(tDamagedLZData[M28Map.subrefLZAdjacentLandZones]) == false then
