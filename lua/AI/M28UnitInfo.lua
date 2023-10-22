@@ -1999,6 +1999,7 @@ function GetMissileCount(oUnit)
 end
 
 function GiveUnitTemporaryVision(oUnit, iVision)
+    --LOG('Applying temporary vision buff at time='..GetGameTimeSeconds())
     local Buff = import('/lua/sim/Buff.lua')
     if not Buffs['CrateVisBuff'] then
         BuffBlueprint {
