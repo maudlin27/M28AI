@@ -1415,7 +1415,6 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
             end
         end
     end
-    M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] = GetGameTimeSeconds()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
