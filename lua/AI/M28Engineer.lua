@@ -282,15 +282,15 @@ tbActionsThatDontHaveCategory = {
     [refActionSpecialShieldDefence] = true,
 }
 
-tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
-    [refActionBuildMex] = true,
-    [refActionBuildSecondLandFactory] = true,
-    [refActionBuildSecondAirFactory] = true,
-    [refActionBuildSecondMassStorage] = true,
-    [refActionBuildSecondPower] = true,
-    [refActionBuildThirdPower] = true,
-    [refActionBuildSecondExperimental] = true, --have a manual override for this where we are building t3 arti or g ameender
-    [refActionBuildSecondShield] = true,
+tiIgnoreUnderConstructionThreshold = { --specify the number of under construction units to ignore, e.g. if set as 1, then if we only have 1 under construction we will build a new one, but if we have 2+ we will assist an under construction one (picking one that is less well complete)
+    [refActionBuildMex] = 100,
+    [refActionBuildSecondLandFactory] = 1,
+    [refActionBuildSecondAirFactory] = 1,
+    [refActionBuildSecondMassStorage] = 1,
+    [refActionBuildSecondPower] = 1,
+    [refActionBuildThirdPower] = 2,
+    [refActionBuildSecondExperimental] = 1, --have a manual override for this where we are building t3 arti or g ameender
+    [refActionBuildSecondShield] = 1,
 }
 
 tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an engineer already constructiong the building should go here; main purpose is building a mex
@@ -3346,12 +3346,12 @@ function GetEngineersOfTechWanted(iMinTechLevelWanted, toAvailableEngineersByTec
     return tEngineersOfTechWanted
 end
 
-function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, iCategoryWanted, bIsWaterZone)
+function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, iCategoryWanted, bIsWaterZone, iConstructionCountToIgnore)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetPartCompleteBuildingInZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    local iValidCount = 0
 
     if bDebugMessages == true then
         local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
@@ -3376,8 +3376,12 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, 
                     --If upgrading a factory then assist this unless we have high mass and dont have low power
                     if not(oUnit:IsUnitState('BeingUpgraded')) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.2 or M28Conditions.HaveLowPower(iTeam) or (table.getn(tBuildingsOfCategory) >= 4 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or iCategoryWanted == M28UnitInfo.refCategoryLandFactory)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Found a part complete building '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..', will return this') end
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return oUnit
+                        if (iConstructionCountToIgnore or 0) <= iValidCount then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return oUnit
+                        else
+                            iValidCount = iValidCount + 1
+                        end
                     end
                 end
             end
@@ -4891,25 +4895,26 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             if iCategoryWanted then
                 --Do we have a part complete unit of this category already under construction in this land zone?
                 --Building a factory - change whether to search for assistance based on mass stored %; for mass storage instead base the check on how many locations we have as we may be trying to build a second storage
-                local bShouldIgnoreUnderConstruction = tbIgnoreUnderConstructionActions[iActionToAssign]
+                local iConstructionCountToIgnore = (tiIgnoreUnderConstructionThreshold[iActionToAssign] or 0)
+                --local bShouldIgnoreUnderConstruction = tbIgnoreUnderConstructionActions[iActionToAssign]
                 if iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildAirFactory then
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then bShouldIgnoreUnderConstruction = true end
-                elseif iActionToAssign == refActionBuildMassStorage and table.getn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) >= 5 then bShouldIgnoreUnderConstruction = true
-                elseif bShouldIgnoreUnderConstruction and iActionToAssign == refActionBuildSecondExperimental then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then iConstructionCountToIgnore = 1 end
+                elseif iActionToAssign == refActionBuildMassStorage and table.getn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) >= 5 then iConstructionCountToIgnore = 1
+                elseif iConstructionCountToIgnore > 0 and iActionToAssign == refActionBuildSecondExperimental then
                     if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, iCategoryWanted) then
-                        bShouldIgnoreUnderConstruction = false
+                        iConstructionCountToIgnore = 0
                     end
                 end
 
                 local oBuildingToAssist
-                if not(bShouldIgnoreUnderConstruction) then
+                if iConstructionCountToIgnore < 100 then
                     --We adjust power to only consider the min tech levle not higher ones (presumably so we can build t1/t2 power when we have access to t3, if we need more power to build t3); therefore need to take this into account here
                     local iUnderConstructionCategory
                     if iActionToAssign == refActionBuildPower then
                         iUnderConstructionCategory = M28UnitInfo.refCategoryPower - M28UnitInfo.refCategoryHydro
                     else iUnderConstructionCategory = iCategoryWanted
                     end
-                    oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, iUnderConstructionCategory, bIsWaterZone)
+                    oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, iUnderConstructionCategory, bIsWaterZone, iConstructionCountToIgnore)
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished checking to see if we have a unit of the desired category. oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone)) end
                 end
 
@@ -4946,7 +4951,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                     if not(oEngineerToAssist) then
                         --Has a building been queued for this land zone even if we havent found an engineer to assist? (e.g. rare cases where engineer queues order then briefly drops out of the land zone list of engineers)
-                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false and not(bShouldIgnoreUnderConstruction) and not(tbIgnoreEngineerAssistance[iActionToAssign]) then
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false and iConstructionCountToIgnore == 0 and not(tbIgnoreEngineerAssistance[iActionToAssign]) then
                             for iEntry, tQueuedDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
                                 if EntityCategoryContains(iCategoryWanted, tQueuedDetails[M28Map.subrefBuildingID]) and M28UnitInfo.IsUnitValid(tQueuedDetails[M28Map.subrefPrimaryBuilder]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder]:GetFocusUnit()[refbDontIncludeAsPartCompleteBuildingForConstruction]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder][refiAssignedAction] == refActionSpecialShieldDefence) then
                                     oEngineerToAssist = tQueuedDetails[M28Map.subrefPrimaryBuilder]
@@ -5052,8 +5057,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
                             if iEngiCount > 0 then
                                 --Building power - if we get to T3, have at least 750 gross energy per tick, and have an action to build second power, then change building power normally so it builds separately to building second power
-                                if iActionToAssign == refActionBuildThirdPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 then
-                                    tbIgnoreUnderConstructionActions[refActionBuildPower] = true
+                                if iActionToAssign == refActionBuildThirdPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                                    tiIgnoreUnderConstructionThreshold[refActionBuildPower] = 1
                                 end
                                 local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
                                 local sBlueprint, tBuildLocation
@@ -6163,6 +6168,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iActiveMexUpgrades = M28Conditions.GetActiveMexUpgrades(tLZTeamData)
     local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
     local iHighestTechInZone = M28Conditions.GetHighestTechInZone(iTeam, tLZTeamData) --Highest completed factory HQ or engineer in the zone (or 1 if none)
+    local iFactoriesInLZ = 0
+    local tFactoriesInLZ
 
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -6461,9 +6468,17 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if (M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][1] or 1)) > 1 then bFirstTransport = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': bFirstTransport='..tostring(bFirstTransport)) end
                 if bFirstTransport then
-                    local iFactoriesInLZ = 0
-                    local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then iFactoriesInLZ = table.getn(tFactoriesInLZ) end
+                    if not(tFactoriesInLZ) or iFactoriesInLZ == 0 then
+                        iFactoriesInLZ = 0
+                        tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    end
+                    if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then
+                        for iFactory, oFactory in tFactoriesInLZ do
+                            if oFactory:GetFractionComplete() == 1 then
+                                iFactoriesInLZ = iFactoriesInLZ + 1
+                            end
+                        end
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesInLZ='..iFactoriesInLZ) end
                     if iFactoriesInLZ >= 2 then
                         --iActionToAssign,      iMinTechLevelWanted, i  BuildPowerWanted,                                                                       vOptionalVariable,  bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting
@@ -6602,9 +6617,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want v.high priority factory builder, mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; bWantMoreFactories='..tostring(bWantMoreFactories)..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; GameTime='..GetGameTimeSeconds()) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 100 and bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and (GetGameTimeSeconds() >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.iMapSize <= 256) then
-        local iFactoriesInLZ = 0
-        local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-        if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then iFactoriesInLZ = table.getn(tFactoriesInLZ) end
+
+        if iFactoriesInLZ == 0 or not(tFactoriesInLZ) then
+            tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then iFactoriesInLZ = table.getn(tFactoriesInLZ) end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesInLZ='..iFactoriesInLZ..'; LZ mex count='..tLZData[M28Map.subrefLZMexCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
         local iFactoryAdjust = 0
         if M28Map.iMapSize <= 256 then
@@ -7888,7 +7905,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Build multiple land factories if have lots of mass stored (higher priority)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want high priority second factory builder, bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bWantMoreFactories='..tostring(bWantMoreFactories)..'; iActiveMexUpgrades='..iActiveMexUpgrades..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Friendly highest land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-    if not(bHaveLowMass) and not(bHaveLowPower) and bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (iActiveMexUpgrades >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.25) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 1 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.min(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.25, 8)) then
+    if not(bHaveLowMass) and not(bHaveLowPower) and bWantMoreFactories and iFactoriesInLZ >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (iActiveMexUpgrades >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.25) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 1 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.min(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.25, 8)) then
 
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.55 then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * 4
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * 2
