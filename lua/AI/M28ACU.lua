@@ -1116,28 +1116,30 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         oACU[reftPreferredUpgrades] = {}
         local iLowestMassCost = 1000000
         local sLowestUpgrade
-        for sUpgrade, tUpgrade in oBP.Enhancements do
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
-            end
-            if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
-                if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
-                    sLowestUpgrade = sUpgrade
-                    iLowestMassCost = tUpgrade.BuildCostMass
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
+        if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+            for sUpgrade, tUpgrade in oBP.Enhancements do
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
+                end
+                if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
+                    if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
+                        sLowestUpgrade = sUpgrade
+                        iLowestMassCost = tUpgrade.BuildCostMass
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
+                        end
                     end
                 end
             end
-        end
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil'))
-        end
-        if sLowestUpgrade then
-            oACU[reftPreferredUpgrades] = { sLowestUpgrade }
-            --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
-        elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-            oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil'))
+            end
+            if sLowestUpgrade then
+                oACU[reftPreferredUpgrades] = { sLowestUpgrade }
+                --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
+            elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
+                oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+            end
         end
     end
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
@@ -2365,93 +2367,94 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
+        local iClosestEnemyToAttack = 100000
+        local oClosestEnemyToAttack
+        local tViaPointForClosestEnemy
+        local iTeam = oACU:GetAIBrain().M28Team
+        local iDistToACUThreshold = (iRangeThresholdOverride or 50)
+        if tLZTeamData[M28Map.subrefLZbCoreBase] and not(iRangeThresholdOverride) then iDistToACUThreshold = iDistToACUThreshold + 25 end
+        local iDistToLandThreshold = oACU[M28UnitInfo.refiDFRange] - 5
+        local iCurDistToACU
+        local bCanHitFromLand, iAngleFromACUToUnit, iTempSegmentX, iTempSegmentZ
+        local tPotentialViaPoint
+        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
 
-    local iClosestEnemyToAttack = 100000
-    local oClosestEnemyToAttack
-    local tViaPointForClosestEnemy
-    local iTeam = oACU:GetAIBrain().M28Team
-    local iDistToACUThreshold = (iRangeThresholdOverride or 50)
-    if tLZTeamData[M28Map.subrefLZbCoreBase] and not(iRangeThresholdOverride) then iDistToACUThreshold = iDistToACUThreshold + 25 end
-    local iDistToLandThreshold = oACU[M28UnitInfo.refiDFRange] - 5
-    local iCurDistToACU
-    local bCanHitFromLand, iAngleFromACUToUnit, iTempSegmentX, iTempSegmentZ
-    local tPotentialViaPoint
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..', iRangeThresholdOverride='..(iRangeThresholdOverride or 'nil')..'; iDistToLandThreshold='..iDistToLandThreshold..'; iDistToACUThreshold='..iDistToACUThreshold) end
-    function ConsiderPotentialUnitTarget(oUnit)
-        if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-            iCurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToACU='..iCurDistToACU..'; iDistToACUThreshold='..iDistToACUThreshold..'; iClosestEnemyToAttack='..iClosestEnemyToAttack) end
-            if iCurDistToACU <= iDistToACUThreshold and iCurDistToACU < iClosestEnemyToAttack then
-                --If we move from the ACU until we are within ACU range of the unit, are we on land rather than water?
-                bCanHitFromLand = false
-                if iCurDistToACU <= iDistToLandThreshold then
-                    bCanHitFromLand = true
-                    tPotentialViaPoint = oUnit:GetPosition()
-                else
-                    iAngleFromACUToUnit = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oUnit:GetPosition())
-                    tPotentialViaPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToUnit, iCurDistToACU - iDistToLandThreshold, true, true, true)
-                    iTempSegmentX, iTempSegmentZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
-                    if M28Map.tLandZoneBySegment[iTempSegmentX][iTempSegmentZ] then
-                        bCanHitFromLand = true
-                    elseif iCurDistToACU <= oACU[M28UnitInfo.refiDFRange] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..', iRangeThresholdOverride='..(iRangeThresholdOverride or 'nil')..'; iDistToLandThreshold='..iDistToLandThreshold..'; iDistToACUThreshold='..iDistToACUThreshold) end
+        function ConsiderPotentialUnitTarget(oUnit)
+            if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                iCurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToACU='..iCurDistToACU..'; iDistToACUThreshold='..iDistToACUThreshold..'; iClosestEnemyToAttack='..iClosestEnemyToAttack) end
+                if iCurDistToACU <= iDistToACUThreshold and iCurDistToACU < iClosestEnemyToAttack then
+                    --If we move from the ACU until we are within ACU range of the unit, are we on land rather than water?
+                    bCanHitFromLand = false
+                    if iCurDistToACU <= iDistToLandThreshold then
                         bCanHitFromLand = true
                         tPotentialViaPoint = oUnit:GetPosition()
+                    else
+                        iAngleFromACUToUnit = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oUnit:GetPosition())
+                        tPotentialViaPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToUnit, iCurDistToACU - iDistToLandThreshold, true, true, true)
+                        iTempSegmentX, iTempSegmentZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
+                        if M28Map.tLandZoneBySegment[iTempSegmentX][iTempSegmentZ] then
+                            bCanHitFromLand = true
+                        elseif iCurDistToACU <= oACU[M28UnitInfo.refiDFRange] then
+                            bCanHitFromLand = true
+                            tPotentialViaPoint = oUnit:GetPosition()
+                        end
                     end
-                end
-                if bCanHitFromLand then
-                    iClosestEnemyToAttack = iCurDistToACU
-                    oClosestEnemyToAttack = oUnit
-                    tViaPointForClosestEnemy = {tPotentialViaPoint[1], tPotentialViaPoint[2], tPotentialViaPoint[3]}
-                end
-            end
-        end
-    end
-    for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
-        local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-        local iPond = M28Map.tiPondByWaterZone[iAdjWZ]
-        local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.subrefWZThreatEnemyAA]='..tWZTeamData[M28Map.subrefWZThreatEnemyAA]) end
-        if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefWZThreatEnemyAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
-                if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit undetwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end end
-                ConsiderPotentialUnitTarget(oUnit)
-            end
-            if not(oClosestEnemyToAttack) then
-                --redundancy - use getunitsaroundpoint as sometimes can have nearby WZ that unit isnt showing in
-                local aiBrain = oACU:GetAIBrain()
-                local tNearbyNavalUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAmphibiousAndNavy - categories.AMPHIBIOUS, oACU:GetPosition(), iDistToACUThreshold, 'Enemy')
-                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy hover and surface navy empty='..tostring(M28Utilities.IsTableEmpty(tNearbyNavalUnits))) end
-                if M28Utilities.IsTableEmpty(tNearbyNavalUnits) == false then
-                    for iUnit, oUnit in tNearbyNavalUnits do
-                        ConsiderPotentialUnitTarget(oUnit)
+                    if bCanHitFromLand then
+                        iClosestEnemyToAttack = iCurDistToACU
+                        oClosestEnemyToAttack = oUnit
+                        tViaPointForClosestEnemy = {tPotentialViaPoint[1], tPotentialViaPoint[2], tPotentialViaPoint[3]}
                     end
                 end
             end
         end
-    end
-
-    if oClosestEnemyToAttack then
-        --move towards the enemy unit if we are out of range or only just in range, otherwise attack (or ground attack) the enemy
-        if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyToAttack='..oClosestEnemyToAttack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyToAttack)..'; iClosestEnemyToAttack='..iClosestEnemyToAttack..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true))..'; Time since last weapon event='..GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10)) end
-        if iClosestEnemyToAttack <= iDistToLandThreshold then
-
-            if M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true) and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 3 then
-                M28Orders.IssueTrackedAttack(oACU, oClosestEnemyToAttack, false, 'NUAt', false)
-            else
-                M28Orders.IssueTrackedAggressiveMove(oACU, oClosestEnemyToAttack:GetPosition(), 1, false, 'NUAM', false)
-                --M28Orders.IssueTrackedGroundAttack(oACU, oClosestEnemyToAttack:GetPosition(), 1, false, 'NuGA', false) --tried ground attack but on frigates it just means shotting the water
-            end
-        else
-            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tViaPointForClosestEnemy) >= 2 or GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 2 then
-                M28Orders.IssueTrackedMove(oACU, tViaPointForClosestEnemy, 1.5, false, 'NuMV', false) --Tried doing attack move but often ACU would just stand there with attackmove slightly infront of it, and do nothing while it takes fire, e.g. if enemy isnt visible
-            else
-                M28Orders.IssueTrackedMove(oACU, oClosestEnemyToAttack:GetPosition(), 1.5, false, 'NuMU', false) --Tried doing attack move but often ACU would just stand there with attackmove slightly infront of it, and do nothing while it takes fire, e.g. if enemy isnt visible
+        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+            local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+            local iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+            local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.subrefWZThreatEnemyAA]='..tWZTeamData[M28Map.subrefWZThreatEnemyAA]) end
+            if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefWZThreatEnemyAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
+                    if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit undetwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end end
+                    ConsiderPotentialUnitTarget(oUnit)
+                end
+                if not(oClosestEnemyToAttack) then
+                    --redundancy - use getunitsaroundpoint as sometimes can have nearby WZ that unit isnt showing in
+                    local aiBrain = oACU:GetAIBrain()
+                    local tNearbyNavalUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAmphibiousAndNavy - categories.AMPHIBIOUS, oACU:GetPosition(), iDistToACUThreshold, 'Enemy')
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy hover and surface navy empty='..tostring(M28Utilities.IsTableEmpty(tNearbyNavalUnits))) end
+                    if M28Utilities.IsTableEmpty(tNearbyNavalUnits) == false then
+                        for iUnit, oUnit in tNearbyNavalUnits do
+                            ConsiderPotentialUnitTarget(oUnit)
+                        end
+                    end
+                end
             end
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
+
+        if oClosestEnemyToAttack then
+            --move towards the enemy unit if we are out of range or only just in range, otherwise attack (or ground attack) the enemy
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyToAttack='..oClosestEnemyToAttack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyToAttack)..'; iClosestEnemyToAttack='..iClosestEnemyToAttack..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true))..'; Time since last weapon event='..GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10)) end
+            if iClosestEnemyToAttack <= iDistToLandThreshold then
+
+                if M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true) and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 3 then
+                    M28Orders.IssueTrackedAttack(oACU, oClosestEnemyToAttack, false, 'NUAt', false)
+                else
+                    M28Orders.IssueTrackedAggressiveMove(oACU, oClosestEnemyToAttack:GetPosition(), 1, false, 'NUAM', false)
+                    --M28Orders.IssueTrackedGroundAttack(oACU, oClosestEnemyToAttack:GetPosition(), 1, false, 'NuGA', false) --tried ground attack but on frigates it just means shotting the water
+                end
+            else
+                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tViaPointForClosestEnemy) >= 2 or GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 2 then
+                    M28Orders.IssueTrackedMove(oACU, tViaPointForClosestEnemy, 1.5, false, 'NuMV', false) --Tried doing attack move but often ACU would just stand there with attackmove slightly infront of it, and do nothing while it takes fire, e.g. if enemy isnt visible
+                else
+                    M28Orders.IssueTrackedMove(oACU, oClosestEnemyToAttack:GetPosition(), 1.5, false, 'NuMU', false) --Tried doing attack move but often ACU would just stand there with attackmove slightly infront of it, and do nothing while it takes fire, e.g. if enemy isnt visible
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

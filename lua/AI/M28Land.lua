@@ -4146,7 +4146,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if M28Utilities.IsTableEmpty(tIndirectUnits) then iIndirectLZToSupport = -1 end
 
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this LZ or adjacent LZ, so will consider supporting other land zones, is tDFUnits empty='..tostring(M28Utilities.IsTableEmpty(tDFUnits))..'; Is adjacent LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -4165,7 +4164,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
         if iIndirectLZToSupport and not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tDFUnits) then iDFLZToSupport = -1 end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': iDFLZToSupport after initial check='..(iDFLZToSupport or 'nil')..'; iIndirectLZToSupport after initial check='..(iIndirectLZToSupport or 'nil')) end
         if not(iIndirectLZToSupport) or not(iDFLZToSupport) then
             --Are there any further away LZs on this plateau that want support?
             local iClosestLZDFDist = 100000
@@ -4174,38 +4173,44 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             local iClosestDFLZRef
             local iClosestIndirectLZRef
             if M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] then
+                local iIslandWanted = tLZData[M28Map.subrefLZIslandRef]
                 for iOtherLZ, bWantsSupport in M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] do
                     if bWantsSupport then
                         local tOtherLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ]
                         if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tOtherLZData[M28Map.subrefMidpoint])) then
-                            if not(iDFLZToSupport) and tOtherLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
-                                --Redundancy - if we cant path using land units then treat distance as 10k + straight line distance, so we prioritise locations that are land pathable (although ideally wouldnt have any such zones anyway?)
-                                iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) or 10000) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support iOtherLZ '..iOtherLZ..'; iCurDist='..iCurDist..'; iClosestLZDFDist='..iClosestLZDFDist..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
-                                if iCurDist >= 10000 and iCurDist < iClosestLZDFDist then iCurDist = iCurDist + M28Utilities.GetDistanceBetweenPositions(tOtherLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
-                                if iCurDist and iCurDist < iClosestLZDFDist then
-                                    iClosestLZDFDist = iCurDist
-                                    iClosestDFLZRef = iOtherLZ
-                                end
-                                if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                            if iIslandWanted == tOtherLZData[M28Map.subrefLZIslandRef] then --If in dif island then want to leave for the amphibious logic later
+                                if not(iDFLZToSupport) and tOtherLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
+                                    --Redundancy - if we cant path using land units then treat distance as 10k + straight line distance, so we prioritise locations that are land pathable (although ideally wouldnt have any such zones anyway?)
+                                    iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) or 10000) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support iOtherLZ '..iOtherLZ..'; iCurDist='..iCurDist..'; iClosestLZDFDist='..iClosestLZDFDist..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
+                                    if iCurDist >= 10000 and iCurDist < iClosestLZDFDist then iCurDist = iCurDist + M28Utilities.GetDistanceBetweenPositions(tOtherLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
+                                    if iCurDist and iCurDist < iClosestLZDFDist then
+                                        iClosestLZDFDist = iCurDist
+                                        iClosestDFLZRef = iOtherLZ
+                                    end
+                                    if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                                        if iCurDist and iCurDist < iClosestLZIndirectDist then
+                                            iClosestLZIndirectDist = iCurDist
+                                            iClosestIndirectLZRef = iOtherLZ
+                                        end
+                                    end
+                                elseif not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                                    iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support witih indirect iOtherLZ '..iOtherLZ..'; iCurDist='..repru(iCurDist)..'; iClosestLZIndirectDist='..repru(iClosestLZIndirectDist)..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
                                     if iCurDist and iCurDist < iClosestLZIndirectDist then
                                         iClosestLZIndirectDist = iCurDist
                                         iClosestIndirectLZRef = iOtherLZ
                                     end
-                                end
-                            elseif not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
-                                iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support witih indirect iOtherLZ '..iOtherLZ..'; iCurDist='..repru(iCurDist)..'; iClosestLZIndirectDist='..repru(iClosestLZIndirectDist)..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
-                                if iCurDist and iCurDist < iClosestLZIndirectDist then
-                                    iClosestLZIndirectDist = iCurDist
-                                    iClosestIndirectLZRef = iOtherLZ
                                 end
                             end
                         end
                     end
                 end
             end
-            if not(iDFLZToSupport) then iDFLZToSupport = iClosestDFLZRef end
+            if not(iDFLZToSupport) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have no DFLZToSupport, so will set it to iClosestDFLZRef in case that isnt nil, iClosestDFLZRef='..(iClosestDFLZRef or 'nil')) end
+                iDFLZToSupport = iClosestDFLZRef
+            end
             --If still not found somewhere to support, check for nearby islands wanting support
             if bDebugMessages == true then LOG(sFunctionRef..': Checking for LZs to send DF units to support at time '..GetGameTimeSeconds()..' for LZ '..(iLandZone or 'nil')..' on island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..', pre island iDFLZToSupport='..(iDFLZToSupport or 'nil')..'; is pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands] or false)) end
             if not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
