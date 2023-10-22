@@ -142,7 +142,6 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLandZonesWantingMAAByPlateau = 'M28TeamLZWantingMAA' --[x] is the plateau ,ref, [y] is the land zone ref, returns true if we want MAA support for the plateau
     subrefiWaterZonesWantingSignificantMAAByPlateau = 'M28TeamWZWantingMAA' --[x] is the PLATEAU ref, [y] is the wawter zone ref, returns true if want significant MAA support for the plateau
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, then returns a table orderd 1, 2... of land zones that are rally points
-    refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
@@ -548,7 +547,9 @@ function CreateNewTeam(aiBrain)
 
     local bHaveCampaignM28AI = false
     local bHaveM28BrainInTeam = false
-    local bHaveOmniVision = false
+
+    local tbBrainsWithLandSubteam = {}
+
     for iCurBrain, oBrain in ArmyBrains do
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
         ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
@@ -613,6 +614,7 @@ function CreateNewTeam(aiBrain)
                     if (iStartIsland or 0) > 0 then
                         if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
                         table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
+                        tbBrainsWithLandSubteam[oBrain:GetArmyIndex()] = true
                         tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
                     end
                 end
@@ -623,7 +625,6 @@ function CreateNewTeam(aiBrain)
                 end
             end
         end
-
         ForkThread(TeamInitialisation, iTotalTeamCount)
     end
     ForkThread(TeamDeathChecker)
@@ -639,6 +640,71 @@ function CreateNewTeam(aiBrain)
             tTeamData[iTotalTeamCount][rebTeamOnlyHasCampaignAI] = true
         end
         ForkThread(CheckIfCampaignTeamHasBuildings, iTotalTeamCount)
+    end
+
+    --Check every brain is on a land subteam (even if have a water start)
+    ForkThread(CheckForBrainsWithoutLandSubteam, iTotalTeamCount, tbBrainsWithLandSubteam)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForBrainsWithoutLandSubteam'
+
+    while not(M28Map.bWaterZoneInitialCreation) do
+        WaitTicks(1)
+    end
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if any brains in team '..iTeam..'; are missing a land subteam, tbBrainsWithLandSubteam='..repru(tbBrainsWithLandSubteam)) end
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            if not(tbBrainsWithLandSubteam[oBrain:GetArmyIndex()]) and not(oBrain.M28LandSubteam) and oBrain.M28AI then
+                if bDebugMessages == true then LOG(sFunctionRef..': No land subteam recorded yet for brain '..oBrain.Nickname..'; will try and search for one, Index='..oBrain:GetArmyIndex()..'; Start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Time='..GetGameTimeSeconds()) end
+                --Campaign map - find hte closest factory to the player start, if we have one
+                local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+                local iStartIsland
+                local tFriendlyFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, false, true)
+                local iStartPlateau
+                if M28Utilities.IsTableEmpty(tFriendlyFactories) == false then
+                    local iCurDist
+                    local iClosestDist = 100000
+                    for iFactory, oFactory in tFriendlyFactories do
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPoint, oFactory:GetPosition())
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition())
+                            iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oFactory:GetPosition())
+                        end
+                    end
+                end
+                if not(iStartIsland) or not(iStartPlateau) then
+                    --Non-campaign map, or campaign map where no factories - Find the nearest land area to the brain's start position
+                    local tStartLZOrWZData = M28Map.GetLandOrWaterZoneData(tStartPoint)
+                    if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; Is LZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData))..'; Water zone setup started='..tostring(M28Map.bWaterZoneInitialCreation)) end
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartPoint)
+                    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                        for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                            if not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                                local tCurLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tCurLZData[M28Map.subrefMidpoint])
+                                iStartPlateau =  NavUtils.GetLabel(M28Map.refPathingTypeHover, tCurLZData[M28Map.subrefMidpoint])
+                                if iStartIsland and iStartPlateau then break end
+                            end
+                        end
+                    end
+                end
+                if not(iStartIsland) or not(iStartPlateau) then
+                    M28Utilities.ErrorHandler('Unable to find a starting island for brain nickname '..(oBrain.Nickname or 'nil')..' so wont have a land subteam created for it with a valid island')
+                    --Basic values so wont completely error out:
+                    iStartPlateau = 1
+                    iStartIsland = 1
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will create a backup land subteam for oBrain='..oBrain.Nickname..'; iStartPlateau='..(iStartPlateau or 'nil')..'; iStartIsland='..(iStartIsland or 'nil')) end
+                CreateNewLandSubteam(iStartPlateau, iStartIsland, { oBrain})
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1428,7 +1494,21 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                 if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
                     --Do nothing
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..(oUnit:GetBlueprint().Economy.BuildCostMass or 'nil')) end
+                    --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead
+                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and (oUnit:GetBlueprint().Economy.BuildCostMass or 0) >= 25 then
+
+                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                        local bIncluded = false
+                        if not(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) then tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] = {}
+                        else
+                            for iReclaimUnit, oReclaimUnit in tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                                if oReclaimUnit == oUnit then bIncluded = true break end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit in table of units to reclaim for team '..aiBrain.M28Team) end
+                        if not(bIncluded) then table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit) end
+                    end
                 else
 
                     if not(bAlreadyUpdatedPosition) then

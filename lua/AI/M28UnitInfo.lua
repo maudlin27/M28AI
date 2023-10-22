@@ -70,6 +70,7 @@ refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
+refiDFMinRange = 'M28DFMinRng' --Min range of a unit
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
@@ -1284,10 +1285,16 @@ function RecordUnitRange(oUnit)
                     end
                     if bReplaceValues then
                         oUnit[refiDFRange] = (oCurWeapon.MaxRadius or 0)
+                        oUnit[refiDFMinRange] = oCurWeapon.MinRadius
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = oCurWeapon.DamageRadius end
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = 1 / oCurWeapon.RateOfFire end
                     elseif not(bIgnoreValues) then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
+                        if oCurWeapon.MinRadius then
+                            if oUnit[refiDFMinRange] then oUnit[refiDFMinRange] = math.min(oUnit[refiDFMinRange], oCurWeapon.MinRadius)
+                            else oUnit[refiDFMinRange] = oCurWeapon.MinRadius
+                            end
+                        end
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     end
@@ -1309,6 +1316,11 @@ function RecordUnitRange(oUnit)
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' or oCurWeapon.WeaponCategory == 'Kamikaze' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.MinRadius then
+                            if oUnit[refiDFMinRange] then oUnit[refiDFMinRange] = math.min(oUnit[refiDFMinRange], oCurWeapon.MinRadius)
+                            else oUnit[refiDFMinRange] = oCurWeapon.MinRadius
+                            end
+                        end
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif oCurWeapon.WeaponCategory == 'Indirect Fire' then
@@ -1323,6 +1335,11 @@ function RecordUnitRange(oUnit)
                         --experimental wars - experimental spaceships have a 'bomb' weapon category
                         if oCurWeapon.FireTargetLayerCapsTable and oCurWeapon.FireTargetLayerCapsTable['Land'] == 'Land|Water|Seabed' and not(oCurWeapon.ManualFire) and not(oCurWeapon.NeedToComputeBombDrop) then
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                            if oCurWeapon.MinRadius then
+                                if oUnit[refiDFMinRange] then oUnit[refiDFMinRange] = math.min(oUnit[refiDFMinRange], oCurWeapon.MinRadius)
+                                else oUnit[refiDFMinRange] = oCurWeapon.MinRadius
+                                end
+                            end
                         elseif EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
 
                         else
@@ -1725,7 +1742,7 @@ function GetUnitFacingAngle(oUnit)
         if oUnit.GetWeapon and oUnit:GetWeaponCount() > 0 then
             --LOG('GetFacingAngle: oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
             local oWeapon = oUnit:GetWeapon(1)
-            if oWeapon and oWeapon.GetAimManipulator then
+            if oWeapon and oWeapon.GetAimManipulator and oWeapon:GetAimManipulator().GetHeadingPitch then
                 return M28Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())
             else return 0
             end
@@ -1999,6 +2016,7 @@ function GetMissileCount(oUnit)
 end
 
 function GiveUnitTemporaryVision(oUnit, iVision)
+    --LOG('Applying temporary vision buff at time='..GetGameTimeSeconds())
     local Buff = import('/lua/sim/Buff.lua')
     if not Buffs['CrateVisBuff'] then
         BuffBlueprint {

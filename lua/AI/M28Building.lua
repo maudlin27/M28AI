@@ -2573,7 +2573,43 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 end
                 if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end
             else
-                local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
+                local tActualTarget
+                local tLeadingTarget
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; Does this contain mobile='..tostring(EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId))..'; Fraction complete='..oBestTarget:GetFractionComplete()..'; Is moving unit state='..tostring(oBestTarget:IsUnitState('Moving'))..'; Unit state='..M28UnitInfo.GetUnitState(oBestTarget)) end
+                if EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId) and oBestTarget:GetFractionComplete() == 1 and oBestTarget:IsUnitState('Moving') then
+                    --If best target is mobile and moving, then consider a leading shot instead
+                    local oBP = oArti:GetBlueprint()
+                    local iWeaponVelocity
+                    if oBP.Weapon then
+                        for iCurWeapon, oCurWeapon in oBP.Weapon do
+                            if (oCurWeapon.DamageRadius or 0) > 0 and (oCurWeapon.MaxRadius or 0) >= iMaxRange then
+                                iWeaponVelocity = oCurWeapon.MuzzleVelocity
+                                break
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iWeaponVelocity='..(iWeaponVelocity or 'nil')) end
+                    if (iWeaponVelocity or 0) > 0 then
+                        local iDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oBestTarget:GetPosition(), oArti:GetPosition())
+                        local iTimeToImpact = 0.5 + iDistToEnemy * 1.75 / iWeaponVelocity
+                        local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBestTarget)
+                        local iDistToLead = iTimeToImpact * (oBestTarget:GetBlueprint().Physics.MaxSpeed or 0)
+                        tLeadingTarget = M28Utilities.MoveInDirection(oBestTarget:GetPosition(), iCurFacingDirection, iDistToLead, true, false, M28Map.bIsCampaignMap)
+                        if bDebugMessages == true then LOG(sFunctionRef..': tLeadingTarget='..repru(tLeadingTarget)..'; Dist to best arti='..M28Utilities.GetDistanceBetweenPositions(tLeadingTarget, oArti:GetPosition())..'; Min range='..iMinRange) end
+                        if not(tLeadingTarget and M28Utilities.GetDistanceBetweenPositions(tLeadingTarget, oArti:GetPosition()) >= iMinRange) then
+                            tLeadingTarget = nil
+                        end
+                    end
+                end
+                if tLeadingTarget then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Changing Arti target for oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..' to try and lead target, oBestTarget position='..repru(oBestTarget:GetPosition())..'; tLeadingTarget='..repru(tLeadingTarget)..'; Time='..GetGameTimeSeconds()) end
+                    tActualTarget = tLeadingTarget
+                else
+                    tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
+                end
+
+
+
                 --Double check are still in range
                 local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
                 if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestTargetValue='..(iBestTargetValue or 'nil')) end

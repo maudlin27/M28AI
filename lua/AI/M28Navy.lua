@@ -85,88 +85,89 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
 
         return {tRallyWZData[M28Map.subrefMidpoint][1], tRallyWZData[M28Map.subrefMidpoint][2], tRallyWZData[M28Map.subrefMidpoint][3]}
     else
-        M28Utilities.ErrorHandler('No rally point for Pond '..(iPond or 'nil')..' WZ'..(iWaterZone or 'nil')..'; will return current midpoint')
+        RefreshWaterRallyPoints(iTeam, iPond)
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]) then
+            M28Utilities.ErrorHandler('No rally point for Pond '..(iPond or 'nil')..' WZ'..(iWaterZone or 'nil')..'; iTeam='..iTeam..' even after refreshing, will return current midpoint')
+        end
         return {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshWaterRallyPoints(iTeam)
+function RefreshWaterRallyPoints(iTeam, iPond)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshWaterRallyPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()) end
-    M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond] = {}
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for team '..iTeam..' at time='..GetGameTimeSeconds()) end
+
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond]) then M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond] = {} end
     local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-    for iPond, tPondSubtable in M28Map.tPondDetails do
-        if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) then M28Utilities.ErrorHandler('No water zones listed for iPond='..iPond)
-        else
-            M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
-            for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] then
-                    if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
-                        table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iWaterZone)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added iWaterZone='..(iWaterZone or 'nil')..' as a water zone rally for pond '..iPond..' based on core base flag') end
-                    end
+    if M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones]) then M28Utilities.ErrorHandler('No water zones listed for iPond='..iPond)
+    else
+        M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
+        for iWaterZone, tWZData in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones] do
+            if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] then
+                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iWaterZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added iWaterZone='..(iWaterZone or 'nil')..' as a water zone rally for pond '..iPond..' based on core base flag') end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..'; Is table of water zone rally points by pond empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]))) end
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]) then
-                --Dont have any core WZ, so need to pick the WZ whose midpoint is closest to a base - filter to just the water zones that are adjacent to a LZ unless are a campaign map in which case consider the closest WZ to the closest base
-                local iCurDistToRallyLZ
-                local iClosestDistToRallyLZ = 100000
-                local iClosestWZRef
-                local iPlateau
-                for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                    iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
-                    if iPlateau then break end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Will see if nearby land zone rally points to any water zones, iPlateau='..(iPlateau or 'nil')..'; Is table of rally point land zones for this plateau empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]))) end
-                if iPlateau and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) == false then
-                    --For campaign maps check all zones, i..e will only do the 'consider zones with adjacent land zones' test for non-campaign maps only
-                    if bDontCheckPlayableArea then
-                        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                            --Does the WZ have adjacent LZ?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; Is the table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]))) end
-                            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
-                                --Search rally points for this plateau and get the closest
-                                for iEntry, iAltLZ in M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] do
-                                    iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint])
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToRallyLZ='..iCurDistToRallyLZ..'; iClosestDistToRallyLZ='..iClosestDistToRallyLZ) end
-                                    if iCurDistToRallyLZ < iClosestDistToRallyLZ then
-                                        iClosestDistToRallyLZ = iCurDistToRallyLZ
-                                        iClosestWZRef = iWaterZone
-                                    end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..'; Is table of water zone rally points by pond empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]))) end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]) then
+            --Dont have any core WZ, so need to pick the WZ whose midpoint is closest to a base - filter to just the water zones that are adjacent to a LZ unless are a campaign map in which case consider the closest WZ to the closest base
+            local iCurDistToRallyLZ
+            local iClosestDistToRallyLZ = 100000
+            local iClosestWZRef
+            local iPlateau
+            for iWaterZone, tWZData in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones] do
+                iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+                if iPlateau then break end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will see if nearby land zone rally points to any water zones, iPlateau='..(iPlateau or 'nil')..'; Is table of rally point land zones for this plateau empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]))) end
+            if iPlateau and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) == false then
+                --For campaign maps check all zones, i..e will only do the 'consider zones with adjacent land zones' test for non-campaign maps only
+                if bDontCheckPlayableArea then
+                    for iWaterZone, tWZData in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones] do
+                        --Does the WZ have adjacent LZ?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; Is the table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                            --Search rally points for this plateau and get the closest
+                            for iEntry, iAltLZ in M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] do
+                                iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToRallyLZ='..iCurDistToRallyLZ..'; iClosestDistToRallyLZ='..iClosestDistToRallyLZ) end
+                                if iCurDistToRallyLZ < iClosestDistToRallyLZ then
+                                    iClosestDistToRallyLZ = iCurDistToRallyLZ
+                                    iClosestWZRef = iWaterZone
                                 end
                             end
                         end
                     end
                 end
-                --Check all zones without the 'adjacent to land zone' restriction if we dont have any water zone
-                if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZRef under default approach='..(iClosestWZRef or 'nil')..'; if is nil then will try every WZ and get closest to base') end
-                if not(iClosestWZRef) then
-                    for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
-                            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                            iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
-                            if iCurDistToRallyLZ < iClosestDistToRallyLZ then
-                                iClosestDistToRallyLZ = iCurDistToRallyLZ
-                                iClosestWZRef = iWaterZone
-                            end
+            end
+            --Check all zones without the 'adjacent to land zone' restriction if we dont have any water zone
+            if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZRef under default approach='..(iClosestWZRef or 'nil')..'; if is nil then will try every WZ and get closest to base') end
+            if not(iClosestWZRef) then
+                for iWaterZone, tWZData in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones] do
+                    if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
+                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                        iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
+                        if iCurDistToRallyLZ < iClosestDistToRallyLZ then
+                            iClosestDistToRallyLZ = iCurDistToRallyLZ
+                            iClosestWZRef = iWaterZone
                         end
                     end
                 end
+            end
 
-                if iClosestWZRef then
-                    table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iClosestWZRef)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Added iClosestWZRef='..(iClosestWZRef or 'nil')..' as a water zone rally') end
-                end
+            if iClosestWZRef then
+                table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond], iClosestWZRef)
+                if bDebugMessages == true then LOG(sFunctionRef..': Added iClosestWZRef='..(iClosestWZRef or 'nil')..' as a water zone rally') end
             end
         end
     end
     if bDebugMessages == true then
-        LOG(sFunctionRef..': End of code, repru of rally points by pond for team '..iTeam..'='..repru(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond]))
-        LOG(sFunctionRef..': Is table empty for pond 5='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][5]))..'; repru for pond 5='..repru(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][5]))
+        LOG(sFunctionRef..': End of code, repru of rally points by pond '..iPond..' for team '..iTeam..'='..repru(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond]))
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -358,12 +359,9 @@ function ManageAllWaterZones(aiBrain, iTeam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()) end
 
-    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] or -100) >= 10 then
-        RefreshWaterRallyPoints(iTeam)
-    end
-
     --Cycle through water zones
     for iPond, tPondSubtable in M28Map.tPondDetails do
+        RefreshWaterRallyPoints(iTeam, iPond)
         local bAlreadyUsingFrigatesAsScouts = M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond]
         local bHaveCoreWZWithAdjacentEnemies = false
         if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) == false then

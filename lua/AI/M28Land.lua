@@ -1415,7 +1415,6 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
             end
         end
     end
-    M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] = GetGameTimeSeconds()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3153,7 +3152,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestDFRange or (bAttackWithSameRange and oUnit[M28UnitInfo.refiDFRange] >= iEnemyBestDFRange) then
                         table.insert(tUnitsToSupport, oUnit)
                         --Consider kiting logic unless want to use shot blocked override logic
-                        if bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
+                        if bMoveBlockedNotAttackMove and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (not(oUnit[M28UnitInfo.refiDFMinRange]) or oUnit[M28UnitInfo.refiDFRange] <= 120)) or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BlckM'..iLandZone)
                         else
                             --Experimental specific - attack ACU if in-range
@@ -3196,11 +3195,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId) and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId)) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], true) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] then
                                             M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'InRngEn', false)
                                         else
-                                            --Attackmove (unless we have far more threat in this zone and arent a megalith or fatboy)
-                                            if bMoveToStopPDConstruction or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID))) then
+                                            --Attackmove (unless we have far more threat in this zone and arent a megalith)
+                                            if (bMoveToStopPDConstruction or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)))) and (oUnit[M28UnitInfo.refiDFRange] <= 120 and (oUnit[M28UnitInfo.refiDFMinRange] or 0) <= 30) then
                                                 M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMve'..iLandZone, false)
                                             else
-                                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KAMve'..iLandZone)
+                                                if not(oUnit.UnitId == 'xnl0403') or DontHaveJerichoAttackTarget(oUnit) then
+                                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KAMve'..iLandZone)
+                                                end
                                             end
                                         end
                                     end
@@ -4144,7 +4145,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if M28Utilities.IsTableEmpty(tIndirectUnits) then iIndirectLZToSupport = -1 end
 
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this LZ or adjacent LZ, so will consider supporting other land zones, is tDFUnits empty='..tostring(M28Utilities.IsTableEmpty(tDFUnits))..'; Is adjacent LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -4163,7 +4163,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
         if iIndirectLZToSupport and not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tDFUnits) then iDFLZToSupport = -1 end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': iDFLZToSupport after initial check='..(iDFLZToSupport or 'nil')..'; iIndirectLZToSupport after initial check='..(iIndirectLZToSupport or 'nil')) end
         if not(iIndirectLZToSupport) or not(iDFLZToSupport) then
             --Are there any further away LZs on this plateau that want support?
             local iClosestLZDFDist = 100000
@@ -4172,38 +4172,44 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             local iClosestDFLZRef
             local iClosestIndirectLZRef
             if M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] then
+                local iIslandWanted = tLZData[M28Map.subrefLZIslandRef]
                 for iOtherLZ, bWantsSupport in M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] do
                     if bWantsSupport then
                         local tOtherLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ]
                         if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tOtherLZData[M28Map.subrefMidpoint])) then
-                            if not(iDFLZToSupport) and tOtherLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
-                                --Redundancy - if we cant path using land units then treat distance as 10k + straight line distance, so we prioritise locations that are land pathable (although ideally wouldnt have any such zones anyway?)
-                                iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) or 10000) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support iOtherLZ '..iOtherLZ..'; iCurDist='..iCurDist..'; iClosestLZDFDist='..iClosestLZDFDist..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
-                                if iCurDist >= 10000 and iCurDist < iClosestLZDFDist then iCurDist = iCurDist + M28Utilities.GetDistanceBetweenPositions(tOtherLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
-                                if iCurDist and iCurDist < iClosestLZDFDist then
-                                    iClosestLZDFDist = iCurDist
-                                    iClosestDFLZRef = iOtherLZ
-                                end
-                                if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                            if iIslandWanted == tOtherLZData[M28Map.subrefLZIslandRef] then --If in dif island then want to leave for the amphibious logic later
+                                if not(iDFLZToSupport) and tOtherLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
+                                    --Redundancy - if we cant path using land units then treat distance as 10k + straight line distance, so we prioritise locations that are land pathable (although ideally wouldnt have any such zones anyway?)
+                                    iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) or 10000) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support iOtherLZ '..iOtherLZ..'; iCurDist='..iCurDist..'; iClosestLZDFDist='..iClosestLZDFDist..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
+                                    if iCurDist >= 10000 and iCurDist < iClosestLZDFDist then iCurDist = iCurDist + M28Utilities.GetDistanceBetweenPositions(tOtherLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
+                                    if iCurDist and iCurDist < iClosestLZDFDist then
+                                        iClosestLZDFDist = iCurDist
+                                        iClosestDFLZRef = iOtherLZ
+                                    end
+                                    if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                                        if iCurDist and iCurDist < iClosestLZIndirectDist then
+                                            iClosestLZIndirectDist = iCurDist
+                                            iClosestIndirectLZRef = iOtherLZ
+                                        end
+                                    end
+                                elseif not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                                    iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support witih indirect iOtherLZ '..iOtherLZ..'; iCurDist='..repru(iCurDist)..'; iClosestLZIndirectDist='..repru(iClosestLZIndirectDist)..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
                                     if iCurDist and iCurDist < iClosestLZIndirectDist then
                                         iClosestLZIndirectDist = iCurDist
                                         iClosestIndirectLZRef = iOtherLZ
                                     end
-                                end
-                            elseif not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
-                                iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support witih indirect iOtherLZ '..iOtherLZ..'; iCurDist='..repru(iCurDist)..'; iClosestLZIndirectDist='..repru(iClosestLZIndirectDist)..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefMidpoint])) end
-                                if iCurDist and iCurDist < iClosestLZIndirectDist then
-                                    iClosestLZIndirectDist = iCurDist
-                                    iClosestIndirectLZRef = iOtherLZ
                                 end
                             end
                         end
                     end
                 end
             end
-            if not(iDFLZToSupport) then iDFLZToSupport = iClosestDFLZRef end
+            if not(iDFLZToSupport) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have no DFLZToSupport, so will set it to iClosestDFLZRef in case that isnt nil, iClosestDFLZRef='..(iClosestDFLZRef or 'nil')) end
+                iDFLZToSupport = iClosestDFLZRef
+            end
             --If still not found somewhere to support, check for nearby islands wanting support
             if bDebugMessages == true then LOG(sFunctionRef..': Checking for LZs to send DF units to support at time '..GetGameTimeSeconds()..' for LZ '..(iLandZone or 'nil')..' on island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..', pre island iDFLZToSupport='..(iDFLZToSupport or 'nil')..'; is pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands] or false)) end
             if not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
@@ -4279,7 +4285,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': iDFLZToSupport after revising target for far away LZ='..iDFLZToSupport..'; Midpoint of this zone='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint])) end
 
             for iUnit, oUnit in tDFUnits do
-                M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint], 6, false, 'DFMovLZ'..iDFLZToSupport..';'..iLandZone)
+                --Attack-move if very long range
+                if (oUnit[M28UnitInfo.refiDFRange] >= 60 and (not(oUnit[M28UnitInfo.refbLastShotBlocked]) or oUnit[M28UnitInfo.refiDFRange] >= 130)) or (oUnit[M28UnitInfo.refiDFMinRange] or 0) >= 20 then
+                    --jericho - workaround for attackmove not working
+                    if not(oUnit.UnitId == 'xnl0403') or DontHaveJerichoAttackTarget(oUnit) then
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint], 6, false, 'DFAMvLZ'..iDFLZToSupport..';'..iLandZone)
+                    end
+                else
+                    M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint], 6, false, 'DFMovLZ'..iDFLZToSupport..';'..iLandZone)
+                end
             end
             tDFUnits = nil
         end
@@ -5813,4 +5827,63 @@ function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DontHaveJerichoAttackTarget(oJericho)
+    local aiBrain = oJericho:GetAIBrain()
+    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, oJericho:GetPosition(), oJericho[M28UnitInfo.refiDFRange], 'Enemy')
+    local oUnitToTarget
+    if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
+        local iHighestValue = 0
+        local iCurValue
+        local iMinRange = (oJericho[M28UnitInfo.refiDFMinRange] or -10) + 10
+        for iUnit, oUnit in tEnemiesInRange do
+            --Non-attached on land near-built unit that isnt inside minimum range?
+            if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() >= 0.5 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oJericho:GetPosition()) >= iMinRange then
+                iCurValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0) * oUnit:GetFractionComplete()
+                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurValue = iCurValue * 0.1 end
+                if iCurValue > iHighestValue then
+                    if (M28UnitInfo.GetBuildingSize(oUnit.UnitId) or 0) <= 4 then iCurValue = iCurValue * 0.3 end
+                    if iCurValue > iHighestValue then
+                        iHighestValue = iCurValue
+                        oUnitToTarget = oUnit
+                    end
+                end
+            end
+        end
+    end
+    if oUnitToTarget then
+        --consider target leading
+        local tGroundTarget
+        if (oJericho[M28UnitInfo.refiDFAOE] or 0) > 0 and EntityCategoryContains(categories.MOBILE, oUnitToTarget.UnitId) and oUnitToTarget:IsUnitState('Moving') then
+            local iWeaponVelocity
+            local oBP = oJericho:GetBlueprint()
+            if oBP.Weapon then
+                for iCurWeapon, oCurWeapon in oBP.Weapon do
+                    if oCurWeapon.DamageRadius == oJericho[M28UnitInfo.refiDFAOE] then
+                        iWeaponVelocity = oCurWeapon.MuzzleVelocity
+                        break
+                    end
+                end
+            end
+            if (iWeaponVelocity or 0) > 0 then
+                local iDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnitToTarget:GetPosition(), oJericho:GetPosition())
+                local iTimeToImpact = 0.5 + iDistToEnemy / iWeaponVelocity
+                local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnitToTarget)
+                local iDistToLead = iTimeToImpact * (oUnitToTarget:GetBlueprint().Physics.MaxSpeed or 0)
+                local tLeadingTarget = M28Utilities.MoveInDirection(oUnitToTarget:GetPosition(), iCurFacingDirection, iDistToLead, true, false, M28Map.bIsCampaignMap)
+                if tLeadingTarget and M28Utilities.GetDistanceBetweenPositions(tLeadingTarget, oJericho:GetPosition()) >= (oJericho[M28UnitInfo.refiDFMinRange] or 0) then
+                    tGroundTarget = {tLeadingTarget[1], tLeadingTarget[2], tLeadingTarget[3]}
+                end
+            end
+        end
+
+        if tGroundTarget then
+            M28Orders.IssueTrackedGroundAttack(oJericho, tGroundTarget, 1, false, 'JerGrnd', false, oUnitToTarget)
+        else
+            M28Orders.IssueTrackedAttack(oJericho, oUnitToTarget, false, 'JetAtk', false)
+        end
+        return false
+    end
+    return true
 end
