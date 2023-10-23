@@ -26,6 +26,9 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     subreftWaterZonesInPath = 'M28APathWZ'
 tDistanceAdjustXZ = {} --Used for gunships to space out
 
+tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
+tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one full cycle
+
 --Against units:
     reftAssignedRefuelingUnits = 'M28AirRefueling'
     refiGunshipPlacement = 'M28GSPlac' --The placement in the gunship group
@@ -219,6 +222,7 @@ function AirTeamOverseer(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        tbFullAirTeamCycleRun[iTeam] = true
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -457,6 +461,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        tbFullAirSubteamCycleRun[iAirSubteam] = true
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

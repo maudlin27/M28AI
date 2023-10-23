@@ -295,8 +295,9 @@ function CreateNewAirSubteam(aiBrain)
     tAirSubteamData[iTotalAirSubteamCount][reftWaterZonesHasFriendlyTorps] = {}
     if not(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam]) then tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam] = {} end
     table.insert(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam], iTotalAirSubteamCount)
-
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
+
+
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; tNearestEnemyBase='..repru(tNearestEnemyBase)..'; Our start point='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])) end
     local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tNearestEnemyBase)
@@ -626,6 +627,7 @@ function CreateNewTeam(aiBrain)
             end
         end
         ForkThread(TeamInitialisation, iTotalTeamCount)
+        M28Air.UpdateTeamAirThreats(iTotalTeamCount)
     end
     ForkThread(TeamDeathChecker)
     if bHaveCampaignM28AI then
