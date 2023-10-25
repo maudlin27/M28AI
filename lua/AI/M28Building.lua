@@ -1458,14 +1458,14 @@ function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier 
 function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
     --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())) end
+    bDebugMessages = false
     if M28UnitInfo.IsUnitValid(oLauncher) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())) end
         --oLauncher[refbActiveMissileChecker] = true
 
 
@@ -1482,6 +1482,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
         local bTML = false
         local bSML = false
         local bCheckForSMD = false
+        local iMinDelayBetweenNukes = 55 --Aeon nuke takes 60s to get to corner of setons, think it takes 5s longer to fire, so will go with 55 for non-aeon
         local iTeam = aiBrain.M28Team
         local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
         if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
@@ -1496,8 +1497,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
                 end
                 --Only consider overwhelming if we have 6 nukes
+                local iEnemySMD = 0
                 if iNukeCount >= 4 then
-                    local iEnemySMD = 0
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
                         for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
                             if oSMD:GetFractionComplete() == 1 then
@@ -1505,14 +1506,38 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
                         end
                     end
-                    if iNukeCount > iEnemySMD * 1.5 then
+                    if iNukeCount >= iEnemySMD * 1.5 then
                         --Have enough nukes to overwhelm enemy
                         bCheckForSMD = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have more than 50% of enemy SMD in nuke launchers so will nuke regardless of SMD, iNukeCount='..iNukeCount..'; iEnemySMD='..iEnemySMD) end
+                    else
+                        --How many SMD does enemy have in one zone?
+                        local tiSMDByPlateauAndZone = {}
+                        local iCurSMDPlateauOrZero, iCurSMDZone
+                        local iHighestSMDPerZone = 0
+                        for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                            iCurSMDPlateauOrZero, iCurSMDZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oSMD:GetPosition())
+                            if not(tiSMDByPlateauAndZone[iCurSMDPlateauOrZero]) then tiSMDByPlateauAndZone[iCurSMDPlateauOrZero] = {} end
+                            tiSMDByPlateauAndZone[iCurSMDPlateauOrZero][iCurSMDZone] = (tiSMDByPlateauAndZone[iCurSMDPlateauOrZero][iCurSMDZone] or 0) + 1
+                            iHighestSMDPerZone = math.max(iHighestSMDPerZone, tiSMDByPlateauAndZone[iCurSMDPlateauOrZero][iCurSMDZone])
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iNukeCount='..iNukeCount..'; iEnemySMD='..iEnemySMD..'; iHighestSMDPerZone='..iHighestSMDPerZone) end
+                        if iNukeCount >= iHighestSMDPerZone * 1.5 then
+                            bCheckForSMD = false
+                        end
                     end
+
+                    if not(bCheckForSMD) then
+                        iMinDelayBetweenNukes = math.min(10, math.max(5, 15 - iNukeCount/2))
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore SMD, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; iNukeCount='..iNukeCount..'; iEnemySMD (if we have lots of nukes)='..iEnemySMD..'; bCheckForSMD='..tostring(bCheckForSMD)..'; Time='..GetGameTimeSeconds()..'; iMinDelayBetweenNukes='..iMinDelayBetweenNukes) end
                 end
 
-
+                if EntityCategoryContains(categories.AEON, oLauncher.UnitId) then iMinDelayBetweenNukes = iMinDelayBetweenNukes + 5 end
             end
+
+
+
         else M28Utilities.ErrorHandler('Unknown type of launcher, code to fire a missile wont work; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher))
         end
 
@@ -1731,7 +1756,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iTime='..iTime..'; tLocation='..repru(tLocation)..'; GameTime='..GetGameTimeSeconds()) end
                                 iTimeSinceFired = GetGameTimeSeconds() - iTime
 
-                                if iTimeSinceFired < 60 then --Testing with Aeon SML on setons it takes 60s to go from one corner to another roughly
+                                if iTimeSinceFired < iMinDelayBetweenNukes then --Testing with Aeon SML on setons it takes 60s to go from one corner to another roughly
                                     iLoopCheck = 0
                                     while tRecentlyNuked[iTimeSinceFired] do
                                         iTimeSinceFired = iTimeSinceFired - 0.0001
@@ -1748,33 +1773,35 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
                     if bDebugMessages == true then LOG(sFunctionRef..': tRecentlyNuked='..repru((tRecentlyNuked or {'nil'}))) end
 
-                    function HaventRecentlyNukedLocation(tLocation, bIgnoreIfCoveredBySMD, iOptionalTicksWhereRecentlyNuked)
-                        --bIgnoreIfCoveredBySMD - set to true if want to ignore the fact that we have recenlty nuked the target if it is covered by SMD (i.e. if there is SMD then we likely want to overwhelm the target hence want to fire multiple nukes at the same location)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of recently nuked locations empty='..tostring(M28Utilities.IsTableEmpty(tRecentlyNuked))..'; tLocation='..repru(tLocation)..'; iOptionalTicksWhereRecentlyNuked='..(iOptionalTicksWhereRecentlyNuked or 'nil')) end
+                    function HaventRecentlyNukedLocation(tLocation )--, bIgnoreIfCoveredBySMD) --bIgnoreIfCoveredBySMD - removed from v46 (previously would set to true if want to ignore the fact that we have recenlty nuked the target if it is covered by SMD (i.e. if there is SMD then we likely want to overwhelm the target hence want to fire multiple nukes at the same location)
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of recently nuked locations empty='..tostring(M28Utilities.IsTableEmpty(tRecentlyNuked))..'; tLocation='..repru(tLocation)) end
                         if M28Utilities.IsTableEmpty(tRecentlyNuked) then return true
                         else
                             for iTimeSinceFired, tRecentLocation in tRecentlyNuked do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering tLocation='..repru(tLocation)..'; Distance to tRecentLocation='..M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation)..'; is smd blocking targeet='..tostring(IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0))..'; bIgnoreIfCoveredBySMD='..tostring(bIgnoreIfCoveredBySMD)..'; iTimeSinceFired='..iTimeSinceFired) end
-                                if not(iOptionalTicksWhereRecentlyNuked) or iTimeSinceFired <= iOptionalTicksWhereRecentlyNuked then
-                                    if M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation) <= 50 then
-                                        if bIgnoreIfCoveredBySMD then
-                                            if IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0) then
-                                                return true --we have fired here recently but we want to fire multiple nukes to overwhelm smd
-                                            else
-                                                return false --we have fired here recently and there's no smd to overwhelm
-                                            end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering tLocation='..repru(tLocation)..'; Distance to tRecentLocation='..M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation)..'; is smd blocking targeet='..tostring(IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0))..'; iTimeSinceFired='..iTimeSinceFired) end
+                                --if iTimeSinceFired <= iMinDelayBetweenNukes then --(incorporated into refreshrecentlynukedlocations)
+                                if M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation) <= 50 then
+                                    return false
+                                    --[[ Old logic (removed v46 and replaced with iMinDelayBetweenNukes)
+                                    if bIgnoreIfCoveredBySMD then
+                                        if IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0) then
+                                            return true --we have fired here recently but we want to fire multiple nukes to overwhelm smd
                                         else
-                                            return false --we have fired here recently and dont care about overwhelming smd
+                                            return false --we have fired here recently and there's no smd to overwhelm
                                         end
-                                    end
+                                    else
+                                        return false --we have fired here recently and dont care about overwhelming smd
+                                    end--]]
                                 end
+                                --end
                             end
                         end
                         return true --we havent fired here recently
                     end
 
                     --First get the best location if just target the start position or locations near here
-                    if HaventRecentlyNukedLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), not(bCheckForSMD)) then
+                    if HaventRecentlyNukedLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) then--, not(bCheckForSMD)) then
                         --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
                         iTimeSMDNeedsToHaveBeenBuiltFor = 200 --3m20
                         tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5)
@@ -1802,7 +1829,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or -1000) <= 300 or tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 20 then
                                 iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tEnemyStartPosition)
                                 if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                    if HaventRecentlyNukedLocation(tEnemyStartPosition, not(bCheckForSMD)) then
+                                    if HaventRecentlyNukedLocation(tEnemyStartPosition) then --, not(bCheckForSMD)) then
                                         RecordHaveConsideredNukeLocation(tEnemyStartPosition, false)
                                         --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
                                         iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tEnemyStartPosition, iAOE, iDamage,   2,                                  2.5                     , nil,                          nil,                nil,                            nil,                                        false,                  nil,                            true)
@@ -1830,10 +1857,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
                             for iUnit, oUnit in tEnemyUnitsOfInterest do
                                 if M28UnitInfo.IsUnitValid(oUnit) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD))) or false)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition())))) end
                                     iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
                                     if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                        if HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD)) then
+                                        if HaventRecentlyNukedLocation(oUnit:GetPosition()) then --, not(bOverrideCheckForSMD)) then
                                             RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
                                             --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
                                             iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor,                  false,              nil,                            true)
@@ -1958,7 +1985,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
 
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <20k then will consider other targets') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <80k then will consider other targets. tTarget='..repru(tTarget)) end
                     if iBestTargetValue < 80000 then --If have high value location for nearest enemy start then just go with this
                         for iRef, iCategory in tEnemyCategoriesOfInterest do
                             ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
@@ -2093,35 +2120,40 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             M28Utilities.DrawLocation(tTarget, nil, iColour)
                         end
                     else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke target, tTarget='..repru(tTarget)..'; have we not recently nuked this location='..tostring(HaventRecentlyNukedLocation(tTarget, true))..'; iTotalWaitCount='..iTotalWaitCount) end
-                        if iTotalWaitCount >= 1 and not(HaventRecentlyNukedLocation(tTarget, true, iTotalWaitCount * 0.1 + 2)) then
-                            --Presumably the target we chose as the best target is no longer appropriate because another nuke has just nuked it
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will wait 1 second then try getting a target again since we are about to nuke a location that we just nuked') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            WaitSeconds(1)
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                            ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
-                        end
-
-                        if bDebugMessages == true then
-                            M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
-                        end
-                        IssueNuke({oLauncher}, tTarget)
-                        oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
-                        --Unpause incase we paused previously
-                        if oLauncher[refbPausedAsNoTargets] then
-                            oLauncher[refbPausedAsNoTargets] = false
-                            if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
-                                oLauncher:SetAutoMode(true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke target, tTarget='..repru(tTarget)..'; have we not recently nuked this location='..tostring(HaventRecentlyNukedLocation(tTarget))..'; iTotalWaitCount='..iTotalWaitCount) end
+                        if iTotalWaitCount >= 1 then
+                            if not(HaventRecentlyNukedLocation(tTarget)) then --, true, iTotalWaitCount * 0.1 + 2)) then
+                                --Presumably the target we chose as the best target is no longer appropriate because another nuke has just nuked it
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will wait 1 second then try getting a target again since we are about to nuke a location that we just nuked') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                WaitSeconds(1)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                tTarget = nil
+                                ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                             end
-                            oLauncher:SetPaused(false)
                         end
-                        if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
-                        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget
-                        if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
-                        --Send a voice taunt if havent in last 10m and we expect to do significant damage
-                        if iBestTargetValue >= 25000 then
-                            ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                        if tTarget then
+                            if bDebugMessages == true then
+                                M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
+                            end
+                            IssueNuke({oLauncher}, tTarget)
+                            oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
+                            --Unpause incase we paused previously
+                            if oLauncher[refbPausedAsNoTargets] then
+                                oLauncher[refbPausedAsNoTargets] = false
+                                if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
+                                    oLauncher:SetAutoMode(true)
+                                end
+                                oLauncher:SetPaused(false)
+                            end
+                            if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
+
+                            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget
+                            if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
+                            --Send a voice taunt if havent in last 10m and we expect to do significant damage
+                            if iBestTargetValue >= 25000 then
+                                ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                            end
                         end
                     end
                 else
@@ -2143,6 +2175,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                 end
             end
+            --Already have an else error handler above so dont need below
+        --else M28Utilities.ErrorHandler('Unrecognised launcher type, UnitID='..(oLauncher.UnitId or 'nil')..'; wont consider launching a missile')
         end
         --oLauncher[refbActiveMissileChecker] = false
     end
@@ -2153,6 +2187,8 @@ function IsSMDBlockingTarget(aiBrain, tTarget, tSMLPosition, iIgnoreSMDCreatedTh
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsSMDBlockingTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local bEnemySMDInRange = false
     local iSMLToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, tSMLPosition)

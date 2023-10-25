@@ -484,6 +484,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
     --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
     --M28Map.DrawSpecificLandZone(18, 10, 4)
     --ScenarioInfo.Options
