@@ -1419,11 +1419,12 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     end
 
     local bLocationBuildableImmediately, bBestLocationBuildableImmediately
-    local bDontCheckPlayableArea = false
+    local bDontCheckPlayableArea = true
     if M28Map.bIsCampaignMap then
-        bDontCheckPlayableArea = true
-        if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = false end
+        bDontCheckPlayableArea = false
+        if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.rebTeamOnlyHasCampaignAI] then bDontCheckPlayableArea = true end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea or false)..'; Is brain M28AI='..tostring(aiBrain.M28AI or false)..'; Is brain campaign AI='..tostring(aiBrain.CampaignAI)..'; Does team only have campaign AI='..tostring(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.rebTeamOnlyHasCampaignAI] or false)) end
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
         --Do we have hydro in this LZ? dont want to consider if water zone

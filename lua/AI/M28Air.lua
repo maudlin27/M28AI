@@ -2436,7 +2436,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             end
         end
         if not(iStartPlateauOrZero) or not(iStartLandOrWaterZone) then
-            M28Utilities.ErrorHandler('Dont have valid start zone, air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]))
+            M28Utilities.ErrorHandler('Dont have valid start zone for iAirSubteam='..iAirSubteam..', air support point=X'..(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1] or 'nil')..'Z'..(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3] or 'nil'))
         end
 
         local bDontCheckPacifistArea = not(M28Overseer.bPacifistModeActive)
