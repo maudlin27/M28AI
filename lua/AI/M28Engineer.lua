@@ -8883,6 +8883,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
 
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone) end
     if iExistingFactory < iFactoriesWanted then
         --Dont want to build air factories at a core expansion point, instead only want land
         --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
@@ -8896,7 +8897,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bExistingFactoryIsComplete then iBPWanted = 5 end
         local iMaxTechLevelIfAny
         if iExistingFactory == 0 then iMaxTechLevelIfAny = 1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Want a land facotry, iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want a land facotry, iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted..'; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750 and M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
             HaveActionToAssign(refActionBuildAirFactory, 1, iBPWanted, iMaxTechLevelIfAny)
         else
@@ -9826,6 +9827,23 @@ end--]]
                 end
             end
         end
+    end
+
+    --Build air factory if overflowing mass, ahve all T3 mexes in the zone, no adjacent enemies, and dont have low power
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Low priority factory builder: mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Enemies in this or adjacent zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 and not(bHaveLowPower) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (tLZTeamData[M28Map.subrefMexCountByTech][math.min(3,M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])] >= math.max(1, tLZData[M28Map.subrefLZMexCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.99) and M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone) then
+        local iActionWanted
+        local iTechWanted = 1
+        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
+            iActionWanted = refActionBuildAirFactory
+            iTechWanted = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]
+        else
+            iActionWanted = refActionBuildLandFactory
+            iTechWanted = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]
+        end
+        HaveActionToAssign(iActionWanted, iTechWanted, tiBPByTech[iTechWanted] * 3)
+        if bDebugMessages == true then LOG(sFunctionRef..': Low priority minor zone factory builder, iActionWanted='..iActionWanted..'; iTechWanted='..iTechWanted) end
     end
 
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)

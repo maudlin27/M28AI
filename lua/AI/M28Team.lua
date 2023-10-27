@@ -219,6 +219,7 @@ tAirSubteamData = {}
     reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
     reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
     refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
+    reftFrontGunshipPosition = 'M28AFGPs' --position of front gunship last cycle
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
     refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
     reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow

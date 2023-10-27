@@ -2589,7 +2589,7 @@ function DrawSpecificWaterZone(iWaterZone, iOptionalColour, iOptionalTime)
     end
 end
 
-local function DrawLandZones()
+function DrawLandZones()
     --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created.  Can be called part-way through the process (e.g. to show land zones after the initial mex creation and nearby areas)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DrawLandZones'

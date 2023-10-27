@@ -2111,9 +2111,26 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
         end
         local bMovingTowardsEnemy, iAngleToRally, iAngleToNearestUnit, bAmphibiousUnit
         local bCampaignMap = M28Map.bIsCampaignMap
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Will list out every unit in reftoNearestDFEnemies')
+            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                LOG(sFunctionRef..': Enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+            end
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Is table of DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies])))
+                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                        for iUnit, oUnit in tAdjLZTeamData[M28Map.reftoNearestDFEnemies] do
+                            LOG(sFunctionRef..': Adj LZ enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                        end
+                    end
+                end
+            end
+        end
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 14 of being in range of enemy direct fire
-                                --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+            --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
             if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too close to DF enemy, iRunThreshold='..iRunThreshold..'; will run back; will list out enemy units and distance to us in a moment')
@@ -2184,9 +2201,16 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..' Will order every MAA to move to oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..' at position '..repru(oNearestEnemyToMidpoint:GetPosition()))
                 M28Utilities.DrawLocation(tOrderPosition)
             end
+            local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, false)
 
             for iUnit, oUnit in tMAAToAdvance do
-                M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 7, false, 'MNA')
+                --Below is redundant so commented out, as already doing close to enemy check above
+                --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck,              iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                --[[if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 6, iTeam, true,               nil,                        nil,                                nil,                                    nil,                                    false) then
+                    M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 7, false, 'MmaAR' )
+                else--]]
+                    M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 7, false, 'MNA')
+                --end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will do reprs of orders of the first unit in tMAAToAdvance, '..tMAAToAdvance[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[1])..': '..reprs(tMAAToAdvance[1][M28Orders.reftiLastOrders])) end
 
