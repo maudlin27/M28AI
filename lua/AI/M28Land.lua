@@ -4604,12 +4604,13 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                 iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
                                 if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wnat mobile shield for unit') end
                                 end
                                 if iEnemyOmniCoverage <= 20 then
                                     if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
                                     elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                                        --Only say we want a mobile shield if the unit doesnt have one assigned
+                                    --Only say we want a mobile shield if the unit doesnt have one assigned
                                         iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
 
                                         if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
