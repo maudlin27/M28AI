@@ -330,6 +330,8 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                 end
             end
 
+
+
             --Is the plateau and zone correct?
             if bDebugMessages == true then
                 LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
@@ -1382,10 +1384,12 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return {M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][1], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][2], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][3]}
     else
-        M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..' for team '..iTeam..'; will return current midpoint')
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Will draw specific land zone in gold, midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest friendly base='..repru(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase])..'; iTeam='..iTeam)
-            M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 4)
+        if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(M28Map.PlayerStartPoints[M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()]) then
+            M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..' for team '..iTeam..'; will return current midpoint')
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Will draw specific land zone in gold, midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest friendly base='..repru(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase])..'; iTeam='..iTeam)
+                M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 4)
+            end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
@@ -5076,7 +5080,7 @@ function ManageAllLandZones(aiBrain, iTeam)
     local iCurTicksWaited = 0
 
     if bDebugMessages == true then
-        LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; If have an ACU will list its plateau and land zone. iRefreshThreshold='..iRefreshThreshold..'; iLastRefreshCount='..iLastRefreshCount..'; iTicksToSpreadOver='..iTicksToSpreadOver)
+        LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; iTeam='..iTeam..'; If have an ACU will list its plateau and land zone. iRefreshThreshold='..iRefreshThreshold..'; iLastRefreshCount='..iLastRefreshCount..'; iTicksToSpreadOver='..iTicksToSpreadOver)
         local tOurACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
         if M28Utilities.IsTableEmpty(tOurACU) == false then
             local iACUPlateau, iACULZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOurACU[1]:GetPosition(), true, tOurACU[1])
@@ -5095,14 +5099,16 @@ function ManageAllLandZones(aiBrain, iTeam)
             end
             for iLandZone, tLandZoneDataByTeam in tPlateauData[M28Map.subrefPlateauLandZones] do
                 local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]
+
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; GameTime='..GetGameTimeSeconds()..'; Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits])))
+                    LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; GameTime='..GetGameTimeSeconds()..'; Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iTeam='..iTeam)
                 end
                 --First check all units in here are alive
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
                     --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                               iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
                     UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          M28Map.bIsCampaignMap, false, tLZTeamData,  false,                      true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just ran updateunitpositions for enemy units in this zone') end
                 end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
@@ -5169,6 +5175,14 @@ function LandZoneOverseer(iTeam)
         end
 
         while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+            if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+                while ScenarioInfo.OpEnded do
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
             ForkThread(ManageAllLandZones, aiBrain, iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -208,6 +208,15 @@ function AirTeamOverseer(iTeam)
 
     AssignScoutingIntervalPriorities(iTeam)
     while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 do
+        if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+            while ScenarioInfo.OpEnded do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
+        end
+
         ForkThread(RefreshZonelessAir, iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
@@ -417,12 +426,32 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     WaitSeconds(5) --extra delay to be safe
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+        while ScenarioInfo.OpEnded do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
     --Record torpedo bomber locations to defend
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
     ForkThread(ReassessTorpBomberPriorityLocations, iTeam, iAirSubteam)
 
 
     while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
+        if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+            while ScenarioInfo.OpEnded do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
+        end
+
         ForkThread(UpdateAirRallyAndSupportPoints, iTeam, iAirSubteam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)

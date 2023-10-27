@@ -548,6 +548,7 @@ function CreateNewTeam(aiBrain)
 
 
     local bHaveCampaignM28AI = false
+    if aiBrain.M28AI and aiBrain.CampaignAI then bHaveCampaignM28AI = true end
     local bHaveM28BrainInTeam = false
 
     local tbBrainsWithLandSubteam = {}
@@ -561,41 +562,66 @@ function CreateNewTeam(aiBrain)
             M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
         end--]]
 
-
-        if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
-            if oBrain.M28AI and oBrain.CampaignAI then bHaveCampaignM28AI = true end
-            oBrain.M28Team = iTotalTeamCount
-            table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
-            if oBrain.M28AI then
-                table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
-                tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
-                if oBrain.CheatEnabled then
-                    tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                    tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                    oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                    oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-                else
-                    oBrain[M28Economy.refiBrainResourceMultiplier] = 1
-                    oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
+        if not(oBrain.M28Team) then
+            if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+                --Check we have the same enemies if this is a campaign AI
+                if oBrain.M28AI and oBrain.CampaignAI then bHaveCampaignM28AI = true end
+                local bHaveSameEnemies = true
+                if bHaveCampaignM28AI then
+                    --Check if we have the same enemies
+                    local iIndexOrigBrain = aiBrain:GetArmyIndex()
+                    local iIndexoBrain = oBrain:GetArmyIndex()
+                    for iAltBrain, oAltBrain in ArmyBrains do
+                        if not(oAltBrain == oBrain) and not(oAltBrain == aiBrain) then
+                            if not(IsAlly(iIndexOrigBrain, oAltBrain:GetArmyIndex()) == IsAlly(iIndexoBrain, oAltBrain:GetArmyIndex())) then
+                                bHaveSameEnemies = false
+                                break
+                            end
+                            if not(IsEnemy(iIndexOrigBrain, oAltBrain:GetArmyIndex()) == IsEnemy(iIndexoBrain, oAltBrain:GetArmyIndex())) then
+                                bHaveSameEnemies = false
+                                break
+                            end
+                        end
+                    end
                 end
-            end
-            bHaveM28BrainInTeam = true
-            --Check if we have omni vision for the team
-            if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
-                tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = true
-            end
-            --Record brain details in log for ease of reference
-            local sAiXref = ''
-            if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
-            if oBrain.CheatEnabled then
-                sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-            end
-            LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
-        elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
-            table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
-            --Check if anyone on enemy team has omni
-            if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
-                tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..'; oBrain='..oBrain.Nickname..'; iTotalTeamCount='..iTotalTeamCount..'; bHaveSameEnemies='..tostring(bHaveSameEnemies)) end
+                if bHaveSameEnemies then
+
+
+                    oBrain.M28Team = iTotalTeamCount
+                    table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
+                    if oBrain.M28AI then
+                        table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
+                        tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                        if oBrain.CheatEnabled then
+                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                        else
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
+                        end
+                    end
+                    bHaveM28BrainInTeam = true
+                    --Check if we have omni vision for the team
+                    if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                        tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = true
+                    end
+                    --Record brain details in log for ease of reference
+                    local sAiXref = ''
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+                    if oBrain.CheatEnabled then
+                        sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                    end
+                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
+                end
+            elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+                table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
+                --Check if anyone on enemy team has omni
+                if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                    tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
+                end
             end
         end
     end
@@ -747,7 +773,9 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
 
 
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then
+        M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit, UnitId='..oUnit.UnitId)
+    end
 
 
     local bAddToZone = true
@@ -765,7 +793,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 RemoveUnitFromCurrentLandZone(aiBrain, oUnit)--]]
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iPlateau '..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iPlateau '..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..' for brain '..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
     if bAddToZone then
         local iPlateauRef = iPlateau
         local iLandZoneRef = iLandZone
@@ -789,7 +817,27 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
 
         if tLZTeamData then
             oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateauRef, iLandZoneRef}
-            if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+            local iUnitArmyIndex = oUnit:GetAIBrain():GetArmyIndex()
+            local bIsEnemy = IsEnemy(aiBrain:GetArmyIndex(), iUnitArmyIndex)
+            local bIsAlly = IsAlly(aiBrain:GetArmyIndex(), iUnitArmyIndex)
+            if not(bIsEnemy) and not(bIsAlly) and M28Map.bIsCampaignMap and aiBrain.CampaignAI and tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] > 1 and M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftoFriendlyActiveM28Brains]) == false then
+                --Consider switching brain if any other aibrain members of this team are an enemy to this unit
+                for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain == aiBrain) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have unit that is neither an enemy nor an ally in campaign, check if other brains on the team have it as an enemy, IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), iUnitArmyIndex))..'; IsAlly='..tostring(IsAlly(oBrain:GetArmyIndex(), iUnitArmyIndex))) end
+                        if IsEnemy(oBrain:GetArmyIndex(), iUnitArmyIndex) then
+                            bIsEnemy = true
+                            aiBrain = oBrain
+                            break
+                        elseif IsAlly(oBrain:GetArmyIndex(), iUnitArmyIndex) then
+                            bIsAlly = true
+                            aiBrain = oBrain
+                            break
+                        end
+                    end
+                end
+            end
+            if bIsEnemy then
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false))
                     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team]) then
@@ -806,33 +854,37 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                         M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
                     end
                 end
-            elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-                local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
-                table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits], oUnit)
-                if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
-                --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
-                if oUnit[M28Land.refiCurrentAssignmentValue] then
-                    local iLastOrderZone = oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]
-                    local bOrderZoneAdjacent = false
-                    if iLastOrderZone == iLandZoneRef then
-                        bOrderZoneAdjacent = true
-                    elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                            if iAdjLZ == iLastOrderZone then
-                                bOrderZoneAdjacent = true
-                                break
+            elseif bIsAlly then
+                --Dont add allied air units, or units from a different (allied) team
+                if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and (not(EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) or oUnit:GetFractionComplete() < 1) then
+                    local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
+                    table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits], oUnit)
+                    if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
+                    --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
+                    if oUnit[M28Land.refiCurrentAssignmentValue] then
+                        local iLastOrderZone = oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]
+                        local bOrderZoneAdjacent = false
+                        if iLastOrderZone == iLandZoneRef then
+                            bOrderZoneAdjacent = true
+                        elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                if iAdjLZ == iLastOrderZone then
+                                    bOrderZoneAdjacent = true
+                                    break
+                                end
                             end
                         end
+                        if not(bOrderZoneAdjacent) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Units assigned zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                        end
                     end
-                    if not(bOrderZoneAdjacent) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Units assigned zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                        oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                    if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                        M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]))) end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': have a complete allied air unit so wont record as a land unit')
                 end
-                if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
-                    M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]))) end
             end
         elseif iPlateauRef == 0 and iLandZoneRef then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try adding to water zone instead') end
@@ -983,7 +1035,7 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)) end
         if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
             if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
                 AssignUnitToLandZoneOrPond(aiBrain, oUnit)
@@ -1171,6 +1223,9 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToBigThreatTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Considering ouNIt '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..'; oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam]='..(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] or 'nil')) end
     if not(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable] and oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam]) then
         local bAlreadyInTable = false
@@ -1425,8 +1480,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 end
                             end
                         else
-                            --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
-                            if not(oUnit:GetAIBrain().M28AI) then
+                            --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
+                            if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
                                 bIgnore = true
                             else
                                 --M28 ally specific
@@ -1583,7 +1638,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         iPlateau, iAltLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                                         if (iAltLandZone or 0) > 0 then iLandZone = iAltLandZone end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to iLandZone '..iLandZone..' for plateau '..iPlateau) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to iLandZone '..iLandZone..' for plateau '..iPlateau..' and team '..aiBrain.M28Team) end
                                     AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
                                 elseif iPlateau > 0 then
                                     --Is the unit in a water zone?
