@@ -1268,29 +1268,33 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
         end
         M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, oUnit:GetPosition())
         if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
-            local iDistanceThreshold = oUnit[M28UnitInfo.refiCombatRange] + 80
-            for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                if tSubtable[M28Map.subrefiDistance] > iDistanceThreshold then break end
-                local tAltLZOrWZData
-                local tAltLZOrWZTeamData
-                local iCurPlateauOrPond
-                local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
-                if tSubtable[M28Map.subrefbIsWaterZone] then
-                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                    iCurPlateauOrPond = 0
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                else
-                    iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
-                    tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            if oUnit[M28UnitInfo.refiCombatRange] then
+                local iDistanceThreshold = oUnit[M28UnitInfo.refiCombatRange] + 80
+                for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                    if tSubtable[M28Map.subrefiDistance] > iDistanceThreshold then break end
+                    local tAltLZOrWZData
+                    local tAltLZOrWZTeamData
+                    local iCurPlateauOrPond
+                    local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                        iCurPlateauOrPond = 0
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    else
+                        iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
+                        tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    end
+                    if not(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] = {} end
+                    if not(bUnitIsDead) then
+                        table.insert(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding arti as a unit against iPlateau'..iCurPlateauOrPond..'; iCurLZOrWZRef='..iCurLZOrWZRef) end
+                    else
+                        M28Conditions.IsTableOfUnitsStillValid(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], false)
+                    end
                 end
-                if not(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] = {} end
-                if not(bUnitIsDead) then
-                    table.insert(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], oUnit)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Adding arti as a unit against iPlateau'..iCurPlateauOrPond..'; iCurLZOrWZRef='..iCurLZOrWZRef) end
-                else
-                    M28Conditions.IsTableOfUnitsStillValid(tAltLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], false)
-                end
+            elseif M28Map.bMapLandSetupComplete and M28Map.bFirstM28TeamHasBeenInitialised and GetGameTimeSeconds() >= 5 then
+                M28Utilities.ErrorHandler('Dont have recorded range for T2 arti despite teams being setup now')
             end
         end
     end

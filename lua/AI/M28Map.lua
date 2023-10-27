@@ -7558,7 +7558,7 @@ function RecordBrainStartPoint(oBrain)
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
         local bHaveValidStartPoint = false
         local tAltStartPoint
-        for iAdjustBase = 1, 50 do
+        for iAdjustBase = 1, 250 do
             for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
                 for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
                     if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
@@ -7595,7 +7595,7 @@ function RecordBrainStartPoint(oBrain)
 
         if not(bIsCampaignMap) and not(M28Conditions.IsCivilianBrain(oBrain)) then M28Utilities.ErrorHandler('Non-civilian brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
 
-        if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 50 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
+        if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 250 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Changing start point for brain '..(oBrain.Nickname or 'nil')..' to be '..repru(tAltStartPoint)..' from tStartPoint of '..repru(tStartPoint)) end
             tStartPoint = {tAltStartPoint[1], GetSurfaceHeight(tAltStartPoint[1], tAltStartPoint[3]), tAltStartPoint[3]}
