@@ -3161,7 +3161,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     end
                                                     if tClosestRallyPoint then
                                                         local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
-                                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint], 8, false, 'WLRunTo'..iLZOrWZToRunTo)
+                                                        M28Orders.IssueTrackedMove(oEngineer, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint] or tClosestRallyPoint), 8, false, 'WLRunTo'..iLZOrWZToRunTo)
                                                         bEngiIsUnavailable = true
                                                         TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
                                                     end

@@ -2510,7 +2510,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iNearestEnemyExperimental='..iNearestEnemyExperimental..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; ACU dist to rally='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition())) end
-        if (iNearestEnemyExperimental <= 150 and iNearestEnemyExperimental >= oACU[M28UnitInfo.refiDFRange] + 5) or (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 and M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition()) > 10) then
+        if (iNearestEnemyExperimental <= 150 and iNearestEnemyExperimental >= (oACU[M28UnitInfo.refiDFRange] or 0) + 5) or (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 and M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition()) > 10) then
             M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runb')
         else
             if tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then

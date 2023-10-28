@@ -1715,13 +1715,17 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                             end
                             break
                         end
-                        --Dont record the shield as helpin this unit, instead just have it move to the unit temporarily - so only change the variable so movetoshieldtarget works
-                        tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = oTarget
-                        MoveToShieldTarget(tShieldsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
-                        tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = nil
-                        table.remove(tShieldsToAssign, iClosestRef)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Backup shield assignment - Have removed shield with iClosestRef='..iClosestRef..' from the table of tShieldsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; size of table='..table.getn(tShieldsToAssign)) end
-                        if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
+                        if iClosestRef then
+                            --Dont record the shield as helpin this unit, instead just have it move to the unit temporarily - so only change the variable so movetoshieldtarget works
+                            tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = oTarget
+                            MoveToShieldTarget(tShieldsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
+                            tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = nil
+                            table.remove(tShieldsToAssign, iClosestRef)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Backup shield assignment - Have removed shield with iClosestRef='..iClosestRef..' from the table of tShieldsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; size of table='..table.getn(tShieldsToAssign)) end
+                            if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
+                        else
+                            tShieldsToAssign = {}
+                        end
                     end
                 end
 
