@@ -179,7 +179,7 @@ tiActionCategory = {
     [refActionBuildNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionAssistNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
-    [refActionBuildAA] = M28UnitInfo.refCategoryStructureAA,
+    [refActionBuildAA] = M28UnitInfo.refCategoryStructureAA - categories.EXPERIMENTAL,
     --refActionBuildEmergencyPD - will use custom code as sometimes want T1 PD
     [refActionBuildEmergencyArti] = M28UnitInfo.refCategoryFixedT2Arti,
     [refActionBuildQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
@@ -1075,10 +1075,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
             end
 
-            --If trying to build experimental, then just build any kind of experimental
+            --If trying to build experimental, then just build any kind of experimental (excl transports and PD)
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL, oEngineer, false,        false,          nil,        nil)
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD, oEngineer, false,        false,          nil,        nil)
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
@@ -8069,7 +8069,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Will get experimental if have enough T3 mexes in this zone, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
-        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] < 2) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 or ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (not(bHaveLowMass) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 25000))) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] < 2) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false)) then
             --Want to only build experimental if have mostly T3 mexes in this zone
 
             HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
