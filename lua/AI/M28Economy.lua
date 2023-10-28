@@ -128,8 +128,6 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         if bUpdateUpgradeTracker then
             M28Team.UpdateUpgradeTrackingOfUnit(oUnitToUpgrade, false, sUpgradeID)
         end
-
-        --T1 mexes - if start upgrading, then flag for TML protection --TODO in a future version (is on todo list)
     else
         --Dont have an upgrade ID; if the unit has an UpgradesTo value in the blueprint and that unit is restricted, then dont show an error
         local sExpectedUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo

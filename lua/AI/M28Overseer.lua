@@ -52,6 +52,8 @@ refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
+refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
+reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 
 
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
