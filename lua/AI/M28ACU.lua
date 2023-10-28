@@ -2665,7 +2665,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
 
     local iTargetPlateau, iTargetLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oSnipeTarget:GetPosition())
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..'; Position='..repru(oSnipeTarget:GetPosition())..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetLandZone='..(iTargetLandZone or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by brain '..oSnipeTarget:GetAIBrain().Nickname..'; Position='..repru(oSnipeTarget:GetPosition())..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetLandZone='..(iTargetLandZone or 'nil')) end
     if iTargetPlateau > 0 and (iTargetLandZone or 0) > 0 then
         local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
         local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
@@ -2885,8 +2885,29 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, tBestTarget before applying default if it is nil='..repru(tBestTarget)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, tBestTarget before applying default if it is nil='..repru(tBestTarget)..'; will consider adjusting if close to mobile target') end
     if not(tBestTarget) then tBestTarget = oSnipeTarget:GetPosition() end
+    if bDebugMessages == true then LOG(sFunctionRef..': dist to snipe target='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), tBestTarget)..'; Does ACU have laser upgrade='..tostring(oACU:HasEnhancement('MicrowaveLaserGenerator'))..'; oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')) end
+    --Issue - laser doesnt fire if are too close (which can happen if try to teleport right ontop of the enemy ACU)
+    if EntityCategoryContains(categories.MOBILE, oSnipeTarget.UnitId) and oACU:HasEnhancement('MicrowaveLaserGenerator') and M28Utilities.GetDistanceBetweenPositions(tBestTarget, oSnipeTarget:GetPosition()) <= 4 then
+        local iLandLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oSnipeTarget:GetPosition())
+        local bHaveAltTarget = false
+        if (iLandLabelWanted or 0) > 0 then
+            for iDistFromTarget = 4, 16, 2 do
+                for iAngleFromTarget = 0, 360, 15 do
+                    local tPossibleTarget = M28Utilities.MoveInDirection(oSnipeTarget:GetPosition(), iAngleFromTarget, iDistFromTarget, true, true, true)
+                    if tPossibleTarget and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPossibleTarget) == iLandLabelWanted then
+                        bHaveAltTarget = true
+                        tBestTarget = {tPossibleTarget[1], tPossibleTarget[2], tPossibleTarget[3]}
+                        break
+                    end
+                end
+                if bHaveAltTarget then break end
+            end
+
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Targeting mobile unit, bHaveAltTarget='..tostring(bHaveAltTarget)..'; tBestTarget='..repru(tBestTarget)) end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     if bJustCheckIfLocationWithLowPDThreat then return false
@@ -3032,7 +3053,10 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                 bGivenACUOrder = false --redundancy
                             else
                                 local tTeleportTarget = GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam)
-                                M28Orders.IssueTrackedTeleport(oACU, tTeleportTarget, 5, true, 'ACUTelA', true)
+                                local bAddToExistingQueue = true
+                                if not(oACU:IsUnitState('Teleporting')) and not(oACU:IsUnitState('Upgrading')) then bAddToExistingQueue = false end
+
+                                M28Orders.IssueTrackedTeleport(oACU, tTeleportTarget, 5, bAddToExistingQueue, 'ACUTelA', true)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just tried to give ACU a teleport order') end
                                 bGivenACUOrder = true
                             end

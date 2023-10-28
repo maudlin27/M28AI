@@ -2303,7 +2303,13 @@ function OnTeleportComplete(self, teleporter, location, orientation)
                 tLocationToTeleportTo = {tCurLZTeamData[M28Map.reftClosestFriendlyBase][1], tCurLZTeamData[M28Map.reftClosestFriendlyBase][2], tCurLZTeamData[M28Map.reftClosestFriendlyBase][3]}
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will teleport back to '..repru(tLocationToTeleportTo)) end
-            M28Orders.IssueTrackedTeleport(self, tLocationToTeleportTo, 5, false, 'TelRet', true)
+            --Add to existing queue due to issue where this callback can take place even though the ACU hasn't compelted its teleport
+            if M28Utilities.GetDistanceBetweenPositions(self:GetPosition(), tLocationToTeleportTo) >= 50 then
+                --Check we are relatively near the last location we were trying to teleport to
+                if M28Utilities.IsTableEmpty(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder]) == false and M28Utilities.GetDistanceBetweenPositions(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder], self:GetPosition()) <= 100 then
+                    M28Orders.IssueTrackedTeleport(self, tLocationToTeleportTo, 5, true, 'TelRet', true)
+                end
+            end
         end
     end
 

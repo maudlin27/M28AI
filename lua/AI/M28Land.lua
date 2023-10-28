@@ -1286,7 +1286,15 @@ function ReviseTargetLZIfFarAway(tLZData, iTeam, iPlateau, iStartLandZone, iTarg
         M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tLZData[M28Map.subrefMidpoint])
     end
     if iMaxLZTowardsRally and tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone] then
-        if bDebugMessages == true then LOG(sFunctionRef..': WIll consider changing to the '..iMaxLZTowardsRally..' entry along the path; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': WIll consider revising the '..iMaxLZTowardsRally..' entry along the path; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone])
+            local tPath = {}
+            table.insert(tPath, tLZData[M28Map.subrefMidpoint])
+            for iEntry, iZone in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]][M28Map.subrefLZPath] do
+                table.insert(tPath, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefMidpoint])
+            end
+            M28Utilities.DrawPath(tPath)
+        end
         --Change closest LZ to run to to be 2 along the path from cur LZ to the target LZ
         for iEntry, iLZPointInPath in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]][M28Map.subrefLZPath] do
             if iEntry >= iMaxLZTowardsRally then
@@ -1368,13 +1376,46 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                     end
                 end
                 if iMaxLZTowardsRally and tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef] then
-                    if bDebugMessages == true then LOG(sFunctionRef..': WIll consider changing to the '..iMaxLZTowardsRally..' entry along the path; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]..'; tLZData[M28Map.subrefLZPathingToOtherLZEntryRef]='..repru(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef])..'; iClosestLZRef='..iClosestLZRef..'; Full listing of repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones]='..repru(repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZPathingToOtherLandZones]))) end
+                    if (iClosestDist <= 250 or iClosestAmphibDist <= 250) then iMaxLZTowardsRally = iMaxLZTowardsRally + 1 end
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': WIll consider changing to the '..iMaxLZTowardsRally..' entry along the path to get to zone '..iClosestLZRef..'; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]..'; tLZData[M28Map.subrefLZPathingToOtherLZEntryRef]='..repru(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef])..'; iClosestLZRef='..iClosestLZRef..'; Full listing of repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones]='..repru(repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZPathingToOtherLandZones]))..'; Dist to end destination (straight line)='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint]))
+                        local tPath = {}
+                        table.insert(tPath, tLZData[M28Map.subrefMidpoint])
+                        for iEntry, iZone in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath] do
+                            table.insert(tPath, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefMidpoint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from path entry iZone '..iZone..' to the target='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint])) end
+                        end
+                        M28Utilities.DrawPath(tPath)
+                        if bDebugMessages == true then LOG(sFunctionRef..': repru of tPath if going the full path='..repru(tPath)) end
+                    end
+                    local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef]
+                    local iAngleToTargetLZ = M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint])
+                    local bKeepLooking
+                    local iStraightLineDistToTarget = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint])
                     --Change closest LZ to run to to be 2 along the path from cur LZ to the target LZ
                     for iEntry, iLZPointInPath in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath] do
                         if iEntry >= iMaxLZTowardsRally then
-                            if bDebugMessages == true then LOG(sFunctionRef..': iEntry='..iEntry..'; iMaxLZTowardsRally='..iMaxLZTowardsRally..'; iLZPointInPath='..iLZPointInPath) end
-                            iClosestLZRef = iLZPointInPath
-                            break
+                            if iLZPointInPath == iClosestLZRef then break else
+                                --Consider moving to iMaxLZTowardsRally + 1 entry if not much further away; consider just going to the end point if this would be in a very different angle to the original location as well
+                                local tPathLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZPointInPath]
+                                if bDebugMessages == true then LOG(sFunctionRef..': iEntry='..iEntry..'; iMaxLZTowardsRally='..iMaxLZTowardsRally..'; iLZPointInPath='..iLZPointInPath..'; iClosestDist before='..iClosestDist..'; iClosestAmphibDist before='..(iClosestAmphibDist or 'nil')..'; Angle to along path LZ='..M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tPathLZData[M28Map.subrefMidpoint])..'; Angle to end LZ wanted='..iAngleToTargetLZ..'; angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tPathLZData[M28Map.subrefMidpoint]), iAngleToTargetLZ)) end
+                                if iEntry >= iMaxLZTowardsRally + 3 then
+                                    iClosestLZRef = iLZPointInPath
+                                    break
+                                else
+                                    bKeepLooking = false
+                                    if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tPathLZData[M28Map.subrefMidpoint]), iAngleToTargetLZ) >= 45 then
+                                        bKeepLooking = true
+                                    elseif iStraightLineDistToTarget - M28Utilities.GetDistanceBetweenPositions(tPathLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint]) < math.min(150, iEntry * 40) then
+                                        --Quite a big angle dif, so consider moving up to 2 further along path
+                                        bKeepLooking = true
+                                    end
+                                    if not(bKeepLooking) then
+                                        iClosestLZRef = iLZPointInPath
+                                        break
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -3017,7 +3058,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
         end
-        
+
         if oNearestEnemyToMidpoint and M28Conditions.IsLocationInPlayableArea(oNearestEnemyToMidpoint:GetPosition()) then
             if tLZTeamData[M28Map.subrefLZbCoreBase] then
                 --Adjust rally points for core base if nearby enemy in case we end up going closer to the enemy instead of furhter away
