@@ -2166,26 +2166,63 @@ local function AssignMexesALandZone()
     --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
     function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount)
         if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby mexes to land zone, iPlateau='..iPlateau..'; iCurLandZone='..iCurLandZone..'; tMex='..repru(tMex)..'; iRecursiveCount='..iRecursiveCount..'; Hover terrain label for tMex='..NavUtils.GetTerrainLabel(refPathingTypeHover, tMex)) end
-        if iRecursiveCount < 10 then --If around 13 or 14 then run into recursive limit and crash
-            local iLandGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex)
-            local iMaxRange
-            if iRecursiveCount <= 1 then iMaxRange = math.max(15, iNearbyMexRange)
-            else iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * iRecursiveFactor)
+
+        local iLandGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex)
+        local iMaxRange
+        local iCurDist
+        local iRecursiveThreshold = 10 --If around 13 or 14 then run into recursive limit and crash
+        local iVeryLowDist = 8
+        if iRecursiveCount <= 1 then iMaxRange = math.max(15, iNearbyMexRange)
+        else
+            if iRecursiveCount >= iRecursiveThreshold then
+                iMaxRange = iVeryLowDist
+            else
+                iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * iRecursiveFactor)
             end
-            for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
-                if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
-                    if NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..' for zone '..iCurLandZone..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
-                        if M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange and M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
-                            AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': Added mex '..repru(iAltMex)..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..repru((tiPlateauLandZoneByMexRef[iPlateau] or {'nil'}))..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)..'; tMex='..repru(tMex)..'; tAltMex='..repru(tAltMex)..'; Land label for tMex='..(NavUtils.GetLabel(refPathingTypeLand, tMex) or 'nil')..'; land label for tAltMex='..(NavUtils.GetLabel(refPathingTypeLand, tAltMex) or 'nil'))
-                                M28Utilities.DrawLocation(tAltMex, 2)
-                                M28Utilities.DrawLocation(tMex, 1)
-                            end
-                            AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
+        end
+
+        local tVeryCloseMexesToDoRecursiveLogic = {}
+        local tMexesToAddAndDoRecursiveLogic = {}
+
+        for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
+            if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
+                if NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..' for zone '..iCurLandZone..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)
+                    --First assign mexes that are very close to each other to the same zone; if mex is further away but still close enough then add to a table for further logic
+                    if iCurDist <= iVeryLowDist then
+                        AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Added mex '..repru(iAltMex)..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..repru((tiPlateauLandZoneByMexRef[iPlateau] or {'nil'}))..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)..'; tMex='..repru(tMex)..'; tAltMex='..repru(tAltMex)..'; Land label for tMex='..(NavUtils.GetLabel(refPathingTypeLand, tMex) or 'nil')..'; land label for tAltMex='..(NavUtils.GetLabel(refPathingTypeLand, tAltMex) or 'nil'))
+                            M28Utilities.DrawLocation(tAltMex, 2)
+                            M28Utilities.DrawLocation(tMex, 1)
                         end
+                        tVeryCloseMexesToDoRecursiveLogic[iAltMex] = tAltMex
+                    elseif iCurDist <= iMaxRange and M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
+                        tMexesToAddAndDoRecursiveLogic[iAltMex] = tAltMex
                     end
+                end
+            end
+        end
+        --First do recursive logic on the very close mexes
+        if M28Utilities.IsTableEmpty(tVeryCloseMexesToDoRecursiveLogic) == false and iRecursiveCount < iRecursiveThreshold then
+            for iAltMex, tAltMex in tVeryCloseMexesToDoRecursiveLogic do
+                AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
+            end
+        end
+        --Next do recursive logic on further away mexes (and add those mexes to this land zone), if they are still unassigned
+        if M28Utilities.IsTableEmpty(tMexesToAddAndDoRecursiveLogic) == false then
+            for iAltMex, tAltMex in tMexesToAddAndDoRecursiveLogic do
+                if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
+                    AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Added mex '..repru(iAltMex)..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..repru((tiPlateauLandZoneByMexRef[iPlateau] or {'nil'}))..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)..'; tMex='..repru(tMex)..'; tAltMex='..repru(tAltMex)..'; Land label for tMex='..(NavUtils.GetLabel(refPathingTypeLand, tMex) or 'nil')..'; land label for tAltMex='..(NavUtils.GetLabel(refPathingTypeLand, tAltMex) or 'nil'))
+                        M28Utilities.DrawLocation(tAltMex, 2)
+                        M28Utilities.DrawLocation(tMex, 1)
+                    end
+                end
+                if iRecursiveCount < iRecursiveThreshold then
+                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
                 end
             end
         end

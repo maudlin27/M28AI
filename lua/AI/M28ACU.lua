@@ -464,7 +464,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
@@ -553,9 +553,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
                     elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted and ((iResourceMod >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler]) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) == 0) and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 0) >= 2 then
                         --Build a couple of PGen even if nearby hydro given cheat mult
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want more power due to cheat mult before hydro') end
                         ACUActionBuildPower(aiBrain, oACU)
-                    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 * iResourceMod and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
+                    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 * iResourceMod and (aiBrain:GetEconomyStored('ENERGY') >= 100 or aiBrain[M28Economy.refiNetEnergyBaseIncome] > -0.1) and ((tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9) < 5 or aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5 or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 * aiBrain[M28Economy.refiGrossMassBaseIncome]) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
                         --Do nothing - have bene given an order to build a neaby mex
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want more mex as have decent base power level, tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; energy %='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
 
                         --Do we want to build a hydro (so get mexes first then hydro) or build pgen?
@@ -617,7 +619,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --Per discord gameplay and training pinned build order for going land facs with no hydro:
                             --ACU:      Landfac - 2 PG - 2 Mex - 1 PG - 2 Mex - 3 PG - Landfac - PG - Landfac
                             if bDebugMessages == true then LOG(sFunctionRef..': No hydro locations so will build power or mex depending on income') end
-                            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * iResourceMod then
+                            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build initial PGens') end
                                 ACUActionBuildPower(aiBrain, oACU)
                             else
@@ -712,6 +714,14 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
+                            elseif (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) >= 5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to build pgens or extra hydro, is oOptionalUnderConstructionHydro valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalUnderConstructionHydro))) end
+                                if oOptionalUnderConstructionHydro then
+                                    ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
+                                else
+                                    ACUActionBuildPower(aiBrain, oACU)
+                                end
+
                             elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                                 ACUActionBuildMex(aiBrain, oACU)
