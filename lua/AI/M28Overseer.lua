@@ -19,9 +19,9 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
+iTempCycle = 0
 
 bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
@@ -487,6 +487,38 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    local Utils = import('/lua/system/utils.lua')
+    iTempCycle = iTempCycle + 1
+    if iTempCycle >= 50 then
+        local tsFileNames = {
+            ['M28ACU'] = M28ACU,
+            ['M28Air'] = M28Air,
+            ['M28Brain'] = import('/mods/M28AI/lua/AI/M28Brain.lua'),
+            ['M28Building'] = M28Building,
+            ['M28Chat'] = M28Chat,
+            ['M28Conditions'] = M28Conditions,
+            ['M28Economy'] = M28Economy,
+            ['M28Engineer'] = M28Engineer,
+            ['M28Events'] = import('/mods/M28AI/lua/AI/M28Events.lua'),
+            ['M28Factory'] = M28Factory,
+            ['M28Land'] = M28Land,
+            ['M28Logic'] = import('/mods/M28AI/lua/AI/M28Logic.lua'),
+            ['M28Map'] = M28Map,
+            ['M28Micro'] = M28Micro,
+            ['M28Navy'] = import('/mods/M28AI/lua/AI/M28Navy.lua'),
+            ['M28Orders'] = M28Orders,
+            ['M28Overseer'] = import('/mods/M28AI/lua/AI/M28Overseer.lua'),
+            ['M28Profiler'] = M28Profiler,
+            ['M28Team'] = M28Team,
+            ['M28UnitInfo'] = M28UnitInfo,
+            ['M28Utilities'] = M28Utilities,
+        }
+        for sFileName, vFunction in tsFileNames do
+            LOG('ToBytes for '..sFileName..'='..Utils.ToBytes(vFunction))
+        end
+        --LOG('TestCustom ToBytes result at time='..GetGameTimeSeconds()..': Plateau data='..Utils.ToBytes(M28Map.tAllPlateaus)..'; Reclaim data='..Utils.ToBytes(M28Map.tReclaimAreas)..'; Size of tTempZoneTravelDistanceBySegment='..Utils.ToBytes(M28Map.tTempZoneTravelDistanceBySegment)..'; tTeamData='..Utils.ToBytes(M28Team.tTeamData)..'; Entire M28Team='..Utils.ToBytes(M28Team)..'; Map size='..Utils.ToBytes(M28Map)..'; Entire land='..Utils.ToBytes(M28Land)..'; Entire air='..Utils.ToBytes(M28Air)..'; Ponds='..Utils.ToBytes(M28Map.tPondDetails)..'; tLandZoneBySegment='..Utils.ToBytes(M28Map.tLandZoneBySegment))
+        iTempCycle = 0
+    end
     --M28Map.DrawLandZones()
     --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
     --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
@@ -1100,7 +1132,6 @@ function OverseerManager(aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
-    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
@@ -1113,6 +1144,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
+        if aiBrain:GetArmyIndex() == 2 then TestCustom(aiBrain) end
         --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 60 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then

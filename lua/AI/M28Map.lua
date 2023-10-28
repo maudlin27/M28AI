@@ -3968,6 +3968,7 @@ local function SetupLandZones()
 
     --Clear variables that we no longer need:
     tTempZoneTravelDistanceBySegment =  nil
+    tTempZoneTravelDistanceBySegment = 1
     tTempZonePlateauBySegment = nil
 
     RecordLandZoneMidpointAndUnbuiltMexes()

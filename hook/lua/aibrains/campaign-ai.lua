@@ -37,10 +37,10 @@ AIBrain = Class(M28OldAIBrain) {
             import("/lua/sim/NavUtils.lua").Generate()
 
             -- requires these datastructures to understand the game
-            self.GridReclaim = import("/lua/ai/gridreclaim.lua").Setup(self)
+            --[[self.GridReclaim = import("/lua/ai/gridreclaim.lua").Setup(self)
             self.GridBrain = import("/lua/ai/gridbrain.lua").Setup()
             self.GridRecon = import("/lua/ai/gridrecon.lua").Setup(self)
-            self.GridPresence = import("/lua/AI/GridPresence.lua").Setup(self)
+            self.GridPresence = import("/lua/AI/GridPresence.lua").Setup(self)--]]
         end
     end,
 
