@@ -880,7 +880,7 @@ function GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-            iCurAAValue = iCurAAValue - tAdjLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] * 2
+            iCurAAValue = iCurAAValue - (tAdjLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) * 2
         end
     end
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
@@ -909,7 +909,7 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
         for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
             local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
-            iCurAAValue = iCurAAValue - tAdjLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] * 2
+            iCurAAValue = iCurAAValue - (tAdjLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) * 2
         end
     end
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
@@ -4195,7 +4195,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 if not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect() then
                     local bDoDetailedGroundAACheck = false
                     if IsHighValueZoneToProtect() then
-                        if tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 1.5))
+                        if (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 1.5))
                         else iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.8, 1.8))
                         end
                         bDoDetailedGroundAACheck = true
