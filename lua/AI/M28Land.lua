@@ -1137,6 +1137,8 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
     local iEnemyBestMobileDFRange = 0
     local iEnemyBestStructureDFRange = 0
     local iEnemyBestMobileIndirectRange = 0
+    tLZTeamData[M28Map.reftoAdjacentStructuresWithHighRange] = {}
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
         local tNearestCombatEnemies = {}
@@ -1149,12 +1151,25 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         local oLowestDFDistUntilInRange
         local tMidpoint = tLZData[M28Map.subrefMidpoint]
         local iCurDistUntilInRange
+        local iEnemyPDThreshold
         if bDebugMessages == true then LOG(sFunctionRef..': Best mobile DF range for this zone only='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]..'; Is table of adjacent LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
         function UpdateForAdjacentLandZone(tAltLZTeamData)
             iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
             iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
+            --Record adjacent structures that have high (highest recorded or >=50) DF range
+            iEnemyPDThreshold = math.min(50, math.max(     iEnemyBestMobileDFRange,iEnemyBestStructureDFRange))
+            if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) >= iEnemyPDThreshold and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAltLZTeamData[M28Map.subrefTEnemyUnits])
+                if M28Utilities.IsTableEmpty(tEnemyStructures) == false then
+                    for iUnit, oUnit in tEnemyStructures do
+                        if (oUnit[M28UnitInfo.refiDFRange] or 0) >= iEnemyPDThreshold then
+                            table.insert(tLZTeamData[M28Map.reftoAdjacentStructuresWithHighRange], oUnit)
+                        end
+                    end
+                end
+            end
             iEnemyBestMobileIndirectRange = math.max(iEnemyBestMobileIndirectRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ '..iAdjLandZone..'; Enemy mobile DF for this LZ='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ, Enemy mobile DF for this LZ='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
             if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                 for iUnit, oUnit in tAltLZTeamData[M28Map.subrefTEnemyUnits] do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
@@ -2881,6 +2896,43 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local iClosestStructureDist = 100000
         local iCurDist
         local iEnemyBestDFRange = math.max(iEnemyBestMobileDFRange, iEnemyBestStructureDFRange)
+        local bNotCloseToAdjacentPD = false
+        --If enemy DF structures are in an adjacent zone then only include their range for this decision if they are near enough
+        if (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < iEnemyBestStructureDFRange and iEnemyBestStructureDFRange > iEnemyBestMobileDFRange and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoAdjacentStructuresWithHighRange]) == false then
+            --Adjacent structures are providing the best enemy DF range; would we outrange the enemy if it wasnt for these?
+            if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false and math.max((iFriendlyBestMobileDFRange or 0), (iFriendlyBestMobileIndirectRange or 0)) > math.max(iEnemyBestMobileDFRange, (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)) then
+                --Get enemy longer range PD in adjacent zone closest to this zone midpoint, so can see if it is almost in range of any allied units
+                local oClosestPD
+                for iUnit, oUnit in tLZTeamData[M28Map.reftoAdjacentStructuresWithHighRange] do
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then --redundancy
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) - oUnit[M28UnitInfo.refiDFRange]
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            oClosestPD = oUnit
+                        end
+                    end
+                end
+                bNotCloseToAdjacentPD = true
+                if oClosestPD and iClosestDist <= 200 then
+                    local iThreshold = 10 --If within 10 of being in range then recognise the range on the unit
+                    for iUnit, oUnit in tAvailableCombatUnits do
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestPD:GetPosition()) - oClosestPD[M28UnitInfo.refiDFRange] - iThreshold <= 0 then
+                            bNotCloseToAdjacentPD = false
+                            break
+                        end
+                    end
+                end
+                if bNotCloseToAdjacentPD then
+                    iEnemyBestStructureDFRange =     (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)
+                    iEnemyBestDFRange = math.max(iEnemyBestMobileDFRange, iEnemyBestStructureDFRange)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Closest PD is far enough away from our units that we can ignore its range when deciding what scenario we are in, oClosestPD='..(oClosestPD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestPD) or 'nil')..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iEnemyBestDFRange after update='..iEnemyBestDFRange..'; Time='..GetGameTimeSeconds()) end
+                end
+                iClosestDist = 100000
+            end
+
+        end
+
+
         local bNearestEnemyNeedsManualAttack = false --If nearest enemy is below water with its base but still visible on the top then units wont fire at it unless given a specific attack order
         local tEnemyEngineers = {} --So can avoid getting in reclaim range, and consider targeting as a priority
 
