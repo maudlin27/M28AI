@@ -60,6 +60,7 @@ refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe
 refbTriedToKill = 'M28TryKill' --true if tried to kill unit
 refiHealthWhenLastChecked = 'M28HlthCh' --Unit health when last checked - used for gunships
 refiHealthSecondLastCheck = 'M28HlthSLC' --Unit health in the previous check - used for gunships
+refbWantToHealUp = 'M28HlUp' --true if unit wants to rely on its regen to heal up - e.g. used for soulripper
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -1866,7 +1867,7 @@ function GetACUShieldRegenRate(oUnit)
     return iRegenRate
 end
 
-function GetACUHealthRegenRate(oUnit)
+function GetUnitHealthRegenRate(oUnit)
     --Cycles through every ACU enhancement and factors it into its health regen, along with veterancy
     local oBP = oUnit:GetBlueprint()
     local iRegenRate = (oBP.Defense.RegenRate or 0)

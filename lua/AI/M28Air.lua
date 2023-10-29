@@ -811,8 +811,22 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar, oUnit.UnitId) then
                                     --If have shield but its health is low then send for refueling
                                     local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-                                    if iMaxShield > 0 and iCurShield <= iMaxShield * 0.1 then
+                                    if iMaxShield > 0 and iCurShield <= iMaxShield * 0.15 then
                                         bSendUnitForRefueling = true
+                                    elseif iMaxShield == 0 then
+                                        local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
+                                        local iLowHealthThreshold = 0.2
+                                        if iHealthRegen >= 50 then iLowHealthThreshold = 0.3 end
+                                        if oUnit[M28UnitInfo.refbWantToHealUp] then
+                                            iLowHealthThreshold = math.max(0.5, iLowHealthThreshold)
+                                        end
+                                        if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
+                                            bSendUnitForRefueling = true
+                                            oUnit[M28UnitInfo.refbWantToHealUp] = true
+                                        else
+                                            oUnit[M28UnitInfo.refbWantToHealUp] = nil
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..iHealthRegen..'; iLowHealthThreshold='..iLowHealthThreshold) end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; bSendUnitForRefueling='..tostring(bSendUnitForRefueling)) end
                                 else
@@ -6308,7 +6322,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                         iTimeToKillTarget = 10000
                         if not(oACU:IsUnitState('Attached')) and not(M28Map.IsUnderwater(oACU:GetPosition())) then --Even if ACU slightly above water watn to ignore since it could probably easily get underwater
                             local iACUCurShield, iACUMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oACU)
-                            iCurDPSMod = -M28UnitInfo.GetACUShieldRegenRate(oACU) - M28UnitInfo.GetACUHealthRegenRate(oACU)
+                            iCurDPSMod = -M28UnitInfo.GetACUShieldRegenRate(oACU) - M28UnitInfo.GetUnitHealthRegenRate(oACU)
                             local iACUHealth = oACU:GetHealth() + iACUCurShield
                             if -iCurDPSMod < iCurDPSMod then
                                 iTimeToKillTarget = iACUHealth / (iDPS + iCurDPSMod)
