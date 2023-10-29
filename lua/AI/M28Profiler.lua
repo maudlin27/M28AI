@@ -44,6 +44,8 @@ tiProfilerEndCountByFunction = {} --[functionref] - Used if want to temporarily 
 --Example of usage of the above: M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerEndCountByFunction[sFunctionRef])
 tMemoryOverloadTable = {} --If want to test high memory usage
 iMemoryOverloadCurFactor = 0 --To avoid rerunning exact same logic
+iMemoryCycleCount = 1000
+bActiveMemoryProfiler = false
 
 function FunctionProfiler(sFunctionRef, sStartOrEndRef)
     --sStartOrEndRef: refProfilerStart or refProfilerEnd (0 or 1)
@@ -284,4 +286,70 @@ function IncreaseMemoryUsage(iFactor)
         end
         iMemoryOverloadCurFactor = iFactor
     end
+end
+
+function ShowFileMemoryUsage()
+    local bDebugMessages = false if bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ShowFileMemoryUsage'
+    FunctionProfiler(sFunctionRef, refProfilerStart)
+
+    if not(bActiveMemoryProfiler) then
+        bActiveMemoryProfiler = true
+        local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+        local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+        local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+        local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+        local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+        local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+        local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+        local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+        local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+        local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+        local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+        local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+        local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+        local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+        local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+        local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+        local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+
+        local Utils = import('/lua/system/utils.lua')
+        local tsFileNames = {
+            ['M28ACU'] = M28ACU,
+            ['M28Air'] = M28Air,
+            ['M28Brain'] = import('/mods/M28AI/lua/AI/M28Brain.lua'),
+            ['M28Building'] = M28Building,
+            ['M28Chat'] = M28Chat,
+            ['M28Conditions'] = M28Conditions,
+            ['M28Economy'] = M28Economy,
+            ['M28Engineer'] = M28Engineer,
+            ['M28Events'] = import('/mods/M28AI/lua/AI/M28Events.lua'),
+            ['M28Factory'] = M28Factory,
+            ['M28Land'] = M28Land,
+            ['M28Logic'] = import('/mods/M28AI/lua/AI/M28Logic.lua'),
+            ['M28Map'] = M28Map,
+            ['M28Micro'] = M28Micro,
+            ['M28Navy'] = import('/mods/M28AI/lua/AI/M28Navy.lua'),
+            ['M28Orders'] = M28Orders,
+            ['M28Overseer'] = M28Overseer,
+            ['M28Profiler'] = import('/mods/M28AI/lua/AI/M28Profiler.lua'),
+            ['M28Team'] = M28Team,
+            ['M28UnitInfo'] = M28UnitInfo,
+            ['M28Utilities'] = M28Utilities,
+        }
+        while true do
+            iMemoryCycleCount = iMemoryCycleCount + 1
+            if iMemoryCycleCount >= 60 then
+                --This provides the size of any global tables in a file; if wanted to, can use ToBytes to point to a specific table in that file to narrow down on ones that are large
+                for sFileName, tGlobalTablesInFile in tsFileNames do
+                    LOG('ToBytes for '..sFileName..'='..Utils.ToBytes(tGlobalTablesInFile))
+                end
+                iMemoryCycleCount = 0
+            end
+            FunctionProfiler(sFunctionRef, refProfilerEnd)
+            WaitSeconds(1)
+            FunctionProfiler(sFunctionRef, refProfilerStart)
+        end
+    end
+    FunctionProfiler(sFunctionRef, refProfilerEnd)
 end

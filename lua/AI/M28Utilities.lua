@@ -385,6 +385,10 @@ function IsLineFromAToBInRangeOfCircleAtC(iDistFromAToB, iDistFromAToC, iDistFro
     if iDistFromAToC <= iCircleRadius or iDistFromBToC <= iCircleRadius then
         --LOG('Dist within circle radius so are in range, returning true')
         return true
+        --Angle dif - if more than 90, then means SMD (C) is behind SML (A), and since it's not within range of the SMD, then it cant be blocked by it when shooting at target (B)
+    elseif math.abs(iAngleFromAToB - iAngleFromAToC) > 90 then
+        --LOG('Angle means circle is behind A (if standing at A facing B), since circle midpoint is further away from A than its radius, it cant be in range of the line from A to B')
+        return false
         --Note - have done circleradius*1.2 as was one scenario where the SMD just overlapped despite distAtoB+CircleRadius being less than DistAtoC (for SMD was about 82 vs 90)
     elseif (iDistFromAToC > iDistFromBToC and iDistFromAToB < iDistFromAToC) or iDistFromAToB + iCircleRadius*1.2 < iDistFromAToC then
         --LOG('Dist to circle further than target and not in range of circle radius, so returning false')

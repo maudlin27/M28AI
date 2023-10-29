@@ -1631,7 +1631,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs='..reprs(oUnit)) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1683,6 +1683,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef) end
                 end
+
                 --Units with upgrade - update the base threat value
                 if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                     M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
@@ -1734,6 +1735,40 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
             if oUnit:GetAIBrain().M28AI then
+                --Check for upgrading unit transferred to us
+                if oUnit.IsUpgrade then
+                    local aiBrain = oUnit:GetAIBrain()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Upgrading hidden unit detected, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; aiBrain='..aiBrain.Nickname..'; Is table of mexes and factories empty='..tostring(M28Utilities.IsTableEmpty(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount]))) end
+                    if M28Utilities.IsTableEmpty(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount]) == false then
+                        local iClosestUnitRef
+                        local iClosestUnitTransferCount
+                        local iClosestDist = 2
+                        local iCurDist
+
+
+                        for iTransferCount, tUnitTable in aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount] do
+                            if M28Utilities.IsTableEmpty(tUnitTable) == false then
+                                for iCompletedUnit, oCompletedUnit in tUnitTable do
+                                    if M28UnitInfo.IsUnitValid(oCompletedUnit) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oCompletedUnit:GetPosition(), oUnit:GetPosition())
+                                        if iCurDist < iClosestDist then
+                                            iClosestDist = iCurDist
+                                            iClosestUnitRef = iCompletedUnit
+                                            iClosestUnitTransferCount = iTransferCount
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching completed units near to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', iClosestUnitRef='..(iClosestUnitRef or 'nil')..'; iClosestDist='..iClosestDist) end
+                            if iClosestUnitRef then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will track completed unit '..aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iClosestUnitTransferCount][iClosestUnitRef].UnitId..M28UnitInfo.GetUnitLifetimeCount(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iClosestUnitTransferCount][iClosestUnitRef])..' as an upgrading unit, given unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is upgrading and nearby') end
+                                M28Team.UpdateUpgradeTrackingOfUnit(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iClosestUnitTransferCount][iClosestUnitRef], false, oUnit.UnitId)
+                                table.remove(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iClosestUnitTransferCount], iClosestUnitRef)
+                            end
+                        end
+                    end
+                end
+
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 if oUnit:GetFractionComplete() == 1 then
                     if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
@@ -1746,7 +1781,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Building.JustBuiltParagon, oUnit)
-                    --Campaign specific - expand core zones for campaign AI
+                        --Campaign specific - expand core zones for campaign AI
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                         tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
@@ -2223,6 +2258,81 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
 
 end
 
+function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
+    --Tracks transferred units (to help with spotting upgrades for those already in progress), and also unpauses all units
+
+    local sFunctionRef = 'DelayedUnpauseOfTransferredUnits'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local iCapturedUnitCount
+    local aiBrain
+    local tFactoriesAndMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, toCapturedUnits)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is tFactoriesAndMexes empty='..tostring(M28Utilities.IsTableEmpty(tFactoriesAndMexes))..'; iArmyIndex='..iArmyIndex..'; Time='..GetGameTimeSeconds()) end
+    if M28Utilities.IsTableEmpty(tFactoriesAndMexes) == false then
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain:GetArmyIndex() == iArmyIndex then
+                aiBrain = oBrain
+                break
+            end
+        end
+        if aiBrain then
+            local tCompletedUnits = {}
+            local tUpgradingUnit = {}
+            for iUnit, oUnit in tFactoriesAndMexes do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; IsUpgrade='..tostring(oUnit.IsUpgrade or false)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit tech level='..M28UnitInfo.GetUnitTechLevel(oUnit)) end
+                --if oUnit.IsUpgrade then table.insert(tUpgradingUnit, oUnit)
+                if oUnit:GetFractionComplete() == 1 and  M28UnitInfo.GetUnitTechLevel(oUnit) <= 2 then
+                    table.insert(tCompletedUnits, oUnit)
+                end
+            end
+            if M28Utilities.IsTableEmpty(tCompletedUnits) == false then
+                aiBrain[M28Overseer.refiTransferedUnitCount] = (aiBrain[M28Overseer.refiTransferedUnitCount] or 0) + 1
+                iCapturedUnitCount = aiBrain[M28Overseer.refiTransferedUnitCount]
+                if not(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount]) then aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount] = {} end
+                aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount] = {}
+                for iUnit, oUnit in tCompletedUnits do
+                    table.insert(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount], oUnit)
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of completed units empty='..tostring(M28Utilities.IsTableEmpty(tCompletedUnits))..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tUpgradingUnit))) end
+            if M28Utilities.IsTableEmpty(tCompletedUnits) == false and M28Utilities.IsTableEmpty(tUpgradingUnit) == false then
+                local iClosestUnitRef, iClosestDist, iCurDist
+                for iUnit, oUnit in tUpgradingUnit do
+                    iClosestDist = 2
+                    iClosestUnitRef = nil
+                    for iCompletedUnit, oCompletedUnit in tCompletedUnits do
+                        iCurDist = M28Utilities.GetDistanceBetweenPosition(oCompletedUnit:GetPosition(), oUnit:GetPosition())
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            iClosestUnitRef = iCompletedUnit
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching completed units near to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', iClosestUnitRef='..(iClosestUnitRef or 'nil')..'; iClosestDist='..iClosestDist) end
+                    if iClosestUnitRef then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will track completed unit '..tCompletedUnits[iClosestUnitRef].UnitId..M28UnitInfo.GetUnitLifetimeCount(tCompletedUnits[iClosestUnitRef])..' as an upgrading unit, given unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is upgrading and nearby') end
+                        M28Team.UpdateUpgradeTrackingOfUnit(tCompletedUnits[iClosestUnitRef], false, oUnit.UnitId)
+                        table.remove(tCompletedUnits, iClosestUnitRef)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(1) --tried 1 tick but it didnt help
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    for iUnit, oUnit in toCapturedUnits do
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+        end
+    end
+    if aiBrain and iCapturedUnitCount then
+        aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount] = nil
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
     --looks like if multiple engineers are trying to capture a unit at once this triggers for each engineer
     local sFunctionRef = 'OnCaptured'
@@ -2257,6 +2367,10 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
                     ForkThread(M28Overseer.DelayedCybranFireBlackSun, oUnit:GetAIBrain())
                 end
+            end
+        elseif not(bCaptured) then
+            if M28Utilities.IsTableEmpty(toCapturedUnits) == false then
+                ForkThread(DelayedUnpauseOfTransferredUnits, toCapturedUnits, iArmyIndex)
             end
         end
     end
@@ -2303,7 +2417,13 @@ function OnTeleportComplete(self, teleporter, location, orientation)
                 tLocationToTeleportTo = {tCurLZTeamData[M28Map.reftClosestFriendlyBase][1], tCurLZTeamData[M28Map.reftClosestFriendlyBase][2], tCurLZTeamData[M28Map.reftClosestFriendlyBase][3]}
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will teleport back to '..repru(tLocationToTeleportTo)) end
-            M28Orders.IssueTrackedTeleport(self, tLocationToTeleportTo, 5, false, 'TelRet', true)
+            --Add to existing queue due to issue where this callback can take place even though the ACU hasn't compelted its teleport
+            if M28Utilities.GetDistanceBetweenPositions(self:GetPosition(), tLocationToTeleportTo) >= 50 then
+                --Check we are relatively near the last location we were trying to teleport to
+                if M28Utilities.IsTableEmpty(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder]) == false and M28Utilities.GetDistanceBetweenPositions(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder], self:GetPosition()) <= 100 then
+                    M28Orders.IssueTrackedTeleport(self, tLocationToTeleportTo, 5, true, 'TelRet', true)
+                end
+            end
         end
     end
 

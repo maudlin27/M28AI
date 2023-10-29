@@ -19,7 +19,6 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 
@@ -42,6 +41,7 @@ bPacifistModeActive = false --true if we have set certain zones to never be atta
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 bBeginSessionTriggered = false
+bCheckForPrecreatedUnitsActive = false
 
 --aiBrain variables
 refbInitialised = 'M28OvInt' --true if brain has started the main initialisation logic
@@ -51,6 +51,8 @@ refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
+refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
+reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 
 
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
@@ -484,8 +486,10 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --M28Map.DrawLandZones()
+    --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
     --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
-    --M28Map.DrawSpecificLandZone(18, 10, 4)
+    --M28Map.DrawSpecificLandZone(93, 14, 4)
     --ScenarioInfo.Options
     --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
 
@@ -710,6 +714,7 @@ function Initialisation(aiBrain)
     --ForkThread(RevealCiviliansToAI, aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
     ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
+    ForkThread(DelayedCheckOfUnitsAtStartOfGame)
 
 end
 
@@ -739,9 +744,9 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
             [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
         }
@@ -1094,7 +1099,7 @@ function OverseerManager(aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
-    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+    if M28Config.M28RunMemoryProfiling then ForkThread(M28Profiler.ShowFileMemoryUsage) end
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
@@ -1107,7 +1112,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 40*60 and GetGameTimeSeconds() <= 41*60 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 60 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
@@ -1250,6 +1255,16 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                         end
                     end
                 end
+            end
+        end
+
+        --Make sure have full energy to cover any energy storage that have transferred over
+        local iMaxEnergy, iCurEnergy
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            iMaxEnergy = M28Economy.GetEnergyStorageMaximum(oBrain, true)
+            iCurEnergy = oBrain:GetEconomyStored('ENERGY')
+            if iCurEnergy < iMaxEnergy then
+                oBrain:GiveResource('Energy', iMaxEnergy - iCurEnergy)
             end
         end
     end
@@ -1453,7 +1468,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         local iTeam = aiBrain.M28Team
         --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon)))
+            LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon))..'; UEF M5: Is ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active or false)..'; Is research facility 1 nil='..tostring(ScenarioInfo.ResearchFacility1 == nil)..'; Is research facility 2 nil='..tostring(ScenarioInfo.ResearchFacility2 == nil))
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
         end
@@ -1757,6 +1772,39 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
                 end
             end
+            --UEF M5 - build SMD and protect research facilities with heavy shields
+        elseif (ScenarioInfo.ResearchFacility1 or ScenarioInfo.ResearchFacility2 or ScenarioInfo.ResearchFacility3) then
+            if ScenarioInfo.M1P2.Active then
+                local tResearchLocations = {}
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility1) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility1:GetPosition())
+                end
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility2) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility2:GetPosition())
+                end
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility3) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility3:GetPosition())
+                end
+                if M28Utilities.IsTableEmpty(tResearchLocations) == false then
+                    for iEntry, tLocation in tResearchLocations do
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+                        if (iLandZone or 0) > 0 then
+                            local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                            tLZTeamData[M28Map.reftObjectiveSMDLocation] = {tLocation[1], tLocation[2], tLocation[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added SMD location for Plateau '..iPlateau..'; Zone '..iLandZone) end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': tResearchLocations='..reprs(tResearchLocations)) end
+            elseif ScenarioInfo.M1P1.Active then
+                --Make sure research centres are added to list of buildings to shield
+                local oUnit = ScenarioInfo.ResearchFacility1
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
+                oUnit = ScenarioInfo.ResearchFacility2
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
+                oUnit = ScenarioInfo.ResearchFacility3
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
+            end
         elseif ScenarioInfo.M4P3.Active and Target.Requirements[1].Category == categories.urc1901 and Target.Requirements[1].Area then --Seraphim M3 - protect QAI mainframe (as objective currently has strange way of doing this where it tracks the area rather htan the unit)
 
             local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
@@ -1875,4 +1923,28 @@ function RemoveUnitsFromPlatoon(oPlatoon, tUnits, bReturnToBase, oPlatoonToAddTo
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedCheckOfUnitsAtStartOfGame()
+    --Sometimes e.g. in a campaign, the map has units pre-created meaning they dont trigger 'oncreate' logic - do a 1-off check at the start of the game for such units
+    if not(bCheckForPrecreatedUnitsActive) then
+        bCheckForPrecreatedUnitsActive = true
+        while not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bFirstM28TeamHasBeenInitialised) or GetGameTimeSeconds() <= 5 do
+            WaitTicks(1)
+            if GetGameTimeSeconds() >= 10 then break end
+        end
+        WaitTicks(1)
+        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+        for iBrain, oBrain in ArmyBrains do
+            local tAllUnits = oBrain:GetListOfUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.UNTARGETABLE, false, true)
+            if M28Utilities.IsTableEmpty(tAllUnits) == false then
+                for iUnit, oUnit in tAllUnits do
+                    if not(oUnit['M28OnCrRn']) and oUnit:GetFractionComplete() == 1 then
+                        M28Events.OnCreate(oUnit)
+                    end
+                end
+            end
+        end
+    end
+
 end
