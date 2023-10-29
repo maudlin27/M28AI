@@ -3242,12 +3242,14 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                 if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap so will get T2PlusPD') end
                 iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
             else
-                if iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
+                if iMinTechLevel == 1 then
+                    iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
+                elseif iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
                     --Want to build either T2 or T2+ PD
                     local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
                     if iT2PD <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have 5 or fewer t2 pd so will get more t2 pd') end
-                        iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3
+                        iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Have at least 5 T2 PD so will get T2PlusPD') end
                         iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
@@ -4700,7 +4702,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildEmergencyPD and GetGameTimeSeconds() >= 1300 then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -5102,8 +5104,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 elseif vOptionalVariable and (iActionToAssign == refActionBuildEmergencyPD or iActionToAssign == refActionBuildEmergencyArti) then
                                     --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,       false,                              nil,             nil,                                   bGetCheapest,                   tLZOrWZData, tLZOrWZTeamData)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get location for PD, vOptionalVariable='..repru(vOptionalVariable)..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation))
-                                        M28Utilities.DrawLocation(tBuildLocation)
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef..': Have just tried to get location for PD, vOptionalVariable='..repru(vOptionalVariable)..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation))
+                                        if M28Utilities.IsTableEmpty(tBuildLocation) == false then
+                                            M28Utilities.DrawLocation(tBuildLocation)
+                                        end
                                     end
                                 elseif vOptionalVariable and iActionToAssign == refActionBuildTMD then
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
@@ -8874,8 +8879,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                             tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
                             if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted) end
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)..'; iExistingStructureThreat='..(iExistingStructureThreat or 'nil')..'; tPDStartPoint='..repru(tPDStartPoint)) end
                         HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
+                        bDebugMessages = false
                     end
                 end
             end

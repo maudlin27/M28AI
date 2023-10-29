@@ -3640,11 +3640,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
                         local tAvailableACUs = {}
                         local tAvailableACUsNearFront = {}
-                        for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
-                            if not(oACU:IsUnitState('Upgrading')) and GetGameTimeSeconds() - (oACU[M28ACU.refiTimeLastWantedToRun] or -100) >= 10 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have ACU that isnt upgrading, and doesnt want to run, in this zone, so will include unless far behind') end
-                                table.insert(tAvailableACUs, oACU)
-                            elseif bDebugMessages == true then LOG(sFunctionRef..': ACU owned by brain '..oACU:GetAIBrain().Nickname..' is either upgrading or running so wont include its threat')
+                        if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefAlliedACU]) then
+                            for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
+                                if not(oACU:IsUnitState('Upgrading')) and GetGameTimeSeconds() - (oACU[M28ACU.refiTimeLastWantedToRun] or -100) >= 10 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have ACU that isnt upgrading, and doesnt want to run, in this zone, so will include unless far behind') end
+                                    table.insert(tAvailableACUs, oACU)
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': ACU owned by brain '..oACU:GetAIBrain().Nickname..' is either upgrading or running so wont include its threat')
+                                end
                             end
                         end
                         if M28Utilities.IsTableEmpty(tAvailableACUs) == false then

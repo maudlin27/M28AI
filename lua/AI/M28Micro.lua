@@ -27,100 +27,102 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
 
     local tUnitPosition = oUnit:GetPosition()
     local oBP = oUnit:GetBlueprint()
-    local iUnitSpeed = oBP.Physics.MaxSpeed
-    local iDistanceToMove = (iTimeToRun + 1) * iUnitSpeed
-    --local tRevisedPositionToRunFrom
+    local iUnitSpeed = (oBP.Physics.MaxSpeed or 0)
+    if iUnitSpeed > 0 then
+        local iDistanceToMove = (iTimeToRun + 1) * iUnitSpeed
+        --local tRevisedPositionToRunFrom
 
-    local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
-    local iAngleFromUnitToBomb
-    if tUnitPosition[1] == tPositionToRunFrom[1] and tUnitPosition[3] == tPositionToRunFrom[3] then
-        iAngleFromUnitToBomb = iCurFacingDirection - 180
-        if iAngleFromUnitToBomb < 0 then iAngleFromUnitToBomb = iAngleFromUnitToBomb + 360 end
-    else
-        iAngleFromUnitToBomb = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tPositionToRunFrom)
-    end
-
-    local iAngleAdjFactor
-    local iFacingAngleWanted = iAngleFromUnitToBomb + 180
-    if iFacingAngleWanted >= 360 then iFacingAngleWanted = iFacingAngleWanted - 360 end
-
-    local iTurnRate = (oBP.Physics.TurnRate or 90)
-    local iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate
-    local iDistToBomb = M28Utilities.GetDistanceBetweenPositions(tPositionToRunFrom, oUnit:GetPosition())
-    if iDistToBomb * 2 / iUnitSpeed <= iTimeToTurn then
-        iFacingAngleWanted = iCurFacingDirection
-        iDistanceToMove = iDistanceToMove + iDistToBomb
-    end
-    if iTimeToTurn > iTimeToRun then bMoveInStages = true end
-
-    local tTempLocationToMove
-
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iCurFacingDirection='..iCurFacingDirection..'; iAngleFromUnitToBomb='..iAngleFromUnitToBomb..'; iFacingAngleWanted='..iFacingAngleWanted..'; tUnitStartPosition='..repru(oUnit:GetPosition())..'; tPositionToRunFrom='..repru(tPositionToRunFrom)) end
-    M28Orders.IssueTrackedClearCommands(oUnit)
-    TrackTemporaryUnitMicro(oUnit, iTimeToRun)
-    tTempLocationToMove = oUnit:GetPosition()
-    local iDistanceAlreadyMoved = 0
-
-
-    --Turn around while moving away if we're not facing the right direction:
-    if bMoveInStages then
-        local iInitialAngleAdj = 30
-        local iAngleMaxSingleAdj = 45
-        local iTempDistanceAwayToMove = 3
-        local iDistanceIncreasePerCycle = 1.5
-        local iDistanceIncreaseCompoundFactor = 1.5
-        local iLoopCount = 0
-
-        if math.abs(iCurFacingDirection - iFacingAngleWanted) > (iAngleMaxSingleAdj + iInitialAngleAdj) then
-            local iTempAngleDirectionToMove = iCurFacingDirection
-
-            if iCurFacingDirection - iFacingAngleWanted > 0 then
-                if iCurFacingDirection - iFacingAngleWanted > 180 then iAngleAdjFactor = 1 --Clockwise
-                else iAngleAdjFactor = -1 --AntiClockwise
-                end
-
-            elseif iCurFacingDirection - iFacingAngleWanted < -180 then iAngleAdjFactor = -1
-            else iAngleAdjFactor = 1
-            end --Clockwise
-
-
-
-            while iLoopCount < 6 do
-                iLoopCount = iLoopCount + 1
-
-                iTempAngleDirectionToMove = iCurFacingDirection + (iInitialAngleAdj + iLoopCount * iAngleMaxSingleAdj) * iAngleAdjFactor
-                if iTempAngleDirectionToMove > 360 then iTempAngleDirectionToMove = iTempAngleDirectionToMove - 360
-                elseif iTempAngleDirectionToMove < 0 then iTempAngleDirectionToMove = iTempAngleDirectionToMove + 360
-                end
-
-                if bDebugMessages == true then LOG(sFunctionRef..': iLoopCount='..iLoopCount..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove..'; iInitialAngleAdj='..iInitialAngleAdj..'; iAngleAdjFactor='..iAngleAdjFactor..'; iCurFacingDirection='..iCurFacingDirection..'; iFacingAngleWanted='..iFacingAngleWanted) end
-
-
-                iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (iDistanceIncreaseCompoundFactor ^ iLoopCount - 1)
-                tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
-                M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'TempMA', true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order to tTempLocationToMove='..repru(tTempLocationToMove)..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove) end
-                if math.abs(iTempAngleDirectionToMove - iFacingAngleWanted) <= iAngleMaxSingleAdj then break
-                elseif math.abs(iTempAngleDirectionToMove - iFacingAngleWanted) > 360 then
-                    M28Utilities.ErrorHandler('Something has gone wrong with dodge micro, will stop trying to turn around')
-                    break
-                end
-            end
-            iDistanceAlreadyMoved = M28Utilities.GetDistanceBetweenPositions(tTempLocationToMove, tPositionToRunFrom)
+        local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+        local iAngleFromUnitToBomb
+        if tUnitPosition[1] == tPositionToRunFrom[1] and tUnitPosition[3] == tPositionToRunFrom[3] then
+            iAngleFromUnitToBomb = iCurFacingDirection - 180
+            if iAngleFromUnitToBomb < 0 then iAngleFromUnitToBomb = iAngleFromUnitToBomb + 360 end
+        else
+            iAngleFromUnitToBomb = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tPositionToRunFrom)
         end
-    end
 
-    --Should now be facing close to the right direction, so move further in this direction
+        local iAngleAdjFactor
+        local iFacingAngleWanted = iAngleFromUnitToBomb + 180
+        if iFacingAngleWanted >= 360 then iFacingAngleWanted = iFacingAngleWanted - 360 end
 
-    local tNewTargetIgnoringGrouping = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, math.max(1, iDistanceToMove - iDistanceAlreadyMoved), true, false, true)
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to face the right direction, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; tUnitPosition='..repru(tUnitPosition)..'; iDistanceToMove='..iDistanceToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
+        local iTurnRate = (oBP.Physics.TurnRate or 90)
+        local iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate
+        local iDistToBomb = M28Utilities.GetDistanceBetweenPositions(tPositionToRunFrom, oUnit:GetPosition())
+        if iDistToBomb * 2 / iUnitSpeed <= iTimeToTurn then
+            iFacingAngleWanted = iCurFacingDirection
+            iDistanceToMove = iDistanceToMove + iDistToBomb
+        end
+        if iTimeToTurn > iTimeToRun then bMoveInStages = true end
 
-    local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
-    if tNewTargetInSameGroup then
-        if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
+        local tTempLocationToMove
 
-        M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iCurFacingDirection='..iCurFacingDirection..'; iAngleFromUnitToBomb='..iAngleFromUnitToBomb..'; iFacingAngleWanted='..iFacingAngleWanted..'; tUnitStartPosition='..repru(oUnit:GetPosition())..'; tPositionToRunFrom='..repru(tPositionToRunFrom)) end
+        M28Orders.IssueTrackedClearCommands(oUnit)
         TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+        tTempLocationToMove = oUnit:GetPosition()
+        local iDistanceAlreadyMoved = 0
+
+
+        --Turn around while moving away if we're not facing the right direction:
+        if bMoveInStages then
+            local iInitialAngleAdj = 30
+            local iAngleMaxSingleAdj = 45
+            local iTempDistanceAwayToMove = 3
+            local iDistanceIncreasePerCycle = 1.5
+            local iDistanceIncreaseCompoundFactor = 1.5
+            local iLoopCount = 0
+
+            if math.abs(iCurFacingDirection - iFacingAngleWanted) > (iAngleMaxSingleAdj + iInitialAngleAdj) then
+                local iTempAngleDirectionToMove = iCurFacingDirection
+
+                if iCurFacingDirection - iFacingAngleWanted > 0 then
+                    if iCurFacingDirection - iFacingAngleWanted > 180 then iAngleAdjFactor = 1 --Clockwise
+                    else iAngleAdjFactor = -1 --AntiClockwise
+                    end
+
+                elseif iCurFacingDirection - iFacingAngleWanted < -180 then iAngleAdjFactor = -1
+                else iAngleAdjFactor = 1
+                end --Clockwise
+
+
+
+                while iLoopCount < 6 do
+                    iLoopCount = iLoopCount + 1
+
+                    iTempAngleDirectionToMove = iCurFacingDirection + (iInitialAngleAdj + iLoopCount * iAngleMaxSingleAdj) * iAngleAdjFactor
+                    if iTempAngleDirectionToMove > 360 then iTempAngleDirectionToMove = iTempAngleDirectionToMove - 360
+                    elseif iTempAngleDirectionToMove < 0 then iTempAngleDirectionToMove = iTempAngleDirectionToMove + 360
+                    end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLoopCount='..iLoopCount..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove..'; iInitialAngleAdj='..iInitialAngleAdj..'; iAngleAdjFactor='..iAngleAdjFactor..'; iCurFacingDirection='..iCurFacingDirection..'; iFacingAngleWanted='..iFacingAngleWanted) end
+
+
+                    iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (iDistanceIncreaseCompoundFactor ^ iLoopCount - 1)
+                    tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
+                    M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'TempMA', true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order to tTempLocationToMove='..repru(tTempLocationToMove)..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove) end
+                    if math.abs(iTempAngleDirectionToMove - iFacingAngleWanted) <= iAngleMaxSingleAdj then break
+                    elseif math.abs(iTempAngleDirectionToMove - iFacingAngleWanted) > 360 then
+                        M28Utilities.ErrorHandler('Something has gone wrong with dodge micro, will stop trying to turn around')
+                        break
+                    end
+                end
+                iDistanceAlreadyMoved = M28Utilities.GetDistanceBetweenPositions(tTempLocationToMove, tPositionToRunFrom)
+            end
+        end
+
+        --Should now be facing close to the right direction, so move further in this direction
+
+        local tNewTargetIgnoringGrouping = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, math.max(1, iDistanceToMove - iDistanceAlreadyMoved), true, false, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to face the right direction, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; tUnitPosition='..repru(tUnitPosition)..'; iDistanceToMove='..iDistanceToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
+
+        local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
+        if tNewTargetInSameGroup then
+            if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
+
+            M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
