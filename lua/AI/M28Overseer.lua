@@ -19,7 +19,6 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 
@@ -1100,7 +1099,7 @@ function OverseerManager(aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
-    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+    if M28Config.M28RunMemoryProfiling then ForkThread(M28Profiler.ShowFileMemoryUsage) end
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
