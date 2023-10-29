@@ -148,7 +148,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
                 if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding to iPlateau='..iPlateau..'; iLandZOne='..iLandZone) end
             end
         end
-    else
+    elseif M28UnitInfo.IsUnitValid(oUnit) then
         --Dont want more shielding
         if oUnit[refbUnitWantsShielding] then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())

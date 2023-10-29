@@ -2616,15 +2616,17 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished searching other factory types, bHaveNonSeraFactory='..tostring(bHaveNonSeraFactory or false)) end
                     if bHaveNonSeraFactory then
                         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                        local tNearbyFriendlyGateway = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryQuantumGateway - categories.SERAPHIM, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby non sera quantum gateways empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFriendlyGateway))) end
-                        if M28Utilities.IsTableEmpty(tNearbyFriendlyGateway) == false then
-                            for iUnit, oUnit in tNearbyFriendlyGateway do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
-                                if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
-                                    oGateway = oUnit
-                                    break
+                        if aiBrain.GetUnitsAroundPoint then
+                            local tNearbyFriendlyGateway = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryQuantumGateway - categories.SERAPHIM, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby non sera quantum gateways empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFriendlyGateway))) end
+                            if M28Utilities.IsTableEmpty(tNearbyFriendlyGateway) == false then
+                                for iUnit, oUnit in tNearbyFriendlyGateway do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
+                                    if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
+                                        oGateway = oUnit
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -2649,14 +2651,16 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
 
                 local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
-                if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
-                if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
-                    for iUnit, oUnit in tExperimentalLevelUnits do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
-                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                            table.insert(tUnitsToAssist, oUnit)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+                if aiBrain.GetUnitsAroundPoint then
+                    local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
+                    if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
+                        for iUnit, oUnit in tExperimentalLevelUnits do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                                table.insert(tUnitsToAssist, oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+                            end
                         end
                     end
                 end
