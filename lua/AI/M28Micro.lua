@@ -881,7 +881,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                                 if M28Utilities.GetDistanceBetweenPositions(oEnemyT2PD:GetPosition(), tUnitPosition) - iACURange + 2 < iNearestT1PD then
                                     if M28Logic.IsShotBlocked(oUnitWithOvercharge, oEnemyT2PD) == false then
                                         --Can the T2 PD see us?
-                                        if M28Conditions.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge, true) then
+                                        if M28UnitInfo.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting target to T2 PD') end
                                             oOverchargeTarget = oEnemyT2PD
                                             break
@@ -1061,4 +1061,61 @@ function MoveAwayFromFactory(oUnit, oFactory)
             end
         end
     end
+end
+
+function DelayedUnitMove(oUnit, tMoveDirection, iMoveThreshold, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, iSecondsToWait)
+
+    WaitSeconds(iSecondsToWait)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iMoveThreshold, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    end
+end
+
+function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase)
+    --Tries to retreat the unit, returns false if couldnt find suitable retreat location
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MegalithRetreatMicro'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
+    local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+    local iAngleToClosestBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tClosestFriendlyBase)
+    local iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+    local iAngleIfMoving = iFacingDirection + 180
+    if iAngleIfMoving > 360 then iAngleIfMoving = iAngleIfMoving - 360 end
+    local tMoveDirection
+
+    local bGivenOrder = false
+
+    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving) <= 60 or M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving) <= 60 then
+        local iDistanceToMove = 8 --worked ok with value of 5
+        tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
+        if M28Utilities.IsTableEmpty(tMoveDirection) == false then
+            --Looks like megalith has to be stationery or reversing for this to work?
+            local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
+            local bClearAndWait = false
+            if tCurOrder then
+                if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
+                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) >= iDistanceToMove then
+                        bClearAndWait = true
+                    end
+                else
+                    bClearAndWait = true
+                end
+
+            end
+            if bClearAndWait then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
+                M28Orders.IssueTrackedClearCommands(oUnit)
+                ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Are already trying to kite so will just check if move order needs updating') end
+                M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegMiRM', false)
+            end
+            bGivenOrder = true
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleToClosestBase='..iAngleToClosestBase..'; iAngleIfMoving='..iAngleIfMoving..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bGivenOrder
 end

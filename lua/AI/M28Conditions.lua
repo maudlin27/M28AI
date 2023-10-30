@@ -437,30 +437,7 @@ function CanBuildOnHydroLocation(tHydroLocation)
     end
 end
 
-function IsUnitVisibleSEEBELOW()  end --To help with finding canseeunit
-function CanSeeUnit(aiBrain, oUnit, bReturnFalseIfOnlySeeBlip)
-    --returns true if aiBrain can see oUnit
-    --bReturnFalseIfOnlySeeBlip - if true, then returns false if can see the blip but have never seen what the unit was for the blip; defaults to false
-    local iUnitBrain = oUnit:GetAIBrain()
-    if iUnitBrain == aiBrain then return true
-    else
-        local iArmyIndex = aiBrain:GetArmyIndex()
-        if not(oUnit.Dead) then
-            if not(oUnit.GetBlip) then
-                --ErrorHandler('oUnit with UnitID='..(oUnit.UnitId or 'nil')..' has no blip, will assume can see it')
-                return true
-            else
-                local oBlip = oUnit:GetBlip(iArmyIndex)
-                if oBlip then
-                    if bReturnFalseIfOnlySeeBlip and not(oBlip:IsSeenEver(iArmyIndex)) then return false
-                    else return true
-                    end
-                end
-            end
-        end
-    end
-    return false
-end
+function IsUnitVisibleSEEUNITINFOCanSeeUnit()  end --To help with finding canseeunit
 
 function SafeToUpgradeUnit(oUnit)
     --Returns true if safe to upgrade oUnit

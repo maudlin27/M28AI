@@ -999,7 +999,7 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
     local oUnitBrain = oUnit:GetAIBrain()
 
     if not(oUnitBrain == aiBrain or IsAlly(aiBrain:GetArmyIndex(), oUnitBrain:GetArmyIndex())) then
-        if bDontCheckIfCanSeeUnit or M28Conditions.CanSeeUnit(aiBrain, oUnit) then
+        if bDontCheckIfCanSeeUnit or M28UnitInfo.CanSeeUnit(aiBrain, oUnit) then
             if not(oUnit[M28UnitInfo.reftLastKnownPositionByTeam]) then oUnit[M28UnitInfo.reftLastKnownPositionByTeam] = {} end
             local tCurPosition = oUnit:GetPosition()
             oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]} --Do a copy of table as :GetPosition() means it will always update for the unit's latest position even when we lack intel of it
@@ -2853,7 +2853,7 @@ function CheckEnemyACUStatus(iTeam)
         end
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
             for iACU, oACU in  tTeamData[iTeam][reftEnemyACUs] do
-                if M28UnitInfo.IsUnitValid(oACU) and (M28Conditions.CanSeeUnit(aiBrain, oACU, false) or GetGameTimeSeconds() >= 600) then --after 10m of gametime a human would assume enemy will have gun anyway
+                if M28UnitInfo.IsUnitValid(oACU) and (M28UnitInfo.CanSeeUnit(aiBrain, oACU) or GetGameTimeSeconds() >= 600) then --after 10m of gametime a human would assume enemy will have gun anyway
                     if oACU:IsUnitState('Upgrading') or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
                         tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
                     end
@@ -3407,8 +3407,8 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][sRef]) == false then
                 for iUnit, oUnit in tTeamData[iTeam][sRef] do
                     --require unit to be visible so we are more likely to have determined what PD is around it
-                    if bDebugMessages == true and M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering whether to add to table of units to consider, sRef='..sRef..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
-                    if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) and oUnit:GetFractionComplete() >= 0.5 then
+                    if bDebugMessages == true and M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering whether to add to table of units to consider, sRef='..sRef..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                    if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.CanSeeUnit(aiBrain, oUnit) and oUnit:GetFractionComplete() >= 0.5 then
                         if not(bMobileUnitChecks) or (not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Moving')) and not(oUnit:IsUnitState('Attached')) and not(oUnit:IsUnitState('Attacking'))) then
                             table.insert(tEnemyUnitsToConsider, oUnit)
                         end

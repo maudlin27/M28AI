@@ -2170,11 +2170,11 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
             end
             if bDebugMessages == true then
                 local iEnemyPlateauOrZero, iEnemyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestUnit:GetPosition())
-                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit, true))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
+                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
             end
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tBasePosition) then
                 --Manual attack order on czar as wehn doing move ended up losing 60 asfs and not even breaking the shield
-                if (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit, true)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+                if (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
                     M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'AAAA', false)
                     if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
                 else
@@ -3679,7 +3679,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + (iShieldHealth or 0)
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit, true))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit))) end
                 while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
                     iCurLoopCount = iCurLoopCount + 1
                     if iCurLoopCount > iMaxLoopCount then M28Utilities.ErrorHandler('Potential infinite loop unless have '..iMaxLoopCount..' plus torp bombers') break end
@@ -3695,7 +3695,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
 
                     --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
                     bIssueAttackUnitOrder = not(bForceGroundFire)
-                    --if bIssueAttackUnitOrder then bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit, true) end
+                    --if bIssueAttackUnitOrder then bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit) end
 
                     if bIssueAttackUnitOrder then
                         M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', false)
@@ -6697,8 +6697,8 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                         if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28Map.IsUnderwater(oUnit:GetPosition(), false, math.max(0, iAOE - 4))) then
                                             --Is enemy still in this zone if we no longer have intel?
                                             bAddUnit = false
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if have a mobile unit that has moved far from the lastk nown position such that we will end up targeting a different zone by mistake, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Dist between position and last known position='..M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])) end
-                                            if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if have a mobile unit that has moved far from the lastk nown position such that we will end up targeting a different zone by mistake, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Dist between position and last known position='..M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])) end
+                                            if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or M28UnitInfo.CanSeeUnit(aiBrain, oUnit) then
                                                 bAddUnit = true
                                             else
                                                 --dealing with mobile unit, is it still in this zone?
