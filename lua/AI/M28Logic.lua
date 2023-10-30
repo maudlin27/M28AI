@@ -510,10 +510,10 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
                 if bDebugMessages == true then
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+                        LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
                     end
                 end
-                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) then
+                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
                     if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
                         table.insert(tEnemiesInRange, oUnit)

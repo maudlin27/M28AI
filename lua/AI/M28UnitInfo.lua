@@ -2100,10 +2100,10 @@ function FixUnitResourceCheatModifiers(oUnit)
 end
 
 function IsUnitVisibleSEEBELOW()  end --To help with finding canseeunit
-function CanSeeUnit(aiBrain, oUnit, bReturnTrueIfOnlySeeBlip)
+function CanSeeUnit(aiBrain, oUnit, bRequireVisualNotJustBlipToReturnTrue)
     --returns true if aiBrain can see oUnit
-    --bReturnTrueIfOnlySeeBlip - returns true if can see a blip
-    if bReturnTrueIfOnlySeeBlip == nil then bReturnTrueIfOnlySeeBlip = false end
+    --bRequireVisualNotJustBlipToReturnTrue - returns true if can see a blip
+    if bRequireVisualNotJustBlipToReturnTrue == nil then bRequireVisualNotJustBlipToReturnTrue = false end
     local iUnitBrain = oUnit:GetAIBrain()
     if iUnitBrain == aiBrain then return true
     else
@@ -2116,7 +2116,7 @@ function CanSeeUnit(aiBrain, oUnit, bReturnTrueIfOnlySeeBlip)
             else
                 local oBlip = oUnit:GetBlip(iArmyIndex)
                 if oBlip then
-                    if bReturnTrueIfOnlySeeBlip then return true
+                    if bRequireVisualNotJustBlipToReturnTrue then return true
                     elseif oBlip:IsSeenEver(iArmyIndex) then return true end
                 end
             end

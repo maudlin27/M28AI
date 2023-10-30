@@ -2446,10 +2446,10 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
 
         if oClosestEnemyToAttack then
             --move towards the enemy unit if we are out of range or only just in range, otherwise attack (or ground attack) the enemy
-            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyToAttack='..oClosestEnemyToAttack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyToAttack)..'; iClosestEnemyToAttack='..iClosestEnemyToAttack..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true))..'; Time since last weapon event='..GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyToAttack='..oClosestEnemyToAttack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyToAttack)..'; iClosestEnemyToAttack='..iClosestEnemyToAttack..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack))..'; Time since last weapon event='..GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10)) end
             if iClosestEnemyToAttack <= iDistToLandThreshold then
 
-                if M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack, true) and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 3 then
+                if M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oClosestEnemyToAttack) and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or -10) <= 3 then
                     M28Orders.IssueTrackedAttack(oACU, oClosestEnemyToAttack, false, 'NUAt', false)
                 else
                     M28Orders.IssueTrackedAggressiveMove(oACU, oClosestEnemyToAttack:GetPosition(), 1, false, 'NUAM', false)

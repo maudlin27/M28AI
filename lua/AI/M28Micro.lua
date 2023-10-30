@@ -881,7 +881,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                                 if M28Utilities.GetDistanceBetweenPositions(oEnemyT2PD:GetPosition(), tUnitPosition) - iACURange + 2 < iNearestT1PD then
                                     if M28Logic.IsShotBlocked(oUnitWithOvercharge, oEnemyT2PD) == false then
                                         --Can the T2 PD see us?
-                                        if M28Conditions.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge, true) then
+                                        if M28UnitInfo.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting target to T2 PD') end
                                             oOverchargeTarget = oEnemyT2PD
                                             break

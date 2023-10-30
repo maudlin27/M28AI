@@ -2580,7 +2580,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     if bDebugMessages == true and oClosestEnemyUnit then LOG(sFunctionRef..': oClosestEnemyUnit position='..repru(oClosestEnemyUnit:GetPosition())..'; Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; tBombardmentMainTarget='..repru(tBombardmentMainTarget)) end
                                     if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
                                         for iUnit, oUnit in tUnitsInRect do
-                                            if not(oUnit:GetAIBrain().M28Team == iTeam) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) then
+                                            if not(oUnit:GetAIBrain().M28Team == iTeam) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
                                                 oOptionalBombardLinkedTarget = oUnit
                                                 bConsiderGroundAttack = true
                                                 break
@@ -2822,7 +2822,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if oNearestEnemyNonHoverToMidpoint and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] < tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] then
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
-                if not(M28Conditions.CanSeeUnit(aiBrain, oNearestEnemyNonHoverToMidpoint, false)) then
+                if not(M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyNonHoverToMidpoint)) then
                     bMoveAntiNavyForwardsAsCantSee = true
                 end
             end
@@ -3189,7 +3189,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 --If we have a long range unit, then check if we already have any high value targets in our range (as sometimes attack-move e.g. on a summit doesnt cause it to stop and fire when enemy is in range)
 
                                 if oUnit[M28UnitInfo.refiCombatRange] >= 100 then
-                                    if M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToFocusOn, true) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] - 6 then --dont want to chase after enemy necessarily
+                                    if M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToFocusOn) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] - 6 then --dont want to chase after enemy necessarily
                                         M28Orders.IssueTrackedAttack(oUnit, oEnemyToFocusOn, false, 'LRNAtE', false)
                                     else
                                         local tNearbyUnitsOfInterest = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategorySkirmisher * categories.TECH3 + M28UnitInfo.refCategoryStructure - categories.TECH1 + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryBattleship, oUnit:GetPosition(), oUnit[M28UnitInfo.refiCombatRange], 'Enemy')
@@ -3264,7 +3264,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         local iEnemyRelevantRange
                         local bEnemyToFocusOnIsUnderwater = M28UnitInfo.IsUnitUnderwater(oEnemyToFocusOn)
                         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                        local bCanSeeEnemy = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToFocusOn, true)
+                        local bCanSeeEnemy = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToFocusOn)
                         local bRetreatFromEnemy
                         local tTempRetreatLocation
                         local bCampaignMap = M28Map.bIsCampaignMap
@@ -3369,9 +3369,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     local bOutrangeClosestEnemy
                     local iDistUntilEnemyOutOfOurRange
                     local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                    local bNearestEnemyToMidpointIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToMidpoint, true)
+                    local bNearestEnemyToMidpointIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToMidpoint)
                     local bNearestEnemySurfaceIsVisible
-                    if oNearestEnemySurfaceToMidpoint then bNearestEnemySurfaceIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemySurfaceToMidpoint, true) end
+                    if oNearestEnemySurfaceToMidpoint then bNearestEnemySurfaceIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemySurfaceToMidpoint) end
                     local bNearestEnemyIsUnderwater = M28UnitInfo.IsUnitUnderwater(oNearestEnemyToMidpoint)
                     local bNearestEnemyIsHover = EntityCategoryContains(categories.HOVER, oNearestEnemyToMidpoint.UnitId)
                     local iAmountWeOutrangeNearestEnemy
