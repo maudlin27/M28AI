@@ -2952,12 +2952,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local tEnemyEngineers = {} --So can avoid getting in reclaim range, and consider targeting as a priority
 
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMidpoint]) then
+                --Got an error in coop so put in below as a redundancy in case had no midpoint (but couldve been another reason)
+                M28Utilities.ErrorHandler('Dont have midpoint for P'..iPlateau..'Z'..iLandZone..'; will try and rerecord')
+                M28Map.RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
+            end
             tEnemyEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefTEnemyUnits])
             if not(tEnemyEngineers) then tEnemyEngineers = {} end
             for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                 --Add ACUs as potential high priority targets if they are on land
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.CanSeeUnit(M28Team.GetFirstActiveM28Brain(iTeam), oUnit) then table.insert(toEnemyACUsInZone, oUnit) end
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
                 if iCurDist < iClosestDist then
                     iClosestDist = iCurDist
                     oNearestEnemyToMidpoint = oUnit

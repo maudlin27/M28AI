@@ -28,6 +28,7 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
+refbAlreadyRunUnitKilled = 'M28EventsOnKilledRun'
 
 
 function OnPlayerDefeated(aiBrain)
@@ -103,10 +104,13 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
         local sFunctionRef = 'OnKilled'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        local refbAlreadyRun = 'M28EventsOnKilledRun'
-        if not(oUnitKilled[refbAlreadyRun]) then
-            oUnitKilled[refbAlreadyRun] = true
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..'; Is unit killed an ACU='..tostring(M28Utilities.IsACU(oUnitKilled))..'; GameTime='..GetGameTimeSeconds()) end
+
+        if oUnitKilled.UnitId == 'uab0201' then bDebugMessages = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': event triggered for unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..' owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; Have already run='..tostring(oUnitKilled[refbAlreadyRunUnitKilled] or false)) end
+
+        if not(oUnitKilled[refbAlreadyRunUnitKilled]) then
+            oUnitKilled[refbAlreadyRunUnitKilled] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..'; GameTime='..GetGameTimeSeconds()) end
             if oUnitKilled.GetAIBrain then
                 OnUnitDeath(oUnitKilled) --Ensure this is run when a unit dies
 
@@ -162,7 +166,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         --if we reclaimed an enemy unit, then update units in that zone if arent many units left
                                         if not(tLZTeamData[M28Map.subrefTEnemyUnits][2]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                             if bDebugMessages == true then LOG(sFunctionRef..': have just killed a unit so will update the position of all enemy units in the zone, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()) end
-                                                    --UpdateUnitPositionsAndLandZone(aiBrain,   tUnits,                                 iTeam,              iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                            --UpdateUnitPositionsAndLandZone(aiBrain,   tUnits,                                 iTeam,              iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
                                             M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true,                   false,          tLZTeamData, true,                                  true)
                                         end
                                     end
@@ -233,10 +237,10 @@ function OnUnitDeath(oUnit)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+        if not(oUnit[refbAlreadyRunUnitKilled]) or oUnit.UnitId == 'uab0201' then bDebugMessages = true end
 
         if bDebugMessages == true then
-            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds())
+            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false))
             if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
         end
         --Is it an ACU?
@@ -409,6 +413,7 @@ function OnUnitDeath(oUnit)
                                     M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
                                 end
                                 M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
+
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
                                 --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
                                 M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
@@ -1161,6 +1166,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                     local sFunctionRef = 'OnConstructed'
                     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then bDebugMessages = true end
+
                     oJustBuilt.M28OnConstructedCalled = true
                     if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
                     local aiBrain = oJustBuilt:GetAIBrain()
@@ -2158,6 +2166,13 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         M28Air.AddPriorityAirDefenceTarget(oUnit)
                     end
                 end
+            end
+        end
+
+        --Record units as objective targets generally (used to trigger onkilled callback from upgrades)
+        if M28Utilities.IsTableEmpty(Target.Units) == false then
+            for iUnit, oUnit in Target.Units do
+                oUnit[M28UnitInfo.refbObjectiveUnit] = true
             end
         end
 

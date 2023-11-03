@@ -61,6 +61,7 @@ refbTriedToKill = 'M28TryKill' --true if tried to kill unit
 refiHealthWhenLastChecked = 'M28HlthCh' --Unit health when last checked - used for gunships
 refiHealthSecondLastCheck = 'M28HlthSLC' --Unit health in the previous check - used for gunships
 refbWantToHealUp = 'M28HlUp' --true if unit wants to rely on its regen to heal up - e.g. used for soulripper
+refbObjectiveUnit = 'M28ObjU' --true if unit is being used for an objective
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro

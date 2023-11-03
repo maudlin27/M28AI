@@ -43,6 +43,9 @@ tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zo
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
 
+--Campaign specific variables
+bActiveObjectiveUnitValidMonitorByObjective = {} --True if already are actively monitoring a particular unit
+
 --aiBrain variables
 refbInitialised = 'M28OvInt' --true if brain has started the main initialisation logic
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -1823,6 +1826,45 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
+            --Dawn (FA Mission 2) - add redundancy so upgraidng facotires doesnt break the objective
+        elseif M28Utilities.IsTableEmpty(ScenarioInfo.M1P1Units) == false and not(ScenarioInfo.M1P2.Active) and ScenarioInfo.M1P1.Active then
+            --Monitor the M1P1 units and remove any that become obsolete
+            bDebugMessages = true
+            LOG(sFunctionRef..': Want to monitor ScenarioInfo.M1P1Units units, will list out each unit, is table empty='..tostring(ScenarioInfo.M1P1Units))
+            for iUnit, oUnit in ScenarioInfo.M1P1Units do
+                LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
+            end
+            ForkThread(MonitorObjectiveUnitsAndRemoveIfDead, ScenarioInfo.M1P1Units, 1, ScenarioInfo.M1P1)
+
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorObjectiveUnitsAndRemoveIfDead(tUnits, iMissionRef, vMissionStatusVariable)
+    --Call via forked thread, intended e.g. for M2 Dawn of FA campaign where upgrading/destroying factories before the objective starts breaks the mission
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorObjectiveUnitsAndRemoveIfDead'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    if not(bActiveObjectiveUnitValidMonitorByObjective[iMissionRef]) then
+        bActiveObjectiveUnitValidMonitorByObjective[iMissionRef] = true
+        while vMissionStatusVariable.Active do
+            M28Conditions.IsTableOfUnitsStillValid(tUnits)
+            WaitTicks(1)
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Finished updating tUnits, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnits))..'; Time='..GetGameTimeSeconds())
+                if M28Utilities.IsTableEmpty(tUnits) == false then
+                    LOG(sFunctionRef..': Size of tUnits='..table.getn(tUnits))
+                end
+            end
+        end
+        --Have moved onto next objective now
+        WaitSeconds(60)
+        LOG(sFunctionRef..': after waiting a while size of tUnits='..table.getn(tUnits)..'; Will cycle through each unit')
+        for iUnit, oUnit in tUnits do
+            LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is dead='..tostring(oUnit.Dead or false)..'; reprs of unit='..reprs(oUnit))
 
         end
     end

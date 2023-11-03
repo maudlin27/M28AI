@@ -410,6 +410,18 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     end
                 end
             end
+            if M28Map.bIsCampaignMap then
+                --Trigger on death callback if relevant
+
+                if oUnitDoingUpgrade.UnitId == 'uab0201' then bDebugMessages = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished upgrading oUnitDoingUpgrade='..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; Have we run unit killed event='..tostring(oUnitDoingUpgrade[M28Events.refbAlreadyRunUnitKilled] or false)..'; Brain='..oUnitDoingUpgrade:GetAIBrain().Nickname..'; Objective unit='..tostring(oUnitDoingUpgrade[M28UnitInfo.refbObjectiveUnit] or false)) end
+                if oUnitDoingUpgrade[M28UnitInfo.refbObjectiveUnit] and not(oUnitDoingUpgrade[M28Events.refbAlreadyRunUnitKilled]) and oUnitDoingUpgrade:GetAIBrain().CampaignAI and oUnitDoingUpgrade.DoUnitCallbacks then
+                    --local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+                    oUnitDoingUpgrade:DoUnitCallbacks('OnKilled')
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have manually run an onkilled callback for the objective unit') end
+                end
+
+            end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit already in the table so wont readd it')
         end
     else

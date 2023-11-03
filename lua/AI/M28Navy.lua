@@ -1809,7 +1809,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
 
     
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Enemies in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
-    if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then        
+    if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
         iEnemyBestAntiNavyRange = (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)
         iEnemyBestCombatRange = math.max((tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), iEnemyBestAntiNavyRange)
         iBestEnemyUnderwaterRange = (tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] or 0)
@@ -1819,6 +1819,11 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
         local iLowestDistUntilInRange = 10000
         local oLowestDFDistUntilInRange
         local tMidpoint = tWZData[M28Map.subrefMidpoint]
+        if M28Utilities.IsTableEmpty(tMidpoint) then
+            --Got an error in coop so put in below as a redundancy in case had no midpoint (but couldve been another reason)
+            M28Utilities.ErrorHandler('No midpoint for water zone '..iWaterZone..' for iPond='..iPond..'; will try and record again')
+            M28Map.RecordMidpointMinAndMaxSegmentForWaterZone(iWaterZone, iPond, tWZData)
+        end
         local iCurDistUntilInRange
         if bDebugMessages == true then LOG(sFunctionRef..': Best DF range for this zone only='..tWZTeamData[M28Map.subrefWZBestEnemyDFRange]..'; best antinavy='..tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..';  Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]))) end
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
@@ -1834,7 +1839,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                 if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltWZTeamData[M28Map.subrefTEnemyUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and oUnit:GetFractionComplete() >= 0.95 then
-                            iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
+                            iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions((oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()), tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
                                 oLowestDFDistUntilInRange = oUnit
                                 iLowestDistUntilInRange = iCurDistUntilInRange
