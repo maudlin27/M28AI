@@ -360,7 +360,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     --Direct fire, t1 mobile arti, t2 mobile missile launchers, and experimental land
     if oWeapon.GetCurrentTarget and (oWeapon.Blueprint.WeaponCategory == 'Direct Fire' or oWeapon.Blueprint.WeaponCategory == 'Direct Fire Naval' or oWeapon.Blueprint.WeaponCategory == 'Direct Fire Experimental' or (oWeapon.Blueprint.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.TECH1, oUnit.UnitId)) or (oWeapon.Blueprint.WeaponCategory == 'Missile' and oWeapon.Blueprint.MaxRadius <= 80)) or (oWeapon.Blueprint.WeaponCategory == 'Indirect Fire' and oWeapon.Blueprint.MuzzleVelocity <= 25) then
         if bDebugMessages == true then LOG(sFunctionRef..': Have a valid weapon category, will see if have targets to consider dodging') end
-        local oWeaponTarget = oWeapon:GetCurrentTarget()
+        local oWeaponTarget
+        if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oWeaponTarget = oWeapon:GetCurrentTarget() end
         local bConsiderUnitsInArea = false
         if not(M28UnitInfo.IsUnitValid(oWeaponTarget)) or EntityCategoryContains(categories.NAVAL * categories.MOBILE, oWeaponTarget.UnitId) then bConsiderUnitsInArea = true end
 

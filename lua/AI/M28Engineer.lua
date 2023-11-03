@@ -2945,6 +2945,10 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
     --local tNearbyEnemiesByZone = {}
     local bCheckForEnemies = false
+    local bCheckIfEnemyIsActuallyEnemy = false
+    if M28Map.bIsCampaignMap and (M28Overseer.tbSpecialCodeForMission[41] or (ScenarioInfo.QAICommander and M28UnitInfo.IsUnitValid(ScenarioInfo.QAICommander))) then
+        bCheckIfEnemyIsActuallyEnemy = true
+    end
     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then --M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         --table.insert(tNearbyEnemiesByZone, tLZTeamData[M28Map.subrefTEnemyUnits])
         bCheckForEnemies = true
@@ -3043,32 +3047,34 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                 for iUnit, oUnit in tNearbyEnemiesByZone do
                                     --It's not possible to reclaim an under construction building
                                     if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt())) then
-                                        iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
-                                        if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                                        iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
-                                        if iCurDistToEnemy < iNearestEnemy then
-                                            iNearestEnemy = iCurDistToEnemy
-                                            oNearestEnemy = oUnit
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))) end
-                                        if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
-                                            if oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId) then
-                                                --Dangerous enemy
-                                                iNearestReclaimableDangerousEnemy = iCurDistToEnemy
-                                                oNearestReclaimableDangerousEnemy = oUnit
+                                        if not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
+                                            iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
+                                            if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                            iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
+                                            if iCurDistToEnemy < iNearestEnemy then
+                                                iNearestEnemy = iCurDistToEnemy
+                                                oNearestEnemy = oUnit
                                             end
-                                            if iCurDistToEnemy < iNearestReclaimableEnemy then
-                                                iNearestReclaimableEnemy = iCurDistToEnemy
-                                                oNearestReclaimableEnemy = oUnit
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))) end
+                                            if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
+                                                if oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId) then
+                                                    --Dangerous enemy
+                                                    iNearestReclaimableDangerousEnemy = iCurDistToEnemy
+                                                    oNearestReclaimableDangerousEnemy = oUnit
+                                                end
+                                                if iCurDistToEnemy < iNearestReclaimableEnemy then
+                                                    iNearestReclaimableEnemy = iCurDistToEnemy
+                                                    oNearestReclaimableEnemy = oUnit
+                                                end
                                             end
-                                        end
-                                        --Ignore land scouts and similar unthreatening units
-                                        if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
-                                            iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
-                                            if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                                                if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
-                                            else
-                                                if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
+                                            --Ignore land scouts and similar unthreatening units
+                                            if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                                iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
+                                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                                    if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
+                                                else
+                                                    if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
+                                                end
                                             end
                                         end
                                     else

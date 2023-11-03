@@ -508,6 +508,8 @@ function CreateNewTeam(aiBrain)
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if aiBrain.Nickname == 'QAI' then bDebugMessages = true end
+
     iTotalTeamCount = iTotalTeamCount + 1
     tTeamData[iTotalTeamCount] = {}
     tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] = {}
@@ -575,11 +577,11 @@ function CreateNewTeam(aiBrain)
         end--]]
 
         if not(oBrain.M28Team) then
-            if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+            if oBrain == aiBrain or (IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain))) then
                 --Check we have the same enemies if this is a campaign AI
                 if oBrain.M28AI and oBrain.CampaignAI then bHaveCampaignM28AI = true end
                 local bHaveSameEnemies = true
-                if bHaveCampaignM28AI then
+                if bHaveCampaignM28AI and not(oBrain == aiBrain) then
                     --Check if we have the same enemies
                     local iIndexOrigBrain = aiBrain:GetArmyIndex()
                     local iIndexoBrain = oBrain:GetArmyIndex()
@@ -597,9 +599,14 @@ function CreateNewTeam(aiBrain)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..'; oBrain='..oBrain.Nickname..'; iTotalTeamCount='..iTotalTeamCount..'; bHaveSameEnemies='..tostring(bHaveSameEnemies)) end
+                --Special excemptions for certain campaign maps where the AI will change teams part-way through
+                if bHaveSameEnemies and M28Map.bIsCampaignMap and not(oBrain == aiBrain) then
+                    --FA Mission 2 - want QAI and Order to be on different teams
+                    if (oBrain.Nickname == 'QAI' or oBrain.Nickname == 'Order') and (aiBrain.Nickname == 'QAI' or aiBrain.Nickname == 'Order') and ScenarioInfo.QAI and ScenarioInfo.Order then
+                        bHaveSameEnemies = false
+                    end
+                end
                 if bHaveSameEnemies then
-
-
                     oBrain.M28Team = iTotalTeamCount
                     table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
                     if oBrain.M28AI then
@@ -637,6 +644,7 @@ function CreateNewTeam(aiBrain)
             end
         end
     end
+    if not(bHaveM28BrainInTeam) and aiBrain.M28AI then bHaveM28BrainInTeam = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Setup a team with team ref/iTotalTeamCount='..iTotalTeamCount..'; do we have M28 brain in this team='..tostring(bHaveM28BrainInTeam)) end
     if bHaveM28BrainInTeam then
         UpdateTeamHighestAndLowestFactories(iTotalTeamCount)
@@ -753,16 +761,17 @@ end
 function RecordAllPlayers()
 
     --Call via ForkThread from initialisation, so 1 tick after the first brain will have been created
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlayers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if not(bRecordedAllPlayers) then
         bRecordedAllPlayers = true
         for iBrain, oBrain in ArmyBrains do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain '..iBrain..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; Is M28AI='..tostring(oBrain.M28AI or false)..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain '..iBrain..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; Is M28AI='..tostring(oBrain.M28AI or false)..'; Time='..GetGameTimeSeconds()..'; M28Team value='..(oBrain.M28Team or 'nil')) end
             if not(M28Conditions.IsCivilianBrain(oBrain)) then --Compatibility with making civilian brains use M28 logic - means they need to be part of a team
                 iPlayersAtGameStart = iPlayersAtGameStart + 1
                 if not(oBrain.M28Team) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will create a new team for brain '..oBrain.Nickname) end
                     CreateNewTeam(oBrain)
                 end
             end

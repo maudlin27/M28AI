@@ -45,6 +45,7 @@ bCheckForPrecreatedUnitsActive = false
 
 --Campaign specific variables
 bActiveObjectiveUnitValidMonitorByObjective = {} --True if already are actively monitoring a particular unit
+tbSpecialCodeForMission = {} --[x] is the mission reference, true if have run special code already
 
 --aiBrain variables
 refbInitialised = 'M28OvInt' --true if brain has started the main initialisation logic
@@ -698,6 +699,10 @@ end
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
     --v24 - delay as want to wait until onbeginsession has started for navmesh to generate properly
+    local sFunctionRef = 'Initialisation'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     while not(bBeginSessionTriggered) and GetGameTimeSeconds() <= 4 do
         WaitTicks(1)
     end
@@ -707,6 +712,18 @@ function Initialisation(aiBrain)
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)
+    local iWaitCount = 0
+    while not(aiBrain.M28Team) do
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont have a team assigned yet so will wait 1 tick') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        iWaitCount = iWaitCount + 1
+        if iWaitCount >= 10 then
+            M28Utilities.ErrorHandler('Dont have a team assigned for brain '..aiBrain.Nickname..'; will create a new team for it as a redundancy')
+            M28Team.CreateNewTeam(aiBrain)
+        end
+    end
     ForkThread(M28Map.CheckIfLowMexMap)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
@@ -718,7 +735,7 @@ function Initialisation(aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
     ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
     ForkThread(DelayedCheckOfUnitsAtStartOfGame)
-
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function CheckUnitCap(aiBrain)
@@ -1826,16 +1843,107 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
-            --Dawn (FA Mission 2) - add redundancy so upgraidng facotires doesnt break the objective
-        elseif M28Utilities.IsTableEmpty(ScenarioInfo.M1P1Units) == false and not(ScenarioInfo.M1P2.Active) and ScenarioInfo.M1P1.Active then
-            --Monitor the M1P1 units and remove any that become obsolete
+            --Dawn (FA Mission 2) - add redundancy so upgraidng facotires doesnt break the objective - solved via callback appraoch instead
+            --[[elseif M28Utilities.IsTableEmpty(ScenarioInfo.M1P1Units) == false and not(ScenarioInfo.M1P2.Active) and ScenarioInfo.M1P1.Active then
+                --Monitor the M1P1 units and remove any that become obsolete
+                bDebugMessages = true
+                LOG(sFunctionRef..': Want to monitor ScenarioInfo.M1P1Units units, will list out each unit, is table empty='..tostring(ScenarioInfo.M1P1Units))
+                for iUnit, oUnit in ScenarioInfo.M1P1Units do
+                    LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
+                end
+                ForkThread(MonitorObjectiveUnitsAndRemoveIfDead, ScenarioInfo.M1P1Units, 1, ScenarioInfo.M1P1)
+                --]]
+            --Dawn - update enemy unit tables after brief delay
+        elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
+            tbSpecialCodeForMission[41] = true
+            --Have had a change in factions, update all unit tables
             bDebugMessages = true
-            LOG(sFunctionRef..': Want to monitor ScenarioInfo.M1P1Units units, will list out each unit, is table empty='..tostring(ScenarioInfo.M1P1Units))
-            for iUnit, oUnit in ScenarioInfo.M1P1Units do
-                LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
-            end
-            ForkThread(MonitorObjectiveUnitsAndRemoveIfDead, ScenarioInfo.M1P1Units, 1, ScenarioInfo.M1P1)
+            if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
+function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
+    --E.g. for Dawn M2 where order switches from enemy to ally of player team - clears all land and water zone details of enemy and allied units, and then re-records all the units
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateAllRecordedUnitsFollowingTeamChange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(tbOptionalVariableToBeTrue == nil) then
+        while not(tbOptionalVariableToBeTrue) do
+            if bDebugMessages == true then LOG(sFunctionRef..': tbOptionalVariableToBeTrue is not nil but not true so will wait 1 tyick') end
+            WaitTicks(1)
+        end
+    end
+
+    local tiTeamsToConsider = {}
+    for iTeam = 1, M28Team.iTotalTeamCount do
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 1 then
+            table.insert(tiTeamsToConsider, iTeam)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if any units need updating from allies to enemies or vice versa, tiTeamsToConsider='..repru(tiTeamsToConsider)..'; Time='..GetGameTimeSeconds()) end
+    function UpdateStatusOfFriendlyAndEnemyUnits(tLZOrWZTeamData, iTeam)
+        local iTeamBrainIndex = M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()
+        local toFriendlyUnits = {}
+        local toEnemyUnits = {}
+        local bChangedAlliesOrEnemies = false
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    if IsAlly(oUnit:GetAIBrain():GetArmyIndex(), iTeamBrainIndex) then
+                        table.insert(toFriendlyUnits, oUnit)
+                    elseif IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iTeamBrainIndex) then
+                        table.insert(toEnemyUnits, oUnit)
+                        bChangedAlliesOrEnemies = true
+                    else
+                        bChangedAlliesOrEnemies = true
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iTeamBrainIndex) then
+                        table.insert(toEnemyUnits, oUnit)
+                    elseif IsAlly(oUnit:GetAIBrain():GetArmyIndex(), iTeamBrainIndex) then
+                        table.insert(toFriendlyUnits, oUnit)
+                        bChangedAlliesOrEnemies = true
+                    else
+                        bChangedAlliesOrEnemies = true
+                    end
+                end
+            end
+        end
+        if bChangedAlliesOrEnemies then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a zone with units who have an updated ally/enemy status, iTeam='..iTeam) end
+            tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = nil
+            tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = toEnemyUnits
+            tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] = nil
+            tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] = toFriendlyUnits
+        end
+    end
+    if M28Utilities.IsTableEmpty(tiTeamsToConsider) == false then
+        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+            for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if have any units to update status of for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                for _, iTeam in tiTeamsToConsider do
+                    UpdateStatusOfFriendlyAndEnemyUnits(tLZData[M28Map.subrefLZTeamData][iTeam], iTeam)
+                end
+            end
+        end
+
+        for iPond, tPondSubtable in M28Map.tPondDetails do
+            if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) == false then
+                for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                    for _, iTeam in tiTeamsToConsider do
+                        UpdateStatusOfFriendlyAndEnemyUnits(tWZData[M28Map.subrefWZTeamData][iTeam], iTeam)
+                    end
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1861,11 +1969,13 @@ function MonitorObjectiveUnitsAndRemoveIfDead(tUnits, iMissionRef, vMissionStatu
             end
         end
         --Have moved onto next objective now
-        WaitSeconds(60)
-        LOG(sFunctionRef..': after waiting a while size of tUnits='..table.getn(tUnits)..'; Will cycle through each unit')
-        for iUnit, oUnit in tUnits do
-            LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is dead='..tostring(oUnit.Dead or false)..'; reprs of unit='..reprs(oUnit))
+        if bDebugMessages == true then
+            WaitSeconds(60)
+            LOG(sFunctionRef..': after waiting a while size of tUnits='..table.getn(tUnits)..'; Will cycle through each unit')
+            for iUnit, oUnit in tUnits do
+                LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is dead='..tostring(oUnit.Dead or false)..'; reprs of unit='..reprs(oUnit))
 
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
