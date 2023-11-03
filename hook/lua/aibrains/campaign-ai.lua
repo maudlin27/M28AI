@@ -18,7 +18,7 @@ AIBrain = Class(M28OldAIBrain) {
 
 
     OnCreateAI = function(self, planName)
-        LOG('OnCreateAI for campaign is running for brain '..(self.Nickname or 'nil'))
+        LOG('OnCreateAI for campaign is running for brain '..(self.Nickname or 'nil')..'; ScenarioInfo.type (i.e. is this skirmish or campaign)='..(ScenarioInfo.type or 'nil'))
         --Delalyed check of if should apply M28 logic to the brain
         self.CampaignAI = true
         M28Overseer.iTimeOfLatestBrainToCheckForM28Logic = GetGameTimeSeconds()

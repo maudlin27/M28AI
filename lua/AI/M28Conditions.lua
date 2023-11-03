@@ -122,6 +122,11 @@ function IsCivilianBrain(aiBrain)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': campaign adjust - treat most civilians as actual brains, rely on nickname (not precise method). bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; bIsCivilian before adjust='..tostring(bIsCivilian)) end
+        if bIsCivilian and not(M28Map.bIsCampaignMap) then
+            --Redundancy - make sure we have checked if this is a campaign map first (compatibility with 4z0ts map)
+            M28Overseer.CheckIfScenarioMap()
+            if bDebugMessages == true then LOG(sFunctionRef..': Is campaign map after making sure the check has been run='..tostring(M28Map.bIsCampaignMap)) end
+        end
         if bIsCivilian and M28Map.bIsCampaignMap then
             bIsCivilian = false
             if bDebugMessages == true then LOG(sFunctionRef..': brain name='..aiBrain.Name..'; Nickname='..aiBrain.Nickname..'; does nickanme contain "civilian"='..repru(string.find(aiBrain.Name, "civilian"))) end
@@ -2169,7 +2174,7 @@ function ApplyM28ToOtherAI(aiBrain)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname..'; iCampaignAISetting='..(iCampaignAISetting or 'nil')..'; refiNone='..refiNone) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
