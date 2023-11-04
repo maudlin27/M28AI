@@ -1643,7 +1643,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+        if oUnit.UnitId == 'xsb2305' then bDebugMessages = true end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs='..reprs(oUnit)) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
@@ -1799,8 +1799,19 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                         tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                        bDebugMessages = true
+                        if bDebugMessages == true then
+                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                            LOG(sFunctionRef..': Will set core baes override to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for brain '..oUnit:GetAIBrain().Nickname..' team, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone)
+                        end
                     end
 
+                    --Nuke launcher - if have 5+ non-experimental then consider unpausing all existing ones
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                        ForkThread(M28Overseer.ConsiderUnpausingAllCreatedNukes, oUnit:GetAIBrain().M28Team)
+                    end
+                    --Consider unpausing this unit regardless of whether it's an SML
+                    ForkThread(M28Overseer.DelayedUnpauseOfUnits, {oUnit}, 1)
                 end
                 --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()
@@ -2344,14 +2355,15 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
             end
         end
     end
+    ForkThread(M28Overseer.DelayedUnpauseOfUnits,toCapturedUnits, 1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(1) --tried 1 tick but it didnt help
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    for iUnit, oUnit in toCapturedUnits do
+    --[[for iUnit, oUnit in toCapturedUnits do --covered via DelayedUnpauseOfUnits now
         if M28UnitInfo.IsUnitValid(oUnit) then
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
         end
-    end
+    end--]]
     if aiBrain and iCapturedUnitCount then
         aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount] = nil
     end

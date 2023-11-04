@@ -1529,7 +1529,7 @@ function ManageEnergyStalls(iTeam)
     local sFunctionRef = 'ManageEnergyStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iTeam == 3 and GetGameTimeSeconds() >= 1729 then bDebugMessages = true end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         local bPauseNotUnpause = true
@@ -1565,6 +1565,7 @@ function ManageEnergyStalls(iTeam)
                 iPercentMod = math.max(0.5, iPercentMod)
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU needs energy so will set percentmod to 50% at time '..GetGameTimeSeconds()) end
             end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] >= 200000 and iPercentMod > -0.6 then iPercentMod = iPercentMod - 0.1 end
 
 
             if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.2)))) then
@@ -1618,6 +1619,8 @@ function ManageEnergyStalls(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': early game check cleared, so are stalling energy') end
                 end
             end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Will move on to main pause or unpause logic now if change is required, bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
 
             if bChangeRequired then
                 if bPauseNotUnpause then

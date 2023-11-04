@@ -2099,3 +2099,55 @@ function DelayedCheckOfUnitsAtStartOfGame()
     end
 
 end
+
+function ConsiderUnpausingAllCreatedNukes(iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderUnpausingAllCreatedNukes'
+
+    WaitTicks(1) --to ensure we register the units
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iExistingSML = 0
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        iExistingSML = iExistingSML + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL)
+        if bDebugMessages == true then LOG(sFunctionRef..': Cumulative SML units after considering brain '..oBrain.Nickname..'='..iExistingSML) end
+    end
+    if iExistingSML >= 4 then
+        bDebugMessages = true
+        local tSMLToUnpause = {}
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            local tSML = oBrain:GetListOfUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, false, true)
+            if M28Utilities.IsTableEmpty(tSML) == false then
+                for iSML, oSML in tSML do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oSML='..oSML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSML)..'; Have we registered the construction completion of this='..tostring(oSML.M28OnConstructedCalled or false)..'; Fraction complete='..oSML:GetFractionComplete()..'; Is paused nil='..tostring(oSML[M28UnitInfo.refbPaused] == nil)) end
+                    if not(oSML.M28OnConstructedCalled) and oSML:GetFractionComplete() == 1 and oSML[M28UnitInfo.refbPaused] == nil then
+                        table.insert(tSMLToUnpause, oSML)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding SML to table of units to unpause; is SML actually paused='..tostring(oSML:IsPaused())) end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of SML to unpause empty='..tostring(M28Utilities.IsTableEmpty(tSMLToUnpause))) end
+        if M28Utilities.IsTableEmpty(tSMLToUnpause) == false then
+            ForkThread(DelayedUnpauseOfUnits, tSMLToUnpause, 1)
+        end
+    end
+    bDebugMessages = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke created with 100% completion but no onconstructed logic run, so will consider unpausing every nuke we have, iTeam='..iTeam..'; have got iExistingSML='..iExistingSML..'; have unpaused every SML we own if we have lots now') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedUnpauseOfUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
+        for iUnit, oUnit in tUnits do
+            if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())) end
+            M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

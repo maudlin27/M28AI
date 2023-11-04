@@ -1469,7 +1469,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
 
         local tTarget
-        local tEnemyUnitsOfInterest
         local iBestTargetValue
         local iCurTargetValue
         local tEnemyCategoriesOfInterest

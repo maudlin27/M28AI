@@ -5075,38 +5075,40 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             if M28Map.iMapSize >= 1024 then iTravelThreshold = 260 end
             function ConsiderAdditionalDropZoneForIsland(iPlateau, iIsland, bCheckDistFromExistingDropLocations)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iIsland '..iIsland..' in iPlateau='..iPlateau) end
-                for iEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
-                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZMexCount] or 0)) end
-                    if (tLZData[M28Map.subrefLZMexCount] or 0) >= 3 then
-                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                        --Is it on our side of the map (or almost on our side of the map)?
-                        if bDebugMessages == true then LOG(sFunctionRef..': refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]) end
-                        if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
-                            --Get travel distance to closest friendly base
-                            iClosestBasePlateau, iClosestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
-                            if bDebugMessages == true then LOG(sFunctionRef..': iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')) end
-                            if (iClosestBaseLandZone or 0) > 0 and iClosestBasePlateau == iPlateau then
-                                iTravelDistance = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iClosestBaseLandZone, iLandZone) or 10000)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')..'; iTravelDistance='..(iTravelDistance or 'nil')) end
-                                if iTravelDistance >= 275 then
-                                    local bDropLocation = true
-                                    if  bCheckDistFromExistingDropLocations then
-                                        if iPlateau > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau][iPlateau]) == false then
-                                            for iExistingEntry, iExistingLandZone in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau][iPlateau] do
-                                                local tExistingLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iExistingLandZone]
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Already have a drop location for this plateau for zone '..iExistingLandZone..'; Travel dist to here='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iExistingLandZone) or 'nil')) end
-                                                if (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iExistingLandZone) or 10000) <= iTravelThreshold then
-                                                    bDropLocation = false
-                                                    break
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) == false then
+                    for iEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
+                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZMexCount] or 0)) end
+                        if (tLZData[M28Map.subrefLZMexCount] or 0) >= 3 then
+                            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                            --Is it on our side of the map (or almost on our side of the map)?
+                            if bDebugMessages == true then LOG(sFunctionRef..': refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]) end
+                            if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
+                                --Get travel distance to closest friendly base
+                                iClosestBasePlateau, iClosestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')) end
+                                if (iClosestBaseLandZone or 0) > 0 and iClosestBasePlateau == iPlateau then
+                                    iTravelDistance = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iClosestBaseLandZone, iLandZone) or 10000)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')..'; iTravelDistance='..(iTravelDistance or 'nil')) end
+                                    if iTravelDistance >= 275 then
+                                        local bDropLocation = true
+                                        if  bCheckDistFromExistingDropLocations then
+                                            if iPlateau > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau][iPlateau]) == false then
+                                                for iExistingEntry, iExistingLandZone in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau][iPlateau] do
+                                                    local tExistingLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iExistingLandZone]
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Already have a drop location for this plateau for zone '..iExistingLandZone..'; Travel dist to here='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iExistingLandZone) or 'nil')) end
+                                                    if (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iExistingLandZone) or 10000) <= iTravelThreshold then
+                                                        bDropLocation = false
+                                                        break
+                                                    end
                                                 end
                                             end
                                         end
-                                    end
-                                    --Want to consider dropping this location during the game
-                                    if bDropLocation then
-                                        AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateau, iLandZone)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Added plateau and zone to potential drop zones, iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                                        --Want to consider dropping this location during the game
+                                        if bDropLocation then
+                                            AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateau, iLandZone)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Added plateau and zone to potential drop zones, iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                                        end
                                     end
                                 end
                             end

@@ -5700,7 +5700,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                 for iShield, oShield in tLZTeamData[M28Map.reftPriorityShieldsToAssist] do
                     if M28UnitInfo.IsUnitValid(oShield) then
                         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                        if iCurShield > 0 then
+                        if iCurShield > 0 and not(oShield[M28UnitInfo.refbPaused]) then
                             if iCurShield < iMaxShield then
                                 iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
                             else
@@ -6172,7 +6172,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 1740 and iPlateau == 326 and iLandZone == 18 then bDebugMessages = true end
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -8613,6 +8613,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if GetGameTimeSeconds() >= 1740 and iPlateau == 326 and iLandZone == 18 then bDebugMessages = true end
 
     local bDontCheckPlayableArea = false
     if M28Map.bIsCampaignMap then
