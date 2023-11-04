@@ -338,6 +338,11 @@ function OnUnitDeath(oUnit)
                         M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
                     end
 
+                    --Campaign specific - upgrading structure that isn't yet complete
+                    if M28Map.bIsCampaignMap and oUnit[M28UnitInfo.refbObjectiveUnit] and not(oUnit[refbAlreadyRunUnitKilled]) and oUnit:GetFractionComplete() < 1 and oUnit:GetAIBrain().CampaignAI and oUnit.DoUnitCallbacks and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+                        oUnit:DoUnitCallbacks('OnKilled')
+                    end
+
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
@@ -693,7 +698,7 @@ function OnBombFired(oWeapon, projectile)
                 else
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
-                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
 
                         --Have friendly gunships dodge
                         M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
@@ -732,7 +737,7 @@ function OnWeaponFired(oWeapon)
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
                 if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
 
-                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oParentBrain, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                 end
 
 
@@ -1994,7 +1999,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete
@@ -2174,6 +2179,10 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
         if M28Utilities.IsTableEmpty(Target.Units) == false then
             for iUnit, oUnit in Target.Units do
                 oUnit[M28UnitInfo.refbObjectiveUnit] = true
+                --Trigger the on-death for the unit if it is an external factory unit
+                if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId) and oUnit.EventCallbacks.OnKilled then
+                    oUnit:DoUnitCallbacks('OnKilled')
+                end
             end
         end
 

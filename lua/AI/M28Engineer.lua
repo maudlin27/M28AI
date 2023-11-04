@@ -5525,7 +5525,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         elseif bDebugMessages == true then
             LOG(sFunctionRef .. ': No SML detected but will build SMD anyway as a precaution as we have a good economy')
         end
-        if iEnemyBattleshipNukes > 0 and iEnemyNormalNukes == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Map.bIsCampaignmap) then
+        if iEnemyBattleshipNukes > 0 and iEnemyNormalNukes == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Map.bIsCampaignMap) then
             iEnemyNukes = 0
         else
             iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution

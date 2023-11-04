@@ -2369,6 +2369,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     if not (oFactory['M28ActiveBuilderCheck']) then
         oFactory['M28ActiveBuilderCheck'] = true
         local iTicksWaited = 0
+        local bDontCheckCutsceneStatus = true
+        if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
 
         local bProceed = bDontWait
         if not (bProceed) then
@@ -2382,7 +2384,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(iTicksToWait)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            iTicksWaited = iTicksWaited + iTicksToWait
+            if bDontCheckCutsceneStatus or not(ScenarioInfo.OpEnded) then
+                iTicksWaited = iTicksWaited + iTicksToWait
+            end
             if M28UnitInfo.IsUnitValid(oFactory) == false then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return nil
@@ -2412,6 +2416,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             end
         end
         if bProceed then
+            bDontCheckCutsceneStatus = false
             --Set factory rally point if havent already
             if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
                 SetFactoryRallyPoint(oFactory)
