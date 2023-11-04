@@ -3316,7 +3316,7 @@ function GetACUOrder(aiBrain, oACU)
                                 local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
 
                                 if not(tRallyLZTeamData[M28Map.subrefLZbCoreBase]) then
-                                    local iRallyThreat = tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]
+                                    local iRallyThreat = (tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
                                     if tRallyLZTeamData == tLZOrWZTeamData then iRallyThreat = iRallyThreat - M28UnitInfo.GetCombatThreatRating({oACU}, false, false, false, false, false, false, false, false) end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Rally point is more than 50 from closest friendly base, checking if threat is too low, iRallyThreat='..iRallyThreat..'; Is rally in a core expansion='..tostring(tRallyLZTeamData[M28Map.subrefLZCoreExpansion])) end
                                     if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory

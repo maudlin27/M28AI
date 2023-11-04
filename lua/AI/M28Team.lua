@@ -2988,6 +2988,73 @@ function TeamInitialisation(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
+    if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
+    if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = false --true if is a 'core' base (i.e. has a naval factory in)
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyOmniCoverage] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
+    --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
+    --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately
+    --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase] --Updated separately
+    --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiModDistancePercent] --Updated separately
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedCombatUnits] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftWZEnemyAirUnits] = {}
+    --Threat values
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentWZ] = false
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAntiNavy] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySubmersible] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySurface] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAA] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyDFRange] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyAntiNavyRange] = 0
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoNearestCombatEnemies] = {}
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTThreatAllyCombatTotal] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAntiNavy] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedMAA] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZCombatThreatWanted] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZMAAThreatWanted] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbWZWantsSupport] = false
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileShield] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileShield] = false
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileStealth] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileStealth] = false
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere] = {}
+
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
+
+    iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+    if iCurPlateau then
+        if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
+    end
+end
+
 function WaterZoneTeamInitialisation(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'WaterZoneTeamInitialisation'
@@ -2999,70 +3066,7 @@ function WaterZoneTeamInitialisation(iTeam)
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': Setting starting values for iPond='..iPond..'; iWaterZone='..iWaterZone) end
-            if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
-            if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = false --true if is a 'core' base (i.e. has a naval factory in)
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyOmniCoverage] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
-            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
-            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately
-            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase] --Updated separately
-            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiModDistancePercent] --Updated separately
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits] = {}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedCombatUnits] = {}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] = {}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftWZEnemyAirUnits] = {}
-            --Threat values
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentWZ] = false
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAntiNavy] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySubmersible] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySurface] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAA] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyDFRange] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyAntiNavyRange] = 0
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoNearestCombatEnemies] = {}
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTThreatAllyCombatTotal] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAntiNavy] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedMAA] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZCombatThreatWanted] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZMAAThreatWanted] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbWZWantsSupport] = false
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileShield] = {}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileShield] = false
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileStealth] = {}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileStealth] = false
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere] = {}
-
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
-
-            iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
-            if iCurPlateau then
-                if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
-            end
+            SetWaterZoneDefaultTeamValues(tWZData, iTeam)
         end
     end
     --Record any start positions of friendly M28AI that are on water as waterstartposition for team data
