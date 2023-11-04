@@ -2101,7 +2101,7 @@ function DelayedCheckOfUnitsAtStartOfGame()
 end
 
 function ConsiderUnpausingAllCreatedNukes(iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderUnpausingAllCreatedNukes'
 
     WaitTicks(1) --to ensure we register the units
@@ -2112,7 +2112,6 @@ function ConsiderUnpausingAllCreatedNukes(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Cumulative SML units after considering brain '..oBrain.Nickname..'='..iExistingSML) end
     end
     if iExistingSML >= 4 then
-        bDebugMessages = true
         local tSMLToUnpause = {}
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
             local tSML = oBrain:GetListOfUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, false, true)
@@ -2131,14 +2130,13 @@ function ConsiderUnpausingAllCreatedNukes(iTeam)
             ForkThread(DelayedUnpauseOfUnits, tSMLToUnpause, 1)
         end
     end
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke created with 100% completion but no onconstructed logic run, so will consider unpausing every nuke we have, iTeam='..iTeam..'; have got iExistingSML='..iExistingSML..'; have unpaused every SML we own if we have lots now') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
     WaitSeconds(iDelayInSeconds)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DelayedUnpauseOfUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

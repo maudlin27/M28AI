@@ -883,7 +883,7 @@ function OnMissileBuilt(self, weapon)
                             (iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers])) then
                         local iTeam = self:GetAIBrain().M28Team
                         --Dont pause if overflowing
-                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.99))) then
+                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
                             self:SetPaused(true)
                             if self.SetAutoMode then self:SetAutoMode(false) end
@@ -973,7 +973,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     local bCancelBuilding = false
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
                         local iTeam = oEngineer:GetAIBrain().M28Team
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.6)) then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.6)) then
                             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
                             if iPlateau > 0 and (iLandZone or 0) > 0 then
                                 --NOTE: If changing above thresholds then consider also changing M28Engineer ConsiderActionToAssign threshold (want above to be less likely to trigger to avoid constant loop of starting and cancelling)
@@ -1535,7 +1535,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
             --Was the engineer reclaiming an area? if so check if still nearby reclaim
             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
                 --Only keep reclaiming if we dont have lots of mass
-                if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7 then
+                if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7 then
                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                     if (iLandZone or 0) > 0 then
                         local iTeam =  oEngineer:GetAIBrain().M28Team
@@ -1643,7 +1643,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if oUnit.UnitId == 'xsb2305' then bDebugMessages = true end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs='..reprs(oUnit)) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
@@ -1799,7 +1799,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                         tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
-                        bDebugMessages = true
                         if bDebugMessages == true then
                             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                             LOG(sFunctionRef..': Will set core baes override to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for brain '..oUnit:GetAIBrain().Nickname..' team, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone)
@@ -2010,7 +2009,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete

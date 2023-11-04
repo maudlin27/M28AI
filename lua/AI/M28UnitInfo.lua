@@ -1596,7 +1596,7 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     local sFunctionRef = 'PauseOrUnpauseMassUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bPauseNotUnpause and (oUnit.UnitId..GetUnitLifetimeCount(oUnit) == 'xsb230513' or oUnit.UnitId..GetUnitLifetimeCount(oUnit) == 'xsb430124') then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
+
     if bDebugMessages == true then
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Engineer action (if have one)='..(oUnit[M28Engineer.refiAssignedAction] or 'nil')..'; oUnit:IsPaused='..tostring(oUnit:IsPaused()))
@@ -1641,7 +1641,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
     local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bPauseNotUnpause and (oUnit.UnitId..GetUnitLifetimeCount(oUnit) == 'xsb230513' or oUnit.UnitId..GetUnitLifetimeCount(oUnit) == 'xsb430124') then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Unit is paused='..tostring(oUnit:IsPaused()))
