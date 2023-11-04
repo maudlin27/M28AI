@@ -105,7 +105,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if oUnitKilled.UnitId == 'uab0201' then bDebugMessages = true end
+
         if bDebugMessages == true then LOG(sFunctionRef..': event triggered for unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..' owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; Have already run='..tostring(oUnitKilled[refbAlreadyRunUnitKilled] or false)) end
 
         if not(oUnitKilled[refbAlreadyRunUnitKilled]) then
@@ -237,7 +237,7 @@ function OnUnitDeath(oUnit)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if not(oUnit[refbAlreadyRunUnitKilled]) or oUnit.UnitId == 'uab0201' then bDebugMessages = true end
+
 
         if bDebugMessages == true then
             LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false))
@@ -1168,7 +1168,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then bDebugMessages = true end
+
 
                     oJustBuilt.M28OnConstructedCalled = true
                     if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end

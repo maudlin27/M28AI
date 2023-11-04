@@ -474,7 +474,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
     --Issue order if we arent already trying to attack them
     local tLastOrder
 
-    if oOrderTarget.UnitId and oOrderTarget.GetAIBrain and oUnit:GetAIBrain() == oOrderTarget:GetAIBrain() and oUnit:GetAIBrain().CampaignAI then M28Utilities.ErrorHandler('Audit trail for reclaiming own unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oOrderTarget='..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget)) end
+
 
     if oUnit[reftiLastOrders] then
         if bAddToExistingQueue then

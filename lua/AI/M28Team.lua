@@ -413,9 +413,8 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             if M28Map.bIsCampaignMap then
                 --Trigger on death callback if relevant
 
-                if oUnitDoingUpgrade.UnitId == 'uab0201' then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished upgrading oUnitDoingUpgrade='..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; Have we run unit killed event='..tostring(oUnitDoingUpgrade[M28Events.refbAlreadyRunUnitKilled] or false)..'; Brain='..oUnitDoingUpgrade:GetAIBrain().Nickname..'; Objective unit='..tostring(oUnitDoingUpgrade[M28UnitInfo.refbObjectiveUnit] or false)) end
-                if oUnitDoingUpgrade[M28UnitInfo.refbObjectiveUnit] and not(oUnitDoingUpgrade[M28Events.refbAlreadyRunUnitKilled]) and oUnitDoingUpgrade:GetAIBrain().CampaignAI and oUnitDoingUpgrade.DoUnitCallbacks then
+                if oUnitDoingUpgrade[M28UnitInfo.refbObjectiveUnit] and not(oUnitDoingUpgrade[M28Events.refbAlreadyRunUnitKilled]) and oUnitDoingUpgrade:GetAIBrain().CampaignAI and oUnitDoingUpgrade.DoUnitCallbacks and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitDoingUpgrade.UnitId) then
                     --local ScenarioFramework = import('/lua/ScenarioFramework.lua')
                     oUnitDoingUpgrade:DoUnitCallbacks('OnKilled')
                     if bDebugMessages == true then LOG(sFunctionRef..': Have manually run an onkilled callback for the objective unit') end
@@ -508,7 +507,7 @@ function CreateNewTeam(aiBrain)
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain.Nickname == 'QAI' then bDebugMessages = true end
+
 
     iTotalTeamCount = iTotalTeamCount + 1
     tTeamData[iTotalTeamCount] = {}
@@ -761,7 +760,7 @@ end
 function RecordAllPlayers()
 
     --Call via ForkThread from initialisation, so 1 tick after the first brain will have been created
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlayers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if not(bRecordedAllPlayers) then
