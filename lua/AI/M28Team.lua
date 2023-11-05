@@ -2848,8 +2848,10 @@ function TeamEconomyRefresh(iM28Team)
             --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
             --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
             tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal) end
         end
+        tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
+        tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = iEnergyPercentTotal / math.max(1, iEnergyBrainCount)
 
         if tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] <= 0.05 and (GetGameTimeSeconds() >= 120 or tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] <= 0.001) then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
@@ -2863,13 +2865,15 @@ function TeamEconomyRefresh(iM28Team)
             tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
         end
         tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Team new gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Team new gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]='..tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]) end
 
         ForkThread(ConsiderGettingUpgrades, iM28Team)
 
         ForkThread(M28Economy.ManageEnergyStalls, iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are overflowing mass so will try and manage by clearing engineers with reclaim orders') end
+            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored') end
             ForkThread(M28Economy.ManageMassOverflow, iM28Team)
         end
     end

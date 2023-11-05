@@ -4046,20 +4046,23 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         local iReclaimValuePerEngi
         local bGivenOrder = false
         local oNearestReclaim
+        local iEngiPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition())
 
         local iMinSignifSegmentValue = 0
         local bDontCheckSignificantValue = true
         local bReduceModDistIfSignificantMass = false
-        if not(bOnlyConsiderReclaimInRangeOfEngineer) and not(bWantEnergyNotMass) then
-            if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 then
-                iMinSignifSegmentValue = M28Map.iSignificantMassThreshold --10 (as of v43)
-                bDontCheckSignificantValue = false
-            elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 0 then
-                bReduceModDistIfSignificantMass = true
+        if not(bWantEnergyNotMass) then
+            if not(bOnlyConsiderReclaimInRangeOfEngineer) then
+                if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 then
+                    iMinSignifSegmentValue = M28Map.iSignificantMassThreshold --10 (as of v43)
+                    bDontCheckSignificantValue = false
+                elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 0 then
+                    bReduceModDistIfSignificantMass = true
+                end
             end
         end
 
-        local iMinReclaimIndividualValue = (iMinIndividualValueOverride or 1)
+        local iMinReclaimIndividualValue = (iMinIndividualValueOverride or M28Map.iLowestMassThreshold)
 
 
         if bWantEnergyNotMass then
@@ -4105,7 +4108,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': tiClosestSegmentXZ='..repru(tiClosestSegmentXZ)..'; bOnlyConsiderReclaimInRangeOfEngineer='..tostring(bOnlyConsiderReclaimInRangeOfEngineer or false)) end
         if tiClosestSegmentXZ or bOnlyConsiderReclaimInRangeOfEngineer then
             --Get reclaim in the segment
             local tTargetPos
@@ -4155,7 +4158,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                             end
                         end
                     end
-                    if oReclaim.CachePosition and ((not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= iMinReclaimIndividualValue) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iMinReclaimIndividualValue)) and not(oReclaim:BeenDestroyed()) then
+                    if oReclaim.CachePosition and not(oReclaim:BeenDestroyed()) and ((not(bWantEnergyNotMass) and (not(oNearestReclaim) or (not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= math.min(oNearestReclaim.MaxMassReclaim, iMinReclaimIndividualValue)) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iMinReclaimIndividualValue))))  then
                         iReclaimRadius = math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5
                         iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - iReclaimRadius)
                         --Can we path to it?
@@ -4166,8 +4169,10 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                         --Backup e.g. if looking for energy reclaim but only have mass available
                         if not(oNearestReclaim) then
                             if iCurDistToTargetPos < iNearestReclaimWithAnyValue and (oReclaim.MaxMassReclaim or 0) + (oReclaim.MaxEnergyReclaim or 0) > 0 then
-                                oNearestAnyValueReclaim = oReclaim
-                                iNearestReclaimWithAnyValue = iCurDistToTargetPos
+                                if not(oNearestAnyValueReclaim) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iPlateauOrPond then
+                                    oNearestAnyValueReclaim = oReclaim
+                                    iNearestReclaimWithAnyValue = iCurDistToTargetPos
+                                end
                             end
                         end
                     end
@@ -4176,9 +4181,22 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     oNearestReclaim = oNearestAnyValueReclaim
                     --Check this is in the same zone
                     if oNearestReclaim and bCheckTerrain then
-                        if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition()) and M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition()) > iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it') end
-                            oNearestReclaim = nil
+                        if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iPlateauOrPond) then
+                            local iDistToReclaim = M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition())
+                            local iRangeToWreck = iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5
+                            if iDistToReclaim > iRangeToWreck then
+                                local tPotentialLocationToMove = M28Utilities.MoveInDirection(oNearestReclaim.CachePosition, M28Utilities.GetAngleFromAToB(oNearestReclaim.CachePosition, oEngineer:GetPosition()), iRangeToWreck, true, false, M28Map.bIsCampaignMap)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond) end
+                                if M28Utilities.IsTableEmpty(tPotentialLocationToMove) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iPlateauOrPond) then
+                                    --Want to consider reassigning this reclaim segment if the only reclaim in it is in a different plateau
+                                    oNearestReclaim = nil
+                                    if tiClosestSegmentXZ then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone before reassignment='..reprs(tLZOrWZData[subrefReclaimSegments])) end
+                                        M28Map.ReassignReclaimSegment(tiClosestSegmentXZ[1], tiClosestSegmentXZ[2], tLZOrWZData)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone after reassignment='..reprs(tLZOrWZData[subrefReclaimSegments])) end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -4208,6 +4226,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         elseif not(bGivenOrder) then
             --Flag that this zone has failed to find anything for engineers to reclaim, so we limit BP to assign to 5
             tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] = GetGameTimeSeconds()
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording that we failed to get reclaim in this zone, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)) end
             --If there is a valid reclaim nearby (it just is too low value) then also give order to reclaim this
             if oNearestReclaim and not(oEngineer:IsUnitState('Capturing')) then
                 M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
@@ -9971,27 +9990,35 @@ end--]]
                     M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
                 end
 
-                --Adjacent core zones if we have spare engis in this zone
-
+                --Reclaim area if is any reclaim
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                if bDebugMessages == true then LOG(sFunctionRef..': Spare engi action - reclaim area if any mass or energy in it, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Mass='..(tLZData[M28Map.subrefTotalMassReclaim] or 0)..'; Energy='..(tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0)) end
                 if iHighestTechEngiAvailable > 0 then
-                    local iTotalAvailableEngineerBP = 0
-                    for iTech, tEngineers in toAvailableEngineersByTech do
-                        if M28Utilities.IsTableEmpty(tEngineers) == false then
-                            iTotalAvailableEngineerBP = iTotalAvailableEngineerBP + tiBPByTech[iTech] * table.getn(tEngineers)
-                        end
+                    if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 then
+                        HaveActionToAssign(refActionReclaimArea, 1, 90, (tLZData[M28Map.subrefTotalMassReclaim] or 0) == 0, true, true, nil, nil, false)
+                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                     end
-                    if iTotalAvailableEngineerBP >= 80 then
-                        local iBPToSend = iTotalAvailableEngineerBP - 80
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]) then
-                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                    if tAdjLZTeamData[M28Map.subrefLZbCoreBase] or tAdjLZTeamData[M28Map.subrefTbWantBP] then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Minor zone spare engi overflow - will send to adjacent zone '..iAdjLZ..'; iPlateau='..iPlateau..'; iBPToSend='..iBPToSend) end
-                                        HaveActionToAssign(refActionMoveToLandZone, 1, iBPToSend, iAdjLZ, true, nil, nil, nil, true)
-                                        break
+
+                    --Adjacent core zones if we have spare engis in this zone
+                    if iHighestTechEngiAvailable > 0 then
+                        local iTotalAvailableEngineerBP = 0
+                        for iTech, tEngineers in toAvailableEngineersByTech do
+                            if M28Utilities.IsTableEmpty(tEngineers) == false then
+                                iTotalAvailableEngineerBP = iTotalAvailableEngineerBP + tiBPByTech[iTech] * table.getn(tEngineers)
+                            end
+                        end
+                        if iTotalAvailableEngineerBP >= 80 then
+                            local iBPToSend = iTotalAvailableEngineerBP - 80
+                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]) then
+                                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                        if tAdjLZTeamData[M28Map.subrefLZbCoreBase] or tAdjLZTeamData[M28Map.subrefTbWantBP] then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Minor zone spare engi overflow - will send to adjacent zone '..iAdjLZ..'; iPlateau='..iPlateau..'; iBPToSend='..iBPToSend) end
+                                            HaveActionToAssign(refActionMoveToLandZone, 1, iBPToSend, iAdjLZ, true, nil, nil, nil, true)
+                                            break
+                                        end
                                     end
                                 end
                             end

@@ -490,10 +490,11 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    LOG('TestCustom: All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
     --M28Map.DrawLandZones()
     --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
     --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
-    --M28Map.DrawSpecificLandZone(93, 14, 4)
+    --M28Map.DrawSpecificLandZone(64, 2, 4)
     --ScenarioInfo.Options
     --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
 
@@ -1132,7 +1133,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 60 then TestCustom(aiBrain) end
+        if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 25 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

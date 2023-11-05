@@ -1540,7 +1540,11 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     if (iLandZone or 0) > 0 then
                         local iTeam =  oEngineer:GetAIBrain().M28Team
                         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+                        local iMinReclaimValue = M28Map.iSignificantMassThreshold
+                        --Do we have unclaimed mexes in this zone?
+                        if tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then iMinReclaimValue = iMinReclaimValue * 2 end
+                        --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass,                   bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
+                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex], iMinReclaimValue)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then

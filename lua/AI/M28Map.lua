@@ -65,6 +65,7 @@ tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmen
     refReclaimTotalSignificantMass = 4 --Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
     refSegmentReclaimTotalEnergy = 8
 iSignificantMassThreshold = 10 --global variable (not part of above table), being the threshold for recording mass reclaim as significant mass
+iLowestMassThreshold = 0.8 --E.g. covers some but not all individual trees on twin rivers; wont record any mass value for wrecks below this when updating segment info
 --reftReclaimTimeOfLastEngineerDeathByArmyIndex = 4 --Table: [a] where a is the army index, and it returns the time the last engineer died
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
@@ -7112,10 +7113,30 @@ function ReclaimManager()
     end
 end
 
+function ReassignReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ, tCurAssignedLZOrWZData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local sFunctionRef = 'ReassignReclaimSegment'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tCurAssignedLZOrWZData[subrefReclaimSegments]) == false then
+        for iEntry, tReclaimXZ in tCurAssignedLZOrWZData[subrefReclaimSegments] do
+            if tReclaimXZ[1] == iReclaimSegmentX and tReclaimXZ[2] == iReclaimSegmentZ then
+                if bDebugMessages == true then LOG(sFunctionRef..': will remove reclaim segment X'..iReclaimSegmentZ..'Z'..iReclaimSegmentZ..' from the LZOrWZData, iEntry='..iEntry) end
+                table.remove(tCurAssignedLZOrWZData[subrefReclaimSegments], iEntry)
+                break
+            end
+        end
+    end
+    CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
+    UpdateReclaimDataNearSegments(iReclaimSegmentX, iReclaimSegmentZ, 0)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'CreateReclaimSegment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     if not(tReclaimAreas[iReclaimSegmentX]) then tReclaimAreas[iReclaimSegmentX] = {} end
@@ -7123,8 +7144,8 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
     local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')) end
-    if (iPlateau or 0) == 0 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')..'; WZ='..(GetWaterZoneFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint]) or 'nil')) end
+    if (iPlateau or 0) == 0 or (not(iLandZone) and not(GetWaterZoneFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint]))) then
         --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
         local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
         local tReclaimables = GetReclaimInRectangle(4, rRect)
@@ -7203,9 +7224,9 @@ function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bI
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
     if M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]) == false then
         for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]..'; Total significant mass in segment='..(tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalSignificantMass] or 'nil')) end
-            iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
-            iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]..'; Total significant mass in segment='..(tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalSignificantMass] or 'nil')..'; Energy='..(tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy] or 0)) end
+            iMassReclaim = iMassReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass] or 0)
+            iEnergyReclaim = iEnergyReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy] or 0)
             iSignificantMassReclaim = iSignificantMassReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalSignificantMass] or 0)
         end
     end
@@ -7218,10 +7239,10 @@ function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bI
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
+function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy, bApplyDebug)
     --Largely a copy of GetReclaimablesResourceValue, but focused specificaly on the reclaim segment update logic
     --Must have at least iMinMass or iMinEnergy to be recorded
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true or bApplyDebug then   bDebugMessages = true end
     local sFunctionRef = 'GetReclaimablesMassAndEnergy'
     --V14 and earlier would modify total mass value to reduce it by 25% if its small, and 50% if its medium; v15 removed this
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -7243,12 +7264,15 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
             tWreckPos = v.CachePosition
             if tWreckPos[1] then
                 --if v.MaxMassReclaim > iIgnoreReclaimIfNotMoreThanThis then
-                if v[sMassRef] > iMinMass or v[sEnergyRef] > iMinEnergy then
-                    if not(v:BeenDestroyed()) then
+                if not(v:BeenDestroyed()) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iReclaimRef='..iReclaimRef..'; Mass='..(v[sMassRef] or 'nil')..'; Energy='..(v[sEnergyRef] or 'nil')) end
+                    if v[sMassRef] > iMinMass then
                         iTotalMass = iTotalMass + v[sMassRef]
                         if v[sMassRef] >= iMassThreshold then
                             iTotalMassAboveThreshold = iTotalMassAboveThreshold + v[sMassRef]
                         end
+                    end
+                    if v[sEnergyRef] > iMinEnergy then
                         iTotalEnergy = iTotalEnergy + v[sEnergyRef]
                         if v[sMassRef] > iLargestCurReclaim then
                             iLargestCurReclaim = v[sMassRef]
@@ -7267,6 +7291,8 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
     end
     local tReclaimPos
     if iLargestReclaimRef then tReclaimPos = {tReclaimables[iLargestReclaimRef][1], tReclaimables[iLargestReclaimRef][2], tReclaimables[iLargestReclaimRef][3]} end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))..'; iMinMass='..(iMinMass or 'nil')..'; iMinEnergy='..(iMinEnergy or 'nil')..'; iTotalMass='..iTotalMass..'; iLargestCurReclaim='..iLargestCurReclaim..'; iTotalEnergy='..iTotalEnergy..'; iTotalMassAboveThreshold='..iTotalMassAboveThreshold) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalMass, tReclaimPos, iLargestCurReclaim, iTotalEnergy, iTotalMassAboveThreshold
@@ -7288,8 +7314,10 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
     local sFunctionRef = 'UpdateReclaimDataNearSegments'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
 
-    local iMinValueOfIndividualReclaim = 2.5 --Note that there is a separate min value used for refReclaimTotalSignificantMass (10 as of v43)
-    local iMinEnergyValue = 15
+
+
+    local iMinValueOfIndividualReclaim = iLowestMassThreshold --Note that there is a separate min value used for refReclaimTotalSignificantMass (10 as of v43)
+    local iMinEnergyValue = 10
 
     local iTotalMassValue, tReclaimables, iLargestCurReclaim, tReclaimPos, iTotalEnergyValue, iTotalMassAboveThreshold
     local iCumulativeMassValue = 0
@@ -7311,7 +7339,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 -- local iWreckCount = 0
                 --local bIsProp = nil  --only used for log/testing
                 if bDebugMessages == true then LOG('Have wrecks within the segment iCurXZ='..iCurX..'-'..iCurZ) end
-                iTotalMassValue, tReclaimPos, iLargestCurReclaim, iTotalEnergyValue, iTotalMassAboveThreshold = GetReclaimablesMassAndEnergy(tReclaimables, iMinValueOfIndividualReclaim, iMinEnergyValue)
+                iTotalMassValue, tReclaimPos, iLargestCurReclaim, iTotalEnergyValue, iTotalMassAboveThreshold = GetReclaimablesMassAndEnergy(tReclaimables, iMinValueOfIndividualReclaim, iMinEnergyValue, bDebugMessages)
                 --Record this table:
                 if tReclaimAreas[iCurX] == nil then
                     tReclaimAreas[iCurX] = {}

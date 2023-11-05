@@ -482,6 +482,8 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+
+
     if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) or not(oUnit:IsUnitState('Reclaiming'))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
 
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
