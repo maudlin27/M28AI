@@ -7271,13 +7271,13 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy, bAppl
                         if v[sMassRef] >= iMassThreshold then
                             iTotalMassAboveThreshold = iTotalMassAboveThreshold + v[sMassRef]
                         end
-                    end
-                    if v[sEnergyRef] > iMinEnergy then
-                        iTotalEnergy = iTotalEnergy + v[sEnergyRef]
                         if v[sMassRef] > iLargestCurReclaim then
                             iLargestCurReclaim = v[sMassRef]
                             iLargestReclaimRef = iReclaimRef
                         end
+                    end
+                    if v[sEnergyRef] > iMinEnergy then
+                        iTotalEnergy = iTotalEnergy + v[sEnergyRef]
                     end
                 end
             else
@@ -7301,7 +7301,7 @@ end
 function GetReclaimSegmentRectangle(iSegmentX, iSegmentZ, iOptionalSizeIncrease)
     --iOptionalSizeIncrease - will do the higher of this and the reclaim segment sizeX/Z value if this is specified
     if iOptionalSizeIncrease then
-        return Rect((iSegmentX - 1) * math.max(iReclaimSegmentSizeX, iOptionalSizeIncrease), (iSegmentZ - 1) * math.max(iReclaimSegmentSizeZ, iOptionalSizeIncrease), iSegmentX * math.max(iReclaimSegmentSizeX, iOptionalSizeIncrease), iSegmentZ * math.max(iReclaimSegmentSizeZ, iOptionalSizeIncrease))
+        return Rect((iSegmentX - 1) * iReclaimSegmentSizeX - math.max(0, iOptionalSizeIncrease - iReclaimSegmentSizeX), (iSegmentZ - 1) * iReclaimSegmentSizeZ - math.max(0, iOptionalSizeIncrease - iReclaimSegmentSizeZ), iSegmentX * iReclaimSegmentSizeX + math.max(0, iOptionalSizeIncrease - iReclaimSegmentSizeX), iSegmentZ * iReclaimSegmentSizeZ + math.max(0, iOptionalSizeIncrease - iReclaimSegmentSizeZ))
     else
         return Rect((iSegmentX - 1) * iReclaimSegmentSizeX, (iSegmentZ - 1) * iReclaimSegmentSizeZ, iSegmentX * iReclaimSegmentSizeX, iSegmentZ * iReclaimSegmentSizeZ)
     end

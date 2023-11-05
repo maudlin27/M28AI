@@ -1651,7 +1651,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte WZ
-    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
+    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
 
     --Manage any scouts and flag if we need scouts (i.e. want to run this function even if we have no scouts)
     ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tScouts, bWaterZoneOrAdjHasUnitsWantingScout)

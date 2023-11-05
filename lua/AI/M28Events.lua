@@ -1543,6 +1543,10 @@ function OnReclaimFinished(oEngineer, oReclaim)
                         local iMinReclaimValue = M28Map.iSignificantMassThreshold
                         --Do we have unclaimed mexes in this zone?
                         if tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then iMinReclaimValue = iMinReclaimValue * 2 end
+                        local bWantEnergy = M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
+                        if bWantEnergy and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oUnit:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
+                            iMinReclaimValue = 150 --only want a tree group
+                        end
                         --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass,                   bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
                         M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex], iMinReclaimValue)
                     end

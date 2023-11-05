@@ -379,6 +379,19 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
+                        elseif iLastOrderType == M28Orders.refiOrderIssueBuild and oEngineer:IsUnitState('Moving') and not(EntityCategoryContains(M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryStructureAA * categories.TECH1, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])) then
+                            --Check if there is already a constructed building at the build location
+                            local tLastOrderPosition = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                            local rRect = M28Utilities.GetRectAroundLocation(tLastOrderPosition, 0.49)
+                            local tUnitsInRect = GetUnitsInRect(rRect)
+                            if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                for iUnit, oUnit in tUnitsInRect do
+                                    if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and M28UnitInfo.GetBuildingSize(oUnit.UnitId) > 1 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer has a constructed building at its target location so making it available') end
+                                        return true
+                                    end
+                                end
+                            end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
