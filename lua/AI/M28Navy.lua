@@ -1651,7 +1651,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte WZ
-    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
+    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
 
     --Manage any scouts and flag if we need scouts (i.e. want to run this function even if we have no scouts)
     ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tScouts, bWaterZoneOrAdjHasUnitsWantingScout)
@@ -1681,11 +1681,21 @@ function AssignValuesToWaterZones(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; oBrain='..oBrain.Nickname..'; Does this brain have a build location for this pond='..repru(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])) end
                     if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
                         iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..' on iTeam='..iTeam..'; iBuildLocationSegmentX='..iBuildLocationSegmentX..'; iBuildLocationSegmentZ='..iBuildLocationSegmentZ..'; Water zone for these segments='..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..' on iTeam='..iTeam..'; iBuildLocationSegmentX='..iBuildLocationSegmentX..'; iBuildLocationSegmentZ='..iBuildLocationSegmentZ..'; Water zone for these segments='..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Is pond subtable empty='..tostring(M28Utilities.IsTableEmpty( tPondSubtable[M28Map.subrefPondWaterZones]))..'; Is WZ data empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]]))) end
                         if M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] then
-                            local tWZTeamData = tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]][M28Map.subrefWZTeamData][iTeam]
-                            tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Contains a naval build location') end
+                            local tWZData = tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]]
+                            if tWZData then
+                                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                                if not(tWZTeamData) then
+                                    M28Team.SetWaterZoneDefaultTeamValues(tWZData, iTeam)
+                                    M28Utilities.ErrorHandler('Have valid WZ data but not team data, for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil')..'; will record teh default values for the water zone')
+                                end
+                                tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Contains a naval build location') end
+
+                            else
+                                M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil'))
+                            end
                         end
                     end
 
@@ -1753,7 +1763,7 @@ function WaterZoneOverseer(iTeam)
     local sFunctionRef = 'WaterZoneOverseer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(M28Map.bWaterZoneInitialCreation) do
+    while not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bFirstM28TeamHasBeenInitialised) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1768,6 +1778,14 @@ function WaterZoneOverseer(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for water zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+            while ScenarioInfo.OpEnded do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
+            end
+        end
         ForkThread(AssignValuesToWaterZones, iTeam)
     end
 
@@ -1777,6 +1795,7 @@ function WaterZoneOverseer(iTeam)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
             end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) then break end
         end
@@ -1809,7 +1828,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
 
     
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Enemies in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
-    if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then        
+    if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
         iEnemyBestAntiNavyRange = (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)
         iEnemyBestCombatRange = math.max((tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), iEnemyBestAntiNavyRange)
         iBestEnemyUnderwaterRange = (tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] or 0)
@@ -1819,6 +1838,11 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
         local iLowestDistUntilInRange = 10000
         local oLowestDFDistUntilInRange
         local tMidpoint = tWZData[M28Map.subrefMidpoint]
+        if M28Utilities.IsTableEmpty(tMidpoint) then
+            --Got an error in coop so put in below as a redundancy in case had no midpoint (but couldve been another reason)
+            M28Utilities.ErrorHandler('No midpoint for water zone '..iWaterZone..' for iPond='..iPond..'; will try and record again')
+            M28Map.RecordMidpointMinAndMaxSegmentForWaterZone(iWaterZone, iPond, tWZData)
+        end
         local iCurDistUntilInRange
         if bDebugMessages == true then LOG(sFunctionRef..': Best DF range for this zone only='..tWZTeamData[M28Map.subrefWZBestEnemyDFRange]..'; best antinavy='..tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..';  Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]))) end
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
@@ -1834,7 +1858,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                 if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltWZTeamData[M28Map.subrefTEnemyUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and oUnit:GetFractionComplete() >= 0.95 then
-                            iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
+                            iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions((oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()), tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
                                 oLowestDFDistUntilInRange = oUnit
                                 iLowestDistUntilInRange = iCurDistUntilInRange

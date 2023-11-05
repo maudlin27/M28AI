@@ -888,15 +888,26 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
     local iPowerTechLevel = M28UnitInfo.GetUnitTechLevel(oPowerJustBuilt)
     if bDebugMessages == true then LOG(sFunctionRef..': Just built power='..oPowerJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPowerJustBuilt)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Do we have active reclaimer logic for T1='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer] or false)..'; Do we ahve active t2 reclaimer='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer])) end
     if iPowerTechLevel == 2 then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 + 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
+            --Check we have 1 T2 power per player
+            local iT2PowerEquivalent = 0
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+                iT2PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
+            end
+            if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
         end
     elseif iPowerTechLevel == 3 then
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            local iT3PowerEquivalent = 0
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+                iT3PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3)
+            end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 and (iT3PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power, M28Team.subrefbActiveT2PowerReclaimer)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -912,7 +923,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
 
 end
 
-function GetCategoriesAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPauseNotUnpause)
+function GetCategoryAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPauseNotUnpause)
     local tCategoriesByPriority, tEngineerActionsByPriority
 
     --Are there enemies adjacent to a core base? If so then dont want to pause T2+ air factories except as a near last resort
@@ -938,7 +949,7 @@ function GetCategoriesAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPause
 
         if bStallingMass then
             if not(bImminentThreat) then
-                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryAirFactory, categories.COMMAND, M28UnitInfo.refCategoryTML, iSpecialHQCategory, M28UnitInfo.refCategoryEngineer }
+                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryAirFactory, categories.COMMAND, M28UnitInfo.refCategoryTML, iSpecialHQCategory, M28UnitInfo.refCategoryEngineer }
 
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                                { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti }}
@@ -954,7 +965,7 @@ function GetCategoriesAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPause
                 end--]]
             else
                 --As above but air fac isnt paused at all and HQs are v.unlikely to be paused
-                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, categories.COMMAND, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryEngineer, iSpecialHQCategory }
+                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryNavalFactory, categories.COMMAND, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryEngineer, iSpecialHQCategory }
 
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                                { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti }}
@@ -962,21 +973,21 @@ function GetCategoriesAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPause
         else
             --Power stall
             if not(bImminentThreat) then
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 then
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 then
                     --Dont pause land facs
-                    tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
+                    tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                     tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildMassStorage,M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding },
                                                    { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionSpare, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
                                                    { M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
                 else
-                    tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
+                    tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                     tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildMassStorage,M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding },
                                                    { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionSpare, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
                                                    { M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
                 end
             else
                 --As above but air fac paused as lower priority and no land factory pausing
-                tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
+                tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildMassStorage,M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding },
                                                { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionSpare, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
                                                { M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
@@ -1009,16 +1020,16 @@ function ManageMassStalls(iTeam)
         if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassStallPercentAdjust = 0.015 end
         --Dont consider pausing or unpausing if are stalling energy or early game, as our energy stall manager is likely to be operating
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, GetGameTimeSeconds='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team stalling mass already='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or ((GetGameTimeSeconds() >= 120 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.99)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() >= 80 and GetGameTimeSeconds() <= 180 and not(M28Map.bIsLowMexMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 1 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or ((GetGameTimeSeconds() >= 120 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.99)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() >= 80 and GetGameTimeSeconds() <= 180 and not(M28Map.bIsLowMexMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 1 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': About to consider if we have a mass stall or not. Team lowest mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
+                LOG(sFunctionRef .. ': About to consider if we have a mass stall or not. Team lowest mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
             end
             --First consider unpausing
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; iMassStallPercentAdjust='..iMassStallPercentAdjust)
+                LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; iMassStallPercentAdjust='..iMassStallPercentAdjust)
             end
 
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > (0.005 + iMassStallPercentAdjust) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then
                 --aiBrain[refbStallingEnergy] = false
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Have enough mass stored or income to start unpausing things')
@@ -1028,7 +1039,7 @@ function ManageMassStalls(iTeam)
             end
             if bDebugMessages == true then LOG(sFunctionRef .. ': Checking if we shoudl flag that we are mass stalling. bChangeRequired='..tostring(bChangeRequired)..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Need resources for missile='..tostring((M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or false))..'; Gross mass income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]) end
             --Check if should manage mass stall
-            if bChangeRequired == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= (0.001 + iMassStallPercentAdjust) and (M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and (-M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.2))) then
+            if bChangeRequired == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= (0.001 + iMassStallPercentAdjust) and (M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and (-M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.2))) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': We are stalling mass, will look for units to pause')
                 end
@@ -1060,7 +1071,7 @@ function ManageMassStalls(iTeam)
             if bChangeRequired then
                 --Decide on order to pause/unpause
 
-                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPauseWhenStalling(iTeam, true, bPauseNotUnpause)
+                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoryAndActionsToPauseWhenStalling(iTeam, true, bPauseNotUnpause)
 
                 local iMassPerTickSavingNeeded
                 if bPauseNotUnpause then
@@ -1073,7 +1084,7 @@ function ManageMassStalls(iTeam)
                     else
                         iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 20)
                     end
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then
                         iMassPerTickSavingNeeded = iMassPerTickSavingNeeded * 1.2 - 0.5
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded - 1 end
                     end
@@ -1470,7 +1481,7 @@ function ManageMassStalls(iTeam)
                         LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
                     end
                     --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
-                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not (bPauseNotUnpause) and (iMassSavingManaged > iMassPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.03 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not (bPauseNotUnpause) and (iMassSavingManaged > iMassPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.03 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.9 then
                         --Have a decent amount of mass, are flagged as stalling mass, but couldnt find any categories to unpause
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units')
@@ -1515,7 +1526,7 @@ function ManageMassStalls(iTeam)
                 end
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) .. '; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Mass stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] .. '; Net mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; gross mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])
+                LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) .. '; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Mass stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Net mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; gross mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])
             end
         end
     else
@@ -1538,7 +1549,7 @@ function ManageEnergyStalls(iTeam)
         local bHaveWeCappedUnpauseAmount = false
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (GetGameTimeSeconds() >= 120 or (GetGameTimeSeconds() >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 15)) then
             --Only consider power stall management after 2m, otherwise risk pausing things such as early microbots when we would probably be ok after a couple of seconds; lower time limit put in as a theroetical possibility due to AIX
-            if bDebugMessages == true then LOG(sFunctionRef .. ': About to consider if we have an energy stall or not. Lowest energy % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': About to consider if we have an energy stall or not. Lowest energy % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
             --First consider unpausing
             if bDebugMessages == true then LOG(sFunctionRef .. ': If we have flagged that we are stalling energy then will check if we have enough to start unpausing things') end
 
@@ -1551,7 +1562,7 @@ function ManageEnergyStalls(iTeam)
 
                 iPercentMod = math.max(0.05, iPercentMod)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': If are in stall mode will check if want to come out. M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Gross income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Stored ratio='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]..'; Net income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iNetMod='..iNetMod..'; iPercentMod='..iPercentMod..'; GameTime='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]..'; Changei n power since then='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] - M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': If are in stall mode will check if want to come out. M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Gross income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Stored ratio='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iNetMod='..iNetMod..'; iPercentMod='..iPercentMod..'; GameTime='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]..'; Changei n power since then='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] - M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]) end
 
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 800 then iPercentMod = math.max(iPercentMod,  math.min(iPercentMod + 0.2, 0.275)) end
 
@@ -1560,14 +1571,15 @@ function ManageEnergyStalls(iTeam)
             end
 
             --Overcharge - pause even if we dont have terrible E income
-            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] or -10) <= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.9 then
+            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] or -10) <= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.9 then
                 bPauseNotUnpause = true
                 iPercentMod = math.max(0.5, iPercentMod)
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU needs energy so will set percentmod to 50% at time '..GetGameTimeSeconds()) end
             end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] >= 200000 and iPercentMod > -0.6 then iPercentMod = iPercentMod - 0.1 end
 
 
-            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.2)))) then
+            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.2)))) then
                 --M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Have enough energy stored or income to start unpausing things if any are paused')
@@ -1606,18 +1618,20 @@ function ManageEnergyStalls(iTeam)
                 end
             end
             --Check if should manage energy stall
-            if bChangeRequired == false and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.08 + iPercentMod) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.6 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (2 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.4 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (0.5 + (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 1) * 5 + iNetMod))) then
+            if bChangeRequired == false and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= (0.08 + iPercentMod) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= (0.6 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (2 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= (0.4 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (0.5 + (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 1) * 5 + iNetMod))) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': We are stalling energy, will look for units to pause, subject to early game check')
                 end
                 --If this is early game then add extra check
-                if GetGameTimeSeconds() >= 180 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.04 then
+                if GetGameTimeSeconds() >= 180 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.04 then
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = true
                     bChangeRequired = true
                     if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
                     if bDebugMessages == true then LOG(sFunctionRef..': early game check cleared, so are stalling energy') end
                 end
             end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Will move on to main pause or unpause logic now if change is required, bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
 
             if bChangeRequired then
                 if bPauseNotUnpause then
@@ -1628,26 +1642,26 @@ function ManageEnergyStalls(iTeam)
                 M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds() --Have even if unpausing, since we may only unpause some of the units
                 --Decide on order to pause/unpause
 
-                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPauseWhenStalling(iTeam)
+                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoryAndActionsToPauseWhenStalling(iTeam)
 
                 local iEnergyPerTickSavingNeeded
                 if bPauseNotUnpause then
                     iEnergyPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] + iNetMod * 0.5 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.02)
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.15 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.15 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have less than 15% energy stored so increasing the energy saving wanted. iEnergyPerTickSavingNeeded pre increase='..iEnergyPerTickSavingNeeded..'; Gross base income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Team lowest energy storage units='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]) end
                         local iStorageFactor = 50
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 then iStorageFactor = 100 end
                         iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded * 1.3, iEnergyPerTickSavingNeeded + M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.03)
                         iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.06, math.min(M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] * iStorageFactor, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]*0.15))
-                    elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.225 then
+                    elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.225 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Less than 22.5% energy stored so increasing energy saving slightly') end
                         iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded * 1.15, iEnergyPerTickSavingNeeded + M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.015)
                     end
                 else
                     iEnergyPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / 30)
                     iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, math.min(-300, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.5), math.min(-600, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.25))
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.75 then iEnergyPerTickSavingNeeded = iEnergyPerTickSavingNeeded * 0.75 end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want to start unpausing things, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.75 then iEnergyPerTickSavingNeeded = iEnergyPerTickSavingNeeded * 0.75 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to start unpausing things, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
                 end
 
                 local iEnergySavingManaged = 0
@@ -1809,7 +1823,7 @@ function ManageEnergyStalls(iTeam)
                                                     bApplyActionToUnit = true
                                                     --Dont pause the last engi building power
                                                     if bPauseNotUnpause then
-                                                        if iActionRef == M28Engineer.refActionBuildPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7 then
+                                                        if iActionRef == M28Engineer.refActionBuildPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 then
                                                             bApplyActionToUnit = false
                                                             --Dont pause T1 factory construction if we have a certain amount of gross energy income
                                                         elseif iActionRef == M28Engineer.refActionBuildLandFactory and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and oBrain[refiGrossEnergyBaseIncome] >= 26 and oUnit[M28Engineer.refbPrimaryBuilder] then
@@ -2042,7 +2056,7 @@ function ManageEnergyStalls(iTeam)
                 else
                     if bDebugMessages == true then LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
                     --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
-                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and not (bPauseNotUnpause) and (iEnergySavingManaged > iEnergyPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and not (bPauseNotUnpause) and (iEnergySavingManaged > iEnergyPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.95 then
                         --Have a decent amount of power, are flagged as stalling energy, but couldnt find any categories to unpause
                         if bDebugMessages == true then LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units for all M28 brains in the team') end
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -2082,7 +2096,7 @@ function ManageEnergyStalls(iTeam)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) .. '; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Energy stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; Net energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; gross energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) .. '; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Energy stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] .. '; Net energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; gross energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
             if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
                 M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds()
             end

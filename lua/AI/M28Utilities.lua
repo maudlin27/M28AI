@@ -201,12 +201,26 @@ function ForkedDrawLine(tStart, tEnd, iColour, iDisplayCount)
     end
 end
 
-function DrawPath(tPath, iOptionalColour, iOptionalTimeInTicks)
+function DrawPath(tAllPaths, iOptionalColour, iOptionalTimeInTicks)
     local iColour = iOptionalColour or 1
     local iDisplayCount = iOptionalTimeInTicks or 100
     local iCount = 0
     local tPrevPosition
-    for iPath, tPath in tPath do
+    --If we have inserted entry 0 into the path after creating the base path then it won't show as the first entry
+    local tRevisedPaths = {}
+    if tAllPaths[0] then
+        table.insert(tRevisedPaths, tAllPaths[0])
+        for iPath, tPath in tAllPaths do
+            if not(iPath == 0) then
+                table.insert(tRevisedPaths, tPath)
+            end
+        end
+    else
+        for iPath, tPath in tAllPaths do
+            table.insert(tRevisedPaths, tPath)
+        end
+    end
+    for iPath, tPath in tRevisedPaths do
         iCount = iCount + 1
         if iCount > 1 then
             ForkThread(ForkedDrawLine, tPrevPosition, tPath, iColour, iDisplayCount)
