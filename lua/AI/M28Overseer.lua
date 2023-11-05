@@ -490,6 +490,9 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    local NavUtils = import("/lua/sim/navutils.lua")
+    local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
+    LOG('TestCustom iLandTravelDistance='..iLandTravelDistance)
     --LOG('TestCustom: All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
     --M28Map.DrawLandZones()
     --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)

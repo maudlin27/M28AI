@@ -2016,7 +2016,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNearbyReclaimForACUOrEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oEngineer:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
     if EntityCategoryContains(categories.RECLAIM, oEngineer.UnitId) then
 
         local iTotalReclaimWanted
@@ -2081,7 +2081,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     local sFunctionRef = 'MoveToOtherLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and oACU[refiUpgradeCount] > 0 then bDebugMessages = true end
+
 
     local iLZToMoveTo
     local iTeam = oACU:GetAIBrain().M28Team
@@ -3082,7 +3082,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if aiBrain:GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData

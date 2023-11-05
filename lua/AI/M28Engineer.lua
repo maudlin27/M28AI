@@ -4029,7 +4029,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     local sFunctionRef = 'GetEngineerToReclaimNearbyArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oEngineer:GetAIBrain():GetArmyIndex() == 5 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then bDebugMessages = true end
+
 
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData

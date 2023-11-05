@@ -3113,10 +3113,9 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
 
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
-
         local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint]
         local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue')
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue, iDistance='..iDistance..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd))
             M28Utilities.DrawLocation(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint])
             M28Utilities.DrawLocation(tStart)
         end
@@ -6317,7 +6316,6 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
 
     function CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData, iOptionalLandTravelDistance, tOptionalLandZoneTravelPath)
 
-
         if iStartLandZone < iTargetLandZone then
             iLowestLZ = iStartLandZone
             iHighestLZ = iTargetLandZone
@@ -6349,11 +6347,8 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                     local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
                     local tEnd = {tOtherLZData[subrefMidpoint][1], tOtherLZData[subrefMidpoint][2], tOtherLZData[subrefMidpoint][3]}
 
-                    local iExtraStraightLineDist = 0
-                    tFullPath[0] = tStart
                     tFullPath[iPathSize + 1] = tEnd
                     for iPath = 1, iPathSize + 1 do
-                        if iPath == 1 or iPath > iPathSize then iExtraStraightLineDist = iExtraStraightLineDist + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3]) end
                         iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
                         if iPathingLandZone > 0 then
                             if not(tPathingLZConsidered[iPathingLandZone]) and not(iStartLandZone == iPathingLandZone) then
@@ -6362,9 +6357,34 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                             end
                         end
                     end
-                    iLandTravelDistance = iLandTravelDistance + iExtraStraightLineDist
+                    local iExtraStraightLineDist = VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tFullPath[iPathSize][1], tFullPath[iPathSize][3], tEnd[1], tEnd[3])
+                    tFullPath[0] = tStart
+
+                    --Redundancy for when the navmesh gives a significantly inaccurate result
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLandTravelDistance before adj='..iLandTravelDistance..'; iExtraStraightLineDist='..iExtraStraightLineDist..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd)) end
+                    local iStraightLineDist = VDist2(tStart[1], tStart[3], tEnd[1], tEnd[3])
+                    iLandTravelDistance = math.max(iStraightLineDist, iLandTravelDistance + iExtraStraightLineDist)
+                    if iLandTravelDistance >= 200 then
+                        if iLandTravelDistance - iStraightLineDist >= 100 then
+                            --Manually calculate
+                            local iAltTravelDistance = iExtraStraightLineDist
+                            if iPathSize > 1 then
+                                for iPath = 2, iPathSize do
+                                    iAltTravelDistance = iAltTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
+                                end
+                            end
+                            if math.abs(iAltTravelDistance -  iLandTravelDistance) >= 30 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will use the more accurate iAltTravelDistance='..iAltTravelDistance..' instead of iLandTravelDistance='..iLandTravelDistance) end
+                                iLandTravelDistance = iAltTravelDistance
+                            end
+                        end
+                    end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')) end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')..'; repru of path='..repru(tFullPath)..'; LZ midpoint (start)='..repru(tLZData[subrefMidpoint])..'; Target LZ midpoint (end)='..repru(tOtherLZData[subrefMidpoint])..'; iPathSize='..iPathSize)
+                    --Draw full path
+                    M28Utilities.DrawPath(tFullPath)
+                end
             end
             if iLandTravelDistance then
                 tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] = iLandTravelDistance
