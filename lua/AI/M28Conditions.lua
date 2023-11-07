@@ -984,9 +984,22 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                 tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
-                    if table.getn(tFactoriesInZone) >= 2 then
-                        --DOnt want more factories (no change to default)
+                    local iFactoriesInZone = table.getn(tFactoriesInZone)
+                    if iFactoriesInZone >= 5 then
                         bDontWantDueToUnitCap = true
+                    elseif iFactoriesInZone >= 2 then
+                        local iCurAir = 0
+                        local iCurLand = 0
+                        for iFactory, oFactory in tFactoriesInZone do
+                            if oFactory:GetFractionComplete() == 1 then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then iCurLand = iCurLand + 1
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then iCurAir = iCurAir + 1
+                                end
+
+                            end
+                        end
+                        if iCurAir > 0 and iCurLand > 0 then bDontWantDueToUnitCap = true end
+
                     end
                 end
             end
@@ -2092,6 +2105,11 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreEngineers='..tostring(bWantMoreEngineers or false)) end --here since lower down means not a factory
     end
+    if bWantMoreEngineers and M28Map.bIsCampaignMap then
+        --FA M5 - strange case where we are restricted from building T1-T2 engineers for fletcher, so want to check not relevant
+        local sEngineerBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer, oFactory)
+        if not(sEngineerBlueprint) then bWantMoreEngineers = false end
+    end
     oFactory[M28Factory.refbWantMoreEngineersBeforeUpgrading] = bWantMoreEngineers
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantMoreEngineers
@@ -2167,6 +2185,11 @@ function ApplyM28ToOtherAI(aiBrain)
                 bUseM28AI = true
             elseif bAllyOfPlayerWithEnemy and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
+            end
+
+            --override for brackman on FA M5 so we dont control the megalith:
+            if bUseM28AI and aiBrain.Nickname == 'Brackman' and ScenarioInfo.Brackman and ScenarioInfo.Fletcher and ScenarioInfo.Hex5 then
+                bUseM28AI = false
             end
 
             --[[for iBrain, oBrain in ArmyBrains do

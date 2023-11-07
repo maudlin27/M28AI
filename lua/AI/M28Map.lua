@@ -3069,7 +3069,6 @@ function RecordAdjacentWaterZones()
     local tRecordedAdjacentZones
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-
             tWZData[subrefWZAdjacentWaterZones] = {}
             tRecordedAdjacentZones = {}
             for iSegmentRef, tSegmentXZ in tWZData[subrefWZSegments] do
@@ -3081,6 +3080,7 @@ function RecordAdjacentWaterZones()
                         if tiPondByWaterZone[iAltWaterZone] == iPond then
                             tRecordedAdjacentZones[iAltWaterZone] = true
                             table.insert(tWZData[subrefWZAdjacentWaterZones], iAltWaterZone)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAltWaterZone='..iAltWaterZone..' which is in iPond='..(tiPondByWaterZone[iAltWaterZone] or 'nil')..'; iPond='..(iPond or 'nil')..' so will record it as adjacent') end
                         end
                     end
                 end
@@ -5862,8 +5862,10 @@ end
 
 function RecordMidpointMinAndMaxSegmentForWaterZone(iWaterZone, iPond, tWZData)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordWaterZoneMidpointAndMinMaxPositions'
+    local sFunctionRef = 'RecordMidpointMinAndMaxSegmentForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local iMinX, iMaxX, iMinZ, iMaxZ, iAveragePond, iAverageWaterZone
     local iMinSegmentX, iMinSegmentZ, iMaxSegmentX, iMaxSegmentZ
@@ -6054,15 +6056,18 @@ function RecordMidpointMinAndMaxSegmentForWaterZone(iWaterZone, iPond, tWZData)
                 if tSegmentXZ[1] >= iMinPlayableSegmentX and tSegmentXZ[1] <= iMaxPlayableSegmentX and tSegmentXZ[2] >= iMinPlayableSegmentZ and tSegmentXZ[2] <= iMaxPlayableSegmentZ then
                     iCurDif = math.abs(tSegmentXZ[1] - iOriginalMidpointSegmentX) + math.abs(tSegmentXZ[2] - iOriginalMidpointSegmentZ)
                     if iCurDif < iLowestDif then
-                        iLowestDif = iCurDif
-                        iClosestSegmentX = tSegmentXZ[1]
-                        iClosestSegmentZ = tSegmentXZ[2]
+                        --Check that we are still in the pond if we used this position
+                        if NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])) == iPond then
+                            iLowestDif = iCurDif
+                            iClosestSegmentX = tSegmentXZ[1]
+                            iClosestSegmentZ = tSegmentXZ[2]
+                        end
                     end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iLowestDif='..iLowestDif..'; iClosestSegmentXZ='..(iClosestSegmentX or 'nil')..'Z'..(iClosestSegmentZ or 'nil')) end
             if iClosestSegmentX then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will move the midpoint for the water zone to reflect the playable area, previous location='..repru(tAverage)..'; New location='..repru(GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ))..'; Playable area='..repru(rMapPlayableArea)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will move the midpoint for the water zone to reflect the playable area, previous location='..repru(tAverage)..'; New location='..repru(GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ))..'; Playable area='..repru(rMapPlayableArea)..'; Naval label for the new location='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ)) or 'nil')..'; iPond='..iPond) end
                 local tNewLocation = GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ)
                 tAverage = {tNewLocation[1], tNewLocation[2], tNewLocation[3]}
             end
@@ -6616,6 +6621,7 @@ function RecordWaterZonePathingToOtherWaterZones()
             iLowestWZ = iOtherWaterZone
             iHighestWZ = iWaterZone
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': CalculateWaterZoneTravelDistance - Calculating water zone travel distance, iLowestWZ='..iLowestWZ..'; iHighestWZ='..iHighestWZ..'; Dist for these pairs if already considered='..(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] or 'nil')) end
         if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
             if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
             iNavalTravelDistance = iOptionalNavalTravelDistance or M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
@@ -6651,6 +6657,8 @@ function RecordWaterZonePathingToOtherWaterZones()
                 table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
 
                 tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = iNavalTravelDistance
+                if bDebugMessages == true then LOG(sFunctionRef..': CalculateWaterZoneTravelDistance - Have recorded adjacency position and naval distance, iNavalTravelDistance='..iNavalTravelDistance) end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': CalculateWaterZoneTravelDistance - Unable to travel between the two zones, midpoint for WZData='..repru(tWZData[subrefMidpoint])..'; Midpoint for other zone='..repru(tOtherWZData[subrefMidpoint])..'; Water height='..(iMapWaterHeight or 'nil')..'; Naval label for WZ midpoint='..(NavUtils.GetTerrainLabel(tWZData[subrefMidpoint]) or 'nil')..'; Navel label for other WZ midpoint='..(NavUtils.GetTerrainLabel(tOtherWZData[subrefMidpoint]) or 'nil'))
             end
         end
     end
@@ -6710,10 +6718,11 @@ function RecordWaterZonePathingToOtherWaterZones()
                             --E.g. zone travel from zzone 1 to zone 5 - when we record 1 to 5, that means we also ahve travel from 5 to 1; however since we are using an adjacency search approach, we still want zone 5 to keep searching even if every adjacent zone has been recorded, in case there are further out zone sthat havent been recorded, hence the use of both tbZoneConsideredForThisZone and bNotAlreadyRecordedTravelDistance
                             bNotAlreadyRecordedTravelDistance = (not(tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iNextAdjacencyZone]) and not(tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iWaterZone]))
                             --if bDebugMessages == true then LOG(sFunctionRef..': iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; iPrevAdjacencyLevel='..iPrevAdjacencyLevel..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; Is tbZoneConsideredForThisZone[iNextAdjacencyZone] nil='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] == nil)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iNextAdjacencyZone='..iNextAdjacencyZone..'; iOtherWaterZone='..iOtherWaterZone..'; Have we considered for next adj zone='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] or false)..'; Have we considered for other water zone='..tostring(tbZoneConsideredForThisZone[iOtherWaterZone] or false)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
                             if not(tbZoneConsideredForThisZone[iNextAdjacencyZone]) or bNotAlreadyRecordedTravelDistance then
                                 bKeepSearching = true
                                 tbZoneConsideredForThisZone[iNextAdjacencyZone] = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone]='..(tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone] or 'nil')..'; tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone]='..(tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone] or 'nil')..'; tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone]='..(tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone] or 'nil')..'; tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone]='..(tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone] or 'nil')..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance or false)) end
                                 table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iNextAdjacencyZone)
                                 if bNotAlreadyRecordedTravelDistance then
                                     iCurEntryApproxTravelDist = (tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone] or tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone]) + (tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone] or tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone])
