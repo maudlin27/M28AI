@@ -2873,7 +2873,7 @@ function TeamEconomyRefresh(iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 then
             if bDebugMessages == true then LOG(sFunctionRef..': Are overflowing mass so will try and manage by clearing engineers with reclaim orders') end
-            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored') end
+            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')) end
             ForkThread(M28Economy.ManageMassOverflow, iM28Team)
         end
     end
