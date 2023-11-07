@@ -10544,6 +10544,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         elseif bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
             iBPWanted = iBPWanted * 0.7
         end
+        iBPWanted = math.max(5, iBPWanted)
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assist naval fac, iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, false, false)
     end

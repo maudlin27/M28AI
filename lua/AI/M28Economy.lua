@@ -686,14 +686,14 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just built a lot of power so will temporarily say we dont need more power') end
                     end
                     --Update team eco values to factor in impact of this on any decisions made before the next team eco refresh
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 0) + iMassGen
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] = math.max(0, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 0) + iMassGen)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass] or 0) + iMassGen
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) + iEnergyGen
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] = math.max(0, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) + iEnergyGen)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0) + iEnergyGen
                 end
-                aiBrain[refiGrossEnergyBaseIncome] = aiBrain[refiGrossEnergyBaseIncome] + iEnergyGen
+                aiBrain[refiGrossEnergyBaseIncome] = math.max(0, aiBrain[refiGrossEnergyBaseIncome] + iEnergyGen)
                 aiBrain[refiNetEnergyBaseIncome] = aiBrain[refiNetEnergyBaseIncome] + iEnergyGen
-                aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassGen
+                aiBrain[refiGrossMassBaseIncome] = math.max(0, aiBrain[refiGrossMassBaseIncome] + iMassGen)
                 aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
 
                 if iEnergyGen >= 25 then
