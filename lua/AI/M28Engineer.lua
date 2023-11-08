@@ -5620,7 +5620,7 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
 
     local iBPWanted = 0
     --Are all mexes in the LZ at T2+ or do we have any T3 mexes in the LZ?
-    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; T2+T3 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]..'; T1 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn(tLZOrWZData[M28Map.subrefLZMexLocations])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; T2+T3 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]..'; T1 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn(tLZOrWZData[M28Map.subrefLZMexLocations])..'; Zone mex count='..tLZOrWZData[M28Map.subrefLZMexCount]) end
     if tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
@@ -5641,7 +5641,7 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
             elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 then
                 iBPWanted = 5
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if have really low power, bWantMorePower='..tostring(bWantMorePower)..'; % E stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iBPWanted='..iBPWanted) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -8017,16 +8017,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Lower priority core WZ wanting engineers:
-    iCurPriority = iCurPriority + 1
-
-    if iCoreWZWantingSupportAsLowerPriority then
-        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-        if iHighestTechEngiAvailable > 0 then
-
-            HaveActionToAssign(refActionMoveToWaterZone, 1, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], iCoreWZWantingSupportAsLowerPriority, true)
-        end
-    end
 
     --Assist upgrades:
     iCurPriority = iCurPriority + 1
@@ -8040,6 +8030,17 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, true, bHaveLowMass, bWantMorePower)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+    end
+
+    --Lower priority core WZ wanting engineers:
+    iCurPriority = iCurPriority + 1
+
+    if iCoreWZWantingSupportAsLowerPriority then
+        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+
+            HaveActionToAssign(refActionMoveToWaterZone, 1, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], iCoreWZWantingSupportAsLowerPriority, true)
+        end
     end
 
 
