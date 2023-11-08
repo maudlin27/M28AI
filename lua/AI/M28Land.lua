@@ -1477,11 +1477,33 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
     M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones]) == false then
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local iHighestSValue = 0
+        local iLZWithHighestSValue
+        local tiDangerousCoreBaseRefs = {}
+        local iNetCombatValue
+
         for iLandZone, tLandZoneInfo in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLandZoneInfo[M28Map.subrefMidpoint]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': considering if we want zone '..iLandZone..' in iPlateau='..iPlateau..' to be a rally point, is core base='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; is core expansion='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)) end
                 local tLZTeamData = tLandZoneInfo[M28Map.subrefLZTeamData][iTeam]
-                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and tLZTeamData[M28Map.subrefLZSValue] >= math.max(200, (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))) then
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZSValue] >= 200 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZSValue] >= 1000)) then
+                    if tLZTeamData[M28Map.subrefLZSValue] >= iHighestSValue then
+                        iHighestSValue = tLZTeamData[M28Map.subrefLZSValue]
+                        iLZWithHighestSValue = iLandZone
+                    end
+                    iNetCombatValue = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                    if iNetCombatValue < 0 or (iNetCombatValue <= 500 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                        table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+                    elseif tLZTeamData[M28Map.subrefLZbCoreBase] then
+                        table.insert(tiDangerousCoreBaseRefs, iLandZone)
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) then
+            if iLZWithHighestSValue then table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+            elseif M28Utilities.IsTableEmpty(tiDangerousCoreBaseRefs) == false then
+                for iEntry, iLandZone in tiDangerousCoreBaseRefs do
                     table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
                 end
             end
