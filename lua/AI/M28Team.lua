@@ -153,6 +153,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
     refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
+    refiTimeLastHadBattleshipBombardmentByPond = 'M28TeamLastTimeBSBomb' --[x] is the pond ref, returns gametimeseconds if had a battleship firing shots, that wasnt blocked, and had nearby structures, when in bombardment mode
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'

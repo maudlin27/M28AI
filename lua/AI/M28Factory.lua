@@ -3795,7 +3795,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
     if iFactoryTechLevel >= 3 then
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
-        if bAboutToOverflowMass or (iCurBattleships < 5 or (not (bHaveLowMass) or iCurBattleships <= 1)) then
+        local iBSWantedAdjust = 0
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 3 then iBSWantedAdjust = 5 end
+        if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust or (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
             end

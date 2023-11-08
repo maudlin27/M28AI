@@ -2369,6 +2369,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         local bEnemyUnitsNearlyInRange
         local tPotentialEnemyUnits
         local bDontCheckIfTargetUnderwater
+        local bHaveUnblockedBombardingBattleship
 
         if bDebugMessages == true then LOG(sFunctionRef .. ': About to search for bombardment targets, bCheckForBuildingsToAttack=' .. tostring(bCheckForBuildingsToAttack) .. '; tBombardmentMainTarget=' .. repru(tBombardmentMainTarget) .. '; tNonBombardmentRallyPoint=' .. repru(tNonBombardmentRallyPoint) .. '; iDFMinRange=' .. iDFMinRange .. '; iIndirectMinRange=' .. iIndirectMinRange..'; iBlockedAngleFromMexOrTarget='..(iBlockedAngleFromMexOrTarget or 'nil')..'; iBlockedDistanceFromMexOrTarget='..(iBlockedDistanceFromMexOrTarget or 'nil')..'; tBlockedShotBaseMoveLocation='..repru(tBlockedShotBaseMoveLocation)) end
 
@@ -2495,6 +2496,14 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                 if bDebugMessages == true then LOG(sFunctionRef..': Cant find blocked move location') end
                             end
                         else
+                            --If have a battleship on bombardment duty and its shot isnt blocked and it has fired recently then record this so we know
+                            if not(bHaveUnblockedBombardingBattleship) and bCheckForBuildingsToAttack and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100) <= 20 and not(oUnit[M28UnitInfo.refbLastShotBlocked]) then
+                                bHaveUnblockedBombardingBattleship = true
+                                if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond]) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond] = {}
+                                end
+                                M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] = GetGameTimeSeconds()
+                            end
 
                             oBuildingToAttack = nil
                             local tBuildingToAttackMoveViaPoint
