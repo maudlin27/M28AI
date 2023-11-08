@@ -1492,7 +1492,7 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
                         iLZWithHighestSValue = iLandZone
                     end
                     iNetCombatValue = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
-                    if iNetCombatValue < 0 or (iNetCombatValue <= 500 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    if iNetCombatValue < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and (iNetCombatValue <= 200 or  (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 1.25)) then
                         table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
                     elseif tLZTeamData[M28Map.subrefLZbCoreBase] then
                         table.insert(tiDangerousCoreBaseRefs, iLandZone)
