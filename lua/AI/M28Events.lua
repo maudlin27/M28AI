@@ -946,17 +946,21 @@ end--]]
 
 function OnConstructionStarted(oEngineer, oConstruction, sOrder)
     if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnConstructionStarted'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction) == 'urb01026' and oConstruction:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
+
         --Update land zone queued orders
         if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
         end
 
+
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
-                local sFunctionRef = 'OnConstructionStarted'
-                local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
@@ -1071,10 +1075,30 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     end
                 end
 
-
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            end
+        else
+            --Non-M28 only
+            if not(oConstruction[M28UnitInfo.refbConstructionStart]) then
+                oConstruction[M28UnitInfo.refbConstructionStart] = true
+                --If this is a fixed shield then instead update shield coverage (note - we also do this for M28 brains above, but with some extra logic to decide if we want to try and shield, and using a more efficient emthod of identifying shields)
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a shield that we have just started ubilding so will update shield coverage') end
+                    M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryStructure - categories.MOBILE, oConstruction.UnitId) then
+                    --Record if this unit is under fixed shield coverage if it's not owned by an M28AI brain (M28AI units will separately check this by using the LZ data info)
+                    local tNearbyShields = oConstruction:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, oConstruction:GetPosition(), 60, 'Ally')
+                    if bDebugMessages == true then LOG(sFunctionRef..': have just started construction of a building, will check for nearby shields, is tNearbyShields empty='..tostring(M28Utilities.IsTableEmpty(tNearbyShields))) end
+                    if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                        local iShieldRadius
+                        for iShield, oShield in tNearbyShields do
+                            iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 -0.1 -- - 1
+                            M28Building.RecordIfShieldIsProtectingUnit(oShield, oConstruction, iShieldRadius, true)
+                        end
+                    end
+                end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 

@@ -338,7 +338,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
 
 
     local bCanBuildStructure = false
-    if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation))) then
+    if aiBrain.CanBuildStructureAt and (aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation)))) then
         bCanBuildStructure = true
         if tsExtraBlueprintsToCheck[sBlueprintToBuild] then
             for iEntry, sAltBlueprint in tsExtraBlueprintsToCheck[sBlueprintToBuild] do

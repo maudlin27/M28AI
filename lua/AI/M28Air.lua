@@ -1684,21 +1684,24 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         tSupportRallyPoint = {tSupportLZOrWZData[M28Map.subrefMidpoint][1], tSupportLZOrWZData[M28Map.subrefMidpoint][2], tSupportLZOrWZData[M28Map.subrefMidpoint][3]}
                         --Redundancy - check for enemy ground AA within range of the destination; if have any then move back towards base by 50
                         local bMoveCloserToRally = false
-                        local tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) end
-                        if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then
-                            for iAA, oAA in tNearbyEnemyAA do
-                                if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
-                                    bMoveCloserToRally = true
-                                    break
+                        local tNearbyEnemyAA
+                        if aiBrain.GetUnitsAroundPoint then
+                            tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) end
+                            if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then
+                                for iAA, oAA in tNearbyEnemyAA do
+                                    if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
+                                        bMoveCloserToRally = true
+                                        break
+                                    end
                                 end
                             end
-                        end
-                        if bMoveCloserToRally then
-                            bDontMoveCloserToEnemyBase = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
-                            tSupportRallyPoint = M28Utilities.MoveInDirection(tSupportRallyPoint, M28Utilities.GetAngleFromAToB(tSupportRallyPoint, tClosestBase), 50, true, false, M28Map.bIsCampaignMap)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Rally point post update='..repru(tSupportRallyPoint)) end
+                            if bMoveCloserToRally then
+                                bDontMoveCloserToEnemyBase = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
+                                tSupportRallyPoint = M28Utilities.MoveInDirection(tSupportRallyPoint, M28Utilities.GetAngleFromAToB(tSupportRallyPoint, tClosestBase), 50, true, false, M28Map.bIsCampaignMap)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Rally point post update='..repru(tSupportRallyPoint)) end
+                            end
                         end
 
                         if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
@@ -6244,7 +6247,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNovaxTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if M28UnitInfo.GetUnitLifetimeCount(oNovax) == 1 then bDebugMessages = true end
     local oTarget
     local iTeam = aiBrain.M28Team
     local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNovax:GetPosition())
@@ -6259,9 +6262,11 @@ function GetNovaxTarget(aiBrain, oNovax)
     end
 
     --Get list of significant enemy shielding (will ignore targets under these shields)
-    local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3, oNovax:GetPosition(), 60, 'Enemy')
+    local iMediumSearchRange = 53
+    local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3, oNovax:GetPosition(), iMediumSearchRange + 60, 'Enemy') --shield boats have a size of 120 so a radius of 60, so want to include max enemy search range (iMediumSearchRange) plus this, to make sure all shields are taken into account
     --tNearbyEnemyShields = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3)
     local tNotLowHealthNearbyShields = {}
+    local tMobileShieldsToCheck = {}
     local tNearbyNovax = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategorySatellite, oNovax:GetPosition(), 30, 'Ally')
     local iNearbyNovax = table.getn(tNearbyNovax)
     local iShieldHealthThreshold = 3000 * iNearbyNovax
@@ -6269,13 +6274,33 @@ function GetNovaxTarget(aiBrain, oNovax)
         local iCurShield, iMaxShield
         for iUnit, oUnit in tNearbyEnemyShields do
             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-            if iCurShield >= iShieldHealthThreshold and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then table.insert(tNotLowHealthNearbyShields, oUnit) end
+            if iCurShield >= iShieldHealthThreshold and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                table.insert(tNotLowHealthNearbyShields, oUnit)
+                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                    table.insert(tMobileShieldsToCheck, oUnit)
+                end
+            end
+
         end
     end
+    local bHaveShieldsToCheck = not(M28Utilities.IsTableEmpty(tNotLowHealthNearbyShields))
 
-    function DoShieldsCoverPosition(tShieldsToCheck, tPosition, oOptionalShieldToIgnore)
-        if M28Utilities.IsTableEmpty(tShieldsToCheck) == false then
-            for iUnit, oUnit in tShieldsToCheck do
+    function DoShieldsCoverUnit(oTargetUnit, oOptionalShieldToIgnore, bUseDetailedShieldCheck)
+        local tPosition = oTargetUnit:GetPosition()
+        if bUseDetailedShieldCheck or EntityCategoryContains(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield, oTargetUnit.UnitId) then
+            local bUnderFixedShield = M28Logic.IsTargetUnderShield(aiBrain, oTargetUnit, iShieldHealthThreshold, false, true, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will use istargetundershield function for this unit, bUnderFixedShield='..tostring(bUnderFixedShield or false)) end
+            if bUnderFixedShield then
+                return true
+            elseif M28Utilities.IsTableEmpty(tMobileShieldsToCheck) == false then
+                for iUnit, oUnit in tMobileShieldsToCheck do
+                    if M28Utilities.GetDistanceBetweenPositions(tPosition, oUnit:GetPosition()) <= oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 then
+                        return true
+                    end
+                end
+            end
+        elseif bHaveShieldsToCheck then
+            for iUnit, oUnit in tNotLowHealthNearbyShields do
                 if not(oUnit == oOptionalShieldToIgnore) then
                     if M28Utilities.GetDistanceBetweenPositions(tPosition, oUnit:GetPosition()) <= oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 then
                         return true
@@ -6295,11 +6320,12 @@ function GetNovaxTarget(aiBrain, oNovax)
         if bDebugMessages == true then LOG(sFunctionRef .. ': is table of nearby shields empty=' .. tostring(M28Utilities.IsTableEmpty(tNearbyEnemyShields)) .. '; target subject to this=' .. oNovax[refoPriorityTargetOverride].UnitId .. M28UnitInfo.GetUnitLifetimeCount(oNovax[refoPriorityTargetOverride])) end
         if M28Utilities.IsTableEmpty(tNearbyEnemyShields) == false then
             local iCurShield, iMaxShield
-            local iLowestShield = 5000
+            local iLowestShield = 4000 + 1000 * iNearbyNovax
+            local iMaxShieldPercent = (0.3 + math.min(0.4, iNearbyNovax * 0.1))
             for iUnit, oUnit in tNearbyEnemyShields do
                 iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target enemy near-exposed shield, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-                if iCurShield <= iLowestShield and iCurShield <= iMaxShield * 0.3 then
+                if iCurShield <= iLowestShield and iCurShield <= iMaxShield * iMaxShieldPercent then
                     if not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, iLowestShield + 1,                     false,                      false,                  false)) then
                         oTarget = oUnit
                         iLowestShield = iCurShield
@@ -6332,7 +6358,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                                     --Are there nearby shields?
                                     local iDistToTravel = (oACU:GetBlueprint().Physics.MaxSpeed or 1.7) * iTimeToKillTarget
                                     local bHaveCloseShields = false
-                                    if not(DoShieldsCoverPosition(tNotLowHealthNearbyShields, oACU:GetPosition())) then
+                                    if not(DoShieldsCoverUnit(oACU, nil, true)) then
                                         iShortestTimeToKillTarget = iTimeToKillTarget
                                         oTarget = oACU
                                     end
@@ -6369,7 +6395,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         local tPositionToSearchFrom = oNovax:GetPosition()
         local iNearestShield, iCurShieldDistance, iNearestWater, tPossiblePosition, tPossibleShields, iACUSpeed, iCurAmphibiousGroup
 
-        local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, 53, 'Enemy')
+        local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, iMediumSearchRange, 'Enemy')
         --GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, nil)
         local bIncreaseMAAWeighting = false
         if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) then bIncreaseMAAWeighting = true end
@@ -6402,10 +6428,10 @@ function GetNovaxTarget(aiBrain, oNovax)
 
         for iUnit, oUnit in tEnemyUnits do
             --Ignore units that are mobile and attached, or underwater
-            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverPosition(tNotLowHealthNearbyShields, oUnit:GetPosition(), oUnit))) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
             if not (oUnit:IsUnitState('Attached') and EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 --Ignore units that are shielded
-                if not (DoShieldsCoverPosition(tNotLowHealthNearbyShields, oUnit:GetPosition(), oUnit)) then
+                if not (DoShieldsCoverUnit(oUnit, oUnit)) then
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
@@ -6519,6 +6545,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 local iClosestTarget = 10000
                 local iCurDist
                 for iUnit, oUnit in tEnemyUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for mexes, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Is underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false))) end
                     if oUnit:GetFractionComplete() == 1 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false)) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
                         if iCurDist < iClosestTarget then
@@ -6528,19 +6555,22 @@ function GetNovaxTarget(aiBrain, oNovax)
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': oTarget after searching for nearby mexes='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')) end
 
             if not (oTarget) then
                 --Nearest surface naval unit
                 tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface, tPositionToSearchFrom, 1000, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef .. ': No high priority targets, will search for lower priority, first with surface naval units. Is table empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
                 if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                    iClosestDist = 10000
+                    local iClosestDist = 10000
                     for iUnit, oUnit in tEnemyUnits do
                         if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPositionToSearchFrom)
                             if iCurDist < iClosestDist then
-                                iClosestDist = iCurDist
-                                oTarget = oUnit
+                                if not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 2000, false, false, false, nil)) then
+                                    iClosestDist = iCurDist
+                                    oTarget = oUnit
+                                end
                             end
                         end
                     end

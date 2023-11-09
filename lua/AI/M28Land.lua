@@ -2572,9 +2572,11 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
         if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-            tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
-            if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
-                tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
+            if aiBrain.GetUnitsAroundPoint then
+                tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+                if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
+                    tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
+                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
