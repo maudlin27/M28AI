@@ -1212,6 +1212,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                         end
 
+                        if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
+                        end
+
                     end
 
                     --Experimental air - no longer record in land/water zone
@@ -1388,6 +1394,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
                         table.insert(M28Engineer.tAllScathis, oJustBuilt)
                     end
+
+                    if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oJustBuilt.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                        ForkThread(M28Air.DetachSatellite,oJustBuilt, 1)
+                    end
+
 
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
@@ -1847,6 +1859,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
                     --Consider unpausing this unit regardless of whether it's an SML
                     ForkThread(M28Overseer.DelayedUnpauseOfUnits, {oUnit}, 1)
+                    if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                        ForkThread(M28Air.DetachSatellite,oUnit, 1)
+                    end
                 end
                 --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()

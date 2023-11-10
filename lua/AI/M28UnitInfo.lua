@@ -1610,7 +1610,6 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     local sFunctionRef = 'PauseOrUnpauseMassUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     if bDebugMessages == true then
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Engineer action (if have one)='..(oUnit[M28Engineer.refiAssignedAction] or 'nil')..'; oUnit:IsPaused='..tostring(oUnit:IsPaused()))

@@ -43,6 +43,7 @@ tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one f
     refoPriorityTargetOverride = 'M28NvxTOvrd' --e.g. used against novax satellite, for if want to add logic similar to M27 where attacks on high value targets are coordinated
     refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
     refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
+    refbActiveNovaxUnloadCheck = 'M28NovActUnl' --true if we are periodically checking if we should unload the novax
 
 
 
@@ -7058,4 +7059,64 @@ function ManageOtherAir(iTeam, iAirSubteam)
         LOG(sFunctionRef..': Will send '..table.getn(tBombersForRefueling)..' units to refuel')
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedNovaxUnloadCheck(oUnit)
+    --Redundancy to try and ensure a satellite is launched
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedNovaxUnloadCheck'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oUnit.Satellite then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        function CheckAndReleaseIfRelevant()
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking for novax '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; reprs='..reprs(oUnit)) end
+            if oUnit.Satellite and M28UnitInfo.IsUnitValid(oUnit.Satellite) then
+                DetachSatellite(oUnit.Satellite, nil)
+            end
+
+        end
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            if not(oUnit[refbActiveNovaxUnloadCheck]) then
+                oUnit[refbActiveNovaxUnloadCheck] = true
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    CheckAndReleaseIfRelevant()
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(30)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+            else
+                --Check as a 1-off
+                CheckAndReleaseIfRelevant()
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DetachSatellite(oNovaxSatellite, iOptionalDelayInSeconds)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DetachSatellite'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if (iOptionalDelayInSeconds or 0) > 0 then
+        WaitSeconds(iOptionalDelayInSeconds)
+    end
+    if M28UnitInfo.IsUnitValid(oNovaxSatellite) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit state of satellite='..M28UnitInfo.GetUnitState(oNovaxSatellite)..'; Time='..GetGameTimeSeconds()) end
+        if oNovaxSatellite:IsUnitState('Attached') then
+            oNovaxSatellite:DetachFrom()
+            local tMoveLocation = oNovaxSatellite:GetPosition()
+            tMoveLocation[1] = tMoveLocation[1] - 1
+            tMoveLocation[3] = tMoveLocation[3] - 1
+            tMoveLocation[2] = GetSurfaceHeight(tMoveLocation[1], tMoveLocation[3])
+            IssueMove({oNovaxSatellite}, tMoveLocation)
+            oNovaxSatellite:Open()
+        end
+        --self.Satellite:DetachFrom()
+        --IssueToUnitMove(self.Satellite, self:GetRallyPoint())
+        --self.Satellite:Open()
+    end
 end
