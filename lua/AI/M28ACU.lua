@@ -1234,107 +1234,143 @@ end
 
 function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
     --Returns nil if cantr find anything
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
 
     local sUpgradeWanted
-
-    --If we were to get an upgrade, what upgrade would it be?
-    if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) or bWantToDoTeleSnipe then
-        GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
-    end
     local aiBrain = oACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
-    if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
-    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and not(M28Conditions.HaveLowPower(iTeam)) then
+    local bDontConsiderAnyUpgrades = false
+    --Norush - dont get if more than 1m until it ends (want to use resources for eco instead) unless are close to overflowing (with slight random element to reduce tendancy of multiple ACUs to ugprade at the same time)
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if norush active first, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
+    if M28Overseer.bNoRushActive then
+        local iTimeUntilNoRushEnds = M28Overseer.iNoRushTimer - GetGameTimeSeconds()
+        local iDelayAdj = 0
+        if iTimeUntilNoRushEnds >= 80 then
+            bDontConsiderAnyUpgrades = true
+        else
+            local iCurACU =  aiBrain:GetCurrentUnits(categories.COMMAND)
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 or iCurACU > 0 then
+                iDelayAdj = aiBrain:GetArmyIndex()
+                if iCurACU > 0 then
+                    local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tACUs) == false then
+                        for iUnit, oUnit in aiBrain:GetListOfUnits(categories.COMMAND, false, true) do
+                            if oUnit == oACU then
+                                iDelayAdj = iDelayAdj + iUnit
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if iTimeUntilNoRushEnds >= 60 + iDelayAdj then
+                bDontConsiderAnyUpgrades = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iTimeUntilNoRushEnds='..iTimeUntilNoRushEnds..'; iDelayAdj='..iDelayAdj..'; bDontConsiderAnyUpgrades='..tostring(bDontConsiderAnyUpgrades or false)) end
 
-        local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
-        if sPotentialUpgrade then
-            if bWantToDoTeleSnipe then sUpgradeWanted = sPotentialUpgrade
-            else
-                local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
-                --Do we have the eco to support the upgrade?
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering sPotentialUpgrade='..sPotentialUpgrade..'; for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' for brain '..oACU:GetAIBrain().Nickname..'; tEnhancement='..reprs(tEnhancement)) end
-                local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
-                if aiBrain.CheatEnabled then iBuildRate = iBuildRate * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] end
-                local iMassCostPerTick = 0.1 * tEnhancement.BuildCostMass / (tEnhancement.BuildTime / iBuildRate)
-                local iEnergyCostPerTick = 0.1 * tEnhancement.BuildCostEnergy / (tEnhancement.BuildTime / iBuildRate)
-                --Do we have enough gross energy?
-                local iActiveACUUpgrades = 0
-                local iResourceFactor
-                if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-                    iResourceFactor = 1
-                elseif aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
-                    iResourceFactor = 2
-                else
-                    iResourceFactor = 4 --Cant path to enemy except with air
-                end
-                if (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
-                elseif (oACU[refiUpgradeCount] or 0) == 0 and GetGameTimeSeconds() >= 600 then iResourceFactor = iResourceFactor * 0.5
-                end
-                if M28Map.bIsCampaignMap and GetGameTimeSeconds() >= 480 then
-                    iResourceFactor = iResourceFactor * 0.5
-                    if GetGameTimeSeconds() >= 1200 then
-                        iResourceFactor = iResourceFactor * 0.5
-                        if (tEnhancement.ProductionPerSecondMass or 0) > 0 and (tEnhancement.ProductionPerSecondEnergy or 0) > 0 and GetGameTimeSeconds() >= 1800 then iResourceFactor = iResourceFactor * 0.2 end --Campaign - even if have really poor eco want to get RAS upgrade
-                    end
-                end
-                if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
-                local iDistToEnemyBase
-                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-                if iPlateauOrZero == 0 then
-                    iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase])
-                else
-                    iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftClosestEnemyBase])
-                end
-                if iDistToEnemyBase >= 400 then iResourceFactor = iResourceFactor * 1.5 end
-                if (oACU[refiUpgradeCount] or 0) > 0 then
-                    if (oACU[refiUpgradeCount] or 0) >= 2 and M28Conditions.HaveLowMass(aiBrain) then iResourceFactor = iResourceFactor * 2
-                    else iResourceFactor = iResourceFactor * 1.25
-                    end
-                end
-                if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 120 then
-                    if M28Conditions.HaveLowMass(aiBrain) or M28Conditions.HaveLowPower(aiBrain.M28Team) then
-                        iResourceFactor = iResourceFactor * 2.5
-                    else iResourceFactor = iResourceFactor * 1.75
-                    end
-                end
-                if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 20 + 10 * (oACU[refiUpgradeCount] or 0) then
+    end
+    if bDontConsiderAnyUpgrades then
+        --Do nothing
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to consider any upgrades due to norush') end
+    else
+        --If we were to get an upgrade, what upgrade would it be?
+        if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) or bWantToDoTeleSnipe then
+            GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
+        end
 
-                    if M28Map.bIsCampaignMap then
-                        iResourceFactor = iResourceFactor * 0.7
+        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+        if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and not(M28Conditions.HaveLowPower(iTeam)) then
+
+            local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
+            if sPotentialUpgrade then
+                if bWantToDoTeleSnipe then sUpgradeWanted = sPotentialUpgrade
+                else
+                    local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
+                    --Do we have the eco to support the upgrade?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering sPotentialUpgrade='..sPotentialUpgrade..'; for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' for brain '..oACU:GetAIBrain().Nickname..'; tEnhancement='..reprs(tEnhancement)) end
+                    local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
+                    if aiBrain.CheatEnabled then iBuildRate = iBuildRate * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] end
+                    local iMassCostPerTick = 0.1 * tEnhancement.BuildCostMass / (tEnhancement.BuildTime / iBuildRate)
+                    local iEnergyCostPerTick = 0.1 * tEnhancement.BuildCostEnergy / (tEnhancement.BuildTime / iBuildRate)
+                    --Do we have enough gross energy?
+                    local iActiveACUUpgrades = 0
+                    local iResourceFactor
+                    if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                        iResourceFactor = 1
+                    elseif aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                        iResourceFactor = 2
                     else
-                        iResourceFactor = iResourceFactor * 0.8
+                        iResourceFactor = 4 --Cant path to enemy except with air
                     end
-                    if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30 + 15 * (oACU[refiUpgradeCount] or 0) then
+                    if (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
+                    elseif (oACU[refiUpgradeCount] or 0) == 0 and GetGameTimeSeconds() >= 600 then iResourceFactor = iResourceFactor * 0.5
+                    end
+                    if M28Map.bIsCampaignMap and GetGameTimeSeconds() >= 480 then
+                        iResourceFactor = iResourceFactor * 0.5
+                        if GetGameTimeSeconds() >= 1200 then
+                            iResourceFactor = iResourceFactor * 0.5
+                            if (tEnhancement.ProductionPerSecondMass or 0) > 0 and (tEnhancement.ProductionPerSecondEnergy or 0) > 0 and GetGameTimeSeconds() >= 1800 then iResourceFactor = iResourceFactor * 0.2 end --Campaign - even if have really poor eco want to get RAS upgrade
+                        end
+                    end
+                    if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
+                    local iDistToEnemyBase
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                    if iPlateauOrZero == 0 then
+                        iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase])
+                    else
+                        iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftClosestEnemyBase])
+                    end
+                    if iDistToEnemyBase >= 400 then iResourceFactor = iResourceFactor * 1.5 end
+                    if (oACU[refiUpgradeCount] or 0) > 0 then
+                        if (oACU[refiUpgradeCount] or 0) >= 2 and M28Conditions.HaveLowMass(aiBrain) then iResourceFactor = iResourceFactor * 2
+                        else iResourceFactor = iResourceFactor * 1.25
+                        end
+                    end
+                    if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 120 then
+                        if M28Conditions.HaveLowMass(aiBrain) or M28Conditions.HaveLowPower(aiBrain.M28Team) then
+                            iResourceFactor = iResourceFactor * 2.5
+                        else iResourceFactor = iResourceFactor * 1.75
+                        end
+                    end
+                    if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 20 + 10 * (oACU[refiUpgradeCount] or 0) then
+
                         if M28Map.bIsCampaignMap then
                             iResourceFactor = iResourceFactor * 0.7
-                            if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 60 then iResourceFactor = iResourceFactor * 0.75 end
                         else
-                            iResourceFactor = iResourceFactor * 0.85
+                            iResourceFactor = iResourceFactor * 0.8
                         end
+                        if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30 + 15 * (oACU[refiUpgradeCount] or 0) then
+                            if M28Map.bIsCampaignMap then
+                                iResourceFactor = iResourceFactor * 0.7
+                                if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 60 then iResourceFactor = iResourceFactor * 0.75 end
+                            else
+                                iResourceFactor = iResourceFactor * 0.85
+                            end
 
+                        end
                     end
-                end
 
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..(oACU[refiUpgradeCount] or 0)..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor..'; aiBrain[M28Factory.refiHighestFactoryBuildCount]='..aiBrain[M28Factory.refiHighestFactoryBuildCount]) end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (45 * iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iEnergyCostPerTick * 1.35) * iResourceFactor then
-                    --Do we have enough gross mass?
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, do we have enough gross mass?') end
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 2.5 * iMassCostPerTick * 2) * iResourceFactor then
-                        --Do we have enough net energy?
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross mass, do we have enough net energy?') end
-                        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 100 * iEnergyCostPerTick * 2) * iResourceFactor and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5 * iResourceFactor) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) then
-                            --Do we have enoguh net mass?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed?') end
-                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30) then
-                                --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
-                                if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 then
-                                    sUpgradeWanted = sPotentialUpgrade
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..(oACU[refiUpgradeCount] or 0)..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor..'; aiBrain[M28Factory.refiHighestFactoryBuildCount]='..aiBrain[M28Factory.refiHighestFactoryBuildCount]) end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (45 * iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iEnergyCostPerTick * 1.35) * iResourceFactor then
+                        --Do we have enough gross mass?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, do we have enough gross mass?') end
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 2.5 * iMassCostPerTick * 2) * iResourceFactor then
+                            --Do we have enough net energy?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross mass, do we have enough net energy?') end
+                            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 100 * iEnergyCostPerTick * 2) * iResourceFactor and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5 * iResourceFactor) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) then
+                                --Do we have enoguh net mass?
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed?') end
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30) then
+                                    --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
+                                    if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 then
+                                        sUpgradeWanted = sPotentialUpgrade
+                                    end
                                 end
                             end
                         end
@@ -1342,11 +1378,11 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
                 end
             end
         end
-    end
-    if bDebugMessages == true then
-        LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
-        if sUpgradeWanted then
-            LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted)))
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
+            if sUpgradeWanted then
+                LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted)))
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
