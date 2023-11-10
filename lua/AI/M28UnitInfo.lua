@@ -1081,6 +1081,20 @@ function CalculateBlueprintThreatsByType()
             end
         end
 
+        --Special eco checks - e.g. for mods that adjust resource mod of all units - will use UEF t3 mass fab as a rough proxy for this, if they both have the same ratio then will use this
+        local oBP = __blueprints['ueb1303']
+
+        local iMassRatio = 1
+        if oBP then
+            local iExpectedMass = 16
+            if (oBP.Economy.ProductionPerSecondMass or 0) > iExpectedMass then
+                iMassRatio =  (oBP.Economy.ProductionPerSecondMass or 0) / iExpectedMass
+            end
+        end
+        local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+        M28Overseer.iMassFabRatio = iMassRatio
+
+
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

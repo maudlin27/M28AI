@@ -3126,6 +3126,62 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     return bGivenACUOrder
 end
 
+function AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
+    --Looks for nearby upgrading mex, under construction mass storage, or factory, if there are any, and assists it, returning true if it finds something to assist
+    local sFunctionRef = 'AssistBuildingUpgradeOrStorageConstruction'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    local oUnitToAssist
+    if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
+        local iHighestCompletion = 0
+        local iHighestLowPriorityCompletion = 0
+        local iCurCompletion
+        local oLowPriorityUnit
+        local bWantToImproveMassIncome = M28Conditions.HaveLowMass(oACU:GetAIBrain())
+
+        function ConsiderCurUnitPriority(oUnit)
+            if oUnit:GetFractionComplete() < 1 then
+                iCurCompletion = oUnit:GetFractionComplete()
+            else
+                iCurCompletion = oUnit:GetWorkProgress()
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurCompletion='..iCurCompletion..'; iHighestCompletion='..iHighestCompletion..'; bWantToImproveMassIncome='..tostring(bWantToImproveMassIncome)) end
+            if iCurCompletion > iHighestCompletion and (not(bWantToImproveMassIncome) or EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId)) then
+                oUnitToAssist = oUnit
+                iHighestCompletion = iCurCompletion
+            elseif iHighestCompletion == 0 and iCurCompletion > iHighestLowPriorityCompletion then
+                iHighestLowPriorityCompletion = iCurCompletion
+                oLowPriorityUnit = oUnit
+            end
+        end
+
+        for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+            ConsiderCurUnitPriority(oUnit)
+        end
+        local tStorageInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryMassFab, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tStorageInZone) == false then
+            for iUnit, oUnit in tStorageInZone do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                    ConsiderCurUnitPriority(oUnit)
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, oUnitToAssist='..(oUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist) or 'nil')..'; aiBrain='..oACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    if oUnitToAssist then
+        if oUnitToAssist:GetFractionComplete() < 1 then
+            M28Orders.IssueTrackedRepair(oACU, oUnitToAssist, false, 'ACUAstR', false)
+        else
+            M28Orders.IssueTrackedGuard(oACU, oUnitToAssist, false, 'ACUAstG', false)
+        end
+        return true
+    end
+    return false
+end
+
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3679,14 +3735,20 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                     --Do we have any reclaim nearby?
                                                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
                                                                                                     if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
+                                                                                                        --Assist any upgrading mex or under construction storage if we have power but low mass
+
+                                                                                                        if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
                                                                                                         --Backup - assist nearest factory
-                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-                                                                                                        if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-                                                                                                            local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-                                                                                                            if M28Utilities.IsTableEmpty(tAllFactories) == false then
-                                                                                                                local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
-                                                                                                                if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                                                                                                                    M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                        else
+                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                                                                                                            if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+                                                                                                                local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                                                                                                                if M28Utilities.IsTableEmpty(tAllFactories) == false then
+                                                                                                                    local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
+                                                                                                                    if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                                                                                                                        M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                    end
                                                                                                                 end
                                                                                                             end
                                                                                                         end

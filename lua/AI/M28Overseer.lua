@@ -42,6 +42,7 @@ bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunshi
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
+iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
 
 --Campaign specific variables
 bActiveObjectiveUnitValidMonitorByObjective = {} --True if already are actively monitoring a particular unit
