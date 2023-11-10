@@ -6407,7 +6407,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     else
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefHydroUnbuiltLocations]) == false and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or (bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydroOrMex(tLZData)='..tostring(M28Conditions.NoRushPreventingHydroOrMex(tLZData) or false)..'; Want power instad of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
             if (M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData)) or M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro so will just build a pgen, iLandZone='..iLandZone) end
@@ -6417,7 +6416,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll try to build hydro') end
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
             end
-            bDebugMessages = false
             --Make sure we have 1 power of the cur tech level provided dont have low mass
         elseif (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= math.max(0.2, 0.15 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]))) and (bHaveLowPower and ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) <= 10)) or (not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
             --Exception if recently built power and have nearby enemies (so can e.g. do things like PD)

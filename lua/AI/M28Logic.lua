@@ -256,7 +256,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
     --Determines if target is under a shield
     --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
 
-    if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'urb12026' and oTarget:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
+
 
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
         --Optimisation - only refresh shield checks periodically as late game this can soak up a lot of performance

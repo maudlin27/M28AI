@@ -6247,7 +6247,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNovaxTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28UnitInfo.GetUnitLifetimeCount(oNovax) == 1 then bDebugMessages = true end
+
     local oTarget
     local iTeam = aiBrain.M28Team
     local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNovax:GetPosition())

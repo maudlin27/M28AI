@@ -184,7 +184,6 @@ function RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, bDontChec
     local sFunctionRef = 'RecordIfShieldIsProtectingUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'urb12026' and oUnit:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is covered by oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iShieldRadius='..iShieldRadius..'; Distance='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())) end
     if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition()) <= iShieldRadius then
         local bAddToUnit = true
@@ -223,7 +222,6 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
 
     if M28Conditions.IsTableOfUnitsStillValid(oShield[reftoUnitsCoveredByShield]) then
         for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
-            if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'urb12026' and oUnit:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true else bDebugMessages = false end
             if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
                 for iRecordedShield, oRecordedShield in oUnit[reftoShieldsProvidingCoverage] do
                     if oRecordedShield == oShield then

@@ -950,7 +950,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction) == 'urb01026' and oConstruction:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
+
 
         --Update land zone queued orders
         if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then

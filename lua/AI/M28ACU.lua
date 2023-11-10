@@ -391,7 +391,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     local iMexInLandZone = 0
     local iResourceMod = aiBrain[M28Economy.refiBrainResourceMultiplier]
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
-    if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
+    if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
         ACUActionBuildMex(aiBrain, oACU)
         --want 40 energy for every 2 mass
     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(8, math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 14)) then
@@ -632,21 +632,21 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 local iMaxMexesBeforeHydro = 4
                                 if iMexInLandZone > 4 and aiBrain:GetEconomyStored('MASS') >= 25 then iMaxMexesBeforeHydro = 3 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding on ACU action for where no hydro nearby, gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted..'; iCurLandFactories='..iCurLandFactories) end
-                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 * iResourceMod then
+                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want at least 2 mexes') end
                                     ACUActionBuildMex(aiBrain, oACU)
 
                                 elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 8 * iResourceMod then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want at least 4 PGens') end
                                     ACUActionBuildPower(aiBrain, oACU)
-                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMaxMexesBeforeHydro, iMexInLandZone) * 0.2 * iResourceMod then
+                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMaxMexesBeforeHydro, iMexInLandZone) * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want up to iMaxMexesBeforeHydro='..iMaxMexesBeforeHydro..' mexes') end
                                     ACUActionBuildMex(aiBrain, oACU)
                                 elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted and ((aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.6 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.75 and aiBrain[M28Economy.refiNetEnergyBaseIncome] <= 3) or (aiBrain[M28Economy.refiNetEnergyBaseIncome] <= 1.5 and (aiBrain[M28Economy.refiNetEnergyBaseIncome] < 0.5 or aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.98)) or aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= math.max(12 * aiBrain[M28Economy.refiBrainBuildRateMultiplier], iMinEnergyPerTickWanted * 0.75)) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.35) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want basic level of power, energy stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Net income='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; Gross inc='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Mass %='..aiBrain:GetEconomyStoredRatio('MASS')) end
                                     ACUActionBuildPower(aiBrain, oACU)
                                     --below are redundancy - if we have min energy per tick wanted then wouldn't expect below to trigger
-                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
+                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     --e.g. if went 3 mex hydro then want to get 4th mex before factory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
                                     ACUActionBuildMex(aiBrain, oACU)
@@ -658,7 +658,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want 2 land factories') end
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                                     end
-                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod then
+                                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to build on every mex in land zone') end
                                     ACUActionBuildMex(aiBrain, oACU)
                                 elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive) then
@@ -675,7 +675,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --Redundancy if failed to get orer from the above
                             if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
                                 --No hydro nearby - try building power; then try building mex; then cancel initial build order
-                                ACUActionBuildMex(aiBrain, oACU)
+                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                                    ACUActionBuildMex(aiBrain, oACU)
+                                end
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
                                     ACUActionBuildPower(aiBrain, oACU)
                                     if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
@@ -726,7 +728,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     ACUActionBuildPower(aiBrain, oACU)
                                 end
 
-                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
+                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                                 ACUActionBuildMex(aiBrain, oACU)
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
@@ -749,7 +751,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 else
                                     if bDebugMessages == true then LOG(sFunctionRef..': Failed to get order from above so will resort to backup logic') end
                                     --No hydro nearby - try building power; then try building mex; then cancel initial build order
-                                    ACUActionBuildMex(aiBrain, oACU)
+                                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                                        ACUActionBuildMex(aiBrain, oACU)
+                                    end
                                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                         ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData)
                                         if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
@@ -789,7 +793,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 local iMexInLandZone = 0
                                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to build more mexes, iMexInLandZone='..iMexInLandZone..'; Mex count for LZ='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iResourceMod='..iResourceMod..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Mex count by tech='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; iCurLandFactories='..iCurLandFactories..'; iCurAirFactories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
-                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 or aiBrain:GetEconomyStored('MASS') < 100)  then
+                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 or aiBrain:GetEconomyStored('MASS') < 100) and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     ACUActionBuildMex(aiBrain, oACU)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                                     --Third factory if overflowing mass or have quite a bit stored
@@ -818,7 +822,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     if bDebugMessages == true then LOG(sFunctionRef..': oUnitToAssist='..(oUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist) or 'nil')) end
                                     if M28UnitInfo.IsUnitValid(oUnitToAssist) then
                                         M28Orders.IssueTrackedGuard(oACU, oUnitToAssist, false, 'ACUEGAssist', false)
-                                    elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < iMexInLandZone then
+                                    elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < iMexInLandZone and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                         ACUActionBuildMex(aiBrain, oACU)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will try building more mexes') end
                                     else
@@ -830,7 +834,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             end
                         else
                             --Have the power and factories that we want; if there are mexes in the zone then build them; if not then finish initial build order
-                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < tLZOrWZData[M28Map.subrefLZMexCount] then
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < tLZOrWZData[M28Map.subrefLZMexCount] and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                 ACUActionBuildMex(aiBrain, oACU)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Low factory BO Will try building more mexes') end
                             else
@@ -845,7 +849,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy for if ACU has no order, reprs of last orders='..reprs(oACU[M28Orders.reftiLastOrders])..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
                 if not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] and (not(M28Map.bIsLowMexMap) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.95) then
                     --Build mex if any available mex locations in zone
-                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                         ACUActionBuildMex(aiBrain, oACU)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build mex if there were any unbuilt locations, IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..', is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
@@ -917,13 +921,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
                     else
                         --Build mexes if nearby assuming we have nearby hydr; assist hydro if we have hydro
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (aiBrain[M28Economy.refiGrossMassBaseIncome] < 0.8 * iResourceMod or aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 10 * iResourceMod) then
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (aiBrain[M28Economy.refiGrossMassBaseIncome] < 0.8 * iResourceMod or aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 10 * iResourceMod) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mexes in water zone and our income seems less than 4 mex equiv, so will build mexes') end
                             ACUActionBuildMex(aiBrain, oACU)
                         elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                             ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData)
-                        elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                        elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                             ACUActionBuildMex(aiBrain, oACU)
                         else
                             oACU[refbDoingInitialBuildOrder] = false
@@ -1985,8 +1989,10 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                 for iEntry, tLocation in tPotentialLocations do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering location '..repru(tLocation)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLocation)..'; iACUBuildRange='..iACUBuildRange) end
                     if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLocation) <= iACUBuildRange then
-                        bHaveMexWithinACUBuildRange = true
-                        break
+                        if (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                            bHaveMexWithinACUBuildRange = true
+                            break
+                        end
                     end
                 end
                 if bHaveMexWithinACUBuildRange then iSearchRange = iACUBuildRange end
@@ -3674,7 +3680,7 @@ function GetACUOrder(aiBrain, oACU)
         end
     end
     if oACU[refbACUHasBeenGivenABuildOrderRecently] and not(M28Conditions.DoesACUHaveValidOrder(oACU)) then M28Engineer.ClearEngineerTracking(oACU) end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, does ACU have valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, does ACU have valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders])) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

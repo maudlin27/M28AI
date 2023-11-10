@@ -712,7 +712,7 @@ function Initialisation(aiBrain)
     end
     WaitTicks(1) --make sure brain setup will have run
     aiBrain[refbInitialised] = true
-    LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
+    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated())) end
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)

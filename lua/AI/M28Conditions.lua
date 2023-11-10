@@ -1582,7 +1582,7 @@ end
 function IsLocationInNoRushArea(tLocation)
     local sFunctionRef = 'IsLocationInNoRushArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     local bInNoRush = false
     for iStart, tStart in M28Overseer.reftNoRushM28StartPoints do
@@ -1599,7 +1599,7 @@ function NoRushPreventingHydroOrMex(tLZOrWZData, bMexNotHydro)
     --If norush is active then returns true if all unbuilt hydro points (mex points if bMexNotHydro is true) in this LZ/WZ are outside the norush radius of the nearest allied base
     local sFunctionRef = 'NoRushPreventingHydroOrMex'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     local sResourceRef
     if bMexNotHydro then sResourceRef = M28Map.subrefMexUnbuiltLocations
