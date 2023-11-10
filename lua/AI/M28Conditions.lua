@@ -1579,24 +1579,45 @@ function IsLocationInNoRushArea(tLocation)
     return false
 end
 
-function NoRushPreventingHydro(tLZOrWZData)
-    --If norush is active then returns true if any hydro points in this LZ/WZ are outside the norush radius of the nearest allied base
-    local sFunctionRef = 'NoRushPreventingHydro'
+function IsLocationInNoRushArea(tLocation)
+    local sFunctionRef = 'IsLocationInNoRushArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of hydro unbuilt locations empty='..tostring(tLZOrWZData[M28Map.subrefHydroUnbuiltLocations])) end
-    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroUnbuiltLocations]) == false then
-        for iEntry, tResource in tLZOrWZData[M28Map.subrefHydroUnbuiltLocations] do
+    local bInNoRush = false
+    for iStart, tStart in M28Overseer.reftNoRushM28StartPoints do
+        if M28Utilities.GetDistanceBetweenPositions(tLocation, tStart) <= M28Overseer.iNoRushRange then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dist to tStart '..repru(tStart)..' is '..M28Utilities.GetDistanceBetweenPositions(tLocation, tStart)..' so are inside norush range') end
+            bInNoRush = true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bInNoRush
+end
+
+function NoRushPreventingHydroOrMex(tLZOrWZData, bMexNotHydro)
+    --If norush is active then returns true if all unbuilt hydro points (mex points if bMexNotHydro is true) in this LZ/WZ are outside the norush radius of the nearest allied base
+    local sFunctionRef = 'NoRushPreventingHydroOrMex'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    local sResourceRef
+    if bMexNotHydro then sResourceRef = M28Map.subrefMexUnbuiltLocations
+    else sResourceRef = M28Map.subrefHydroUnbuiltLocations
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of hydro or mex unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[sResourceRef]))..'; bMexNotHydro='..tostring(bMexNotHydro or false)) end
+    if M28Utilities.IsTableEmpty(tLZOrWZData[sResourceRef]) == false then
+        local bAllResourceOutsidePlayableArea = true
+        for iEntry, tResource in tLZOrWZData[sResourceRef] do
             if bDebugMessages == true then LOG(sFunctionRef..': tResource='..repru(tResource)..'; Norush range='..M28Overseer.iNoRushRange..'; repru of M28Overseer.reftNoRushM28StartPoints='..repru(M28Overseer.reftNoRushM28StartPoints)) end
-            for iStart, tStart in M28Overseer.reftNoRushM28StartPoints do
-                if M28Utilities.GetDistanceBetweenPositions(tResource, tStart) > M28Overseer.iNoRushRange then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to tStart '..repru(tStart)..' is '..M28Utilities.GetDistanceBetweenPositions(tResource, tStart)..' so are outside norush range') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
-                end
+            if IsLocationInNoRushArea(tResource) then
+                bAllResourceOutsidePlayableArea = false
+                break
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return bAllResourceOutsidePlayableArea
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false

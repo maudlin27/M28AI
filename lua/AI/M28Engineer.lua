@@ -5644,6 +5644,17 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if have really low power, bWantMorePower='..tostring(bWantMorePower)..'; % E stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iBPWanted='..iBPWanted) end
         end
     end
+    if iBPWanted > 0 and M28Overseer.bNoRushActive then
+        --are any storage locations inside norush?
+        local bCanBuild = false
+        for iEntry, tLocation in tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable] do
+            if M28Conditions.IsLocationInNoRushArea(tLocation) then
+                bCanBuild = true
+                break
+            end
+        end
+        if not(bCanBuild) then iBPWanted = 0 end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted
 end
@@ -6364,8 +6375,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
             --Norush check
-            if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
-            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+            if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydroOrMex(tLZData)='..tostring(M28Conditions.NoRushPreventingHydroOrMex(tLZData) or false)) end
+            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro at core zone so will just build a pgen, iLandZone='..iLandZone) end
                 HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
             else
@@ -6395,9 +6406,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
         end
     else
-        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or (bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)..'; Want power instad of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
-            if (M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData)) or M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower) then
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefHydroUnbuiltLocations]) == false and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or (bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydroOrMex(tLZData)='..tostring(M28Conditions.NoRushPreventingHydroOrMex(tLZData) or false)..'; Want power instad of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
+            if (M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData)) or M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro so will just build a pgen, iLandZone='..iLandZone) end
 
                 HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
@@ -6405,6 +6417,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll try to build hydro') end
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
             end
+            bDebugMessages = false
             --Make sure we have 1 power of the cur tech level provided dont have low mass
         elseif (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= math.max(0.2, 0.15 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]))) and (bHaveLowPower and ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) <= 10)) or (not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
             --Exception if recently built power and have nearby enemies (so can e.g. do things like PD)
@@ -6497,7 +6510,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         end
     end
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
         iBPWanted = math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bHaveLowPower and not(bHaveLowMass) and iBPWanted > 10 then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.25 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
@@ -8988,7 +9001,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
     iCurPriority = iCurPriority + 1
     --Unclaimed mex high priority
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, 5)
         if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
@@ -9132,7 +9145,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
         iBPWanted = math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, iBPWanted='..iBPWanted..', locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
@@ -10157,7 +10170,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     --Higih priority mex if we have water zone start
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex asap as we have unbuilt locations and have started in water')
         end
@@ -10211,7 +10224,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             LOG(sFunctionRef .. ': Size of unbuilt locations table=' .. table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]))
         end
     end
-    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex as we have unbuilt locations')
         end
