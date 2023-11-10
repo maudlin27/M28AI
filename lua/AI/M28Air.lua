@@ -6938,14 +6938,51 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         end
                     end
                     if M28UnitInfo.IsUnitValid(oBestEnemyTarget) then
-                        --Structures - get best aoe target
-                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
-                            local tTarget = M28Logic.GetBestAOETarget(oBomber:GetAIBrain(), oBestEnemyTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileUnitInnerDamageFactor, iOptionalShieldReductionFactor)
-                            M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
-                        elseif M28UnitInfo.IsUnitUnderwater(oBestEnemyTarget) then
-                            M28Orders.IssueTrackedGroundAttack(oBomber, oBestEnemyTarget:GetPosition(), iAOE * 0.5, false, 'ExpAG', false)
-                        else
-                            M28Orders.IssueTrackedAttack(oBomber, oBestEnemyTarget, false, 'ExpAU', false)
+                        --Units under heavy shield with AA - land the bomb so the aoe just hits the unit, unless have lots of experimental bombers nearby
+                        local iDamageForIfUnderShield = iDamage - 1000
+                        if iTotalExpBombers >= 2 and M28Utilities.IsTableEmpty(oBestEnemyTarget[M28Building.reftoShieldsProvidingCoverage]) == false then
+                            local iNearbyBomberCount = 0
+                            local tNearbyBombers = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalBomber, oBomber:GetPosition(), 100, 'Ally')
+                            if M28Utilities.IsTableEmpty(tNearbyBombers) == false then
+                                for iNearbyBomber, oNearbyBomber in tNearbyBombers do
+                                    if oNearbyBomber == oBomber then
+                                        iNearbyBomberCount = iNearbyBomberCount + 1
+                                        --Include bombers who have fired recently
+                                    elseif oNearbyBomber:GetFractionComplete() == 1 and GetGameTimeSeconds() - (oNearbyBomber[M28UnitInfo.refiLastWeaponEvent] or -100) <= 6 and oNearbyBomber[M28UnitInfo.refbSpecialMicroActive] then
+                                        iNearbyBomberCount = iNearbyBomberCount + 1
+                                    end
+                                end
+                            end
+                            if iNearbyBomberCount >= 2 then
+                                iDamageForIfUnderShield = math.max(1000, iDamage - 1000) + iDamage * (iNearbyBomberCount - 1)
+                            end
+                        end
+
+                        local bUseAOEForShieldedTarget = false
+                        if M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
+                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
+                            if iDistToTarget >= 40 then
+                                --Just try to target the unit with our aoe, provided there aren't friendly units near it
+                                local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
+                                bDebugMessages = true
+                                if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
+                                    M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
+                                    bUseAOEForShieldedTarget = true
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForShieldedTarget='..tostring(bUseAOEForShieldedTarget)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)) end
+                            end
+                        end
+                        if not(bUseAOEForShieldedTarget) then
+
+                            --Structures - get best aoe target
+                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
+                                local tTarget = M28Logic.GetBestAOETarget(oBomber:GetAIBrain(), oBestEnemyTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileUnitInnerDamageFactor, iOptionalShieldReductionFactor)
+                                M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
+                            elseif M28UnitInfo.IsUnitUnderwater(oBestEnemyTarget) then
+                                M28Orders.IssueTrackedGroundAttack(oBomber, oBestEnemyTarget:GetPosition(), iAOE * 0.5, false, 'ExpAG', false)
+                            else
+                                M28Orders.IssueTrackedAttack(oBomber, oBestEnemyTarget, false, 'ExpAU', false)
+                            end
                         end
                     end
                 end
