@@ -4889,9 +4889,17 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         local iMobileStealthLowerThresholdCount = 0 --Used to avoid assigning too many mobile stealth at once to units not exceeding the higher mass threshold
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
         local bConsiderMobileShieldsForT2Arti = false
-        if tLZTeamData[M28Map.subrefLZbCoreBase] and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0) then
-            bConsiderMobileShieldsForT2Arti = true
+        local bConsiderMobileShieldsForT2PD = false
+        if tLZTeamData[M28Map.subrefLZbCoreBase] then
+            if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0) then
+                bConsiderMobileShieldsForT2Arti = true
+                bConsiderMobileShieldsForT2PD = true
+            elseif tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                bConsiderMobileShieldsForT2PD = true
+            end
+
         end
+
 
         for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if oUnit:GetFractionComplete() >= 1 then
@@ -4976,7 +4984,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
                                     elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                                    --Only say we want a mobile shield if the unit doesnt have one assigned
+                                        --Only say we want a mobile shield if the unit doesnt have one assigned
                                         iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
 
                                         if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
@@ -4994,8 +5002,27 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         table.insert(tTempOtherUnits, oUnit)
                         bLandZoneOrAdjHasUnitsWantingScout = true
                     end
-                elseif bConsiderMobileShieldsForT2Arti and EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
-                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                else
+                    if bConsiderMobileShieldsForT2Arti and EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                    elseif bConsiderMobileShieldsForT2PD and EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                    end
+                    
+                end
+            else
+                --Under construction unit
+                if (bConsiderMobileShieldsForT2PD or bConsiderMobileShieldsForT2Arti) and oUnit:GetFractionComplete() >= 0.2 then
+                    if bConsiderMobileShieldsForT2Arti then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                        end
+                    end
+                    if bConsiderMobileShieldsForT2PD then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                        end
+                    end
                 end
             end
         end
