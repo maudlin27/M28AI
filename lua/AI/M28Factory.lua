@@ -2808,10 +2808,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --Spy plane/air scout if not power stalling and havent built any, and are at T2+, and dont have omni; also get if we have units wanting priority scout and we have no spy planes currently
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Low power air scout builder, stored energy ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; this factory lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Radar coverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; factory total build count='..(oFactory[refiTotalBuildCount] or 0)) end
-        if iFactoryTechLevel >= 2 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 then
-            if ((tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1))
-                    or (iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Low power air scout builder, stored energy ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; this factory lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Radar coverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; factory total build count='..(oFactory[refiTotalBuildCount] or 0)..'; Is table of units wanting priority air scout empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]))) end
+        if iFactoryTechLevel >= 2 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
+            local iCurAirScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurAirScouts='..iCurAirScouts..'; iFactoryTechLevel='..iFactoryTechLevel) end
+            if ((iCurAirScouts == 0 and tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1))
+                    or (iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false and iCurAirScouts < math.min(2, table.getn(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
             end
         end

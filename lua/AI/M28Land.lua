@@ -2969,17 +2969,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     --If enemy has units in this or adjacent LZ, then decide what to do
     if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and not(bRunFromFirebase) then
         --Cloaked units - flag we want spy plane if we have any land experimentals
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if have nearby cloaked enemy units if we have a large threat, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Is table of cloaked enemy units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]))) end
         if iAvailableCombatUnitThreat >= 10000 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
-            local tFriendlyLandExperimentals = M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tAvailableCombatUnits))
+            local tFriendlyLandExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tAvailableCombatUnits)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly land experimentals empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyLandExperimentals))) end
             if M28Utilities.IsTableEmpty(tFriendlyLandExperimentals) == false then
                 local toExperimentalsNearCloakedUnit = {}
                 for iCloaked, oCloaked in M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits] do
                     for iExperimental, oExperimental in tFriendlyLandExperimentals do
+                        if bDebugMessages == true then LOG(sFunctionRef..': oExperimental='..oExperimental.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExperimental)..'; oCloaked='..oCloaked.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCloaked)..'; Dist from experimental to cloaked='..M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oCloaked:GetPosition())) end
                         if M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oCloaked:GetPosition()) <= 80 then
                             table.insert(toExperimentalsNearCloakedUnit, oExperimental)
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is toExperimentalsNearCloakedUnit empty='..tostring(M28Utilities.IsTableEmpty(toExperimentalsNearCloakedUnit))) end
                 if M28Utilities.IsTableEmpty(toExperimentalsNearCloakedUnit) == false then
                     for iUnit, oUnit in toExperimentalsNearCloakedUnit do
                         M28Air.AddUnitWantingPriorityScout(oUnit)

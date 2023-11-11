@@ -240,14 +240,20 @@ function AirTeamOverseer(iTeam)
 end
 
 function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddUnitWantingPriorityScout'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local bAddUnit = true
     local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
-    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+    if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
         for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
             if oExistingUnit == oUnit then bAddUnit = false break end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to priority table of units wanting scout unless it is already there, bAddUnit='..tostring(bAddUnit)..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()) end
     if bAddUnit then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oUnit)
         oUnit[refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
     end

@@ -529,19 +529,35 @@ function OnEnhancementComplete(oUnit, sEnhancement)
 end
 
 function CloakedUnitIdentified(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CloakedUnitIdentified'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iUnitBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
     local tbTeamsConsidered = {}
     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
         if IsEnemy(oBrain:GetArmyIndex(), iUnitBrainIndex) and not(tbTeamsConsidered[oBrain.M28Team]) then
             local iTeam = oBrain.M28Team
             tbTeamsConsidered[iTeam] = true
+            local bAddToTable = true
             if not(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
                 M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits] = {}
+            else
+                for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits] do
+                    if oRecorded == oUnit then
+                        bAddToTable = false
+                        break
+                    end
+                end
             end
-            table.insert(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits], oUnit)
+            if bAddToTable then
+                table.insert(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits], oUnit)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' to table of cloaked units for iTeam='..iTeam..' unless was already recorded, bAddToTable='..tostring(bAddToTable)..'; Time='..GetGameTimeSeconds()) end
         end
     end
     oUnit[M28UnitInfo.refbUnitIsCloaked] = true
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnShieldBubbleDamaged(self, instigator)
