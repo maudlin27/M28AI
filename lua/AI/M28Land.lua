@@ -5041,7 +5041,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 --Under construction unit
                 if (bConsiderMobileShieldsForT2PD or bConsiderMobileShieldsForT2Arti) and oUnit:GetFractionComplete() >= 0.2 then
                     if bConsiderMobileShieldsForT2Arti then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
                             table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                         end
                     end
