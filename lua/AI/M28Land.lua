@@ -1501,7 +1501,7 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
             end
         end
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) then
-            if iLZWithHighestSValue then table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+            if iLZWithHighestSValue then table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLZWithHighestSValue)
             elseif M28Utilities.IsTableEmpty(tiDangerousCoreBaseRefs) == false then
                 for iEntry, iLandZone in tiDangerousCoreBaseRefs do
                     table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)

@@ -2062,6 +2062,7 @@ function ManageEnergyStalls(iTeam)
                             end
                         end
                     end
+                    M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                 else
                     if bDebugMessages == true then LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
                     --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
