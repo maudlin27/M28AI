@@ -840,11 +840,11 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 if bSendUnitForRefueling then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit will be sent for refueling') end
                                     table.insert(tUnitsForRefueling, oUnit)
-                                    else
+                                else
                                     --Unit is available
                                     if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
                                         table.insert(tSpecialLogicUnits, oUnit)
-                                        else
+                                    else
                                         if bDebugMessages == true then LOG(sFunctionRef..' Unit will be made available') end
                                         table.insert(tAvailableUnits, oUnit)
                                     end
@@ -975,8 +975,9 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
         if bDebugMessages == true then LOG(sFunctionRef..': Do we already have pathing in the opposite direction? Is tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone] nil='..tostring(tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone] == nil)) end
         if M28Utilities.IsTableEmpty(tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone]) == false then
             --M28Profiler.FunctionProfiler(sFunctionRef..': TabMirror', M28Profiler.refProfilerStart)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will use pathing in opposite direction,='..repru(tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone])) end
             tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] = tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone]
-            if bDebugMessages == true then LOG(sFunctionRef..': Will use pathing in opposite direction') end
+
             --M28Profiler.FunctionProfiler(sFunctionRef..': TabMirror', M28Profiler.refProfilerEnd)
         else
             M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerStart)
@@ -2288,8 +2289,17 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     --Cycle through every relevant land and water zone along this path and calculate the threat
     --First do land zones
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')) end
-    local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint, tDestinationMidpoint
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tOptionalStartMidpointAdjustForDetailedCheck='..repru(tOptionalStartMidpointAdjustForDetailedCheck)) end
+    local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint
+    local tDestinationMidpoint
+    if iEndPlateauOrZero == 0 then
+        tDestinationMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
+    else
+        tDestinationMidpoint = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
+    end
+
+    local iDistFromOptionalStartToEnd
+    if tOptionalStartMidpointAdjustForDetailedCheck then iDistFromOptionalStartToEnd = M28Utilities.GetDistanceBetweenPositions(tOptionalStartMidpointAdjustForDetailedCheck, tDestinationMidpoint) end
     function DetailedCheckIfTooMuchAAInInterimZone(tInterimLZOrWZData, tInterimLZOrWZTeamData, iInterimPlateauOrZero, iInterimZone, bUseMidpointAdjustPosition)
         local bTooMuchAA = false
         if iInterimZone == iEndLandOrWaterZone and iInterimPlateauOrZero == iEndPlateauOrZero then --Redundancy
@@ -2308,17 +2318,14 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                 end
                 tStartZoneMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
 
-                --Destination zone midpoint
-                local tMidpoint
-                if iEndPlateauOrZero == 0 then
-                    tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
-                else
-                    tMidpoint = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
-                end
-                tDestinationMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
-
                 iAngleToDestination = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tDestinationMidpoint)
                 iDistanceToDestination = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tDestinationMidpoint)
+                --If this zone midpoint isn't reasonably closer than the start position then dont use it
+                if tOptionalStartMidpointAdjustForDetailedCheck and iDistanceToDestination + 10 >= iDistFromOptionalStartToEnd then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will update the start position to be used for the line to the optional start='..repru(tOptionalStartMidpointAdjustForDetailedCheck)..'; as iDistanceToDestination='..iDistanceToDestination..'; while iDistFromOptionalStartToEnd='..iDistFromOptionalStartToEnd) end
+                    tStartZoneMidpoint = {tOptionalStartMidpointAdjustForDetailedCheck[1], tOptionalStartMidpointAdjustForDetailedCheck[2], tOptionalStartMidpointAdjustForDetailedCheck[3]}
+                    iDistanceToDestination = iDistFromOptionalStartToEnd
+                end
             end
             --Work ont values specific to this interim zone
             iAngleToInterim = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tInterimLZOrWZData[M28Map.subrefMidpoint])
@@ -2346,9 +2353,12 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                                 iDistToUnit = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartZoneMidpoint)
                                 iAngleToUnit = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, oUnit:GetPosition())
                                 iDistFromUnitToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tDestinationMidpoint)
-                                if bDebugMessages == true then LOG(sFunctionRef..'; Considering if will be in range of enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is in range='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35))) end
+                                if bDebugMessages == true then LOG(sFunctionRef..'; Considering if will be in range of enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is in range='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35))..'; Unit position='..repru(oUnit:GetPosition())..'; tDestinationMidpoint='..repru(tDestinationMidpoint)..'; tStartZoneMidpoint='..repru(tStartZoneMidpoint)..'; iDistToUnit from start zone midpoint='..iDistToUnit..'; iDistFromUnitToTarget, being destination midpoint='..iDistFromUnitToTarget..'; iAngleToUnit='..iAngleToUnit) end
                                 if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy, iGroundAAThreat before increase='..iGroundAAThreat)
+                                        --Draw line
+                                        ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
+                                    end
                                     bTooMuchAA = true
                                     if bReturnGroundAAThreatInstead then
                                         iGroundAAThreat = iGroundAAThreat + M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true)
@@ -2382,6 +2392,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
             if bReturnGroundAAThreatInstead then
                 if bDoDetailedCheckForAA then
                     DetailedCheckIfTooMuchAAInInterimZone(tLZData, tLZTeamData, tPlateauAndLandZone[1], tPlateauAndLandZone[2], bSameZoneAsPositionOverride)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Doing detailed check, iGroundAAThreat after checking for this zone='..iGroundAAThreat) end
                 else
                     iGroundAAThreat = iGroundAAThreat + (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)
                 end
@@ -3743,13 +3754,13 @@ function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
         --Get land/water zone, and get nearest enemy base from this
         iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
         --[[if (iCurPlateauOrZero or 0) > 0 then
-        if (iCurLZOrWZ or 0) == 0 then
-            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
-            if (iCurLZOrWZ or 0) > 0 then
-                iCurPlateauOrZero = 0
-            end
+    if (iCurLZOrWZ or 0) == 0 then
+        iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+        if (iCurLZOrWZ or 0) > 0 then
+            iCurPlateauOrZero = 0
         end
-    end--]]
+    end
+end--]]
         if (iCurLZOrWZ or 0) > 0 then
             local tLZOrWZTeamData
             if (iCurPlateauOrZero or 0) == 0 then
@@ -3923,6 +3934,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local tViaFromRallyPoint --if we use this and via from front gunship we will avoid significant groundAA (where these are specified)
     local tViaFromFrontGunshipPoint
     local iDistToMoveToAltPoint = 150
+    local iCloseToFrontThreshold = 50
     local iAngleFromRallyToGunship, iDistFromRallyToGunship
     if bDebugMessages == true then LOG(sFunctionRef..': Is front gunship valid='..tostring(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]))) end
     if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
@@ -3942,26 +3954,27 @@ function ManageGunships(iTeam, iAirSubteam)
                 tGunshipLandOrWaterZoneTeamData = tGunshipLandOrWaterZoneData[M28Map.subrefLZTeamData][iTeam]
                 iEnemyGroundAAThreatByGunship = (tGunshipLandOrWaterZoneTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
             end
-
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAThreatByGunship='..iEnemyGroundAAThreatByGunship..'; Gunship threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]) end
 
             if iEnemyGroundAAThreatByGunship <= math.min(3600, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.2) then
                 iDistFromRallyToGunship = M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
                 if M28Map.iMapSize >= 1024 and iDistFromRallyToGunship >= 250 then iDistToMoveToAltPoint = 200 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iDistFromRallyToGunship='..iDistFromRallyToGunship..'; iDistToMoveToAltPoint='..iDistToMoveToAltPoint) end
-                if iDistFromRallyToGunship >= iDistToMoveToAltPoint then
+                if iDistFromRallyToGunship >= math.max(iDistToMoveToAltPoint * 1.2, 200) and not(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), tGunshipLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) >= 150 then
                     iAngleFromRallyToGunship = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
                     local iRallyPlateauOrZero, iRallyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
                     if iRallyPlateauOrZero and iRallyLandOrWaterZone then
-                        --Is there significant enemy ground to air threat along this path?
-                        local iEnemyGroundAAAlongPath = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iRallyPlateauOrZero, iRallyLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAAlongPath='..iEnemyGroundAAAlongPath) end
+                        --Is there significant enemy ground to air threat along this path? assume gunships will continue moving towards the end a small bit before the check (to reduce cases where we retreat somewhere more dangerous due to a threat miscalculation/ignore a normal path that would be relatively safe); also because front gunship usually isn't the most accurate choice and want somewwhere closer to the current gunship grouping midpoint
+                        local tAssumedGunshipPositionShortly = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship + 180, 20, true, false, M28Map.bIsCampaignMap)
+                        local iEnemyGroundAAAlongPath = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iRallyPlateauOrZero, iRallyLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, (tAssumedGunshipPositionShortly or M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition()))
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAAlongPath='..iEnemyGroundAAAlongPath..'; Front gunship position='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; iGunshipPlateauOrZero='..iGunshipPlateauOrZero..'; iGunshipLandOrWaterZone='..iGunshipLandOrWaterZone..'; front gunship last recorded='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) or 'nil')) end
                         if iEnemyGroundAAAlongPath >= math.min(3600, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.2) then
                             --If we try moving at 90 degrees for a moderate distance both from rally point and front gunship, do we significantly reduce the groundAA?
                             local tRallyViaPoint1 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleFromRallyToGunship + 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
+                            local iMaxGroundAA
                             if M28Conditions.IsLocationInPlayableArea(tRallyViaPoint1) then
                                 local iRally1ViaPlateau, iRally1ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyViaPoint1)
-                                local iMaxGroundAA = iEnemyGroundAAAlongPath * 0.75 --no point taking longer detour if not significantly decreasing AA threat
+                                iMaxGroundAA = iEnemyGroundAAAlongPath * 0.75 --no point taking longer detour if not significantly decreasing AA threat
                                 local iGroundAAThreatForPoint1 = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLandOrWaterZone, iRally1ViaPlateau, iRally1ViaZone, true, 0, nil, false, iAirSubteam, true, true)
                                 local tGunshipViaPoint1
                                 if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 just for rally to rally via='..iGroundAAThreatForPoint1..'; tRallyViaPoint1='..repru(tRallyViaPoint1)) end
@@ -4010,11 +4023,22 @@ function ManageGunships(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint='..repru(tViaFromFrontGunshipPoint)..'; iMaxGroundAA='..iMaxGroundAA) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint='..repru(tViaFromFrontGunshipPoint)..'; iMaxGroundAA='..(iMaxGroundAA or 'nil')) end
                             --move from gunship via to the rally via
                             if tViaFromFrontGunshipPoint then
                                 tViaFromFrontGunshipPoint = M28Utilities.MoveInDirection(tViaFromFrontGunshipPoint, iAngleFromRallyToGunship + 180, iDistToMoveToAltPoint, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint after moving towards rally some more='..repru(tViaFromFrontGunshipPoint)..'; iAngleFromRallyToGunship='..iAngleFromRallyToGunship..'; Is tViaFromFrontGunshipPoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint))) end
+                                --If this is close to the gunship front position then make the gunship via point the rally via point
+                                if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint after moving towards rally some more='..repru(tViaFromFrontGunshipPoint)..'; iAngleFromRallyToGunship='..iAngleFromRallyToGunship..'; Is tViaFromFrontGunshipPoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint))..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from front gunship to front gunship via point='..M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; If distance is too close then will replace gunship via point with rally via point')
+                                    LOG(sFunctionRef..': Normal rally point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; will draw normal rally point in blue')
+                                    M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                                    LOG(sFunctionRef..': Will draw tViaFromFrontGunshipPoint in red, and tViaFromRallyPoint in gold')
+                                    M28Utilities.DrawLocation(tViaFromFrontGunshipPoint, 2)
+                                    M28Utilities.DrawLocation(tViaFromRallyPoint, 4)
+                                end
+                                if M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition()) <= math.max(30, math.min(iCloseToFrontThreshold, iDistToMoveToAltPoint - 5)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Front gunship via point is too close so will use rally via point instead') end
+                                    tViaFromFrontGunshipPoint = tViaFromRallyPoint
+                                end
                             end
                         end
                     end
@@ -4025,6 +4049,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
     local oFrontGunship
     local bGunshipWantsAirScout = false
+    if bDebugMessages == true then LOG(sFunctionRef..': About to move onto main gunship logic if have any available, is table of available gunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is tViaFromFrontGunshipPoint empty='..tostring(M28Utilities.IsTableEmpty(tViaFromFrontGunshipPoint))) end
     if M28Utilities.IsTableEmpty(tAvailableGunships) == false then
         local tiPlateauAndZoneForEnemiesToBeIn = {} --if dont have priority targets, then will use this to focus on higher value targets (e.g. to try and reduce cases where 100 t3 gunships will move halfway across the map for 1 MAA)
         --Prioroity targets to attack - search for enemies around start positions (ignore AA):
@@ -4080,7 +4105,6 @@ function ManageGunships(iTeam, iAirSubteam)
         local tGunshipsNearFront = {}
         local tGunshipsNotNearFront = {}
         local iCurDist
-        local iCloseToFrontThreshold = 50
 
         for iUnit, oUnit in tAvailableGunships do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering how close unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is to front gunship '..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition())..'; Threat of unit='..M28UnitInfo.GetAirThreatLevel({ oUnit}, false, false, false, true, false, false)) end
@@ -6125,13 +6149,13 @@ function ManageNovax(iTeam, iAirSubteam)
                             --Water zone
                             tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
                             if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
-                                        --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                              iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                              iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
                                 M28Navy.UpdateUnitPositionsAndWaterZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iLandOrWaterZone, false,                  false,      tLZOrWZTeamData, true,                              true)
                             end
                         else
                             tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
                             if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
-                                     --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                  iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                  iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
                                 M28Land.UpdateUnitPositionsAndLandZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateauOrZero, iLandOrWaterZone, false,                   false, tLZOrWZTeamData,     true,                                   true)
                             end
                         end

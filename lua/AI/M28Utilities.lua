@@ -169,6 +169,7 @@ function DrawLocation(tLocation, iOptionalColour, iOptionalTimeInTicks, iOptiona
 end
 
 function ForkedDrawLine(tStart, tEnd, iColour, iDisplayCount)
+    --FORK THREAD before calling this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedDrawLine'
     if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)) end
