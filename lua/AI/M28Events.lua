@@ -1829,6 +1829,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 if oUnit:GetFractionComplete() == 1 then
+
                     if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
                         M28Building.ReserveLocationsForGameEnder(oUnit)
                     end

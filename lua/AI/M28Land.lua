@@ -296,55 +296,60 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
             --Remove the entry
             tUnits[iOrigIndex] = nil
         else
-            --Unit still valid, does it have the right plateau and land zone?
-            bUnitIsAttached = tUnits[iOrigIndex]:IsUnitState('Attached')
-            if bAreEnemyUnits or bUseLastKnownPosition then
-                UpdateUnitLastKnownPosition(aiBrain, tUnits[iOrigIndex], bUseActualPositionIfEnemy)
-            end
-            if bUseLastKnownPosition then
-                if bAreAirUnits or bUnitIsAttached then
-                    iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-                else
-                    iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
+            --Air units - first check inside the map area (to avoid too big a load on CPU trying to locate nearby valid zones and false error messages)
+            if not(bAreAirUnits) or M28Conditions.IsLocationInMap(tUnits[iOrigIndex]:GetPosition()) then
+                --Unit still valid, does it have the right plateau and land zone?
+                bUnitIsAttached = tUnits[iOrigIndex]:IsUnitState('Attached')
+                if bAreEnemyUnits or bUseLastKnownPosition then
+                    UpdateUnitLastKnownPosition(aiBrain, tUnits[iOrigIndex], bUseActualPositionIfEnemy)
                 end
-            else
-                --Allied unit (or special use cases where a human will likely infer an enemy unit has moved) so can use actual position
-                if bUnitIsAttached or bAreAirUnits then
-                    bDebugMessages = true
-                    iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex]:GetPosition())
-                else
-                    iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit='..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; bUnitIsAttached='..tostring(bUnitIsAttached)..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; Unit brain owner='..tUnits[iOrigIndex]:GetAIBrain().Nickname..'; Unit position='..repru(tUnits[iOrigIndex])) end
-                bDebugMessages = false
-            end
-
-            if not(iActualPlateau > 0) then
-                if not(bAreAirUnits) and not(bUnitIsAttached) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid actual plateau so will use the recorded plateau and land zone') end
-                    iActualPlateau = iRecordedPlateau
-                    iActualLandZone = iRecordedLandZone
-                    --Add location to table of pathing exceptions
-                    if bUseLastKnownPosition then
-                        M28Map.AddLocationToPlateauExceptions(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iRecordedPlateau, iRecordedLandZone)
+                if bUseLastKnownPosition then
+                    if bAreAirUnits or bUnitIsAttached then
+                        iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
                     else
-                        M28Map.AddLocationToPlateauExceptions(tUnits[iOrigIndex]:GetPosition(), iRecordedPlateau, iRecordedLandZone)
+                        iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
+                    end
+                else
+                    --Cases where can use actual position (i.e. Allied unit or special use cases where a human will likely infer an enemy unit has moved):
+                    if bUnitIsAttached or bAreAirUnits then
+                        iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex]:GetPosition())
+                    else
+                        iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit='..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; bUnitIsAttached='..tostring(bUnitIsAttached)..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; Unit brain owner='..tUnits[iOrigIndex]:GetAIBrain().Nickname..'; Unit position='..repru(tUnits[iOrigIndex]:GetPosition())) end
+                end
+
+                if not(iActualPlateau > 0) then
+                    if not(bAreAirUnits) and not(bUnitIsAttached) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid actual plateau so will use the recorded plateau and land zone') end
+                        iActualPlateau = iRecordedPlateau
+                        iActualLandZone = iRecordedLandZone
+                        --Add location to table of pathing exceptions
+                        if bUseLastKnownPosition then
+                            M28Map.AddLocationToPlateauExceptions(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iRecordedPlateau, iRecordedLandZone)
+                        else
+                            M28Map.AddLocationToPlateauExceptions(tUnits[iOrigIndex]:GetPosition(), iRecordedPlateau, iRecordedLandZone)
+                        end
                     end
                 end
-            end
 
 
 
-            --Is the plateau and zone correct?
-            if bDebugMessages == true then
-                LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
-                M28Utilities.DrawLocation(tUnits[iOrigIndex]:GetPosition())
-            end
-            --If the plateau has changed, and the new one has no valid location, then update the position to the actual position (due to issue with e.g. air units where if they fly over a cliff at the point intel is lost then it causes an error when trying to add them to another zone)
-            if not(iRecordedPlateau == iActualPlateau) and bUseLastKnownPosition and (iActualLandZone or 0) > 0 then
-                local tRevisedPosition = tUnits[iOrigIndex]:GetPosition()
-                tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam] = {tRevisedPosition[1], tRevisedPosition[2], tRevisedPosition[3]}
-                iActualPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tRevisedPosition)
+                --Is the plateau and zone correct?
+                if bDebugMessages == true then
+                    LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
+                    M28Utilities.DrawLocation(tUnits[iOrigIndex]:GetPosition())
+                end
+                --If the plateau has changed, and the new one has no valid location, then update the position to the actual position (due to issue with e.g. air units where if they fly over a cliff at the point intel is lost then it causes an error when trying to add them to another zone)
+                if not(iRecordedPlateau == iActualPlateau) and bUseLastKnownPosition and (iActualLandZone or 0) > 0 then
+                    local tRevisedPosition = tUnits[iOrigIndex]:GetPosition()
+                    tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam] = {tRevisedPosition[1], tRevisedPosition[2], tRevisedPosition[3]}
+                    iActualPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tRevisedPosition)
+                end
+            else
+                --Air unit is outside the map bounds - treat the actual plateau as the recorded plateau - i.e. just keep the air unit against this zone until it comes back inside the map
+                iActualPlateau = iRecordedPlateau
+                iActualLandZone = iRecordedLandZone
             end
             if iRecordedPlateau == iActualPlateau and iRecordedLandZone == iActualLandZone then
                 --No change needed for unit

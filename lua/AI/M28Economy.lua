@@ -2058,10 +2058,12 @@ function ManageEnergyStalls(iTeam)
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         if M28Utilities.IsTableEmpty(oBrain[reftPausedUnits]) == false then
                             for iUnit, oUnit in oBrain[reftPausedUnits] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will pause just the energy usage parts of unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, true)
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are stalling mass so have finished unpausing energy usage of units at time='..GetGameTimeSeconds()) end
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                 else
                     if bDebugMessages == true then LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
