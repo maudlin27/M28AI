@@ -310,11 +310,13 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
             else
                 --Allied unit (or special use cases where a human will likely infer an enemy unit has moved) so can use actual position
                 if bUnitIsAttached or bAreAirUnits then
+                    bDebugMessages = true
                     iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex]:GetPosition())
                 else
                     iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit='..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; bUnitIsAttached='..tostring(bUnitIsAttached)..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; Unit brain owner='..tUnits[iOrigIndex]:GetAIBrain().Nickname..'; Unit position='..repru(tUnits[iOrigIndex])) end
+                bDebugMessages = false
             end
 
             if not(iActualPlateau > 0) then
