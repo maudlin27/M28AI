@@ -42,6 +42,7 @@ bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunshi
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
+iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
 
 --Campaign specific variables
 bActiveObjectiveUnitValidMonitorByObjective = {} --True if already are actively monitoring a particular unit
@@ -712,7 +713,7 @@ function Initialisation(aiBrain)
     end
     WaitTicks(1) --make sure brain setup will have run
     aiBrain[refbInitialised] = true
-    LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
+    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated())) end
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)
@@ -1863,6 +1864,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
+        --FA M6 - Fletcher changing sides
+        elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
+            tbSpecialCodeForMission[21] = true
+            --Have had a change in factions, update all unit tables
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following fletcher changing sides, Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -371,17 +371,21 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             local iCurUnitsOfCategory = aiBrain:GetCurrentUnits(categories[sBPIDToBuild])
 
             if iCurUnitsOfCategory >= 150 or (iCurUnitsOfCategory >= 50 and (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 35 and (iCurUnitsOfCategory >= 100 or ((oFactory[refiTotalBuildCount] or 0) + iCurUnitsOfCategory >= 100 and EntityCategoryContains(categories.TECH1 + categories.TECH2, sBPIDToBuild)))) then
+                if bDebugMessages == true then LOG(sFUnctionRef..': Have lots of units of this category already, iCurUnitsOfCategory='..iCurUnitsOfCategory) end
                 sBPIDToBuild = nil
             end
         elseif sBPIDToBuild then
             if EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, sBPIDToBuild) then
                 if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 60 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have lots of this category already, naval surface, cur units='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
                     sBPIDToBuild = nil
                 end
             elseif (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 1 then
                 if not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, sBPIDToBuild)) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 100 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are at a unit cap low level and have lots of units, cur units of category='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
                     sBPIDToBuild = nil
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, sBPIDToBuild) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 150 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are near unit cap and have lots of units of this category, cur units of category='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
                     sBPIDToBuild = nil
                 end
             end
@@ -395,6 +399,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= iMaxT1AndT2MAA then
                 --Ignore if enemy has air to ground threat in this zone
                 if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Building T2 or lower MAA but no air to ground threat in zone and we have lots of MAA, curMAA='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)) end
                     sBPIDToBuild = nil
                 end
             end
@@ -404,8 +409,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     --NoRush
     if sBPIDToBuild and M28Overseer.bNoRushActive then
         if M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 30 then
-            if not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryExperimentalLevel, sBPIDToBuild)) then
+            if not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryExperimentalLevel + categories.SUBCOMMANDER + M28UnitInfo.refCategorySatellite, sBPIDToBuild)) then
                 sBPIDToBuild = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': In no rush so wont build unit') end
             end
         end
     end
@@ -3795,7 +3801,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
     if iFactoryTechLevel >= 3 then
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
-        if bAboutToOverflowMass or (iCurBattleships < 5 or (not (bHaveLowMass) or iCurBattleships <= 1)) then
+        local iBSWantedAdjust = 0
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 3 then iBSWantedAdjust = 5 end
+        if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust or (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
             end
@@ -3898,7 +3906,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iCategoryToBuild
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
@@ -3913,7 +3921,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     end
     local sBPIDToBuild
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory))
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; aiBrain owner='..aiBrain.Nickname)
     end
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
     local iCurrentConditionToTry = 0
@@ -3922,7 +3930,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
 
     function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
-                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory,  nil,            nil,        bOptionalGetCheapest, nil,                          false)
         if bDebugMessages == true then LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil')) end
         if sBPIDToBuild then sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel) end
@@ -3942,14 +3950,13 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local iCurrentConditionToTry = 0
 
     function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
-                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil,             nil,        bOptionalGetCheapest, nil,                          false)
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil')) end
         if sBPIDToBuild then
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': sBPIDToBuild after adjusting  for override='..(sBPIDToBuild or 'nil')) end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
@@ -3959,17 +3966,16 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AiX modifier - have added code in M28 to counteract/fix
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Will try to build RAS SACU')
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end
         --[[if aiBrain.CheatEnabled and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] >= 3.5 then
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Foudn a RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil'))
-            end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn a non-seraphim RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
+            return sBPIDToBuild
+        elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn an SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
             return sBPIDToBuild
         end
     end

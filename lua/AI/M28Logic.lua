@@ -256,6 +256,8 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
     --Determines if target is under a shield
     --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
 
+
+
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
         --Optimisation - only refresh shield checks periodically as late game this can soak up a lot of performance
         local iRef
@@ -307,6 +309,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
             bDontDoDistanceCheck = true
             if bIgnoreMobileShields then
                 --We are tracking fixed shields already
+                if bDebugMessages == true then LOG(sFunctionRef..': Will only consider fixed shields, so will rely on reftoShieldsProvidingCoverage, is this empty='..tostring(M28Utilities.IsTableEmpty(oTarget[M28Building.reftoShieldsProvidingCoverage]))) end
                 tNearbyShields = oTarget[M28Building.reftoShieldsProvidingCoverage]
             else
                 tNearbyShields = {}
@@ -323,6 +326,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
                         table.insert(tNearbyShields, oShield)
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Are considering a structure target, bDontDoDistanceCheck='..tostring(bDontDoDistanceCheck)..'; Is shields providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oTarget[M28Building.reftoShieldsProvidingCoverage]))..'; Is mobile shield table empty='..tostring(M28Utilities.IsTableEmpty(tNearbyMobileShields))) end
             end
         else
             tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
@@ -383,6 +387,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
             if not(oTarget[reftiTimeOfLastShieldCheck]) then oTarget[reftiTimeOfLastShieldCheck] = {} oTarget[reftbLastShieldCheckResult] = {} end
             oTarget[reftiTimeOfLastShieldCheck][iRef] = GetGameTimeSeconds()
             oTarget[reftbLastShieldCheckResult][iRef] = bUnderShield
+            if bDebugMessages == true then LOG(sFunctionRef..': Returning '..tostring(bUnderShield)) end
             return bUnderShield
         end
     end

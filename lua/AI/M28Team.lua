@@ -153,6 +153,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
     refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
+    refiTimeLastHadBattleshipBombardmentByPond = 'M28TeamLastTimeBSBomb' --[x] is the pond ref, returns gametimeseconds if had a battleship firing shots, that wasnt blocked, and had nearby structures, when in bombardment mode
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -1445,6 +1446,12 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have enemy missile ship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will record as mobile TML threat') end
                                 ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
+
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then
+                                --Experiment with recording MMLs of all types with a LC of <=10 (not more for performance reasons)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 10 then
+                                    ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
+                                end
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
@@ -2873,7 +2880,7 @@ function TeamEconomyRefresh(iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 then
             if bDebugMessages == true then LOG(sFunctionRef..': Are overflowing mass so will try and manage by clearing engineers with reclaim orders') end
-            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored') end
+            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')) end
             ForkThread(M28Economy.ManageMassOverflow, iM28Team)
         end
     end

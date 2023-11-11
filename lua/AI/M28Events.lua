@@ -946,17 +946,21 @@ end--]]
 
 function OnConstructionStarted(oEngineer, oConstruction, sOrder)
     if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnConstructionStarted'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
         --Update land zone queued orders
         if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
         end
 
+
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
-                local sFunctionRef = 'OnConstructionStarted'
-                local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
@@ -1071,10 +1075,30 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     end
                 end
 
-
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            end
+        else
+            --Non-M28 only
+            if not(oConstruction[M28UnitInfo.refbConstructionStart]) then
+                oConstruction[M28UnitInfo.refbConstructionStart] = true
+                --If this is a fixed shield then instead update shield coverage (note - we also do this for M28 brains above, but with some extra logic to decide if we want to try and shield, and using a more efficient emthod of identifying shields)
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a shield that we have just started ubilding so will update shield coverage') end
+                    M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryStructure - categories.MOBILE, oConstruction.UnitId) then
+                    --Record if this unit is under fixed shield coverage if it's not owned by an M28AI brain (M28AI units will separately check this by using the LZ data info)
+                    local tNearbyShields = oConstruction:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, oConstruction:GetPosition(), 60, 'Ally')
+                    if bDebugMessages == true then LOG(sFunctionRef..': have just started construction of a building, will check for nearby shields, is tNearbyShields empty='..tostring(M28Utilities.IsTableEmpty(tNearbyShields))) end
+                    if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                        local iShieldRadius
+                        for iShield, oShield in tNearbyShields do
+                            iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 -0.1 -- - 1
+                            M28Building.RecordIfShieldIsProtectingUnit(oShield, oConstruction, iShieldRadius, true)
+                        end
+                    end
+                end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -1186,6 +1210,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                        end
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
 
                     end
@@ -1364,6 +1394,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
                         table.insert(M28Engineer.tAllScathis, oJustBuilt)
                     end
+
+                    if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oJustBuilt.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                        ForkThread(M28Air.DetachSatellite,oJustBuilt, 1)
+                    end
+
 
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
@@ -1793,6 +1829,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 if oUnit:GetFractionComplete() == 1 then
+
                     if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
                         M28Building.ReserveLocationsForGameEnder(oUnit)
                     end
@@ -1823,6 +1860,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
                     --Consider unpausing this unit regardless of whether it's an SML
                     ForkThread(M28Overseer.DelayedUnpauseOfUnits, {oUnit}, 1)
+                    if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                        ForkThread(M28Air.DetachSatellite,oUnit, 1)
+                    end
                 end
                 --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()

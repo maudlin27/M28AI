@@ -125,7 +125,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
                 if not(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = {} end
 
                 for iLZShield, oLZShield in tNearbyShields do
-                    local iShieldRadius = oLZShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                    local iShieldRadius = oLZShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 0.1 -- - 1
                     RecordIfShieldIsProtectingUnit(oLZShield, oUnit, iShieldRadius, true)
                 end
 
@@ -180,7 +180,11 @@ end
 
 function RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, bDontCheckIfWantsFixedShield)
     --bDontCheckIfWantsFixedShield - true if calling from the 'CheckIfUnitWantsFixedShield' function to avoid infinite loop
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordIfShieldIsProtectingUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is covered by oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iShieldRadius='..iShieldRadius..'; Distance='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())) end
     if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition()) <= iShieldRadius then
         local bAddToUnit = true
         --Record against unit
@@ -193,32 +197,44 @@ function RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, bDontChec
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if already recorded this shield, bAddToUnit='..tostring(bAddToUnit)) end
         if bAddToUnit then
             if not(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = {} end
             table.insert(oUnit[reftoShieldsProvidingCoverage], oShield)
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording shield as covering the unit; bDontCheckIfWantsFixedShield='..tostring(bDontCheckIfWantsFixedShield or false)) end
             if not(bDontCheckIfWantsFixedShield) then CheckIfUnitWantsFixedShield(oUnit) end
         end
         --Record against shield
         if not(oShield[reftoUnitsCoveredByShield]) then oShield[reftoUnitsCoveredByShield] = {} end
         table.insert(oShield[reftoUnitsCoveredByShield], oUnit)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
     --If shield has died, then remove any units it was protecting; if shield has just started construction then instead record any units it can provide coverage to
     --Either way, clear any existing units from the shield (as redundancy - in theory should only be needed if shield is dead
-    if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateShieldCoverageOfUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    if M28Conditions.IsTableOfUnitsStillValid(oShield[reftoUnitsCoveredByShield]) then
         for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
             if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
                 for iRecordedShield, oRecordedShield in oUnit[reftoShieldsProvidingCoverage] do
                     if oRecordedShield == oShield then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We had recorded shield '..oRecordedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedShield)..' as covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will now remove it') end
                         table.remove(oUnit[reftoShieldsProvidingCoverage], iRecordedShield)
                         break
                     end
                 end
-                if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then oUnit[reftoShieldsProvidingCoverage] = nil end
+                if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = nil end
             end
-            CheckIfUnitWantsFixedShield(oUnit)
+            if oUnit:GetAIBrain().M28AI then
+                CheckIfUnitWantsFixedShield(oUnit)
+            end
         end
         oShield[reftoUnitsCoveredByShield] = nil
     end
@@ -229,7 +245,7 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
         if iPlateau > 0 and iLandZone > 0 then
             local tUnitsWantingShielding = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oShield:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]
             if M28Utilities.IsTableEmpty(tUnitsWantingShielding) == false then
-                local iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                local iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 0.1 -- - 1
                 oShield[reftoUnitsCoveredByShield] = {}
                 local bAddToUnit = false
                 local tUnitsToConsider = {}
@@ -243,6 +259,7 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordUnitShieldCoverage(oUnit)
@@ -252,7 +269,7 @@ function RecordUnitShieldCoverage(oUnit)
         local aiBrain = oUnit:GetAIBrain()
         --Is this a shield? if so then update all units around it
         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
-            local iShieldRadius = oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+            local iShieldRadius = oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 0.1 -- - 1 --removed the -1 as of v50 since now that are using this to track enemies it can lead to false results
             local tNearbyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, oUnit:GetPosition(), iShieldRadius, 'Ally')
             if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
                 for iNearbyUnit, oNearbyUnit in tNearbyUnits do
@@ -266,7 +283,7 @@ function RecordUnitShieldCoverage(oUnit)
                 local iShieldRadius
                 for iShield, oShield in tNearbyShields do
                     if oShield:GetFractionComplete() == 1 then
-                        iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                        iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 -0.1 -- - 1
                         RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, true)
                     end
                 end
@@ -963,6 +980,8 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
                         --Aeon missile ship
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMML, oRecordedTML.UnitId) then
+                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.4
                     else
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
                     end
