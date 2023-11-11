@@ -1446,6 +1446,12 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have enemy missile ship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will record as mobile TML threat') end
                                 ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
+
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then
+                                --Experiment with recording MMLs of all types with a LC of <=10 (not more for performance reasons)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 10 then
+                                    ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
+                                end
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
