@@ -2806,11 +2806,16 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
-        --Spy plane/air scout if not power stalling and havent built any, and are at T2+, and dont have omni
+        --Spy plane/air scout if not power stalling and havent built any, and are at T2+, and dont have omni; also get if we have units wanting priority scout and we have no spy planes currently
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Low power air scout builder, stored energy ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; this factory lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Radar coverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; factory total build count='..(oFactory[refiTotalBuildCount] or 0)) end
-        if iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1) then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+        if bDebugMessages == true then LOG(sFunctionRef..': Low power air scout builder, stored energy ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; this factory lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Radar coverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; factory total build count='..(oFactory[refiTotalBuildCount] or 0)..'; Is table of units wanting priority air scout empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]))) end
+        if iFactoryTechLevel >= 2 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
+            local iCurAirScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurAirScouts='..iCurAirScouts..'; iFactoryTechLevel='..iFactoryTechLevel) end
+            if ((iCurAirScouts == 0 and tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1))
+                    or (iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false and iCurAirScouts < math.min(2, table.getn(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]))) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+            end
         end
 
         --Overflowing mass (and dont have low power since are here)
@@ -2935,9 +2940,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --Priority asf for campaign missions
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if bDebugMessages == true then LOG(sFunctionRef..': Priority asf for campaign maps, iFactoryTechLevel='..iFactoryTechLevel..'; iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]) end
-            if M28Map.bIsCampaignMap and iFactoryTechLevel >= 3 and iAirAACountOfSearchCategory <= 100 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat] < math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
+            if M28Map.bIsCampaignMap and iFactoryTechLevel >= 3 and iAirAACountOfSearchCategory <= 100 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Campaign specific logic - will get base level of air threat hten get asfs as a high priority') end
-                local iAirSubteam = aiBrain.M28AirSubteam
                 --Base level of gunship and torp bomber threat before considering to get asf, assuming we have a base level of asf
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 1000 then
                     if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end

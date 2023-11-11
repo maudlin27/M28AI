@@ -44,7 +44,7 @@ tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one f
     refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
     refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
     refbActiveNovaxUnloadCheck = 'M28NovActUnl' --true if we are periodically checking if we should unload the novax
-
+    refiTimeLastWantedPriorityAirScout = 'M28PrArSc' --Gametimeseconds the unit was last checked to be added to the table for priority air scouts
 
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
@@ -237,6 +237,26 @@ function AirTeamOverseer(iTeam)
         tbFullAirTeamCycleRun[iTeam] = true
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddUnitWantingPriorityScout'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bAddUnit = true
+    local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
+    if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+        for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
+            if oExistingUnit == oUnit then bAddUnit = false break end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to priority table of units wanting scout unless it is already there, bAddUnit='..tostring(bAddUnit)..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()) end
+    if bAddUnit then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
+        table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oUnit)
+        oUnit[refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
+    end
 end
 
 function AssignScoutingIntervalPriorities(iTeam)
@@ -4086,17 +4106,14 @@ function ManageGunships(iTeam, iAirSubteam)
 
 
         --Cloaked nearby enemy ACU - want gunship to be a priority
-        if M28UnitInfo.IsUnitValid(oFrontGunship) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) == false then
-            --Refresh list
+        if M28UnitInfo.IsUnitValid(oFrontGunship) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
+
             local iCloakedUnits = table.getn(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits])
 
             for iCurEntry = iCloakedUnits, 1, -1 do
-                if not(M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits][iCurEntry])) then
-                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits], iCurEntry)
-                else
-                    if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits][iCurEntry]:GetPosition()) <= 200 then
-                        bGunshipWantsAirScout = true
-                    end
+                if not(bGunshipWantsAirScout) and M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits][iCurEntry]:GetPosition()) <= 200 then
+                    bGunshipWantsAirScout = true
+                    break
                 end
             end
         end
@@ -4787,7 +4804,7 @@ function ManageGunships(iTeam, iAirSubteam)
     end
     if bGunshipWantsAirScout and oFrontGunship then
         if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
-        table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oFrontGunship)
+        AddUnitWantingPriorityScout(oFrontGunship)
     end
 
     --Disable gunship weapons over pacifist areas
@@ -4925,7 +4942,7 @@ function ManageAirScouts(iTeam, iAirSubteam)
             --Refresh the list
             local iPriorityUnitsToScout = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout])
             for iEntry = iPriorityUnitsToScout, 1, -1 do
-                if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry])) then
+                if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry])) or GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry][refiTimeLastWantedPriorityAirScout] or GetGameTimeSeconds()) >= 20 then
                     table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], iEntry)
                 end
             end
