@@ -1234,7 +1234,7 @@ end
 
 function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
     --Returns nil if cantr find anything
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

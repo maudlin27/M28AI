@@ -6989,7 +6989,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if iDistToTarget >= 40 then
                                 --Just try to target the unit with our aoe, provided there aren't friendly units near it
                                 local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
-                                bDebugMessages = true
                                 if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
                                     M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
                                     bUseAOEForShieldedTarget = true

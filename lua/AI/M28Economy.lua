@@ -2050,9 +2050,18 @@ function ManageEnergyStalls(iTeam)
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef .. 'If we have no paused units then will set us as not having an energy stall; bPausedUnitsTableIsEmptyForAllBrains='..tostring(bPausedUnitsTableIsEmptyForAllBrains)..'; subrefbTeamIsStallingMass ='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
-                if bPausedUnitsTableIsEmptyForAllBrains or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not(bPauseNotUnpause) and not(bHaveWeCappedUnpauseAmount)) then
+                if bPausedUnitsTableIsEmptyForAllBrains then
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                     if bDebugMessages == true then LOG(sFunctionRef .. ': We are no longer stalling energy') end
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not(bPauseNotUnpause) and not(bHaveWeCappedUnpauseAmount) then
+                    --Unpause all units' energy usage only (i.e. production remains paused, but radar and shields should be unpaused
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if M28Utilities.IsTableEmpty(oBrain[reftPausedUnits]) == false then
+                            for iUnit, oUnit in oBrain[reftPausedUnits] do
+                                M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, true)
+                            end
+                        end
+                    end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
                     --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
@@ -2101,7 +2110,12 @@ function ManageEnergyStalls(iTeam)
                 M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds()
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Will now call manage mass stalls if not stalling energy. M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bChangeRequired='..tostring(bChangeRequired)) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Will now call manage mass stalls if not stalling energy. M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bChangeRequired='..tostring(bChangeRequired)..'; is team stalling mass (pre mass stall check)='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Will now check if any brain has paused units')
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                LOG(sFunctionRef..': Is table of paused units for brain '..oBrain.Nickname..' empty='..tostring(M28Utilities.IsTableEmpty(oBrain[reftPausedUnits])))
+            end
+        end
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(bChangeRequired) then
             ForkThread(ManageMassStalls, iTeam)
         end
