@@ -1656,7 +1656,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction)
     local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Unit is paused='..tostring(oUnit:IsPaused())..'; bExcludeProduction='..tostring(bExcludeProduction or false))
