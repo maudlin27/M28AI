@@ -1,6 +1,6 @@
 name = "M28AI"
-uid = "fnewm028-v049-55b4-92b6-64398e7ge43f"
-version = 49
+uid = "fnewm028-v050-55b4-92b6-64398e7ge43f"
+version = 50
 copyright = "MIT License"
 description = "Competitive AI for FAF utilising advanced micro.  Faster to run than M27 in teamgames, similar in difficulty.  Estimated as challenging for a 700-1200 rated player. Supports FA, SC and Seraphim campaigns (as an AI teammate). More info: https://forum.faforever.com/topic/5331/m28ai-devlog-v1"
 author = "maudlin27"
