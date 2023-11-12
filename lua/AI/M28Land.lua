@@ -1498,11 +1498,14 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
                         iHighestSValue = tLZTeamData[M28Map.subrefLZSValue]
                         iLZWithHighestSValue = iLandZone
                     end
-                    iNetCombatValue = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
-                    if iNetCombatValue < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and (iNetCombatValue <= 200 or  (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 1.25)) then
-                        table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
-                    elseif tLZTeamData[M28Map.subrefLZbCoreBase] then
-                        table.insert(tiDangerousCoreBaseRefs, iLandZone)
+                    --Dont have as rally if enemy has T2 arti nearby
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
+                        iNetCombatValue = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                        if iNetCombatValue < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and (iNetCombatValue <= 200 or  (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 1.25)) then
+                            table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)
+                        elseif tLZTeamData[M28Map.subrefLZbCoreBase] then
+                            table.insert(tiDangerousCoreBaseRefs, iLandZone)
+                        end
                     end
                 end
             end
@@ -3046,6 +3049,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
         local bNearestEnemyNeedsManualAttack = false --If nearest enemy is below water with its base but still visible on the top then units wont fire at it unless given a specific attack order
         local tEnemyEngineers = {} --So can avoid getting in reclaim range, and consider targeting as a priority
+        local tSkirmisherEnemies = {}
 
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMidpoint]) then
@@ -3067,6 +3071,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     iClosestStructureDist = iCurDist
                     oNearestEnemyStructureToMidpoint = oUnit
                 end
+                if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then table.insert(tSkirmisherEnemies, oUnit) end
             end
         end
         if M28Utilities.IsTableEmpty(toEnemyACUsInZone) == false and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000 then
@@ -3118,7 +3123,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 for iUnit, oUnit in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then table.insert(tEnemyEngineers, oUnit) end --we might be controlling untis in an adjacent zone that have an enemy unit/engeiner near them
+                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                            table.insert(tEnemyEngineers, oUnit)
+                        elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                            table.insert(tSkirmisherEnemies, oUnit)
+                        end --we might be controlling untis in an adjacent zone that have an enemy unit/engeiner near them
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurdist='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iClosestDist='..iClosestDist..'; iClosestStructureDist='..iClosestStructureDist..'; iDistMod='..(iDistMod or 'nil')) end
                         if bOnlyCheckForStructure then
                             if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
@@ -3427,11 +3436,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bCheckIfNearestUnitVisible = false
                 if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then bCheckIfNearestUnitVisible = true end
 
-                local tSkirmisherEnemies = {}
-                for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                    --if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, including enemy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' in skirmisher enemy table, is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                    table.insert(tSkirmisherEnemies, oUnit)
-                end
                 table.insert(tSkirmisherEnemies, oNearestEnemyToMidpoint)
                 local bMoveToStopPDConstruction = false
                 local bMoveTowardsEngineers = false
@@ -3617,6 +3621,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             end
                                         else
                                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'KRetr'..iLandZone)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will move unit to rally point (kiting retreat') end
                                         end
                                     end
                                     --If enemy is able to shoot us then get DF support
