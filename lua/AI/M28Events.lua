@@ -1222,6 +1222,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --experimental level construction count, and paragon and yolona specific logic
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
                         M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 1
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+                        tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] = (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
                             ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
