@@ -2809,6 +2809,9 @@ function TeamEconomyRefresh(iM28Team)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamEconomyRefresh'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
     if M28Map.bMapLandSetupComplete and M28Map.bWaterZoneInitialCreation then
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
