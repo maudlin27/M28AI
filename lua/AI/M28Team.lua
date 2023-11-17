@@ -2685,7 +2685,7 @@ function ConsiderNormalUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderNormalUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 420 then bDebugMessages = true end
+
 
     local iMassUpgradesAtLoopStart
     local iCycleCount = 0
