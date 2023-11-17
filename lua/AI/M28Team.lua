@@ -879,7 +879,9 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 --Dont add allied air units, or units from a different (allied) team
                 if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and (not(EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) or oUnit:GetFractionComplete() < 1) then
                     local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
-                    table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits], oUnit)
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+                    table.insert(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits], oUnit)
+                    if oUnit[M28UnitInfo.refiCombatRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId)) then table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit) end
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
                     --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
                     if oUnit[M28Land.refiCurrentAssignmentValue] then
