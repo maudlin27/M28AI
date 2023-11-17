@@ -707,11 +707,12 @@ function OnBombFired(oWeapon, projectile)
             local sUnitID = oUnit.UnitId
             if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())) end
             if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTorpBomber, sUnitID) then
-                --Try to dodge non-experimental bombs
-                if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
+                --if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
-                else
+
+                    --Ahwassa - micro the bomber
+                if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
                         ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
@@ -779,8 +780,8 @@ function OnWeaponFired(oWeapon)
                 end
 
                 --Consider dodging
-                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and oWeapon.Label == 'GroundMissile' then
-                    --Corsairs dont trigger the onbombfired event normally
+                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and (oWeapon.Label == 'GroundMissile') then
+                    --Corsairs dont trigger the onbombfired event normally hence why we have this
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
                         if oWeapon:GetCurrentTarget().GetPosition then LOG(sFunctionRef..': Target of weapon='..repru(oWeapon:GetCurrentTarget():GetPosition())) end

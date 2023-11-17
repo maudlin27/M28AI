@@ -46,7 +46,8 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
         if iFacingAngleWanted >= 360 then iFacingAngleWanted = iFacingAngleWanted - 360 end
 
         local iTurnRate = (oBP.Physics.TurnRate or 90)
-        local iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate
+        local iTimeToTurn
+        if iTurnRate <= 0 then iTimeToTurn = 0 else iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate end
         local iDistToBomb = M28Utilities.GetDistanceBetweenPositions(tPositionToRunFrom, oUnit:GetPosition())
         if iDistToBomb * 2 / iUnitSpeed <= iTimeToTurn then
             iFacingAngleWanted = iCurFacingDirection
@@ -115,13 +116,17 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
 
         local tNewTargetIgnoringGrouping = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, math.max(1, iDistanceToMove - iDistanceAlreadyMoved), true, false, true)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to face the right direction, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; tUnitPosition='..repru(tUnitPosition)..'; iDistanceToMove='..iDistanceToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
+        if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oUnit.UnitId) then
+            M28Orders.IssueTrackedMove(oUnit, tNewTargetIgnoringGrouping, 0.25, true, 'TempGA', true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Dodging bomb for air unit, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+        else
+            local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
+            if tNewTargetInSameGroup then
+                if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
 
-        local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
-        if tNewTargetInSameGroup then
-            if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
-
-            M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
-            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+                M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
+                TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
@@ -225,7 +230,7 @@ function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
 end
 
 function DodgeBomb(oBomber, oWeapon, projectile)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeBombsFiredByUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -253,13 +258,25 @@ function DodgeBomb(oBomber, oWeapon, projectile)
         end --black ring around target
 
         local tAllUnitsInArea = GetUnitsInRect(Rect(tBombTarget[1]-iRadiusSize, tBombTarget[3]-iRadiusSize, tBombTarget[1]+iRadiusSize, tBombTarget[3]+iRadiusSize))
+        local bDontCheckIfFriendlyGunships = true
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of units in rectangle around bomb radius empty='..tostring(M28Utilities.IsTableEmpty(tAllUnitsInArea))) end
         if M28Utilities.IsTableEmpty(tAllUnitsInArea) == false then
-            local tMobileLandInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand - categories.EXPERIMENTAL, tAllUnitsInArea)
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile land units in rectangle around bomb radius empty='..tostring(M28Utilities.IsTableEmpty(tMobileLandInArea))) end
-            if M28Utilities.IsTableEmpty(tMobileLandInArea) == false then
+            local tMobileLandAndGunshipsInArea
+            if iBombSize <= 9 then tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand - categories.EXPERIMENTAL, tAllUnitsInArea)
+            else
+                if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
+                    tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
+                    bDontCheckIfFriendlyGunships = false --we get friendly gunships to split up via separate logic
+                    iTimeToRun = math.max(iTimeToRun, 3.5)
+                else
+                    tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand - categories.EXPERIMENTAL + M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Are including gunships in the category of unit to consider dodging') end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile land units in rectangle around bomb radius empty='..tostring(M28Utilities.IsTableEmpty(tMobileLandAndGunshipsInArea))) end
+            if M28Utilities.IsTableEmpty(tMobileLandAndGunshipsInArea) == false then
                 local oCurBrain
-                for iUnit, oUnit in tMobileLandInArea do
+                for iUnit, oUnit in tMobileLandAndGunshipsInArea do
                     if not(oUnit.Dead) and oUnit.GetUnitId and oUnit.GetPosition and oUnit.GetAIBrain then
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; iTimeToRun='..iTimeToRun) end
                         oCurBrain = oUnit:GetAIBrain()
@@ -309,7 +326,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                 end
 
                                 if not(bDontTryAndDodge) then
-                                    if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+                                    if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will move in a circle as micro is already active') end
                                         MoveInCircleTemporarily(oUnit, iTimeToRun)
                                     else
@@ -322,9 +339,11 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                             else
                                 --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
                                 if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
-                                    MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
-                                    oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                    if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
+                                        MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
+                                        oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                    end
                                 end
                             end
                         end

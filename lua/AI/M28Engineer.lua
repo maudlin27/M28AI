@@ -7452,12 +7452,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             --T2 radar
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want T2 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bWantT1RadarFirst='..tostring(bWantT1RadarFirst)) end
             if not(bWantT1RadarFirst) and tLZTeamData[M28Map.refiRadarCoverage] <= 130 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
-                --Check we dont already have t2 radar in the land zone
-                if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
-                    iBPWanted = 20
-                    if not(bHaveLowMass) then iBPWanted = 60 end
-                    if bDebugMessages == true then LOG(sFunctionRef..': High priority t2 radar builder') end
-                    HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                if not(tLZTeamData[M28Map.refbBaseInSafePosition]) or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+                    --Check we dont already have t2 radar in the land zone
+                    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+                        iBPWanted = 20
+                        if not(bHaveLowMass) then iBPWanted = 60 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': High priority t2 radar builder') end
+                        HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                    end
                 end
             end
         end
@@ -7688,8 +7690,35 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 500 then
             iBPWanted = iBPWanted * 0.5 --i.e. want to have construction started so primary power builder can build sooner but not as worried about building this really fast
         end
-        HaveActionToAssign(refActionBuildSecondPower, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1), iBPWanted)
-        if bDebugMessages == true then LOG(sFunctionRef..': Want to build second power due to lots of mass and having recently needed more energy for air production') end
+        --If havent built the first Pgen of this tech level yet then wait
+        local bNotBuiltAnyPowerYet = false
+        local oPowerToAssistInstead
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            local tFriendlyPowerOfTechWanted = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(math.min(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], 3)), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            local iClosestToCompletion = 0
+            bNotBuiltAnyPowerYet = true
+            if M28Utilities.IsTableEmpty(tFriendlyPowerOfTechWanted) == false then
+                for iUnit, oUnit in tFriendlyPowerOfTechWanted do
+                    if oUnit:GetFractionComplete() == 1 then
+                        bNotBuiltAnyPowerYet = false
+                        oPowerToAssistInstead = nil
+                        break
+                    elseif oUnit:GetFractionComplete() > iClosestToCompletion then
+                        oPowerToAssistInstead = oUnit
+                        iClosestToCompletion = oUnit:GetFractionComplete()
+                    end
+                end
+            end
+        end
+        if bNotBuiltAnyPowerYet then
+            if bDebugMessages == true then LOG(sFunctionRef..': Normally would want to start second power builder but we havent built first yet so will focus on completing that, iClosestToCompletion='..iClosestToCompletion..'; oPowerToAssistInstead='..(oPowerToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPowerToAssistInstead) or 'nil')) end
+            if oPowerToAssistInstead then
+                HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oPowerToAssistInstead)
+            end
+        else
+            HaveActionToAssign(refActionBuildSecondPower, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1), iBPWanted)
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build second power due to lots of mass and having recently needed more energy for air production') end
+        end
     end
 
     --Similar to above but for third power with slightly greater mass threshold, and only for very high mass and energy incomes, and only if have stalled for power in last 60s
@@ -8217,10 +8246,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if want T2 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
         if tLZTeamData[M28Map.refiRadarCoverage] <= 130 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
             --Check we dont already have t2 radar in the land zone
-            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
-                iBPWanted = 20
-                if not(bHaveLowMass) then iBPWanted = 60 end
-                HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+            if not(tLZTeamData[M28Map.refbBaseInSafePosition]) or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+                if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+                    iBPWanted = 20
+                    if not(bHaveLowMass) then iBPWanted = 60 end
+                    HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                end
             end
         end
 
