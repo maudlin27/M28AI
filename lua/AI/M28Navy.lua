@@ -1671,7 +1671,6 @@ function AssignValuesToWaterZones(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-
         if bDebugMessages == true then LOG(sFunctionRef .. ': About to start the main loop for assigning values to water zones provided we have friendly M28 brains in the team ' .. iTeam .. '; is table empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Is M28Map.tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tPondDetails))) end
         local iCurValue
         local iBuildLocationSegmentX, iBuildLocationSegmentZ

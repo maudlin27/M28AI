@@ -3245,7 +3245,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             --Finished checking for enemies; now check more generally if engineer is busy
             if not(bEngiIsUnavailable) then
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
-                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true))..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)) end
                 if bCheckForReclaim then
                     if not(bEngiIsUnavailable) then
                         if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 20) then
@@ -7082,6 +7082,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     local iCoreWZWantingSupportAsLowerPriority
     --If have adjacent waterzone that has unbuilt mexes or is a core WZ, wants engineers and has no combat threat then assign engi
+
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have adjacent WZ that wants engineer for unbuilt mexes or core WZ, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
     if iHighestTechEngiAvailable > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
         local iCurWZ, iCurPond
@@ -8667,6 +8668,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --All spare engi actions
     if iHighestTechEngiAvailable > 0 then
+        --Build any unbuilt mexes (with more build power than would normally assign)
+        iCurPriority = iCurPriority + 1
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+            iBPWanted = 5 + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])
+            HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
+        end
 
         --Spare engi - assist any upgrading unit
         iCurPriority = iCurPriority + 1
@@ -10259,6 +10266,8 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
 
+
+
     local toAvailableEngineersByTech, toAssignedEngineers = FilterToAvailableEngineersByTech(tEngineers, false, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, true)
     tWZTeamData[M28Map.subrefTBuildPowerByTechWanted] = { [1] = 0, [2] = 0, [3] = 0 }
     if bDebugMessages == true then
@@ -10313,7 +10322,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; First M28 lifetime factory highest build count='..M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount])
     end
-    if (tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap and ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] >= 30))) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+    if (tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] >= 30))) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(M28Team.GetFirstActiveM28Brain(iTeam)[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Team.GetFirstActiveM28Brain(iTeam)[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2)) then
         --Is this a priority pond for our team to expand to?
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then

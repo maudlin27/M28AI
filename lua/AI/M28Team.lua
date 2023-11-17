@@ -786,6 +786,7 @@ end
     M28Utilities.ErrorHandler('To add code')
 end--]]
 
+function RecordUnitInLandZone()  end --DONE TO HELP LOCATE
 function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemyAirUnit)
     --If unit already has a land zone assigned then remove this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

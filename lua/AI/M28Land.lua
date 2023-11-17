@@ -4957,7 +4957,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
     local bUpdateEnemyDataHere = true --Will handle this logic in logic for managing land zone units if htis is false
 
-    local bAlliedUnitsHereOrInAdjacentZone = M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+    local bAlliedUnitsHereOrInAdjacentZone = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))
     if not(bAlliedUnitsHereOrInAdjacentZone) then
         for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
             local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
@@ -5009,6 +5009,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname) end
                 if oUnit:GetFractionComplete() >= 1 then
                     if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
                         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -5286,7 +5287,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 end
                 --if not(bConsiderAdjacentDF) and not(bConsiderAdjacentIndirect) and not(bConsiderAdjacentMAA) then break end
             end
-                --end
+            --end
         end
 
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then

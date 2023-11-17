@@ -5111,9 +5111,10 @@ function RecordPondToExpandTo(aiBrain)
                             end
                         end
 
-                        --Increase value for campaign maps
+                        --Increase value for campaign maps or maps where we cant path to the enemy by land but can by water
                         if bIsCampaignMap then iCurPondValue = iCurPondValue * 2 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre adjust='..iCurPondValue) end
+                        if aiBrain[refbCanPathToEnemyBaseWithAmphibious] and not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iCurPondValue = iCurPondValue * 4 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre main adjust (but post adjusting for campaign and pathing)='..iCurPondValue..'; aiBrain[refbCanPathToEnemyBaseWithAmphibious]='..tostring(aiBrain[refbCanPathToEnemyBaseWithAmphibious] or false)..'; aiBrain[refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand] or false)) end
                         --Do we have sufficient value to consider?
                         if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
                             if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
