@@ -2807,10 +2807,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local iClosestFriendlyUnitToAnEnemyFirebase = 100000
 
     local iFirebaseThreatAdjust = 0
+    local iFirebaseCloseCombatThreat = 0
     local iAdjacentFirebaseThreat = 0
 
     local iAvailableCombatUnitThreat = M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)
     iAvailableCombatUnitThreat = iAvailableCombatUnitThreat + math.min(iAvailableCombatUnitThreat, tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat])
+
+
 
     local bHaveSignificantCombatCloserToFirebase = false
     local iClosestFirebaseDist = 100000
@@ -2825,6 +2828,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local iCurFirebaseThreat
         local bIsAdjacent
         local iDistToFirebase
+        local oClosestUnitFromAllFirebases
+        local iClosestDistFromAllFirebases = 100000
 
         for iEntry, tPlateauAndLZ in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
             if M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
@@ -2834,7 +2839,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             else
                 --Ignore firebase in the LZ we are already in
                 if not(iLandZone == tPlateauAndLZ[2]) then
-                    tEnemyT2ArtiAndShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+                    local tFirebaseLZData = M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]]
+                    local tFirebaseLZTeamData = tFirebaseLZData[M28Map.subrefLZTeamData][iTeam]
+                    tEnemyT2ArtiAndShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, tFirebaseLZTeamData[M28Map.subrefTEnemyUnits])
                     if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndShields) == false then
                         iClosestDist = 100000
                         for iUnit, oUnit in tEnemyT2ArtiAndShields do
@@ -2842,10 +2849,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if iCurDist < iClosestDist then
                                 iClosestDist = iCurDist
                                 oNearestFirebaseUnit = oUnit
+                                if iCurDist < iClosestDistFromAllFirebases then
+                                    oClosestUnitFromAllFirebases = oUnit
+                                end
                             end
                         end
                         iClosestDist = 100000
-                        local tFirebaseMidpoint = M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefMidpoint]
+                        local tFirebaseMidpoint = tFirebaseLZData[M28Map.subrefMidpoint]
                         for iUnit, oUnit in tAvailableCombatUnits do
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tFirebaseMidpoint)
                             if iCurDist < iClosestDist then
@@ -2866,8 +2876,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if iDistToFirebase <= 140 then
                                 iCurFirebaseThreat = M28UnitInfo.GetCombatThreatRating(tEnemyT2ArtiAndShields, true, true)
                                 if iCurFirebaseThreat > 0 then
+                                    iFirebaseCloseCombatThreat = tFirebaseLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] --excludes shields and t2 arti
                                     bIsAdjacent = false
-                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]) == false then
+                                    if M28Utilities.IsTableEmpty(tFirebaseLZData[M28Map.subrefLZPath]) == false then
 
                                         --Include friendly units in LZs between here and the firebase
                                         if bDebugMessages == true then
@@ -2884,10 +2895,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 bIsAdjacent = true
                                             end
                                         end
-                                        for iEntry, iPathLZ in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath] do
+                                        for iEntry, iPathLZ in tFirebaseLZData[M28Map.subrefLZPath] do
                                             if not(iPathLZ == iLandZone) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Friendly LZ that will pass through to get to firebase='..iPathLZ..'; Friendly combat threat of this='..(M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
-                                                iCurFirebaseThreat = iCurFirebaseThreat - (M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')
+                                                local tOtherFirebaseZoneTeamData = M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam]
+                                                iCurFirebaseThreat = iCurFirebaseThreat - (tOtherFirebaseZoneTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                                                iFirebaseCloseCombatThreat = iFirebaseCloseCombatThreat + (tOtherFirebaseZoneTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tOtherFirebaseZoneTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
                                                 if not(bHaveSignificantCombatCloserToFirebase) and M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 then
                                                     bHaveSignificantCombatCloserToFirebase = true
                                                 end
@@ -2912,18 +2925,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     --If enemy has a firebase, then retreat if we dont have enough threat to beat it and we dont have significant indirect force
     local bRunFromFirebase = false
+    if bDebugMessages == true then LOG(sFunctionRef..': If enemy has nearby firebase will check if we have enough units to try and attack it, iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase or false)..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat) end
     if iFirebaseThreatAdjust > 0 and not(bHaveSignificantCombatCloserToFirebase) then
-        if iAvailableCombatUnitThreat < math.min(20000, iFirebaseThreatAdjust) or (iAvailableCombatUnitThreat < iFirebaseThreatAdjust * 2)   then
-            --Retreat
+        if iAvailableCombatUnitThreat < math.min(20000, iFirebaseThreatAdjust) or (iAvailableCombatUnitThreat < iFirebaseThreatAdjust * 2) then
+            --Retreat by default then check if have enough threat to attack
             bRunFromFirebase = true
             --Exception if we have fatboys or megaliths in which case compare to enemy long range threat as well
-            if iAvailableCombatUnitThreat >= 15000 then
+            if iAvailableCombatUnitThreat >= 8000 then
                 local tFriendlyExperimental = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tAvailableCombatUnits)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider running from firebase, is table of firendly experimentals empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyExperimental))) end
                 if M28Utilities.IsTableEmpty(tFriendlyExperimental) == false then
                     local iLRExpThreat = 0
                     local bHaveDamagedFatboys = false
                     local bHaveFatboys = false
+                    local iSRExpThreat = 0
+                    local bHaveSRExpNearFirebaseUnit = false
                     for iUnit, oUnit in tFriendlyExperimental do
                         if (oUnit[M28UnitInfo.refiCombatRange] or 0) >= 60 then
                             local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
@@ -2938,9 +2954,18 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iLRExpThreat = iLRExpThreat + M28UnitInfo.GetCombatThreatRating({ oUnit }, false, true) * M28UnitInfo.GetUnitHealthPercent(oUnit)
                             end
                         end
+                        --Include megalith in both LR and SR threats
+                        if (oUnit[M28UnitInfo.refiDFRange] or 0) <= 80 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitId)) then
+                            iSRExpThreat = iSRExpThreat +  M28UnitInfo.GetCombatThreatRating({ oUnit }, false, true) * M28UnitInfo.GetUnitHealthPercent(oUnit)
+                            if not(bHaveSRExpNearFirebaseUnit) and oClosestUnitFromAllFirebases and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestUnitFromAllFirebases:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 10 then
+                                bHaveSRExpNearFirebaseUnit = true
+                            end
+                        end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLRExpThreat='..iLRExpThreat) end
-                    if iLRExpThreat > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLRExpThreat='..iLRExpThreat..'; iSRExpThreat='..iSRExpThreat..'; bHaveSRExpNearFirebaseUnit='..tostring(bHaveSRExpNearFirebaseUnit or false)) end
+                    if bHaveSRExpNearFirebaseUnit and (iAvailableCombatUnitThreat >= iFirebaseCloseCombatThreat * 0.8 or iSRExpThreat >= 8000) then
+                        bRunFromFirebase = false
+                    elseif iLRExpThreat > 0 then
                         local iEnemyT2ArtiThreat = 0
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                             --Treat T2 arti as being worth twice their mass cost since we may be dealing with a fatboy
@@ -2948,8 +2973,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bHaveFatboys then iEnemyT2ArtiThreat = iEnemyT2ArtiThreat * 1.25 end
                             if bHaveDamagedFatboys then iEnemyT2ArtiThreat = iEnemyT2ArtiThreat * 1.25 end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iLRExpThreat='..iLRExpThreat..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; iEnemyT2ArtiThreat='..iEnemyT2ArtiThreat..'; bHaveFatboys='..tostring(bHaveFatboys or false)) end
-                        if iLRExpThreat > tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] + iEnemyT2ArtiThreat then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iLRExpThreat='..iLRExpThreat..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; iEnemyT2ArtiThreat='..iEnemyT2ArtiThreat..'; bHaveFatboys='..tostring(bHaveFatboys or false)..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat) end
+                        if iLRExpThreat > tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] + iEnemyT2ArtiThreat or (not(bHaveDamagedFatboys) and math.max(iAvailableCombatUnitThreat, iLRExpThreat) >= iFirebaseCloseCombatThreat * 2) then
+                            bRunFromFirebase = false
+                        end
+                    end
+                    if bRunFromFirebase and iSRExpThreat > 0 then
+                        if iSRExpThreat > math.max(8000, iFirebaseCloseCombatThreat * 3) or ((iClosestFirebaseDist <= 80 or bHaveSignificantCombatCloserToFirebase) and iSRExpThreat >= math.max(7000, iFirebaseCloseCombatThreat * 2)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have enough short range experimental threat to press the attack') end
                             bRunFromFirebase = false
                         end
                     end
@@ -2958,15 +2989,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bRunFromFirebase and iClosestFirebaseDist <= 100 then
                 local tFriendlyIndirect = EntityCategoryFilterDown(M28UnitInfo.refCategoryIndirect, tAvailableCombatUnits)
                 if M28Utilities.IsTableEmpty( tFriendlyIndirect) == false then
-                    if table.getn(tFriendlyIndirect) >= 10 then
+                    local iFriendlyIndirect = table.getn(tFriendlyIndirect)
+                    if iFriendlyIndirect >= 10 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Exception to decision to run from firebase') end
+                        bRunFromFirebase = false
+                    end
+                end
+                if bRunFromFirebase then
+                    if iAvailableCombatUnitThreat >= math.max(12000, iFirebaseCloseCombatThreat * 3) or (bHaveSignificantCombatCloserToFirebase and  iAvailableCombatUnitThreat >= math.max(7000, iFirebaseCloseCombatThreat * 2)) then
                         bRunFromFirebase = false
                     end
                 end
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat) end
 
 
     --If enemy has units in this or adjacent LZ, then decide what to do
