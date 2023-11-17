@@ -3367,3 +3367,156 @@ function JustBuiltParagon(oParagon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
+
+function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecondsAndWeaponFireCheck)
+    --Considers giving manual orders to the T2 arti, so e.g. can use aoe and shot firing randomness to damage enemy shields just outside of our range
+
+    --oOptionalWeapon - if called from the weapon fire event then this means we can check our last target
+    --iOptionalDelaySecondsAndWeaponFireCheck - if specified, then will wait this many seconds then check if we have fired since the code started, and if not then proceed (used so if we are targeting a mobile unit and it goes out of our range we arent stuck with an invalid fire order)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderManualT2ArtiTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bProceedWithLogic = true
+    if iOptionalDelaySecondsAndWeaponFireCheck then
+        --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently
+        bProceedWithLogic = false
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iOptionalDelaySecondsAndWeaponFireCheck)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if not(oArti[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oArti[M28UnitInfo.refiLastWeaponEvent] >= iOptionalDelaySecondsAndWeaponFireCheck - 0.01 then
+            bProceedWithLogic = true
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to proceed for oArti='..(oArti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArti) or 'nil')..'; Is oArti valid='..tostring(M28UnitInfo.IsUnitValid(oArti))..'; bProceedWithLogic='..tostring(bProceedWithLogic)..'; iOptionalDelaySecondsAndWeaponFireCheck='..(iOptionalDelaySecondsAndWeaponFireCheck or 'nil')..'; Is oOptionalWeapon nil='..tostring(oOptionalWeapon == nil)..'; Time='..GetGameTimeSeconds()) end
+    if bProceedWithLogic and M28UnitInfo.IsUnitValid(oArti) then
+
+        local bGivenOrder = false
+        local tLastTarget
+        if oOptionalWeapon.GetCurrentTarget then
+            local vLastTarget = oOptionalWeapon:GetCurrentTarget()
+            if vLastTarget.GetPosition then
+                tLastTarget = vLastTarget:GetPosition()
+            elseif vLastTarget[1] and vLastTarget[3] and not(vLastTarget[4]) then
+                tLastTarget = {vLastTarget[1], vLastTarget[2], vLastTarget[3]}
+            end
+        end
+
+        --Are there T2 arti nearby? if so then want to target the closest t2 arti or shield covering the t2 arti
+        local aiBrain = oArti:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oArti:GetPosition(), true, iTeam)
+        local oClosestTargetOfInterest
+        local iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+        local iCurDist
+        local tArtiPosition = oArti:GetPosition()
+        --Set the min range so we avoid targets inside this
+        local iMinRange = oArti[M28UnitInfo.refiArtiMinRange]
+        if not(iMinRange) then
+            if oOptionalWeapon then
+                oArti[M28UnitInfo.refiArtiMinRange] = (oOptionalWeapon.MinRadius or 1)
+            else
+                for iWeapon, tWeapon in oArti:GetBlueprint().Weapon do
+                    if tWeapon.MinRadius then
+                        oArti[M28UnitInfo.refiArtiMinRange] = tWeapon.MinRadius
+                        break
+                    end
+                end
+                iMinRange = oArti[M28UnitInfo.refiArtiMinRange]
+                if not(iMinRange) then
+                    iMinRange = math.min(oArti[M28UnitInfo.refiIndirectRange] * 0.7, 50)
+                end
+            end
+        end
+
+        function UpdateClosestUnit(tUnits)
+            for iUnit, oUnit in tUnits do
+                if not(oUnit.Dead) then
+                    --Check unit is on land and not attached
+                    if not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tArtiPosition)
+                        if iCurDist < iClosestTargetOfInterest and iMinRange >= iMinRange then
+                            iClosestTargetOfInterest = iCurDist
+                            oClosestTargetOfInterest = oUnit
+                        end
+                    end
+                end
+            end
+        end
+
+        --First consider enemy fatboys
+        if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 then
+            UpdateClosestUnit(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats])
+        end
+
+        if not(oClosestTargetOfInterest) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            --Enemy has t2 arti nearby so consider groundfiring units unless they have a fatboy nearby
+            UpdateClosestUnit(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
+        end
+
+        if not(oClosestTargetOfInterest) and tLastTarget then
+            --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti around the arti and (if so) if we want to ground fire them
+            local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryCruiser * categories.SILO + M28UnitInfo.refCategoryMissileShip, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
+            if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                UpdateClosestUnit(tNearbyUnitsOfInterest)
+            end
+        end
+
+        --If we have a unit consider attacking it, or groundfiring if it is out of our range
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for main target, oClosestTargetOfInterest='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')..'; iClosestTargetOfInterest='..iClosestTargetOfInterest) end
+        if oClosestTargetOfInterest then
+            --Is it covered by a fixed shield? if so then switch target to the closest shield that is covering it
+            if M28Utilities.IsTableEmpty(oClosestTargetOfInterest[reftoShieldsProvidingCoverage]) == false then
+                local iOrigUnitDist = iClosestTargetOfInterest
+                local oOrigUnitTarget = oClosestTargetOfInterest
+                iClosestTargetOfInterest = 100000
+                UpdateClosestUnit(oClosestTargetOfInterest[reftoShieldsProvidingCoverage])
+                if iClosestTargetOfInterest >= 100000 then --Redundancy
+                    iClosestTargetOfInterest = iOrigUnitDist
+                    oClosestTargetOfInterest = oOrigUnitTarget
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Original target was covered by a fixed shield so will target the shield instead, revised target='..oOrigUnitTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigUnitTarget)..'; iOrigUnitDist='..iOrigUnitDist)
+                end
+            end
+
+            --Now have selcted the unit we want to target - if its in our range then issue an attack order, otherwise issue a ground fire order
+            local bTargetingMobileUnit = EntityCategoryContains(categories.MOBILE, oClosestTargetOfInterest.UnitId)
+            bGivenOrder = true
+            --Consider whether to ground fire
+            if iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] then
+                if M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false) then
+                    M28Orders.IssueTrackedAttack(oArti, oClosestTargetOfInterest, false, 'ArtAt', false)
+                else
+                    M28Orders.IssueTrackedGroundAttack(oArti, oClosestTargetOfInterest:GetPosition(), 0.1, false, 'ArtXG', false, oClosestTargetOfInterest)
+                end
+            else
+                --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
+                if oClosestTargetOfInterest.MyShield or iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] + 20 then
+                    bTargetingMobileUnit = false --ground firing so no longer need to check we have a valid target, since we will reassess when we next fire a shot
+                    local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), oArti[M28UnitInfo.refiIndirectRange] - 0.05, true, false, M28Map.bIsCampaignMap)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will gorund fire as target unit is outside our range, tGroundFireTarget='..repru(tGroundFireTarget)) end
+                    if tGroundFireTarget then
+                        M28Orders.IssueTrackedGroundAttack(oArti, tGroundFireTarget, 0.1, false, 'ArtGF', false, oClosestTargetOfInterest)
+                    else
+                        M28Utilities.ErrorHandler('Failed to calculate valid ground fire target for arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Not targeting a shield and it is too far outside our range so will abort') end
+                    bGivenOrder = false
+                end
+            end
+
+            --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
+            if bTargetingMobileUnit then ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, iOptionalDelaySecondsAndWeaponFireCheck) end
+        end
+
+        --Clear orders if last order was attack ground and we havent given any new order (so will revert to default weapon targeting)
+        if not(bGivenOrder) then
+            M28Orders.UpdateRecordedOrders(oArti)
+            local iLastOrderType = oArti[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType]
+            if iLastOrderType == M28Orders.refiOrderIssueGroundAttack or iLastOrderType == M28Orders.refiOrderIssueAttack then
+                if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any targets and arti was given an attack or ground fire order so will clear the order') end
+                M28Orders.IssueTrackedClearCommands(oArti)
+            end
+        end
+    end
+end

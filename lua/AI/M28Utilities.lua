@@ -604,6 +604,21 @@ function SortTableByValue(tTableToSort, bHighToLow)
     end
 end
 
+function GetAverageOfUnitPositions(tUnits)
+    local tTotalPos = {0,0,0}
+    local iLocationCount = 0
+    for iUnit, oUnit in tUnits do
+        if not(oUnit.Dead) then
+            tTotalPos[1] = tTotalPos[1] + oUnit:GetPosition()[1]
+            tTotalPos[3] = tTotalPos[1] + oUnit:GetPosition()[3]
+            iLocationCount = iLocationCount + 1
+        end
+    end
+    local tAveragePos = {tTotalPos[1] / iLocationCount, 0, tTotalPos[3] / iLocationCount}
+    tAveragePos[2] = GetSurfaceHeight(tAveragePos[1], tAveragePos[3])
+    return tAveragePos
+end
+
 function GetAverageOfLocations(tAllLocations)
     local tTotalPos = {0,0,0}
     local iLocationCount = 0

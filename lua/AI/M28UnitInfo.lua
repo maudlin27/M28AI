@@ -76,6 +76,7 @@ refiDFMinRange = 'M28DFMinRng' --Min range of a unit
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
+refiArtiMinRange = 'M28AtMR' --Only populated when used, e.g. used by T2 arti as part of t2 arti manual targeting logic
 refiAntiNavyRange = 'M28UANR'
 refiCombatRange = 'M28UCRN' --Higher of antinavy, indirectrange and dfrange for a unit
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)

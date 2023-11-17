@@ -1399,9 +1399,20 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local aiBrain = oEngineer:GetAIBrain()
     local bBuildTowardsHydro = false
     local tLocationToBuildTowards
+    local iDistWantedTowardsLocationAwayFromArti = 40
     local tiClosestDistByPriorityAndCount --[x] is the priority before adjusting for this, returns {iDistance, iCount} where iCount is the number of times this has been updated (as need to increase priority by this to ensure we have a greater uplift than a further away distance)
     local bTryOtherLocationsIfNoneBuildableImmediately = false
     local bTryAndBuildAtlantis = false
+    local bAvoidArti = false
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local iTeam = oEngineer:GetAIBrain().M28Team
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+    local tArtiPositionToBuildAwayFrom
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+        --Get average position of enemy T2 arti and build away from here
+        tArtiPositionToBuildAwayFrom = M28Utilities.GetAverageOfUnitPositions(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
+    end
     if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintToBuild) then bTryAndBuildAtlantis = true end
 
     if GetGameTimeSeconds() <= 10 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBlueprintToBuild) then
@@ -1428,9 +1439,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
         --Do we have hydro in this LZ? dont want to consider if water zone
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if (iLandZone or 0) > 0 and iPlateau > 0 then
-            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefHydroUnbuiltLocations]) == false then
                 local iClosestHydroDist = 100000
                 local iCurDist
@@ -1449,10 +1458,17 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     if not(tLocationToBuildTowards) then
         --Build towards the midpoing except for certain unit categories
         if not(EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
             if (iLandZone or 0) > 0 and iPlateau > 0 then
-                local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                tLocationToBuildTowards = tLZData[M28Map.subrefMidpoint]
+                if tArtiPositionToBuildAwayFrom then
+                    tLocationToBuildTowards = M28Utilities.MoveInDirection(tArtiPositionToBuildAwayFrom, M28Utilities.GetAngleFromAToB(tArtiPositionToBuildAwayFrom, tLZData[M28Map.subrefMidpoint]), 128 + iDistWantedTowardsLocationAwayFromArti + 25, true, false, true)
+                    if tLocationToBuildTowards then
+                        bAvoidArti = true
+                    else
+                        tLocationToBuildTowards = tLZData[M28Map.subrefMidpoint]
+                    end
+                else
+                    tLocationToBuildTowards = tLZData[M28Map.subrefMidpoint]
+                end
             end
         end
     end
@@ -1567,10 +1583,17 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
 
 
-                    --Build towards hydro adjust
+                    --Build towards hydro adjust or away from enemy T2 arti
                     if tLocationToBuildTowards then
                         local iCurDistTowardsBuildTowards = M28Utilities.GetDistanceBetweenPositions(tCurLocation, tLocationToBuildTowards)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))..'; bAvoidArti='..tostring(bAvoidArti or false)..'; iDistWantedTowardsLocationAwayFromArti='..(iDistWantedTowardsLocationAwayFromArti or 'nil')) end
+                        if bAvoidArti then
+                            if iCurDistTowardsBuildTowards <= iDistWantedTowardsLocationAwayFromArti then
+                                iCurPriority = iCurPriority + 5
+                            elseif iCurDistTowardsBuildTowards <= (iDistWantedTowardsLocationAwayFromArti + 30) and M28Utilities.GetDistanceBetweenPositions(tCurLocation, tArtiPositionToBuildAwayFrom) >= 150 then
+                                iCurPriority = iCurPriority + 4
+                            end
+                        end
                         if iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000) then
                             tiClosestDistByPriorityAndCount[iCurPriority] = {iCurDistTowardsBuildTowards, (tiClosestDistByPriorityAndCount[iCurPriority][2] or 0) + 1}
                             iCurPriority = iCurPriority + tiClosestDistByPriorityAndCount[iCurPriority][2] * 0.1
@@ -1668,13 +1691,6 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bBestLocationBuildableImmediately='..tostring(bBestLocationBuildableImmediately)..'; bTryOtherLocationsIfNoneBuildableImmediately='..tostring(bTryOtherLocationsIfNoneBuildableImmediately or false)) end
     if not(bBestLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
-        local tLZTeamData, tLZData
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-        if (iLandZone or 0) > 0 and iPlateau > 0 then
-            tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-            local iTeam = oEngineer:GetAIBrain().M28Team
-            tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-        end
         --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch,                  iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
         local sRedundantBlueprint, tAltBestLocation = GetBlueprintAndLocationToBuild(aiBrain, oEngineer, nil,                        nil,           iOptionalMaxDistanceFromTargetLocation, nil,        tTargetLocation,                true,                               nil,            nil,                                nil,                    tLZData, tLZTeamData,   true,                   sBlueprintToBuild)
         if bDebugMessages == true then LOG(sFunctionRef..': tAltBestLocation='..repru(tAltBestLocation)..'; oEngineer:GetPosition='..repru(oEngineer:GetPosition())) end
@@ -5639,6 +5655,11 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         else iSMDWanted = math.min(4, iSMDWanted)
         end
 
+        --Dont get SMD if enemy has no nukes but has nearby T2 arti
+        if iEnemyNukes == 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            iSMDWanted = 0
+        end
+
         if iSMDWanted <= 0 and tLZTeamData[M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
         if iSMDsWeHave < iSMDWanted or iSMDsWithNoMissiles > 0 then
@@ -6410,7 +6431,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
             local tTargetBuildLocation
             if tNearestEnemyACU then
-                tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
             else
                 local tEnemiesToConsider = {}
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
@@ -6424,13 +6445,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if not(oNearestEnemy) then oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand) end
                     if oNearestEnemy then --factors in if can path to enemy by land
                         if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])) end
-                        tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                        tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
                     end
                 end
                 if not(oNearestEnemy) then iBPWanted = 0 end
             end
             if iBPWanted > 0 and tTargetBuildLocation then
-
+                --Reduce BP wanted if there is nearby T2 arti (as we probably want to get more T2 arti instead)
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iBPWanted = iBPWanted * 0.5 end
                 HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD') end
             end
@@ -7268,10 +7290,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
                         local tTargetBuildLocation
                         if tNearestEnemyACU then
-                            tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                            tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
                         end
                         local iPDTechLevelWanted = 2
                         if not(bHaveSufficientTech) then iPDTechLevelWanted = 1 end
+                        --Reduce BP wanted if enemy has t2 arti nearby
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iBPWanted = iBPWanted * 0.5 end
                         HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tTargetBuildLocation)
                         if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD, iPDTechLevelWanted='..iPDTechLevelWanted) end
                     end
@@ -7375,9 +7399,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
                             if not(oNearestEnemy) then oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand) end
                             if oNearestEnemy then
-                                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
                                 local iMinTechWanted = 1
                                 if iCurPDThreat > 0 then iMinTechWanted = 2 end
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iBPWanted = iBPWanted * 0.5 end
                                 HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
                             end
@@ -11382,7 +11407,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     return iBPWanted
 end
 
-function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint, iPlateau, iLandZone)
+function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
     local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
@@ -11395,12 +11420,38 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
         iDistToMove = iDistToTarget - 60
     end
     local tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+
+    --Adjust if T2 arti nearby
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+        --Get closest T2 arti
+        local oClosestT2Arti
+        local iClosestT2ArtiDist = 100000
+        local iCurDist
+        for iUnit, oUnit in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+            if not(oUnit.Dead) then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation)
+                if iCurDist < iClosestT2ArtiDist then
+                    iClosestT2ArtiDist = iCurDist
+                    oClosestT2Arti = oUnit
+                end
+            end
+        end
+
+        if oClosestT2Arti and iClosestT2ArtiDist <= (oClosestT2Arti[M28UnitInfo.refiIndirectRange] or 120) + 4 then
+            iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(oClosestT2Arti:GetPosition(), tTargetBuildLocation)
+            iDistToMove = (oClosestT2Arti[M28UnitInfo.refiIndirectRange] or 120) + 10 - iClosestT2ArtiDist
+            tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Adjusted for T2 arti location, iClosestT2ArtiDist='..iClosestT2ArtiDist) end
+        end
+    end
+
     --Adjust if we end up out of the zone
     local iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Time ' .. GetGameTimeSeconds() .. '; First position with iDistToMove=' .. iDistToMove .. '=' .. repru(tTargetLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; tTargetBuildLocation=' .. repru(tTargetBuildLocation) .. '; Dist to midpoint=' .. M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZMidpoint) .. '; Dist to original target=' .. M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tTargetLocation) .. '; iTargetPlateau=' .. (iTargetPlateau or 'nil') .. '; iTargetLandZone=' .. (iTargetLandZone or 'nil'))
     end
     while not (iLandZone == iTargetLandZone) do
+
         iDistToMove = iDistToMove + 5
         if iDistToMove > iDistToTarget then
             tTargetLocation = tLZMidpoint
@@ -11409,6 +11460,7 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
         tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
         iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. '; tTargetBuildLocation=' .. repru(tTargetBuildLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; iAngleFromTargetToMidpoint=' .. iAngleFromTargetToMidpoint .. '; iDistToTarget=' .. iDistToTarget .. '; iDistToMove=' .. iDistToMove .. '; tTargetLocation=' .. repru(tTargetLocation))
