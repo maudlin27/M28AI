@@ -6368,7 +6368,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                     tFullPath[0] = tStart
 
                     --Redundancy for when the navmesh gives a significantly inaccurate result
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandTravelDistance before adj='..iLandTravelDistance..'; iExtraStraightLineDist='..iExtraStraightLineDist..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd)) end
+                    --[[if bDebugMessages == true then LOG(sFunctionRef..': iLandTravelDistance before adj='..iLandTravelDistance..'; iExtraStraightLineDist='..iExtraStraightLineDist..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd)) end
                     local iStraightLineDist = VDist2(tStart[1], tStart[3], tEnd[1], tEnd[3])
                     iLandTravelDistance = math.max(iStraightLineDist, iLandTravelDistance + iExtraStraightLineDist)
                     if iLandTravelDistance >= 200 then
@@ -6380,17 +6380,20 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                     iAltTravelDistance = iAltTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
                                 end
                             end
-                            if math.abs(iAltTravelDistance -  iLandTravelDistance) >= 30 then
+                            if math.abs(iAltTravelDistance -  iLandTravelDistance) >= math.max(30, iAltTravelDistance * 0.25) then
+                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use the more accurate iAltTravelDistance='..iAltTravelDistance..' instead of iLandTravelDistance='..iLandTravelDistance) end
                                 iLandTravelDistance = iAltTravelDistance
                             end
                         end
-                    end
+                    end--]]
                 end
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')..'; repru of path='..repru(tFullPath)..'; LZ midpoint (start)='..repru(tLZData[subrefMidpoint])..'; Target LZ midpoint (end)='..repru(tOtherLZData[subrefMidpoint])..'; iPathSize='..iPathSize)
                     --Draw full path
-                    M28Utilities.DrawPath(tFullPath)
+                    if M28Utilities.IsTableEmpty(tFullPath) == false then
+                        M28Utilities.DrawPath(tFullPath)
+                    end
                 end
             end
             if iLandTravelDistance then
