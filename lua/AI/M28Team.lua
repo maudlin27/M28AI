@@ -3428,9 +3428,10 @@ function MonitorEnemyMobileTMLThreats(iTeam)
             if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
                 for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
-                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 then
+                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked] then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
                         M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit)
+                        oUnit[M28Building.refbTMDBuiltSinceLastChecked] = false
                         oUnit[M28Building.reftMobileTMLLastLocationChecked] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                         oUnit[M28Building.refiTimeMobileTMLLastChecked] = GetGameTimeSeconds()
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

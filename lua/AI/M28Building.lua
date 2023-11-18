@@ -37,6 +37,7 @@ refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder c
 reftActiveNukeTarget = 'M28BuildLastTargetLaucnh' --Against oLauncher, returns location of the target we last launched a TML/Nuke at while the missile is still alive, set to nil once the missile dies
 reftMobileTMLLastLocationChecked = 'M28BuildLastTMLLoc' --against mobile missile TMLs like ACU/SACU, to determine if shoudl rerun logic for identifying targets
 refiTimeMobileTMLLastChecked = 'M28BuildLastTMLChk' --Gametimeseconds that we last refreshed a mobile TML's potential targets
+refbTMDBuiltSinceLastChecked = 'M28BuildTMDMobChk' --true if we have built a TMD since the last time we checked mobile TML
 --refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
 --iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
@@ -346,6 +347,14 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
 
 
     if M28UnitInfo.IsUnitValid(oTML) then
+        --If this is a mobile TML then want to update any units not in range of it now that were recorded as being in range previously
+        --[[local toMobilePrevRecordedUnitsToUpdate
+        if EntityCategoryContains(categories.MOBILE, oTML.UnitId) and oTML[refbTMDBuiltSinceLastChecked] and M28Conditions.IsTableOfUnitsStillValid(oTML[reftUnitsInRangeOfThisTML]) then
+            toMobilePrevRecordedUnitsToUpdate = {}
+            for iRecorded, oRecorded in oTML[reftUnitsInRangeOfThisTML] do
+                toMobilePrevRecordedUnitsToUpdate[GetUnitRef(oRecorded)] = oRecorded
+            end
+        end--]]
 
         local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
         if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
@@ -440,7 +449,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
         if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
             local iCurTeam
             for iUnit, oUnit in tUnitsToProtect do
-
+                --if toMobilePrevRecordedUnitsToUpdate then toMobilePrevRecordedUnitsToUpdate[GetUnitRef(oUnit)] = nil end
                 if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                     --Update various tracking variables based on whether TMD are protecting this unit or not (i.e. updates TML for potential targets, TMD for units theyre covering, and units for TML that have hte unit in their range)
                     RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD)
@@ -458,7 +467,20 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
                 end
             end
         end
+        --[[if M28Utilities.IsTableEmpty(toMobilePrevRecordedUnitsToUpdate) == false then
+            --Dealing with a mobile TML so check for units that we havent updated per the above since they may now have TMD to cover them
+            for iRecorded, oRecorded in toMobilePrevRecordedUnitsToUpdate do
+                local tNearbyTMD = oRecorded:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oRecorded:GetPosition(), iTMLRange + 30, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
+                    RecordIfUnitIsProtectedFromTMLByTMD(oRecorded, oTML, tNearbyTMD)
+                end
+            end
+        end--]]
     end
+end
+
+function GetUnitRef(oUnit)
+    return oUnit.UnitId..'L'..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'B'..oUnit:GetAIBrain():GetArmyIndex()
 end
 
 function TMDJustBuilt(oTMD)
@@ -486,12 +508,9 @@ function TMDJustBuilt(oTMD)
         end
     end
     local bCheckForUnitsInZone = M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false
-    local tbUnitRefsConsidered
+    local tbUnitRefsConsideredByTML
+    local tbUnitRefsConsideredAllTML = {}
     local sCurUnitRef
-
-    function GetUnitRef(oUnit)
-        return oUnit.UnitId..'L'..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'B'..oUnit:GetAIBrain():GetArmyIndex()
-    end
 
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
@@ -506,14 +525,15 @@ function TMDJustBuilt(oTMD)
                 if bDebugMessages == true then LOG(sFunctionRef..': Dealing with oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; is table of nearby TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamNearbyTML))..'; iTMLTeam='..iTMLTeam) end
                 if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
                     for iTML, oTML in tTeamNearbyTML do
-                        tbUnitRefsConsidered = {}
+                        tbUnitRefsConsideredByTML = {}
                         local tFriendlyUnitsInRangeOfTML = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLMissileRange + 2, 'Ally')
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD friendly units in range of TML empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML))) end
                         if M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML) == false then
                             for iUnit, oUnit in tFriendlyUnitsInRangeOfTML do
                                 sCurUnitRef = GetUnitRef(oUnit)
 
-                                tbUnitRefsConsidered[sCurUnitRef] = true
+                                tbUnitRefsConsideredByTML[sCurUnitRef] = true
+                                tbUnitRefsConsideredAllTML[sCurUnitRef] = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
                                 RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }) --This will do a distance check from the unit to the TMD
                             end
@@ -523,9 +543,10 @@ function TMDJustBuilt(oTMD)
                             for iUnit, oUnit in tTMDZoneTeamData[M28Map.reftUnitsWantingTMD] do
                                 if M28UnitInfo.IsUnitValid(oUnit) then
                                     sCurUnitRef = GetUnitRef(oUnit)
-                                    if not(tbUnitRefsConsidered[sCurUnitRef]) then
+                                    if not(tbUnitRefsConsideredByTML[sCurUnitRef]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have unit in zone wanting TMD coverage that we havent considered with getunitsaroundpoint, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                                         RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD })
+                                        tbUnitRefsConsideredAllTML[sCurUnitRef] = true
                                     end
                                 end
                             end
@@ -533,6 +554,22 @@ function TMDJustBuilt(oTMD)
                     end
                 end
             end
+        end
+    end
+
+    if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML]) then
+        for iMobileTML, oMobileTML in M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML] do
+            if M28Conditions.IsTableOfUnitsStillValid(oMobileTML[reftUnitsInRangeOfThisTML]) then
+                for iRecorded, oRecorded in oMobileTML[reftUnitsInRangeOfThisTML] do
+                    sCurUnitRef = GetUnitRef(oRecorded)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oMobileTML '..oMobileTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMobileTML)..'; oRecorded='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecorded)..'; is tbUnitRefsConsideredAllTML nil for this unit='..tostring(tbUnitRefsConsideredAllTML[sCurUnitRef] == nil)) end
+                    if not(tbUnitRefsConsideredAllTML[sCurUnitRef]) then
+                        RecordIfUnitIsProtectedFromTMLByTMD(oRecorded, oMobileTML, { oTMD })
+                        tbUnitRefsConsideredAllTML[sCurUnitRef] = true
+                    end
+                end
+            end
+            oMobileTML[refbTMDBuiltSinceLastChecked] = true
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -740,14 +777,14 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
             end
         end
     else
-        --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML
+        --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML, and reassess if we want the unit flagged as wanting TMD
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is covered by TMD so will make sure not listed as an unprotected target against the TML, is table of unrptoected targets empty='..tostring(M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]))) end
+        bUpdateZoneForUnitsWantingTMD = true
         if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
             for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
                 if oExistingUnit == oUnit then
                     if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
                     table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
-                    bUpdateZoneForUnitsWantingTMD = true
                     break
                 end
             end
@@ -980,8 +1017,8 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
                         --Aeon missile ship
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMML, oRecordedTML.UnitId) then
-                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.4
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMML * categories.TECH2, oRecordedTML.UnitId) then
+                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.75
                     else
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
                     end
@@ -1062,8 +1099,6 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
     local iClosestDist = 10000
     local iCurDist
@@ -1104,6 +1139,14 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                 end
                 tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
                 return nil
+            end
+        end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': End of code, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; Is table of TML in range of this unit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]))..'; Is reftTMDCoveringThisUnit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit])))
+        if oClosestUnit then
+            for iTML, oTML in oClosestUnit[reftTMLInRangeOfThisUnit] do
+                LOG(sFunctionRef..': oTML in range='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oClosestUnit:GetPosition())..'; TML range='..(oTML[M28UnitInfo.refiIndirectRange] or oTML[M28UnitInfo.refiManualRange] or 'nil'))
             end
         end
     end
