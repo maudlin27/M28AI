@@ -340,7 +340,7 @@ end
 
 function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsider)
     --tOptionalUnitsToConsider - if nil then will get all nearby units on an opposing team to oTML
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -984,7 +984,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
     --If it has sufficient TMD coverage, then instead makes sure it isnt recorded in its land zone as one of the units wanting TMD
     --Relies on otherfunctions for accurately recording TML in range of it and TMD giving coverage
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitsWantTMDCoverageAgainstLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1095,7 +1095,7 @@ end
 
 function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

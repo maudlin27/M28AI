@@ -1392,7 +1392,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId == 'xss0202' then bDebugMessages = true end
+
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable
@@ -3375,7 +3375,7 @@ end
 
 function RecordMobileTMLThreatForAllEnemyTeams(oTML)
     --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMobileTMLThreatForAllEnemyTeams'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     while not(M28Map.bMapLandSetupComplete) do

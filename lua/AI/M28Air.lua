@@ -5921,7 +5921,6 @@ function ManageTransports(iTeam, iAirSubteam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Combat threat of units near drop zone='..M28UnitInfo.GetCombatThreatRating(tUnitsNearDropZone, true, false)..'; iCombatThreshold='..iCombatThreshold) end
                                 if M28Utilities.IsTableEmpty(tUnitsNearDropZone) == false and M28UnitInfo.GetCombatThreatRating(tUnitsNearDropZone, true, false) >= iCombatThreshold then
                                     bAbort = true
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to abort transport drop for target zone '..iTargetZone..'; PlateauOrZero='..iTargetPlateau..' and transport '..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..' as enemy has too large a combat threat near the drop point') end
                                 elseif bDebugMessages == true then LOG(sFunctionRef..': Combat threat near drop zone is low enough that will risk dropping')
                                 end

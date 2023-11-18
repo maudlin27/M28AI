@@ -7652,7 +7652,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --T2 arti to combat enemy navy if have t3 mexes
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
-        bDebugMessages = true
         local iAirSubteam = aiBrain.M28AirSubteam
         if bDebugMessages == true then LOG(sFunctionRef..': Considering for P'..iPlateau..'L'..iLandZone..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or false)..'; Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
@@ -7698,7 +7697,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
-        bDebugMessages = false
     end
 
 
@@ -9099,7 +9097,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         end
                     end
                 end
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': P'..iPlateau..'Z'..iLandZone..': bEnemyHasCombatOrFactory='..tostring(bEnemyHasCombatOrFactory or false)..'; iMexesIncludingAdjacentZones='..iMexesIncludingAdjacentZones..'; iEnemyNetCombatThreat='..iEnemyNetCombatThreat) end
                 if bEnemyHasCombatOrFactory and iMexesIncludingAdjacentZones >= 6 and iEnemyNetCombatThreat <= 1000 then
                     --Dont get more factories if enemy ACU is relatively close since will likely be wasted mass
@@ -9116,7 +9113,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         iFactoriesWanted = math.max(iFactoriesWanted, 3, math.min(5, iMexesIncludingAdjacentZones * 0.5))
                     end
                 end
-                bDebugMessages = false
             end
 
         else
@@ -9257,7 +9253,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone) end
-    bDebugMessages = false
     if iExistingFactory < iFactoriesWanted then
         --Dont want to build air factories at a core expansion point, instead only want land
         --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
