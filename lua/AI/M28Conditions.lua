@@ -388,6 +388,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 for iUnit, oUnit in tUnitsInRect do
                                     if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and M28UnitInfo.GetBuildingSize(oUnit.UnitId) > 1 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer has a constructed building at its target location so making it available') end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return true
                                     end
                                 end

@@ -1099,23 +1099,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
-    local iClosestDist = 10000
-    local iCurDist
-    local oClosestUnit
-    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
-    for iEntry = iUnitsWantingTMD, 1, -1 do
-        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
-            table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
-        else
-            iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
-            if iCurDist < iClosestDist then
-                iClosestDist = iCurDist
-                oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
-            end
-        end
-    end
+
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))) end
@@ -1138,10 +1122,30 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                     M28Utilities.ErrorHandler('Have at least TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
                 end
                 tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return nil
             end
         end
     end
+
+    local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
+    local iClosestDist = 10000
+    local iCurDist
+    local oClosestUnit
+    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    for iEntry = iUnitsWantingTMD, 1, -1 do
+        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
+            table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
+        else
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+            end
+        end
+    end
+
     if bDebugMessages == true then
         LOG(sFunctionRef..': End of code, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; Is table of TML in range of this unit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]))..'; Is reftTMDCoveringThisUnit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit])))
         if oClosestUnit then
@@ -1150,6 +1154,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
             end
         end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oClosestUnit
 end

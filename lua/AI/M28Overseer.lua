@@ -1097,7 +1097,7 @@ end
 
 function DebugCheck(aiBrain)
     local sFunctionRef = 'DebugCheck'
-    local iTickTimeToStartDetailedDebug = 833.7 --set to high number if first want to figure out the tick where this happens
+    local iTickTimeToStartDetailedDebug = 2139.901 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true
