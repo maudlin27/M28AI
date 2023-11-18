@@ -3081,7 +3081,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 end
 
 function ApplyEngiHuntingBomberLogic(oUnit, iAirSubteam, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

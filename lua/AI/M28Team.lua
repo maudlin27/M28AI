@@ -1392,7 +1392,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'xss0202' then bDebugMessages = true end
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable
@@ -1424,6 +1424,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             end
                         end
                         --Enemy based logic
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply enemy based logic to the unit for the first time it is recognised, IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
                         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
                             if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
@@ -2025,7 +2026,7 @@ end
 
 function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Starts a land factory upgrade if we need one urgently (e.g. we are outteched, or have high gross mass so will want access to T3)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityLandFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Enemy has better land tech than us, and we have no active land upgrades
@@ -2413,7 +2414,7 @@ end
 
 function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
     --if bRunningThisAsBackupUpgradeOption then wont upgrade T2 land fac that hasnt built much
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetSafeHQUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3374,7 +3375,7 @@ end
 
 function RecordMobileTMLThreatForAllEnemyTeams(oTML)
     --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMobileTMLThreatForAllEnemyTeams'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     while not(M28Map.bMapLandSetupComplete) do
