@@ -1959,8 +1959,8 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
         if not(M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) then
             bWantIndirectReinforcements = true
         else
-            local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
-            if oFirstM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+            --local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if tLZTeamData[M28Map.reftoClosestFriendlyM28Brain].GetCurrentUnits and tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
                 bWantIndirectReinforcements = true
             end
         end

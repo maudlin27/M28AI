@@ -2848,7 +2848,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 and iCurAirExperimentals + iTeamLandExperimentals > (iFriendlyGameEnderUnderConstruction + iEnemyT3ArtiEquivalent/3) then
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
-                        elseif not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(5, iEnemyLandExperimentalCount + 1)) then
+                        elseif not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 650 and iEnemyLandExperimentalCount == 0 and iTeamLandExperimentals + iCurAirExperimentals > 0) or ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(5, iEnemyLandExperimentalCount + 1)) then
                             if iDistToNearestEnemyBase <= 750 then
                                 if iEnemyT3ArtiEquivalent < 4 then
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 then iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
@@ -2995,7 +2995,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local toAvailableEngineersByTech = {[1]= { },[2]={},[3]={}}
     local toAssignedEngineers = {}
     local bHaveAvailableEngi = false
-    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+    local aiBrain = tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]  --M28Team.GetFirstActiveM28Brain(iTeam)
     --local tNearbyEnemiesByZone = {}
     local bCheckForEnemies = false
     local bCheckIfEnemyIsActuallyEnemy = false
@@ -6339,6 +6339,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iHighestTechInZone = M28Conditions.GetHighestTechInZone(iTeam, tLZTeamData) --Highest completed factory HQ or engineer in the zone (or 1 if none)
     local iFactoriesInLZ = 0
     local tFactoriesInLZ
+    local aiBrain = tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]
 
 
 
@@ -7648,6 +7649,58 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --T2 arti to combat enemy navy if have t3 mexes
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+        bDebugMessages = true
+        local iAirSubteam = aiBrain.M28AirSubteam
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering for P'..iPlateau..'L'..iLandZone..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or false)..'; Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
+            local iTotalNearbyWaterThreat = 0
+            for iEntry, iWaterZone in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] do
+                local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
+                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                    --How far away is the WZ to us?
+                    if M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= 170 then
+                        iTotalNearbyWaterThreat = iTotalNearbyWaterThreat + math.max(0, (tWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0) - (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking threat in iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; iTotalNearbyWaterThreat='..iTotalNearbyWaterThreat) end
+            end
+            if iTotalNearbyWaterThreat >= 1000 then
+                local iT2ArtiWanted = math.max(1, math.min(5, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.3 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], iTotalNearbyWaterThreat / 2000))
+                local iT2ArtiCount = 0
+                local tCurT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tCurT2Arti) == false then
+                    for iUnit, oUnit in tCurT2Arti do
+                        if oUnit:GetFractionComplete() == 1 then
+                            iT2ArtiCount = iT2ArtiCount + 1
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiCount='..iT2ArtiCount..'; iT2ArtiWanted='..iT2ArtiWanted) end
+                if iT2ArtiCount < iT2ArtiWanted then
+                    iBPWanted = 50
+                    if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 120 end
+
+                    local tLocationToBuild
+                    if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                        tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
+                        if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
+                            tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                        end
+                    else
+                        tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                    end
+
+                    HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
+                end
+            end
+        end
+        bDebugMessages = false
+    end
+
 
     --Preemptive fixed AA if we have T2+ air fac and no fixed T2+ ground AA and dont have much MAA threat here either
     --Also includes T3 SAM preemptive builder in greater numbers if we lack air control and have at least 10 mass per tick and not low mass
@@ -8555,7 +8608,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 95 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.55 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000)
                     or (M28Map.bIsCampaignMap and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
         local bAlreadyHaveGameEnderUnderConstruction = false
-        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        local aiBrain = tLZTeamData[M28Map.reftoClosestFriendlyM28Brain] --M28Team.GetFirstActiveM28Brain(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': About to check for nearby gameenders for team '..(iTeam or 'nil')..'; First active M28brain aibrain='..(aiBrain.Nickanme or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])) end
         local tNearbyGameEnders = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 1000, 'Ally')
         local iCompletedGameEnders = 0
@@ -10419,9 +10472,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; First M28 lifetime factory highest build count='..M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount])
+        LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; First M28 lifetime factory highest build count='..M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount]..'; WZ brain build count='..tWZTeamData[M28Map.reftoClosestFriendlyM28Brain][M28Factory.refiHighestFactoryBuildCount])
     end
-    if (tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] >= 30))) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(M28Team.GetFirstActiveM28Brain(iTeam)[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Team.GetFirstActiveM28Brain(iTeam)[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2)) then
+    if (tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or tWZTeamData[M28Map.reftoClosestFriendlyM28Brain][M28Factory.refiHighestFactoryBuildCount] >= 30))) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(tWZTeamData[M28Map.reftoClosestFriendlyM28Brain][M28Map.refbCanPathToEnemyBaseWithLand]) and tWZTeamData[M28Map.reftoClosestFriendlyM28Brain][M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2)) then
         --Is this a priority pond for our team to expand to?
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
