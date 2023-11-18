@@ -2817,6 +2817,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     local bHaveSignificantCombatCloserToFirebase = false
     local iClosestFirebaseDist = 100000
+    local oClosestUnitFromAllFirebases
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
         --Is the firebase not in range of a core LZ?
         local bFirebaseInCoreLZRange = false
@@ -2828,7 +2829,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local iCurFirebaseThreat
         local bIsAdjacent
         local iDistToFirebase
-        local oClosestUnitFromAllFirebases
         local iClosestDistFromAllFirebases = 100000
 
         for iEntry, tPlateauAndLZ in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
