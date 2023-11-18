@@ -388,6 +388,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 for iUnit, oUnit in tUnitsInRect do
                                     if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and M28UnitInfo.GetBuildingSize(oUnit.UnitId) > 1 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer has a constructed building at its target location so making it available') end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return true
                                     end
                                 end
@@ -876,12 +877,14 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
             LOG(sFunctionRef..': Dist to oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' = '..M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..' based on last known position of '..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; actual unit position='..repru(oUnit:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is distance less tahn threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < iDistThreshold))
         end
     end
-    local bIncludeAngleChecks, iAngleDistMod, iAngleDifferenceThreshold
+    local bIncludeAngleChecks, iAngleDistMod, iAngleDifferenceThreshold, iMiniAngleDistMod, iMiniAngleThreshold, iCurAngleDif
     local bAreCloseToUnit = false
     if M28UnitInfo.IsUnitValid(oUnitIfConsideringAngleAndLastShot) then
         bIncludeAngleChecks = true
         iAngleDistMod = -3 --i.e. will decrease enemy unit range to us by this amount if they are facing a similar angle to us
-        iAngleDifferenceThreshold = 18 --if angle dif is less than this amount, will reduce enemy distance to us by iAngleDistMod
+        iAngleDifferenceThreshold = 25 --if angle dif is less than this amount, will reduce enemy distance to us by iAngleDistMod
+        iMiniAngleDistMod = -1.5
+        iMiniAngleThreshold = iAngleDifferenceThreshold + 10
         --iOurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnitIfConsideringAngleAndLastShot)
 
         --Adjust distance threshold if we have fired recently since being in range to fire again is less important
@@ -903,9 +906,16 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
                 iClosestEnemyDist = iCurDist
                 oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = oUnit
             end
-            if bIncludeAngleChecks and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit)) <= iAngleDifferenceThreshold then
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod) end
-                iCurDist = iCurDist + iAngleDistMod
+            if bIncludeAngleChecks and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                iCurAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit))
+                if iCurAngleDif <= iAngleDifferenceThreshold then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod..'; will adjust further if it is moving, unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                    iCurDist = iCurDist + iAngleDistMod
+                elseif iCurAngleDif <= iMiniAngleThreshold then
+                    iCurDist = iCurDist + iMiniAngleDistMod
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif is below mini angle threshold, iCurAngleDif='..iCurAngleDif..'; iMiniAngleThreshold='..iMiniAngleThreshold..'; will adjust dist by iMiniAngleDistMod='..iMiniAngleDistMod) end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Angle dif is large enough that we wont adjust the distance, iCurAngleDif='..iCurAngleDif)
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
             if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
@@ -1950,8 +1960,8 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
         if not(M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) then
             bWantIndirectReinforcements = true
         else
-            local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
-            if oFirstM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+            --local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if tLZTeamData[M28Map.reftoClosestFriendlyM28Brain].GetCurrentUnits and tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
                 bWantIndirectReinforcements = true
             end
         end

@@ -1554,8 +1554,8 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 if not(bWaterZoneOrAdjHasUnitsWantingScout) and M28Utilities.IsTableEmpty(tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits]) == false then bWaterZoneOrAdjHasUnitsWantingScout = true end
                 if tAltWZTeam[M28Map.subrefWZTValue] < iCurWZValue and tAltWZTeam[M28Map.subrefTThreatEnemyCombatTotal] <= 50 and M28Utilities.IsTableEmpty(tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentWZAssignmentValue] or 0)..' and cur assignemnt WZ='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')) end
-                        if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iAdjWZ)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent WZ oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentWZAssignmentValue] or 0)..' and cur assignemnt WZ='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')) end
+                        if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone)) then
                             --Combat unit related
                             if bConsiderAdjacentCombat and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryCruiser, oUnit.UnitId)) then
                                 table.insert(tAvailableCombatUnits, oUnit)
@@ -1671,7 +1671,6 @@ function AssignValuesToWaterZones(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-
         if bDebugMessages == true then LOG(sFunctionRef .. ': About to start the main loop for assigning values to water zones provided we have friendly M28 brains in the team ' .. iTeam .. '; is table empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Is M28Map.tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tPondDetails))) end
         local iCurValue
         local iBuildLocationSegmentX, iBuildLocationSegmentZ
@@ -2751,15 +2750,25 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
         --Retreat to rally point
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+            local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
             for iUnit, oUnit in tAvailableCombatUnits do
-                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
+                if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WNRetrApA'..iWaterZone)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
+                end
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+            local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
             for iUnit, oUnit in tAvailableSubmarines do
                 --Only retreat units from this WZ
                 if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
-                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
+                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    end
                 else
                     oUnit[refiCurrentWZAssignmentValue] = 0
                 end
@@ -3106,18 +3115,25 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     local iAvailableSubmersibleThreat = M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, false, false, false, true, false, false)
                     local tSubRallyPoint
                     local sMessage
+                    local bConsiderAmphibiousRally = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough threat to attack, will see if we want to consolidate in this zone, iAvailableSubmersibleThreat='..iAvailableSubmersibleThreat..'; iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; Want to attack with navy='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAvailableSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat ))) end
                     if iAvailableSubmersibleThreat > iAdjacentAlliedSubmersibleThreat * 1.1 and iAvailableSubmersibleThreat > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) * 2 and M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAvailableSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat ) then
                         sMessage = 'WSConsR'
                         tSubRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                        bConsiderAmphibiousRally = false
                     else
                         sMessage = 'WSRetr'
                         tSubRallyPoint = tRallyPoint
                     end
+                    local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                     for iUnit, oUnit in tAvailableSubmarines do
                         --Only retreat units from this WZ
                         if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
-                            M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, 6, false, sMessage..iWaterZone)
+                            if bConsiderAmphibiousRally and EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
+                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, sMessage..'_AmphR'..iWaterZone)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, 6, false, sMessage..iWaterZone)
+                            end
                         else
                             oUnit[refiCurrentWZAssignmentValue] = 0
                         end
@@ -3487,21 +3503,28 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     local iAvailableCombatThreat = M28UnitInfo.GetCombatThreatRating(tCombatUnitsOfUse, false,          false,          false,                  false,          true,           false,          false)
                     local tSubRallyPoint
                     local sMessage
+                    local bConsiderAmphibiousRally = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough threat to attack with surface naval units, will see if we want to consolidate in this zone, iAvailableCombatThreat='..iAvailableCombatThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; Want to attack with navy='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAvailableCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat ))) end
                     if iAvailableCombatThreat > iAdjacentAlliedCombatThreat and M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAvailableCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat ) then
-                        sMessage = 'WSConsR'
+                        sMessage = 'WSfConsR'
                         tSubRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                        bConsiderAmphibiousRally = false
                     else
-                        sMessage = 'WSRetr'
+                        sMessage = 'WSfRetr'
                         tSubRallyPoint = tRallyPoint
                     end
+                    local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
 
                     for iUnit, oUnit in tCombatUnitsOfUse do
                         if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
                             if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
                             else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                             end
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iOrderReissueDistToUse, false, 'WRetr'..iWaterZone)
+                            if bConsiderAmphibiousRally and EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
+                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, sMessage..'_AmpR'..iWaterZone)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, iOrderReissueDistToUse, false, sMessage..iWaterZone)
+                            end
                         else
                             oUnit[refiCurrentWZAssignmentValue] = 0
                         end
@@ -3558,6 +3581,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
 
 
     local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
+    local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
     local iResisueOrderDistanceHover = 15
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance
@@ -3583,8 +3607,11 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             end
             --                      CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
             if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,nil                                        ,nil                                    ,true) then
-
-                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, 'NRun'..iWaterZone)
+                if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, 'NRun'..iWaterZone)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, 'NRun'..iWaterZone)
+                end
             else
                 table.insert(tAvailableSubjectToAA, oUnit)
             end
@@ -3662,10 +3689,18 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         bAAInRange = true
                         if iCurDistWithinRange >= iMoveDistWithinRange then
                             --Move away
-                            M28Orders.IssueTrackedMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAMRun'..iWaterZone)
+                            if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oMAA.UnitId) then
+                                M28Orders.IssueTrackedMove(oMAA, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, 'AAMPRun'..iWaterZone)
+                            else
+                                M28Orders.IssueTrackedMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAMRun'..iWaterZone)
+                            end
                         else
                             --Attack move away
-                            M28Orders.IssueTrackedAttackMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAARun'..iWaterZone)
+                            if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oMAA.UnitId) then
+                                M28Orders.IssueTrackedAttackMove(oMAA, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, 'AAAPRun'..iWaterZone)
+                            else
+                                M28Orders.IssueTrackedAttackMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAARun'..iWaterZone)
+                            end
                         end
                         break
                     end

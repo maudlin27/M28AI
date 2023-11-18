@@ -490,10 +490,33 @@ function NoRushMonitor()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+
 function TestCustom(aiBrain)
-    local NavUtils = import("/lua/sim/navutils.lua")
-    local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
-    LOG('TestCustom iLandTravelDistance='..iLandTravelDistance)
+    --brian size profiling:
+    --[[
+    for iBrain, oBrain in ArmyBrains do
+        oBrain.TestCount = (oBrain.TestCount or 59) + 1
+        if oBrain.TestCount >= 5 then
+
+            local Utils = import('/lua/system/utils.lua')
+            LOG('Size of brain '..oBrain.Nickname..' at time='..GetGameTimeSeconds()..'='..Utils.ToBytes(oBrain))
+            LOG('reprs of brain='..reprs(oBrain))
+            for iTable, tTable in oBrain do
+                LOG('size of table '..iTable..'='..Utils.ToBytes(tTable))
+            end
+            oBrain.TestCount = 0
+        end
+    end--]]
+    --local tsLotsOfStrings = {}
+    --[[for iCurEntry = 1, 100 do
+        tsLotsOfStrings[iCurEntry] = {}
+        for iNextEntry = 1, 1000 do
+            tsLotsOfStrings[iCurEntry][iNextEntry] = 'Test of string 1'..'Test of string 2'..'Test of string 3'
+        end
+    end--]]
+    --local NavUtils = import("/lua/sim/navutils.lua")
+    --local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
+    --LOG('TestCustom iLandTravelDistance='..iLandTravelDistance)
     --LOG('TestCustom: All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
     --M28Map.DrawLandZones()
     --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
@@ -1074,7 +1097,7 @@ end
 
 function DebugCheck(aiBrain)
     local sFunctionRef = 'DebugCheck'
-    local iTickTimeToStartDetailedDebug = 833.7 --set to high number if first want to figure out the tick where this happens
+    local iTickTimeToStartDetailedDebug = 2139.901 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true
@@ -1137,7 +1160,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 25 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 0 and GetGameTimeSeconds() <= 10000 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

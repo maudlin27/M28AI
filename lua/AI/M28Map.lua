@@ -316,7 +316,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position (same for water zone)
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)
-            refiModDistancePercent = 'ModDPC' --For LZ and WZ; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
+            reftoClosestFriendlyM28Brain = 'ClsM28Br' --initially based on the closest friendly base (start position)
+            refiModDistancePercent = 'ModDPC' --For LZ and WZ; % of the distance to the enemy base, e.g. 0.5 should be middle of the map, >0.5 should be on the enemy's side of the map; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
@@ -3440,6 +3441,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             end
             local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
             tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+            tLZTeamData[reftoClosestFriendlyM28Brain] = ArmyBrains[iClosestBrainRef]
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
             if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])) end
@@ -3563,6 +3565,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
                 end
 
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                tWZTeamData[reftoClosestFriendlyM28Brain] = ArmyBrains[iClosestBrainRef]
                 if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
@@ -5111,9 +5114,10 @@ function RecordPondToExpandTo(aiBrain)
                             end
                         end
 
-                        --Increase value for campaign maps
+                        --Increase value for campaign maps or maps where we cant path to the enemy by land but can by water
                         if bIsCampaignMap then iCurPondValue = iCurPondValue * 2 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre adjust='..iCurPondValue) end
+                        if aiBrain[refbCanPathToEnemyBaseWithAmphibious] and not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iCurPondValue = iCurPondValue * 4 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre main adjust (but post adjusting for campaign and pathing)='..iCurPondValue..'; aiBrain[refbCanPathToEnemyBaseWithAmphibious]='..tostring(aiBrain[refbCanPathToEnemyBaseWithAmphibious] or false)..'; aiBrain[refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand] or false)) end
                         --Do we have sufficient value to consider?
                         if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
                             if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
@@ -6367,7 +6371,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                     tFullPath[0] = tStart
 
                     --Redundancy for when the navmesh gives a significantly inaccurate result
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandTravelDistance before adj='..iLandTravelDistance..'; iExtraStraightLineDist='..iExtraStraightLineDist..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd)) end
+                    --[[if bDebugMessages == true then LOG(sFunctionRef..': iLandTravelDistance before adj='..iLandTravelDistance..'; iExtraStraightLineDist='..iExtraStraightLineDist..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd)) end
                     local iStraightLineDist = VDist2(tStart[1], tStart[3], tEnd[1], tEnd[3])
                     iLandTravelDistance = math.max(iStraightLineDist, iLandTravelDistance + iExtraStraightLineDist)
                     if iLandTravelDistance >= 200 then
@@ -6379,17 +6383,20 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                     iAltTravelDistance = iAltTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
                                 end
                             end
-                            if math.abs(iAltTravelDistance -  iLandTravelDistance) >= 30 then
+                            if math.abs(iAltTravelDistance -  iLandTravelDistance) >= math.max(30, iAltTravelDistance * 0.25) then
+                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use the more accurate iAltTravelDistance='..iAltTravelDistance..' instead of iLandTravelDistance='..iLandTravelDistance) end
                                 iLandTravelDistance = iAltTravelDistance
                             end
                         end
-                    end
+                    end--]]
                 end
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')..'; repru of path='..repru(tFullPath)..'; LZ midpoint (start)='..repru(tLZData[subrefMidpoint])..'; Target LZ midpoint (end)='..repru(tOtherLZData[subrefMidpoint])..'; iPathSize='..iPathSize)
                     --Draw full path
-                    M28Utilities.DrawPath(tFullPath)
+                    if M28Utilities.IsTableEmpty(tFullPath) == false then
+                        M28Utilities.DrawPath(tFullPath)
+                    end
                 end
             end
             if iLandTravelDistance then
