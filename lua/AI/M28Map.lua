@@ -316,7 +316,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position (same for water zone)
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)
-            refiModDistancePercent = 'ModDPC' --For LZ and WZ; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
+            refiModDistancePercent = 'ModDPC' --For LZ and WZ; % of the distance to the enemy base, e.g. 0.5 should be middle of the map, >0.5 should be on the enemy's side of the map; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
