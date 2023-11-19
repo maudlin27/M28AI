@@ -1722,7 +1722,7 @@ function DoesACUHaveValidOrder(oACU)
     return true
 end
 
-function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iFriendlyBestMobileIndirectRange, iEnemyBestDFRange)
+function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iFriendlyBestMobileIndirectRange, iEnemyBestDFRange, iAvailableMMLThreat, oClosestUnitFromAllFirebases)
     --Consider synchronising shots with MML if we have enough to warrant it and they are faced with non-Aeon TMD
     local sFunctionRef = 'DoWeWantToSynchroniseMMLShots'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1731,10 +1731,17 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
 
 
     local bConsiderSpecialMMLLogic = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or 'nil')) end
-    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 15 then
-        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
-        if (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or 'nil')..'; iAvailableMMLThreat='..iAvailableMMLThreat..'; oClosestUnitFromAllFirebases='..(oClosestUnitFromAllFirebases.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitFromAllFirebases) or 'nil')) end
+    if iAvailableMMLThreat >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+        local bFiredRecentlyNearTMDOrShield = false
+        if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bFiredRecentlyNearTMDOrShield = true
+        elseif oClosestUnitFromAllFirebases then
+            local tFirebaseLZData, tFirebaseLZTeamData = M28Map.GetLandOrWaterZoneData(oClosestUnitFromAllFirebases:GetPosition(), true, iTeam)
+            if GetGameTimeSeconds() - (tFirebaseLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bFiredRecentlyNearTMDOrShield = true end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bFiredRecentlyNearTMDOrShield='..tostring(bFiredRecentlyNearTMDOrShield)) end
+        if bFiredRecentlyNearTMDOrShield then
+
             local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
             local bEnemyHasNonAeonTMD = false
             function UpdateNearbyTMD(iAdjLZ)
@@ -1765,6 +1772,7 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
             end
         end
     end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, bConsiderSpecialMMLLogic='..tostring(bConsiderSpecialMMLLogic)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bConsiderSpecialMMLLogic

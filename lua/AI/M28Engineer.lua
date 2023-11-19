@@ -7971,7 +7971,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
                         --If enemy has multiple T3 arti or novax or gameender then reduce to 1
                         local iEnemyCount = 0
-                        if IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) then
+                        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) then
                             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
                                 if oUnit:GetFractionComplete() >= 0.35 then
                                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then

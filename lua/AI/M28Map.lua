@@ -251,6 +251,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiTimeOfMMLFiringNearTMDOrShield = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
+            refiTimeOfLastIndirectFirebaseAttack = 'LZIndFBAtc' --gametimeseconds that we last attacked a firebase in this zone with indirect units
             subreftoEnemyTMD = 'LZEnemyTMD' --TMD owned by the enemy in the LZ
             subreftoEnemyPotentialTMLTargets = 'LZPotentialTMLTargets' --potential targets for TML in the LZ (ignoring TMD)
 

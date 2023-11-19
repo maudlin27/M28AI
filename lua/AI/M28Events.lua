@@ -2379,6 +2379,11 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
                 local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iTeam]
                 tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
             end
+            --sometimes the launcher is receiving its orders from an adjacent zone, so want that adjacnet zone's combat logic to recognise this when deciding whether to syncrhonise shots
+            if oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iPlateau) and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iTMDLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iTMDPlateau) then
+                local tAssignedLZTeamData = M28Map.tAllPlateaus[oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2]][M28Map.subrefLZTeamData][iTeam]
+                tAssignedLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+            end
         elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) and M28UnitInfo.IsUnitValid(oLauncher) then
             if bDebugMessages == true then LOG('Will call nuke missile death logic') end
             M28Building.UpdateForNukeMissileDeath(oLauncher)
