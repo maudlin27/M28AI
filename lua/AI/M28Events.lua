@@ -563,8 +563,24 @@ end
 function OnShieldBubbleDamaged(self, instigator)
     local oShield = self.Owner
     --LOG('Shield damaged, self='..reprs(self)..'; owner='..reprs(self.Owner))
-    if not(oShield.Dead) and oShield:GetAIBrain().M28AI then
-        oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
+    if not(oShield.Dead) then
+        if oShield:GetAIBrain().M28AI then
+            oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
+        end
+        --LOG('instigator='..reprs(instigator))
+        if M28UnitInfo.IsUnitValid(instigator) and instigator:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) and IsEnemy(oShield:GetAIBrain():GetArmyIndex(), instigator:GetAIBrain():GetArmyIndex()) then
+            local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
+            if (iShieldLandZone or 0) > 0 and iShieldPlateau > 0 then
+                local tLZTeamData = M28Map.tAllPlateaus[iShieldPlateau][M28Map.subrefPlateauLandZones][iShieldLandZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
+                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                local iMMLPlateau, iMMLZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(instigator:GetPosition())
+                if (iMMLPlateau or 0) > 0 and (iMMLZone or 0) > 0 and not(iMMLZone == iShieldLandZone and iMMLPlateau == iShieldPlateau) then
+                    local tMMLLZTeamData = M28Map.tAllPlateaus[iMMLPlateau][M28Map.subrefPlateauLandZones][iMMLZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
+                    tMMLLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                end
+                --LOG('Flagging that we have had missiles intercepted by TMD or shield for iShieldLandZone and MML zone, iShieldLandZone='..(iShieldLandZone or 'nil')..'; iMMLZone='..(iMMLZone or 'nil')..'; iMMLPlateau='..(iMMLPlateau or 'nil'))
+            end
+        end
     end
 end
 
@@ -2356,12 +2372,12 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
             if (iLandZone or 0) > 0 and iPlateau > 0 then
                 local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] = GetGameTimeSeconds()
+                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
             end
             local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
             if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 and not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
                 local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iTeam]
-                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] = GetGameTimeSeconds()
+                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
             end
         elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) and M28UnitInfo.IsUnitValid(oLauncher) then
             if bDebugMessages == true then LOG('Will call nuke missile death logic') end

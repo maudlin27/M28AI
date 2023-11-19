@@ -4849,8 +4849,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking override for reinforcement type, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; iEnemyStructureThreatTotal='..iEnemyStructureThreatTotal..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]) end
         end
     end
-    if not(bWantIndirectReinforcements) and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then
-        if bDebugMessages == true then LOG(sFunctionRef..': It has been '..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100)..' since MML were firing near TMD so want more indirect fire so get more MML') end
+    if not(bWantIndirectReinforcements) and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 10 then
+        if bDebugMessages == true then LOG(sFunctionRef..': It has been '..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100)..' since MML were firing near TMD so want more indirect fire so get more MML') end
         bWantIndirectReinforcements = true
     end
     if bWantDFReinforcements and not(bWantIndirectReinforcements) then
@@ -5392,7 +5392,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 end
                 --If enemy has PD in this or adjacent zone then flag we want indirect support
                 if not(bWantIndirectSupport) then
-                    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then bWantIndirectSupport = true end
+                    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 10 then bWantIndirectSupport = true end
                     if not(bWantIndirectSupport) then
                         if tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] <= math.min(2000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech], tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] * 3) then
                             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -5421,7 +5421,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         else
             local bWantIndirectSupport = false
             if bDebugMessages == true then LOG(sFunctionRef..': Are there enemis in this or adjacent LZ, for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Do we have a valid nearby structure in other plateau='..tostring( M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]))..'; Our highest land tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; bWantDFSupport='..tostring(bWantDFSupport)) end
-            if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 and not(tLZData[M28Map.subrefbPacifistArea]) then
+            if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 10 and not(tLZData[M28Map.subrefbPacifistArea]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have had MML firing recently near TMD so want more indirect fire support') end
                 bWantIndirectSupport = true
             elseif not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectSupport) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then

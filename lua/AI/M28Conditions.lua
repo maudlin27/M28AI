@@ -1731,8 +1731,8 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
 
 
     local bConsiderSpecialMMLLogic = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or 'nil')) end
-    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 15 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or 'nil')) end
+    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 15 then
         if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
         if (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
             local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD

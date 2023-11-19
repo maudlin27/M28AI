@@ -248,7 +248,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsSupport = 'LZWantsSupport' --true if want DF or indirect units for the LZ
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
-            subrefiTimeOfMMLFiringNearTMD = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
+            subrefiTimeOfMMLFiringNearTMDOrShield = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
             subreftoEnemyTMD = 'LZEnemyTMD' --TMD owned by the enemy in the LZ
