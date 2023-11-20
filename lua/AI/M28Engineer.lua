@@ -7032,7 +7032,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
-                if iHighestCompleteExperimentalInZone > 0 and (iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete or iHighestCompelteExperimentalInZone >= 0.6) then
+                if iHighestCompleteExperimentalInZone > 0 and (iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete or iHighestCompleteExperimentalInZone >= 0.6) then
                     --Assist the experimental
                     HaveActionToAssign(refActionBuildExperimental, 1, 240)
                 else
