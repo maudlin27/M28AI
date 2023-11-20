@@ -106,7 +106,6 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
     subrefPlateauMidpoint = 'M28PlateauMidpoint' --Location of the midpoint of the plateau
     subrefPlateauMaxRadius = 'M28PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
 
-    subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m28engineer), returns engineer object
     --Plateaus: Island variables (against tAllPlateaus[iPlateau])
     subrefPlateauIslandLandZones = 'M28PlateauIslands' --[x] is the island, returns a table of land zones in that island for this plateau; the table returned has a key 1....x, and returns the land zone reference number
     subrefPlateauIslandMexCount = 'M28IslandMexCount' --[x] is the island, returns the number of mexes in the island
@@ -248,9 +247,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsSupport = 'LZWantsSupport' --true if want DF or indirect units for the LZ
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
-            subrefiTimeOfMMLFiringNearTMD = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
+            subrefiTimeOfMMLFiringNearTMDOrShield = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
+            refiTimeOfLastIndirectFirebaseAttack = 'LZIndFBAtc' --gametimeseconds that we last attacked a firebase in this zone with indirect units
             subreftoEnemyTMD = 'LZEnemyTMD' --TMD owned by the enemy in the LZ
             subreftoEnemyPotentialTMLTargets = 'LZPotentialTMLTargets' --potential targets for TML in the LZ (ignoring TMD)
 

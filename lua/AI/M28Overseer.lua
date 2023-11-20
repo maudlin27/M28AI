@@ -492,6 +492,13 @@ end
 
 
 function TestCustom(aiBrain)
+    if not(M28Team.tTeamData[aiBrain.M28Team]['ActiveLog']) then
+        M28Team.tTeamData[aiBrain.M28Team]['ActiveLog'] = true
+        while true do
+            LOG('Cur tick='..GetGameTimeSeconds())
+            WaitTicks(1)
+        end
+    end
     --brian size profiling:
     --[[
     for iBrain, oBrain in ArmyBrains do
@@ -1097,7 +1104,7 @@ end
 
 function DebugCheck(aiBrain)
     local sFunctionRef = 'DebugCheck'
-    local iTickTimeToStartDetailedDebug = 2139.901 --set to high number if first want to figure out the tick where this happens
+    local iTickTimeToStartDetailedDebug = 2372.499 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true

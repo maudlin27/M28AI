@@ -3425,6 +3425,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local bProceedWithLogic = true
     if iOptionalDelaySecondsAndWeaponFireCheck then
         --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently
@@ -3554,7 +3556,10 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             end
 
             --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
-            if bTargetingMobileUnit then ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, iOptionalDelaySecondsAndWeaponFireCheck) end
+            if bTargetingMobileUnit then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to consider t2 arti target as we are targeting a mobile unit') end
+                ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
+            end
         end
 
         --Clear orders if last order was attack ground and we havent given any new order (so will revert to default weapon targeting)
