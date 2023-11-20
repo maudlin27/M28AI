@@ -959,9 +959,23 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iMinEngisWanted = 2
         end
         if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < iMinEngisWanted then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
-                return sBPIDToBuild
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
+    --No engineers in this zone and want BP and have some mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetEconomyStored('MASS') >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+        local bHaveEngiInZone = false
+        for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                bHaveEngiInZone = true
+                break
             end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Build engi if want BP and have no engi in zone, bHaveEngiInZone='..tostring(bHaveEngiInZone)) end
+        if not(bHaveEngiInZone) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
 
@@ -1986,11 +2000,24 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) or tLZTeamData[M28Map.subrefLZCoreExpansion] then
             if bDebugMessages == true then LOG(sFunctionRef..': Closest base is in a different island, so will get base level of tanks') end
             local iNearbyDFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+            --Include T2 PD threat
+
+            if M28Utilities.IsTableEmpty( tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) < 50 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) < 50 then
+                local iBestEnemyRange = math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) < 50 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0))
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                    if iRange > iBestEnemyRange then
+                        iNearbyDFThreat = iNearbyDFThreat + iThreat * 0.75
+                    end
+                end
+            end
             local iNearbyIFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
             local iNearbyGroundAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
             local iFriendlyDFThreatWanted = 100
             local iFriendlyIFThreatWanted = 50
             local iFriendlyAAThreatWanted = 100
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 then
+                iFriendlyAAThreatWanted = 0
+            end
             local iThreatFactor = 1
             if M28Map.bIsCampaignMap then iThreatFactor = 3 end
             if M28Map.subrefLZSValue >= 1000 then iThreatFactor = iThreatFactor * 1.5 end
@@ -2035,13 +2062,20 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will get basic level of combat threat as are on an island') end
                     --Get a couple of each type first:
                     if iNearbyDFThreat < 100 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want land combat as low nearby DF threat') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.DIRECTFIRE) then return sBPIDToBuild end
                     end
-                    if iNearbyGroundAAThreat < 100 then
+                    if iNearbyGroundAAThreat < math.min(iFriendlyAAThreatWanted, 100) and (iNearbyGroundAAThreat == 0 or not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want AA as low AA threat') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
                     end
                     if iNearbyIFThreat < 50 then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                    end
+
+                    --If want a land scout then build this
+                    if tLZTeamData[M28Map.refbWantLandScout] and tLZTeamData[M28Map.refiRadarCoverage] <= 60 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
                     end
 
                     --Now get the one that we ahve the lowest ratio for
@@ -2068,7 +2102,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             iLowestCategoryType = M28UnitInfo.refCategoryIndirect
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLowestRatio='..iLowestRatio) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLowestRatio='..iLowestRatio..'; will now build the lowest category type ratio') end
                     if iLowestCategoryType then
                         if ConsiderBuildingCategory(iLowestCategoryType) then return sBPIDToBuild end
                     end
@@ -2625,7 +2659,7 @@ end
 
 function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild

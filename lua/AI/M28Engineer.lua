@@ -3078,6 +3078,18 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Size of wall segment table='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])..'; bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)) end
         end
+
+        --Use much lower threshold to run if if we have T2+ PD in this zone
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                if iRange >= 50 and iThreat > 0 then
+                    iThresholdToRunFromMobileEnemies = 5
+                    break
+                end
+            end
+        end
+
+
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Time='..GetGameTimeSeconds()) end
         for iEngineer, oEngineer in tEngineers do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
@@ -3200,44 +3212,49 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
                                         if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
-                                            local tPositionToRunFrom
-                                            if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
-                                            if not(bIsWaterZone) then
-                                                iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                                    --Run to the LZ
-                                                    M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
-                                                    bEngiIsUnavailable = true
-                                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
-                                                end
+                                            --Dont run if we are building a land factory and have a friendly combat threat in the zone or factory is near-complete
+                                            if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 40 and (oEngineer:IsUnitState('Building') or oEngineer:IsUnitState('Reclaiming')) and (oEngineer:GetWorkProgress() >= 0.75 or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end
                                             else
-                                                iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                                    --Run to the LZ
-                                                    M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
-                                                    bEngiIsUnavailable = true
-                                                    TrackEngineerAction(oEngineer, refActionRunToWaterZone, false, 1, nil, iLZOrWZToRunTo)
+                                                local tPositionToRunFrom
+                                                if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
+                                                if not(bIsWaterZone) then
+                                                    iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
+                                                    if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                                        --Run to the LZ
+                                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
+                                                        bEngiIsUnavailable = true
+                                                        TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
+                                                    end
                                                 else
-                                                    --Consider moving to land zone instead if there is an adjacent LZ
-                                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
-                                                        local tClosestRallyPoint
-                                                        local iClosestRallyPointDist = 100000
-                                                        local iCurRallyPointDist
-                                                        for iEntry, tLZSubtable in tLZData[M28Map.subrefAdjacentLandZones] do
-                                                            local tCurRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, iTeam, tLZSubtable[M28Map.subrefWPlatAndLZNumber][1], tLZSubtable[M28Map.subrefWPlatAndLZNumber][2], nil)
-                                                            if tCurRallyPoint then
-                                                                iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tCurRallyPoint)
-                                                                if iCurRallyPointDist < iClosestRallyPointDist then
-                                                                    tClosestRallyPoint = {tCurRallyPoint[1], tCurRallyPoint[2], tCurRallyPoint[3]}
-                                                                    iClosestRallyPointDist = iCurRallyPointDist
+                                                    iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
+                                                    if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                                        --Run to the LZ
+                                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
+                                                        bEngiIsUnavailable = true
+                                                        TrackEngineerAction(oEngineer, refActionRunToWaterZone, false, 1, nil, iLZOrWZToRunTo)
+                                                    else
+                                                        --Consider moving to land zone instead if there is an adjacent LZ
+                                                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
+                                                            local tClosestRallyPoint
+                                                            local iClosestRallyPointDist = 100000
+                                                            local iCurRallyPointDist
+                                                            for iEntry, tLZSubtable in tLZData[M28Map.subrefAdjacentLandZones] do
+                                                                local tCurRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, iTeam, tLZSubtable[M28Map.subrefWPlatAndLZNumber][1], tLZSubtable[M28Map.subrefWPlatAndLZNumber][2], nil)
+                                                                if tCurRallyPoint then
+                                                                    iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tCurRallyPoint)
+                                                                    if iCurRallyPointDist < iClosestRallyPointDist then
+                                                                        tClosestRallyPoint = {tCurRallyPoint[1], tCurRallyPoint[2], tCurRallyPoint[3]}
+                                                                        iClosestRallyPointDist = iCurRallyPointDist
+                                                                    end
                                                                 end
                                                             end
-                                                        end
-                                                        if tClosestRallyPoint then
-                                                            local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
-                                                            M28Orders.IssueTrackedMove(oEngineer, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint] or tClosestRallyPoint), 8, false, 'WLRunTo'..iLZOrWZToRunTo)
-                                                            bEngiIsUnavailable = true
-                                                            TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
+                                                            if tClosestRallyPoint then
+                                                                local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
+                                                                M28Orders.IssueTrackedMove(oEngineer, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint] or tClosestRallyPoint), 8, false, 'WLRunTo'..iLZOrWZToRunTo)
+                                                                bEngiIsUnavailable = true
+                                                                TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
+                                                            end
                                                         end
                                                     end
                                                 end
@@ -9276,27 +9293,36 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
                 if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
                     local iExistingStructureThreat = 0
+                    local bHaveLRPDThreat = false
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                         for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
                             iExistingStructureThreat = iExistingStructureThreat + iThreat
+                            if iThreat > 0 and iRange >= 50 then bHaveLRPDThreat = true end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iExistingStructureThreat of existing PD='..iExistingStructureThreat..'; will get emergency PD if below threshold, iEnemyCombatThreat='..iEnemyCombatThreat..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)) end
+                    local iMinTechLevelWanted = 1
+                    iBPWanted = 40
+                    if bConsiderT2PD and iExistingStructureThreat >= 400 then
+                        iMinTechLevelWanted = 2
+                        iBPWanted = 60
+                    end
+
                     if iExistingStructureThreat < 400 or (bConsiderT2PD and iExistingStructureThreat < math.max(800, math.max(iEnemyCombatThreat, math.min(iEnemyCombatThreat * 2, 2880)))) or (not(bConsiderT2PD) and iExistingStructureThreat < math.min(800, iEnemyCombatThreat * 3)) then
-                        local iMinTechLevelWanted = 1
-                        iBPWanted = 40
-                        if bConsiderT2PD and iExistingStructureThreat >= 400 then
-                            iMinTechLevelWanted = 2
-                            iBPWanted = 60
-                        end
-                        local tPDStartPoint
-                        if iExistingStructureThreat <= 800 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                        --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to get t1 radar instead of t2 pd, bHaveLRPDThreat='..tostring(bHaveLRPDThreat)..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Want land scout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; iExistingStructureThreat='..iExistingStructureThreat..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) end
+                        if bHaveLRPDThreat and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= 40 and (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] == 0 and iExistingStructureThreat >= 1000 and iExistingStructureThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) and iExistingStructureThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
+                            HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
                         else
-                            tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
-                            if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
+                            local tPDStartPoint
+                            if iExistingStructureThreat <= 800 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            else
+                                tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
+                                if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)..'; iExistingStructureThreat='..(iExistingStructureThreat or 'nil')..'; tPDStartPoint='..repru(tPDStartPoint)) end
+                            HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)..'; iExistingStructureThreat='..(iExistingStructureThreat or 'nil')..'; tPDStartPoint='..repru(tPDStartPoint)) end
-                        HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
                     end
                 end
             end
@@ -9473,14 +9499,20 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 tPointForPDConstruction = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 40, true, false, M28Map.bIsCampaignMap)
             end
             local iCurPDThreat = GetPDThreatAboveRangeThresholdAlongPath(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, 40, tPointForPDConstruction)
-
             if bDebugMessages == true then LOG(sFunctionRef..': Want PD for a zone that we want to fortify, iCurPDThreat='..(iCurPDThreat or 'nil')..'; Have sufficient tech='..tostring(bHaveSufficientTech)..'; tPointForPDConstruction='..repru(tPointForPDConstruction)..'; Midpoint of zone='..repru(tLZData[M28Map.subrefMidpoint])) end
             if iCurPDThreat <= 2100 then
                 iBPWanted = 40
                 if not(bHaveLowMass) and not(M28Conditions.HaveLowPower(iTeam)) then iBPWanted = 80 end
-                local iPDTechLevelWanted = 2
-                HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tPointForPDConstruction)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will build PD to fortify zone, iPDTechLevelWanted='..iPDTechLevelWanted..'; iBPWanted='..iBPWanted) end
+
+                --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
+                if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= 40 and tLZTeamData[M28Map.refbWantLandScout] and iCurPDThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
+                    HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
+                else
+
+                    local iPDTechLevelWanted = 2
+                    HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tPointForPDConstruction)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build PD to fortify zone, iPDTechLevelWanted='..iPDTechLevelWanted..'; iBPWanted='..iBPWanted) end
+                end
             end
         end
     end

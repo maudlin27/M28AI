@@ -2697,7 +2697,7 @@ end
 
 function ConsiderNormalUpgrades(iM28Team)
     --We should have already considered high priority upgrades before, now we want to consider upgrades if we have the eco to support upgrades generally
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNormalUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
