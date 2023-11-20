@@ -1232,7 +1232,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     end
 end
 
-function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
+function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamData)
     --Returns nil if cantr find anything
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetACUUpgradeWanted'
@@ -1307,6 +1307,13 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
                     else
                         iResourceFactor = 4 --Cant path to enemy except with air
                     end
+
+                    --If want MMLs then also increase resource requirements
+                    if M28Conditions.SaveMassForMMLForFirebase(tLZOrWZData, tLZOrWZTeamData, iTeam, M28Conditions.HaveLowMass(aiBrain)) then
+                        iResourceFactor = iResourceFactor * 2
+                        if M28Conditions.HaveLowPower(aiBrain.M28Team) then iResourceFactor = iResourceFactor * 2 end
+                    end
+
                     if (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
                     elseif (oACU[refiUpgradeCount] or 0) == 0 and GetGameTimeSeconds() >= 600 then iResourceFactor = iResourceFactor * 0.5
                     end
@@ -2590,7 +2597,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': No naval threats close enough to attack so will consider nearby reclaim') end
                     if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true)) then
-                        local sUpgradeToGet = GetACUUpgradeWanted(oACU)
+                        local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
                         if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
                             --Are we safe to get the upgrade here? if not then retreat
                             if M28Conditions.SafeToUpgradeUnit(oACU) then
@@ -3067,7 +3074,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     M28Team.RefreshPotentialTeleSnipeTargets(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to get teleport upgrade, Is table of potentail snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]))) end
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]) == false then
-                        sUpgradeWanted = GetACUUpgradeWanted(oACU, true)
+                        sUpgradeWanted = GetACUUpgradeWanted(oACU, true, tLZOrWZData, tLZOrWZTeamData)
                     end
                 end
             end
@@ -3684,7 +3691,7 @@ function GetACUOrder(aiBrain, oACU)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU unit state not important so we can consider doing other things, ACU state='..M28UnitInfo.GetUnitState(oACU)..'; Mass stored ratio='..aiBrain:GetEconomyStoredRatio('MASS')..'; Is unit state building='..tostring(oACU:IsUnitState('Building'))..'; Is unit state repairing='..tostring(oACU:IsUnitState('Repairing'))..'; Is unit state reclaiming='..tostring(oACU:IsUnitState('Reclaiming'))..'; Is unit state guarding='..tostring(oACU:IsUnitState('Guarding'))) end
                                                         if not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing')) then
                                                             --Do we want to get an upgrade?
-                                                            local sUpgradeToGet = GetACUUpgradeWanted(oACU)
+                                                            local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
                                                             if sUpgradeToGet then
                                                                 --Are we safe to get the upgrade here? if not then retreat

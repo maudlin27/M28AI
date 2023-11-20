@@ -121,8 +121,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
-    reftCloakedEnemyUnits = 'M28CloakedE'
-    reftLongRangeEnemyMobileUnits = 'M28LREUn'
+    reftCloakedEnemyUnits = 'M28CloakedE' --long range mobile units like fatboy, and long ranged PD like ravagers
+    reftLongRangeEnemyDFUnits = 'M28LREUn'
     reftoEnemyT2Arti = 'M28LRArt' --Table of all enemy T2 arti (regardless of kills) - note firebase adj is used for those that are more dangerous
     refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
 
@@ -1117,16 +1117,16 @@ function LongRangeThreatMonitor(iTeam)
     local sreftiLastPlateauAndZone = 'M28LRLstPZ'
     local iPlateauOrZero, iLandOrWaterZone
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start long range enemy unit monitor for team '..iTeam..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]))) end
-    while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]) == false do
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start long range enemy unit monitor for team '..iTeam..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyDFUnits]))) end
+    while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyDFUnits]) == false do
         --Check all units still alive
-        iTableSize = table.getn(tTeamData[iTeam][reftLongRangeEnemyMobileUnits])
+        iTableSize = table.getn(tTeamData[iTeam][reftLongRangeEnemyDFUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Size of table at time '..GetGameTimeSeconds()..'='..iTableSize) end
         for iCurEntry = iTableSize, 1, -1 do
-            local oUnit = tTeamData[iTeam][reftLongRangeEnemyMobileUnits][iCurEntry]
+            local oUnit = tTeamData[iTeam][reftLongRangeEnemyDFUnits][iCurEntry]
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) then
-                table.remove(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], iCurEntry)
+                table.remove(tTeamData[iTeam][reftLongRangeEnemyDFUnits], iCurEntry)
             else
                 if oUnit:GetFractionComplete() >= 0.95 then
                     iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -1212,7 +1212,7 @@ function LongRangeThreatMonitor(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     --Reset (so the monitor gets restarted next time there is a long range enemy threat)
-    tTeamData[iTeam][reftLongRangeEnemyMobileUnits] = nil
+    tTeamData[iTeam][reftLongRangeEnemyDFUnits] = nil
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1222,14 +1222,14 @@ function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bNotInTable = not(bCheckifAlreadyInTable)
-    if not(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]) then
-        tTeamData[iTeam][reftLongRangeEnemyMobileUnits] = {}
+    if not(tTeamData[iTeam][reftLongRangeEnemyDFUnits]) then
+        tTeamData[iTeam][reftLongRangeEnemyDFUnits] = {}
         bNotInTable = true
         ForkThread(LongRangeThreatMonitor, iTeam)
     end
     if not(bNotInTable) then
         bNotInTable = true
-        for iEntry, oExistingUnit in tTeamData[iTeam][reftLongRangeEnemyMobileUnits] do
+        for iEntry, oExistingUnit in tTeamData[iTeam][reftLongRangeEnemyDFUnits] do
             if oUnit == oExistingUnit then
                 bNotInTable = false
                 break
@@ -1237,7 +1237,7 @@ function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable)
         end
     end
     if bNotInTable then
-        table.insert(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], oUnit)
+        table.insert(tTeamData[iTeam][reftLongRangeEnemyDFUnits], oUnit)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started. Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

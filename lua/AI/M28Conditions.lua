@@ -1513,9 +1513,16 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
                                     if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end
                                     if iAirFactoriesWanted > iAirFactoriesHave then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': We want air fac2') end
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                        return true
+                                        --If we have 1 air fac, and want to save mass for mmls, then get land fac instead
+                                        if iAirFactoriesHave > 0 and iLandFactoriesHave > 0 and iLandFactoriesHave < 7 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, TeamHasLowMass(iTeam)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want MMLs so will try and get more land facs instead of air') end
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            return false
+                                        else
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We want air fac2') end
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            return true
+                                        end
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': We want land fac4') end
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1580,6 +1587,47 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalACUThreat, nil
+end
+
+function SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
+    --If we have low mass then will prioritise building MML with what little mass we have, unless enemy has long range units (like ravagers and fatboys)
+    local bSaveMassForFirebase = false
+    if bHaveLowMass and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 or tLZTeamData[3] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300) then
+        --Are there T2 arti in range?
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            if table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) <= 6 then --If enemy has 7+ T2 arti then probably reached the point where MMLs wont cut it even in very large numbers
+                bSaveMassForFirebase = true
+            end
+        else
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                bSaveMassForFirebase = true
+            else
+                --Is closest ACU an ACU with T2 and no gun?
+                local bNearbyGuncom = false
+                local bNearbyT2ACU = false
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                    local iDistThreshold = 220
+                    if M28Map.iMapSize <= 256 then iDistThreshold = 180 end
+                    for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                        if (oACU[M28UnitInfo.refiDFRange] or 0) >= 26 then
+                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                bNearbyGuncom = true
+                                break
+                            end
+                        elseif not(bNearbyT2ACU) and (oACU:HasEnhancement('AdvancedEngineering') or oACU:HasEnhancement('T3Engineering')) then
+                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                bNearbyT2ACU = true
+                            end
+                        end
+                    end
+                    if bNearbyT2ACU and not(bNearbyGuncom) then
+                        bSaveMassForFirebase = true
+                    end
+                end
+            end
+        end
+    end
+    return bSaveMassForFirebase
 end
 
 function IsLocationInNoRushArea(tLocation)
