@@ -888,13 +888,13 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
     local iPowerTechLevel = M28UnitInfo.GetUnitTechLevel(oPowerJustBuilt)
     if bDebugMessages == true then LOG(sFunctionRef..': Just built power='..oPowerJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPowerJustBuilt)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Do we have active reclaimer logic for T1='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer] or false)..'; Do we ahve active t2 reclaimer='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer])) end
     if iPowerTechLevel == 2 then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 + 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 + 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             --Check we have 1 T2 power per player
             local iT2PowerEquivalent = 0
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
                 iT2PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
             end
-            if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
+            if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
@@ -907,7 +907,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
                 iT3PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3)
             end
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] and (iT3PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and (iT3PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power, M28Team.subrefbActiveT2PowerReclaimer)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
