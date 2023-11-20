@@ -57,7 +57,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) bDebugMessages = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname) end
 

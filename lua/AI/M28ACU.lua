@@ -477,7 +477,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
     local iResourceMod = aiBrain[M28Economy.refiBrainResourceMultiplier]
-    --if aiBrain.CheatEnabled then iResourceMod = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler] end
+    --if aiBrain.CheatEnabled then iResourceMod = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] end
     if iPlateauOrZero == 0 then
         tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
@@ -555,7 +555,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                         --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
-                    elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted and ((iResourceMod >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler]) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) == 0) and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 0) >= 2 then
+                    elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted and ((iResourceMod >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier]) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) == 0) and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 0) >= 2 then
                         --Build a couple of PGen even if nearby hydro given cheat mult
                         if bDebugMessages == true then LOG(sFunctionRef..': Want more power due to cheat mult before hydro') end
                         ACUActionBuildPower(aiBrain, oACU)
@@ -3407,7 +3407,7 @@ function GetACUOrder(aiBrain, oACU)
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) == 0 then
                                 MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
                                 --Do we want more power?
-                            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
+                            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                 ACUActionBuildPower(aiBrain, oACU)
                             end
                         end

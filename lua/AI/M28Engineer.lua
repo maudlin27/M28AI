@@ -808,7 +808,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
                 end
             end
         end
-        if iOptionalMaxCycleSize then iCycleSize = math.min(iOptionalMaxCycleSize, iOptionalMaxCycleSize) end
+        if iOptionalMaxCycleSize then iCycleSize = math.min(iCycleSize, iOptionalMaxCycleSize) end
         local iCurCount = 0
         for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
             for iSegmentZ, bInclude in tSubtable do
@@ -1312,9 +1312,20 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                             if bDebugMessages == true then LOG(sFunctionRef..': Dont have any naval fac in this WZ, is tAlliedUnits empty='..tostring(M28Utilities.IsTableEmpty(tAlliedUnits))..'; iSize='..iSize..'; aiBrain='..aiBrain.Nickname..'; Highest naval fac='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 'nil')) end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; Is this a t1 pgen='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryT1Power, sBlueprintToBuild))..'; Time='..GetGameTimeSeconds()) end
                     local iCycleSizeLimit
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(M28Overseer.refbCloseToUnitCap)) then iCycleSizeLimit = 4 end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(aiBrain[M28Overseer.refbCloseToUnitCap])) then
+                        iCycleSizeLimit = 4
+                        --early game - do much more detailed search for t1 pgen locations so are more likely to find somewhere in engineer build area
+                    elseif not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryT1Power, sBlueprintToBuild) and GetGameTimeSeconds() <= 900 then
+                            iCycleSizeLimit = 3
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing cycle size limit as building a t1 pgen') end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Power, sBlueprintToBuild) and GetGameTimeSeconds() <= 1200 then
+                            iCycleSizeLimit = 4
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing cycle size limit as building a t2 pgen') end
+                        end
+                    end
                     --GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iOptionalMaxCycleSize)
                     tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iCycleSizeLimit)
                     if M28Utilities.IsTableEmpty(tPotentialBuildLocations) and bDontCheckForNoRush then
@@ -1334,7 +1345,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..iSize..'; Blueprint size='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue; Is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations)))
                         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Total number of potential build locations='..table.getn(tPotentialBuildLocations)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Total number of potential build locations='..table.getn(tPotentialBuildLocations)..'; Total locations for LZ for this size of building='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)]) end
                             for iEntry, tEntry in tPotentialBuildLocations do
                                 M28Utilities.DrawLocation(tEntry, 5)
                             end
@@ -4847,7 +4858,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
         if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
             --Only half BP for building the first power if we have lots of power already
-            if not(iActionToAssign == refActionLoadOntoTransport) and (not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * 500)) then
+            if not(iActionToAssign == refActionLoadOntoTransport) and (not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] * 500)) then
                 iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
                 if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
             end
@@ -6472,7 +6483,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Start of game or low power - build hydro if one nearby, otherwise build pgen
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Low power at start of game builder, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Is table of hydro locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]))..'; Is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]))..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)) end
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
             --Norush check
             if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydroOrMex(tLZData)='..tostring(M28Conditions.NoRushPreventingHydroOrMex(tLZData) or false)) end
@@ -6517,7 +6528,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
             end
             --Make sure we have 1 power of the cur tech level provided dont have low mass
-        elseif (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= math.max(0.2, 0.15 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]))) and (bHaveLowPower and ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) <= 10)) or (not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
+        elseif (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= math.max(0.2, 0.15 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]))) and (bHaveLowPower and ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) <= 10)) or (not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
             --Exception if recently built power and have nearby enemies (so can e.g. do things like PD)
             if iNearbyEnemyAirToGroundThreat == 0 and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3 then
                 iBPWanted = 4 * tiBPByTech[iMinTechLevelForPower]
@@ -8023,7 +8034,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
                 local iMaxMassFabsWanted = 1
-                local iModFactor = M28Overseer.iMassFabRatio * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]
+                local iModFactor = M28Overseer.iMassFabRatio * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsLowMexMap or iModFactor >= math.max(1.2, 1 + 0.1 * iExistingT3MassFabs) then
                     iMaxMassFabsWanted = 4
                     if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
@@ -8597,7 +8608,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurQuantumGateways='..iCurQuantumGateways) end
                 --Get 1 quantumn gateway (or 2+ if we have 1.5+ AiX modifier)
-                if iCurQuantumGateways == 0 or (iCurQuantumGateways < 3 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] >= 1.4 and iCurQuantumGateways < 0.4 + M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
+                if iCurQuantumGateways == 0 or (iCurQuantumGateways < 3 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 1.4 and iCurQuantumGateways < 0.4 + M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
                     HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and assign '..iBPWanted..' to building a quantum gateway') end
                 end

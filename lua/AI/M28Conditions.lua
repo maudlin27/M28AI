@@ -761,13 +761,13 @@ function WantMorePower(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bWantMorePower = true
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Energy when last unable to build air='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]='..M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]..'; M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower(iTeam)='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Energy when last unable to build air='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]='..M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]..'; M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower(iTeam)='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
         bWantMorePower = false
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < math.max(250, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.25) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) + 150) then
         --No change - want more power
         if bDebugMessages == true then LOG(sFunctionRef..': Want more given amount we had when unable to build air units') end
-    elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+    elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --We dont have 1 pgen of our cur tech level (roughly) per brain so want more; i.e. no change
         if bDebugMessages == true then LOG(sFunctionRef..': Want base level of power given our tech level') end
         --Have re recently build lots of power, and at a high level it looks like we should have a decent amount of power for our mass income?
@@ -811,8 +811,8 @@ function WantMorePower(iTeam)
                 else
                     iNetPowerWanted = 2
                 end
-                if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] > 1 then
-                    iNetPowerWanted = iNetPowerWanted * (1 + (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] - 1) * 0.5)
+                if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] > 1 then
+                    iNetPowerWanted = iNetPowerWanted * (1 + (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] - 1) * 0.5)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iNetPowerWanted='..iNetPowerWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < iNetPowerWanted then
