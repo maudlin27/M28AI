@@ -353,3 +353,14 @@ function ShowFileMemoryUsage()
     end
     FunctionProfiler(sFunctionRef, refProfilerEnd)
 end
+
+function SpawnSetUnitsForBrain(aiBrain)
+    --Done to help with profiling - spawn in specific units
+    local iCategoriesToSpawn = categories.TECH3 * categories.AMPHIBIOUS * categories.DIRECTFIRE + categories.EXPERIMENTAL * categories.AMPHIBIOUS * categories.DIRECTFIRE + categories.TECH2 * categories.AMPHIBIOUS * categories.DIRECTFIRE - categories.UNTARGETABLE
+    local tsUnitsToSpawn = EntityCategoryGetUnitList(iCategoriesToSpawn)
+    local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+    local tSpawnLocationBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+    for iUnit, sUnit in tsUnitsToSpawn do
+        CreateUnit(sUnit, aiBrain:GetArmyIndex(), tSpawnLocationBase[1], tSpawnLocationBase[2], tSpawnLocationBase[3], 0, 0, 0, 0, 'Air')
+    end
+end

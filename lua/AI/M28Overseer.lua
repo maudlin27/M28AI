@@ -492,13 +492,8 @@ end
 
 
 function TestCustom(aiBrain)
-    if not(M28Team.tTeamData[aiBrain.M28Team]['ActiveLog']) then
-        M28Team.tTeamData[aiBrain.M28Team]['ActiveLog'] = true
-        while true do
-            LOG('Cur tick='..GetGameTimeSeconds())
-            WaitTicks(1)
-        end
-    end
+    M28Profiler.SpawnSetUnitsForBrain(aiBrain)
+
     --brian size profiling:
     --[[
     for iBrain, oBrain in ArmyBrains do
@@ -1150,7 +1145,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
