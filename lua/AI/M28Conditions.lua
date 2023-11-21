@@ -2017,7 +2017,7 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
             bWantIndirectReinforcements = true
         else
             --local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
-            if tLZTeamData[M28Map.reftoClosestFriendlyM28Brain].GetCurrentUnits and tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+            if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].GetCurrentUnits and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
                 bWantIndirectReinforcements = true
             end
         end
