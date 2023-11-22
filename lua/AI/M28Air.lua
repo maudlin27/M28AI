@@ -5454,7 +5454,7 @@ function UpdateTransportLocationShortlist(iTeam)
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
             table.insert(toBrainsToConsider, oBrain)
         end
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             table.insert(toBrainsToConsider, oBrain)
         end
         for iBrain, oBrain in toBrainsToConsider do

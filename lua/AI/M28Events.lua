@@ -39,8 +39,8 @@ function OnPlayerDefeated(aiBrain)
         if aiBrain.M28AI then
             --Give resources to teammates
             local bHaveTeammates = false
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) == false then
-                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
                         bHaveTeammates = true
                         break

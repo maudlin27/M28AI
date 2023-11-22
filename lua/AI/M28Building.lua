@@ -382,9 +382,9 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
         for iTMDTeam = 1, M28Team.iTotalTeamCount do
             --Get all TMD that could stop this TML, and all units it could threaten
             if not(iTMDTeam == iTMLTeam) then
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                     local oTMDBrain
-                    for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                         oTMDBrain = oBrain
                         break
                     end
@@ -515,9 +515,9 @@ function TMDJustBuilt(oTMD)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local oTMLBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     oTMLBrain = oBrain
                     break
                 end
@@ -589,9 +589,9 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local oTMLBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     oTMLBrain = oBrain
                     break
                 end
@@ -620,11 +620,11 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]))..'; TimeOfGame='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; TimeOfGame='..GetGameTimeSeconds()) end
 
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
         local oTMLBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             oTMLBrain = oBrain
             break
         end

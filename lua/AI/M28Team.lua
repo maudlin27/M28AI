@@ -36,7 +36,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
-    subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyActiveBrains]
+    subreftoFriendlyHumanAndAIBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyHumanAndAIBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
     rebTeamOnlyHasCampaignAI = 'M28TeamOnlyCampAI' --True if team only has campaign AI on it (so can e.g. disable the 'check playable area' tests in some scenarios
     refiHighestBrainResourceMultiplier = 'M28HighestMult' --Highest AiX Resource on team (as a number)
@@ -513,7 +513,7 @@ function CreateNewTeam(aiBrain)
     iTotalTeamCount = iTotalTeamCount + 1
     tTeamData[iTotalTeamCount] = {}
     tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] = {}
-    tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains] = {}
+    tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] = {}
     tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = false
     tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = false
     tTeamData[iTotalTeamCount][subreftoEnemyBrains] = {}
@@ -608,7 +608,7 @@ function CreateNewTeam(aiBrain)
                 end
                 if bHaveSameEnemies then
                     oBrain.M28Team = iTotalTeamCount
-                    table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
+                    table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
                     if oBrain.M28AI then
                         table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                         tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
@@ -3176,7 +3176,7 @@ function GiveAllResourcesToAllies(aiBrain)
     local iEnergyToGive = aiBrain:GetEconomyStored('ENERGY')
     local iSpareMassStorage
     local iSpareEnergyStorage
-    for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyActiveBrains] do
+    for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyHumanAndAIBrains] do
         if not(oBrain.M28IsDefeated) then
             iSpareMassStorage = 0
             iSpareEnergyStorage = 0
@@ -3204,9 +3204,9 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     LOG('Brain death detected for '..oDefeatedBrain.Nickname)
     for iTeam = 1, iTotalTeamCount do
         if oDefeatedBrain.M28Team == iTeam then
-            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveBrains]) == false then
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then
 
-                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveBrains] do
+                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains] do
                     if oBrain == oDefeatedBrain then
                         if oBrain.M28AI then
                             for iM28Brain, oM28Brain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
@@ -3217,7 +3217,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
                             end
                             tTeamData[iTeam][subrefiActiveM28BrainCount] = tTeamData[iTeam][subrefiActiveM28BrainCount] - 1
                         end
-                        table.remove(tTeamData[iTeam][subreftoFriendlyActiveBrains], iBrain)
+                        table.remove(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains], iBrain)
                         break
                     end
                 end

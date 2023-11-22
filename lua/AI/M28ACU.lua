@@ -525,7 +525,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         bGoSecondAir = true
                     end
                 end
-                if not(bGoSecondAir) and M28Map.iMapSize >= 512 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) >= 2 then
+                if not(bGoSecondAir) and M28Map.iMapSize >= 512 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then
                     --Still consider going 2nd air if have teammates between us and enemy (all teammates, not just M28 teammates) and are on a 10km+ map
                     if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] then
                         bGoSecondAir = true

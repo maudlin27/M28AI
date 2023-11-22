@@ -3408,7 +3408,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         return false
     end
 
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
@@ -3529,7 +3529,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
         end
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
             --Campaign specific - check this is on a valid land zone
             if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
@@ -4537,9 +4537,9 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             local tFriendlyBrainStartPoints = {}
             local iFriendlyBrainCount = 0
             tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[aiBrain:GetArmyIndex()][1], PlayerStartPoints[aiBrain:GetArmyIndex()][2], PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
-            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]))) end
 
-            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain index='..oBrain:GetArmyIndex()..'; Nickname='..(oBrain.Nickname or 'nil')..'; Start point='..repru((PlayerStartPoints[oBrain:GetArmyIndex()] or {'nil'}))) end
                 --if not(oBrain == aiBrain) then
                 iFriendlyBrainCount = iFriendlyBrainCount + 1

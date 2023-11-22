@@ -1205,7 +1205,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
         local tNearbyStructures = {}
         local iWaitCount = 0
         local tHumanBrains = {}
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Creating list of human brains, oBrain.Nickanme='..oBrain.Nickname..'; brain type='..oBrain.BrainType) end
             if oBrain.BrainType == 'Human' then
                 table.insert(tHumanBrains, oBrain)
@@ -1252,7 +1252,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                     local iNthEntryToGive
                     local iHumanBrainCount = 0
                     local iM28BrainCount = 0
-                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                         if oBrain.M28AI then iM28BrainCount = iM28BrainCount + 1
                         elseif oBrain.BrainType == 'Human' then
                             iHumanBrainCount = iHumanBrainCount + 1
