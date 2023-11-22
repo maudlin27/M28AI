@@ -1790,6 +1790,9 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
     local sFunctionRef = 'HaveGroundUnitWithNoPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local refsTrackingVariable = 'M28ActiveNoPlateau'..oTrackingBrain:GetArmyIndex()
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[refsTrackingVariable]) then --Brain check is a redundancy
         if bDebugMessages == true then
@@ -1797,29 +1800,43 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
             M28Utilities.DrawLocation(oUnit:GetPosition())
         end
         oUnit[refsTrackingVariable] = true
-        local iPlateau, iLandZone
         local iBaseAngle, iBaseDistance
         local tPotentialTempMoveLocation
         local iPlateauToTryAndFind
         local sPathing = M28UnitInfo.GetUnitPathingType
         local bConsiderMoving = false
+        local iTeam = oTrackingBrain.M28Team
         if oUnit:GetAIBrain().M28AI then bConsiderMoving = true end
         while M28UnitInfo.IsUnitValid(oUnit) do
-            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' postiion='..repru(oUnit:GetPosition())..'; Unit plateau group='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Actual plateau group ignoring segment='..(NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) or 'nil')) end
-            if iPlateau > 0 then break end
+            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 then
+                --Check we will get either al and or water zone if using the same approach that assignunittolandzoneorpond uses:
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                if iPlateau and iLandZone and iLandZone > 0 then
+                    break
+                else
+                    --Do we have a water zone?
+                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+                    local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                    if iWaterZone then
+                        break
+                    end
+                end
+            end
+            --iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' postiion='..repru(oUnit:GetPosition())..'; Plateau label='..NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) end
+            --if iPlateau > 0 then break end
             if bConsiderMoving then
                 M28Orders.UpdateRecordedOrders(oUnit)
                 if not(oUnit[M28Orders.reftiLastOrders]) then
                     --Give a move order to a random place
                     iBaseAngle = math.random(1, 360)
                     iBaseDistance = math.random(5, 10)
-                    iPlateauToTryAndFind = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
-                    if not(iPlateauToTryAndFind > 0) then iPlateauToTryAndFind = nil end
+                    iPlateauToTryAndFind = (NavUtils.GetLabel(sPathing, oUnit:GetPosition()) or oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][1] or oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]) --not as restrictive as terrain label
+                    if not((iPlateauToTryAndFind or 0) > 0) then iPlateauToTryAndFind = nil end
                     for iAngleAdjust = 0, 45, 360 do
                         tPotentialTempMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iBaseAngle + iAngleAdjust, iBaseDistance, true, false, true)
 
-                        if not(iPlateauToTryAndFind) or NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) == iPlateauToTryAndFind then
+                        if (iPlateauToTryAndFind and NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) == iPlateauToTryAndFind) or (not(iPlateauToTryAndFind) and NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation)) then
                             break --Use this as the move location
                         end
                     end
