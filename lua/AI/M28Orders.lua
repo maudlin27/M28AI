@@ -630,7 +630,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         --Do we have an existing enhancement that needs removing before we can get teh upgrade?
         local sEnhancementOverride
         local tEnhancements = oUnit:GetBlueprint().Enhancements
-        if M28Utilities.IsTableEmpty(tEnhancements) == false then
+        if M28Utilities.IsTableEmpty(tEnhancements) == false and oUnit.HasEnhancement then
             local tsUpgradeSlotUsed = {}
             local tbSlotInUse = {}
             local sSlotWanted

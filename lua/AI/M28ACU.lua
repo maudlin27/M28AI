@@ -1172,7 +1172,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     end
 
     --Remove any upgrades that we already have
-    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and oACU.HasEnhancement then
         local tObsoletePreRequisites = {}
         local bCheckForObsoletePrerequisites
         if bDebugMessages == true then
@@ -1279,7 +1279,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want to consider any upgrades due to norush') end
     else
         --If we were to get an upgrade, what upgrade would it be?
-        if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) or bWantToDoTeleSnipe then
+        if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU.HasEnhancement and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) or bWantToDoTeleSnipe then
             GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
 
@@ -2081,7 +2081,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
         local iIndividualReclaimThreshold
         local bGetEnergy = false
         if bOnlyConsiderIfInBuildRange then
-            if (oEngineer[refiUpgradeCount] or 0) > 0 and not(oEngineer:HasEnhancement('AdvancedEngineering')) then
+            if (oEngineer[refiUpgradeCount] or 0) > 0 and not(oEngineer.HasEnhancement and oEngineer:HasEnhancement('AdvancedEngineering')) then
                 if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or not(M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team)) then
                     iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 24
                 else
@@ -2952,7 +2952,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
     if not(tBestTarget) then tBestTarget = oSnipeTarget:GetPosition() end
     if bDebugMessages == true then LOG(sFunctionRef..': dist to snipe target='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), tBestTarget)..'; Does ACU have laser upgrade='..tostring(oACU:HasEnhancement('MicrowaveLaserGenerator'))..'; oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')) end
     --Issue - laser doesnt fire if are too close (which can happen if try to teleport right ontop of the enemy ACU)
-    if EntityCategoryContains(categories.MOBILE, oSnipeTarget.UnitId) and oACU:HasEnhancement('MicrowaveLaserGenerator') and M28Utilities.GetDistanceBetweenPositions(tBestTarget, oSnipeTarget:GetPosition()) <= 4 then
+    if EntityCategoryContains(categories.MOBILE, oSnipeTarget.UnitId) and oACU.HasEnhancement and oACU:HasEnhancement('MicrowaveLaserGenerator') and M28Utilities.GetDistanceBetweenPositions(tBestTarget, oSnipeTarget:GetPosition()) <= 4 then
         local iLandLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oSnipeTarget:GetPosition())
         local bHaveAltTarget = false
         if (iLandLabelWanted or 0) > 0 then
@@ -3407,13 +3407,13 @@ function GetACUOrder(aiBrain, oACU)
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) == 0 then
                                 MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
                                 --Do we want more power?
-                            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
+                            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                 ACUActionBuildPower(aiBrain, oACU)
                             end
                         end
                         if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                             --Do we want more power?
-                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                 ACUActionBuildPower(aiBrain, oACU)
                             end
                         end
@@ -3682,7 +3682,7 @@ function GetACUOrder(aiBrain, oACU)
                                                     end
                                                     --No nearby enemies - consider building power if have low level of it and lots of mass
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))) end
-                                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
+                                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                                         ACUActionBuildPower(aiBrain, oACU)
                                                         --Is there an enemy unit nearby that we want to attack?
                                                     elseif (oACU[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then

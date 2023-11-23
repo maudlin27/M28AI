@@ -1211,9 +1211,6 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Air staging - reset timer on when we last needed one
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oJustBuilt.UnitId) then
                     M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiTimeOfLastAirStagingShortage] = 0
-                    --T2 arti - consider manual shot targets
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
-                    ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                 end
 
                 --Track non-M28AI wall segments
@@ -1412,6 +1409,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
+                        --T2 arti - consider manual shot targets
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)

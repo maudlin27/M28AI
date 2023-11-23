@@ -2053,30 +2053,51 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Highest land tech='..tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]..'; Highest enemy tech='..tTeamData[iM28Team][subrefiHighestEnemyGroundTech]..'; Gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Mass stored='..tTeamData[iM28Team][subrefiTeamMassStored])
     end
-    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 14 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= (20 * (2.5-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) then
-        if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
-            local bWantUpgrade = false
-            local iExistingBrainsWithHQUpgrades = 0
-            for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-                --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain '..oBrain.Nickname..'; oBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(oBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
-
-                if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1)*0.5)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]))) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 15 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
-                    --Do we have any active land factory upgrades?
-                    bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to hold off so we can get air instead, oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Map size='..M28Map.iMapSize) end
-                    if bWantUpgrade and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oBrain[M28Economy.refiOurHighestAirFactoryTech] <= 2 and M28Map.iMapSize >= 512 then
-                        --Check if we are in a 'safe' start position, in which case want to not get land and instead will get air
-                        local tBrainStartZoneData, tBrainStartZoneTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oBrain, false), true, oBrain.M28Team)
-                        if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase]) >= 300 then bWantUpgrade = false end
-                        if bDebugMessages == true then LOG(sFunctionRef..': tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] or false)..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase])) end
+    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 then
+        local bInitiallyWantUpgrade = false
+        local bNearbyUpgradedEnemyACU = false
+        if (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 14 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= (20 * (2.5-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) then bWantUpgrade = true
+        end
+        --Does enemy have a nearby upgraded or upgrading AUC and we lack T2 land for a brain?
+        if tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][reftEnemyACUs]) then
+            for iACU, oACU in tTeamData[iM28Team][reftEnemyACUs] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..' is upgrading or has an upgrade, upgrade count='..(oACU[M28ACU.refiUpgradeCount] or 0)..'; Unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                if (oACU[M28ACU.refiUpgradeCount] or 0) > 0 or oACU:IsUnitState('Upgrading') then
+                    --Is the ACU close to a friendly base?
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iM28Team)
+                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= math.min(250, math.max(175, M28Map.iMapSize * 0.5)) then
+                        bNearbyUpgradedEnemyACU = true
+                        bInitiallyWantUpgrade = true
+                        break
                     end
+                end
+            end
+        end
+        if bInitiallyWantUpgrade then
+            if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+                local bWantUpgrade = false
+                local iExistingBrainsWithHQUpgrades = 0
+                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                    --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain '..oBrain.Nickname..'; oBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(oBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
 
-                    if bWantUpgrade and (iExistingBrainsWithHQUpgrades < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.5 or tTeamData[iM28Team][subrefiTeamMassStored] >= 450 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built') end
-                        M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]), 7)
-                    elseif not(bWantUpgrade) then
-                        iExistingBrainsWithHQUpgrades = iExistingBrainsWithHQUpgrades + 1
+                    if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (bNearbyUpgradedEnemyACU and oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1)*0.5)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]))) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 15 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
+                        --Do we have any active land factory upgrades?
+                        bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to hold off so we can get air instead, oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Map size='..M28Map.iMapSize) end
+                        if bWantUpgrade and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oBrain[M28Economy.refiOurHighestAirFactoryTech] <= 2 and M28Map.iMapSize >= 512 then
+                            --Check if we are in a 'safe' start position, in which case want to not get land and instead will get air
+                            local tBrainStartZoneData, tBrainStartZoneTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oBrain, false), true, oBrain.M28Team)
+                            if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase]) >= 300 then bWantUpgrade = false end
+                            if bDebugMessages == true then LOG(sFunctionRef..': tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] or false)..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase])) end
+                        end
+
+                        if bWantUpgrade and (iExistingBrainsWithHQUpgrades < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.5 or tTeamData[iM28Team][subrefiTeamMassStored] >= 450 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built') end
+                            M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]), 7)
+                        elseif not(bWantUpgrade) then
+                            iExistingBrainsWithHQUpgrades = iExistingBrainsWithHQUpgrades + 1
+                        end
                     end
                 end
             end

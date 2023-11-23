@@ -1011,7 +1011,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
             for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
                 if M28UnitInfo.IsUnitValid(oRecordedTML) then
                     --UEF ACU with billy nuke upgrade - increase value
-                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
+                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML.HasEnhancement and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
                         if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
@@ -3425,8 +3425,6 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local bProceedWithLogic = true
     if iOptionalDelaySecondsAndWeaponFireCheck then
         --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently
@@ -3457,7 +3455,13 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         local iTeam = aiBrain.M28Team
         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oArti:GetPosition(), true, iTeam)
         local oClosestTargetOfInterest
-        local iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+        local iClosestTargetOfInterest
+        if not(oArti[M28UnitInfo.refiIndirectRange]) then
+            M28Utilities.ErrorHandler('Dont have indirect fire range for T2 Arti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+            iClosestTargetOfInterest = 115 + 30
+        else
+            iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+        end
         local iCurDist
         local tArtiPosition = oArti:GetPosition()
         --Set the min range so we avoid targets inside this

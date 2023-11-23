@@ -1013,7 +1013,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort, or mobile shields if we have 10+ indirect fire units and have t2 arti here that wants shielding
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
-        local iApproachingACU, tNearestACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+        local iApproachingACU, oNearestACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+        local tNearestEnemyACU
+        if oNearestACU then tNearestEnemyACU = oNearestACU:GetPosition() end
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Emergency indirect builder: iApproachingACU threat=' .. iApproachingACU .. '; Dist to it=' .. M28Utilities.GetDistanceBetweenPositions((tNearestACU or oFactory:GetPosition()), oFactory:GetPosition()) .. '; Cur indirect=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect) .. '; Lifetime indirect=' .. M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect) .. '; Is table of nearby enemy dangerous buildings empty=' .. tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy'))))
         end
