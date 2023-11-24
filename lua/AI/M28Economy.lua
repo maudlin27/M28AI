@@ -1191,7 +1191,7 @@ function ManageMassStalls(iTeam)
                         end
 
                         if iCategoryRef == iSpecialSurplusUpgradeCategory then
-                            --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade
+                            --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade. also dont pause anything that is >=85% complete
                             tRelevantUnits = {}
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
                                 local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
@@ -1204,7 +1204,7 @@ function ManageMassStalls(iTeam)
                                 end
 
                                 while iMexesToPause > 0 do
-                                    local iLowestProgress = 1
+                                    local iLowestProgress = 0.8
                                     local oLowestProgress
                                     local bAlreadyIncluded
                                     for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
@@ -1222,7 +1222,11 @@ function ManageMassStalls(iTeam)
                                             end
                                         end
                                     end
-                                    table.insert(tRelevantUnits, oLowestProgress)
+                                    if oLowestProgress then
+                                        table.insert(tRelevantUnits, oLowestProgress)
+                                    else
+                                        break
+                                    end
                                     iMexesToPause = iMexesToPause - 1
                                 end
                             end
@@ -1777,7 +1781,7 @@ function ManageEnergyStalls(iTeam)
                                     iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
                                 end
                                 while iMexesToPause > 0 do
-                                    local iLowestProgress = 1
+                                    local iLowestProgress = 0.85
                                     local oLowestProgress
                                     local bAlreadyIncluded
                                     for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
@@ -1795,7 +1799,11 @@ function ManageEnergyStalls(iTeam)
                                             end
                                         end
                                     end
-                                    table.insert(tRelevantUnits, oLowestProgress)
+                                    if oLowestProgress then
+                                        table.insert(tRelevantUnits, oLowestProgress)
+                                    else
+                                        break
+                                    end
                                     iMexesToPause = iMexesToPause - 1
                                 end
                             end

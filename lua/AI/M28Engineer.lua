@@ -6394,8 +6394,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
     local iMinTechLevelForPower = 1
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 22 then iMinTechLevelForPower = 1
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 then iMinTechLevelForPower = 2
+        local iPowerMod = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.4
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 then
+            iPowerMod = iPowerMod + (((ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 1) - 1) * 0.9)
+        else iPowerMod = iPowerMod + (((ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 1) - 1) * 0.7)
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iPowerMod = iPowerMod + 1 end
+        if bDebugMessages == true then LOG(sFunctionRef..': iPowerMod='..iPowerMod..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')..'; Brain='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')..'; Resource mod='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 'nil')) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 23 * iPowerMod then iMinTechLevelForPower = 1
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 * iPowerMod then iMinTechLevelForPower = 2
         else
             if bHaveLowPower and not(bHaveLowMass) then
                 iMinTechLevelForPower = iHighestTechInZone
@@ -6403,6 +6410,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
             end
         end
+
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': iMinTechLevelForPower='..iMinTechLevelForPower..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
