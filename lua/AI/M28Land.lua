@@ -2763,7 +2763,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 1 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tAvailableCombatUnits)) == false then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
@@ -3030,7 +3030,30 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 bRunFromFirebase = false
                                                 if bDebugMessages == true then LOG(sFunctionRef..': WIll try and attack firebase') end
                                             end
-
+                                            if bRunFromFirebase and iOurMMLCount > 0 and M28Utilities.IsTableEmpty( tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                --Revise MML count to factor in all adjacent zones
+                                                local tThisZoneMML = EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                                local iAltMMLCount = 0
+                                                if M28Utilities.IsTableEmpty(tThisZoneMML) == false then
+                                                    iAltMMLCount = table.getn(tThisZoneMML)
+                                                end
+                                                for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                        tThisZoneMML = EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                                        if M28Utilities.IsTableEmpty(tThisZoneMML) == false then
+                                                            iAltMMLCount = iAltMMLCount + table.getn(tThisZoneMML)
+                                                        end
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iAltMMLCount='..iAltMMLCount..'; iOurMMLCount='..iOurMMLCount..'; iEnemyT2ArtiCount='..iEnemyT2ArtiCount..'; Enemy shield threat='..(tFirebaseLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)..'; iEnemyTMDCount='..iEnemyTMDCount) end
+                                                if iAltMMLCount > iOurMMLCount then
+                                                    if (iEnemyT2ArtiCount * 1.5 + (tFirebaseLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) / 1000 < (iOurNonMMLCount + math.max(0,(iAltMMLCount - iEnemyTMDCount)))) then
+                                                        bRunFromFirebase = false
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Hvae enough MML to attack') end
+                                                    end
+                                                end
+                                            end
                                         end
                                     end
                                 end
