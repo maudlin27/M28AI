@@ -713,7 +713,7 @@ end
 
 function OnBombFired(oWeapon, projectile)
     if M28Utilities.bM28AIInGame then
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnBombFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -870,6 +870,32 @@ function OnWeaponFired(oWeapon)
 
     end
 end
+
+--[[function ProjectileFiredAtGround(oProjectile)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile targeting ground target')
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
+    end
+end--]]
+
+--[[function ProjectileCreated(oProjectile, inWater)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile created target')
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
+    end
+end--]]
+
+--[[function ProjectileFiredFromWeapon(oProjectile)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile created from firing weapon, oProjectile.UnitId='..(oProjectile.Unitid or 'nil')..'; launcher unit id='..(oProjectile.Launcher.UnitId or 'nil')..'; drawing projectile target='..repru(oProjectile:GetCurrentTargetPosition())..'; reprs of projectile='..reprs(oProjectile))
+        for iEntry, tTable in oProjectile do
+            LOG('reprs of iEntry='..iEntry..'='..reprs(tTable))
+        end
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 3)
+    else
+        LOG('Projectyile fired but doesnt have a target position')
+    end
+end--]]
 
 function OnMissileBuilt(self, weapon)
     if M28Utilities.bM28AIInGame then

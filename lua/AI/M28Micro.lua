@@ -14,6 +14,7 @@ local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -357,8 +358,20 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DelayedRemovalOfTargetToAvoid(tTargetLZTeamData, tTargetToAvoid, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftiLocationsToAvoid]) == false then
+        for iEntry, tEntry in tTargetLZTeamData[M28Map.reftiLocationsToAvoid] do
+            if tEntry[1] == tTargetToAvoid[1] and tEntry[3] == tTargetToAvoid[3] then
+                table.remove(tTargetLZTeamData[M28Map.reftiLocationsToAvoid], iEntry)
+                break
+            end
+        end
+    end
+end
+
 function ConsiderDodgingShot(oUnit, oWeapon)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -368,7 +381,10 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             LOG(sFunctionRef..': Is current target valid='..tostring(M28UnitInfo.IsUnitValid(oWeapon:GetCurrentTarget()))..'; Weapon category='..oWeapon.Blueprint.WeaponCategory)
             if not(M28UnitInfo.IsUnitValid(oWeapon:GetCurrentTarget())) then
                 LOG(sFunctionRef..': Invalid target, will do reprs of it:'..reprs(oWeapon:GetCurrentTarget())..' will also draw black square around the weapon target position which is '..repru(oWeapon:GetCurrentTargetPos()))
-                M28Utilities.DrawLocation(oWeapon:GetCurrentTargetPos(), nil, 3, 200)
+                local tCurTargetPos = oWeapon:GetCurrentTargetPos()
+                if M28Utilities.IsTableEmpty(tCurTargetPos) == false then
+                    M28Utilities.DrawLocation(tCurTargetPos, nil, 3, 200)
+                end
             else
                 LOG(sFunctionRef..': Valid target='..oWeapon:GetCurrentTarget().UnitId..M28UnitInfo.GetUnitLifetimeCount(oWeapon:GetCurrentTarget()))
             end
@@ -382,7 +398,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         local oWeaponTarget
         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oWeaponTarget = oWeapon:GetCurrentTarget() end
         local bConsiderUnitsInArea = false
-        if not(M28UnitInfo.IsUnitValid(oWeaponTarget)) or EntityCategoryContains(categories.NAVAL * categories.MOBILE, oWeaponTarget.UnitId) then bConsiderUnitsInArea = true end
+        if not(M28UnitInfo.IsUnitValid(oWeaponTarget)) or EntityCategoryContains(categories.NAVAL * categories.MOBILE, oWeaponTarget.UnitId) or ((oWeapon.Blueprint.DamageRadius or 0) >= 1 and ((oWeapon.Blueprint.FiringTolerance or 0) >= 0.5 or oWeapon.WeaponCategory == 'Artillery')) then bConsiderUnitsInArea = true end
 
         local tUnitsToConsiderDodgeFor = {}
         function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
@@ -410,14 +426,44 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             else
                 ConsiderAddingUnitToTable(oWeaponTarget, bIncludeBusyUnits)
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to consider units in area so will only consider oWeaponTarget') end
 
         else
             --Does the weapon have an aoe?
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': oWeapon.Blueprint.DamageRadius='..(oWeapon.Blueprint.DamageRadius or 'nil')..'; will consider units in an area if it is an aoe attack, oWeaponTarget='..(oWeaponTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oWeaponTarget) or 'nil')) end
             if (oWeapon.Blueprint.DamageRadius or 0) > 0.1 then
                 --Get all units in area
-                local tWeaponTarget = oWeapon:GetCurrentTargetPos()
+                local tWeaponTarget
+                if oWeaponTarget then
+                    tWeaponTarget = oWeaponTarget:GetPosition()
+                    --Add to list of locations in the zone to avoid if its an M28 unit  and we arent getting close to unit cap and early-mid game
+                        --Commented out as not sure it makes things better
+                    --[[if oWeaponTarget:GetAIBrain().M28AI and GetGameTimeSeconds() <= 1800 and (oWeaponTarget:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] or 0) >= 200 and tWeaponTarget[2] >= M28Map.iMapWaterHeight then
+                        local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(tWeaponTarget, true, oWeaponTarget:GetAIBrain().M28Team)
+                        local iExistingEntries = 0
+                        if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftiLocationsToAvoid]) == false then
+                            iExistingEntries = table.getn(tTargetLZTeamData[M28Map.reftiLocationsToAvoid])
+                        else
+                            tTargetLZTeamData[M28Map.reftiLocationsToAvoid] = {}
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iExistingEntries in locations to avoid='..iExistingEntries..'; if <10 then will insert') end
+                        if iExistingEntries < 10 then
+                            local tTargetToAvoid = {tWeaponTarget[1], tWeaponTarget[2], tWeaponTarget[3]}
+                            table.insert(tTargetLZTeamData[M28Map.reftiLocationsToAvoid], tTargetToAvoid)
+                            ForkThread(DelayedRemovalOfTargetToAvoid, tTargetLZTeamData, tTargetToAvoid, 3)
+                        end
+                    end--]]
+                else
+                    tWeaponTarget = oWeapon:GetCurrentTargetPos()
+                end
+
                 if M28Utilities.IsTableEmpty(tWeaponTarget) == false then
-                    local iRadiusSize = math.min(3, math.max(oWeapon.Blueprint.DamageRadius + 0.5 + 2 * (oWeapon.Blueprint.FiringRandomness or 0), 1))
+                    bDebugMessages = true
+                    local iRadiusSize = math.min(5, 1 + math.max(oWeapon.Blueprint.DamageRadius + 0.5 + 7 * (oWeapon.Blueprint.FiringRandomness or 0), 1))
+                    if bDebugMessages == true then LOG(sFunctionRef..': iRadiusSize='..iRadiusSize..'; based ond amage radius='..oWeapon.Blueprint.DamageRadius..'; and firing randomness='..(oWeapon.Blueprint.FiringRandomness or 'nil')..'; will draw weapon target')
+                        M28Utilities.DrawLocation(tWeaponTarget, 1)
+                    end
                     local tAllUnitsInArea = GetUnitsInRect(Rect(tWeaponTarget[1]-iRadiusSize, tWeaponTarget[3]-iRadiusSize, tWeaponTarget[1]+iRadiusSize, tWeaponTarget[3]+iRadiusSize))
                     if M28Utilities.IsTableEmpty(tAllUnitsInArea) == false then
                         --Do we have shield units in the area with at least 20% shield? Will assume shield covers all the units

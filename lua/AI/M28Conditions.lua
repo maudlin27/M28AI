@@ -2332,3 +2332,22 @@ function ApplyM28ToOtherAI(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
+
+function HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLocationsToAvoid, iDistanceThreshold)
+    --If are close to a location to avoid then gives the unit an order to run in the opposite direction
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveSentOrderToRunAwayFromLocationToAvoid'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    for iLocation, tLocation in tLocationsToAvoid do
+        if bDebugMessages == true then LOG(sFunctionRef..': Dist from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' to tLocation='..repru(tLocation)..'='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocation)..'; iDistanceThreshold='..iDistanceThreshold) end
+        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocation) <= iDistanceThreshold then
+            local tLocationToMoveTo = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(tLocation, oUnit:GetPosition()), 5, true, false, M28Map.bIsCampaignMap)
+            M28Orders.IssueTrackedMove(oUnit, tLocationToMoveTo, 1, false, 'AvdAr', false)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end

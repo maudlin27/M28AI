@@ -20,5 +20,10 @@ DefaultProjectileWeapon = Class(M28DefaultProjectileWeapon) {
     CreateProjectileAtMuzzle = function(self, muzzle)
         ForkThread(M28Events.OnWeaponFired, self)
         return M28DefaultProjectileWeapon.CreateProjectileAtMuzzle(self, muzzle)
+
+        --Use below code if want to refer to the projectile created when a weapon is fired (note that the projectile target will be the intended target, pre any firing randomness)
+        --local oProj = M28DefaultProjectileWeapon.CreateProjectileAtMuzzle(self, muzzle)
+        --ForkThread(M28Events.ProjectileFiredFromWeapon, oProj)
+        --return oProj
     end,
 }

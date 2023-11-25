@@ -3,13 +3,22 @@
 --- Created by maudlin27.
 --- DateTime: 02/12/2022 09:11
 ---
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+
 do --Per Balthazaar - encasing the code in do .... end means that you dont have to worry about using unique variables
     local M28OldProjectile = Projectile
     Projectile = Class(M28OldProjectile) {
 
-        OnImpact = function(self, targetType, targetEntity)
+        --[[OnImpact = function(self, targetType, targetEntity)
             M28OldProjectile.OnImpact(self, targetType, targetEntity)
-
-        end,
+        end,--]]
+        --[[OnTrackTargetGround = function(self)
+            M28OldProjectile.OnTrackTargetGround(self)
+            ForkThread(M28Events.ProjectileFiredAtGround,self)
+        end,--]]
+        --[[OnCreate = function(self, inWater)
+            M28OldProjectile.OnCreate(self, inWater)
+            ForkThread(M28Events.ProjectileCreated,self, inWater)
+        end--]]
     }
 end
