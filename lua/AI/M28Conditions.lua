@@ -1622,18 +1622,20 @@ function SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
                     if M28Map.iMapSize <= 256 then iDistThreshold = 180 end
                     local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                     for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist from ACU to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
-                        if (oACU[M28UnitInfo.refiDFRange] or 0) >= 26 then
-                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
-                                if bDebugMessages == true then LOG(sFunctionRef..': enemy has nearby guncom') end
-                                bNearbyGuncom = true
-                                break
-                            end
-                            --If enemy ACU is upgrading fairnly nearby then assume it is upgrading to get T2 to be prudent
-                        elseif not(bNearbyT2ACU) and (oACU:HasEnhancement('AdvancedEngineering') or oACU:HasEnhancement('T3Engineering') or ((oACU[M28ACU.refiUpgradeCount] or 0) == 0 and oACU:IsUnitState('Upgrading'))) then
-                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy Has nearby T2 ACU') end
-                                bNearbyT2ACU = true
+                        if M28UnitInfo.IsUnitValid(oACU) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist from ACU to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                            if (oACU[M28UnitInfo.refiDFRange] or 0) >= 26 then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy has nearby guncom') end
+                                    bNearbyGuncom = true
+                                    break
+                                end
+                                --If enemy ACU is upgrading fairnly nearby then assume it is upgrading to get T2 to be prudent
+                            elseif not(bNearbyT2ACU) and (oACU:HasEnhancement('AdvancedEngineering') or oACU:HasEnhancement('T3Engineering') or ((oACU[M28ACU.refiUpgradeCount] or 0) == 0 and oACU:IsUnitState('Upgrading'))) then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy Has nearby T2 ACU') end
+                                    bNearbyT2ACU = true
+                                end
                             end
                         end
                     end
