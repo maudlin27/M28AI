@@ -1773,18 +1773,29 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                     end
                 end
             end
-            local tT2ArtiToPrioritise
+            local tUnitsToPrioritiseForShielding = {}
             if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-                tT2ArtiToPrioritise = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield])
-                if M28Utilities.IsTableEmpty(tT2ArtiToPrioritise) == false then
-                    for iTarget, oTarget in tT2ArtiToPrioritise do
-                        if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                tUnitsToPrioritiseForShielding = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield])
+            end
+            if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false then
+                local iCurHealthPercent
+                if not(tUnitsToPrioritiseForShielding) then tUnitsToPrioritiseForShielding = {} end
+                for iACU, oACU in tTeamTargetLZData[M28Map.subrefAlliedACU] do
+                    iCurHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
+                    if iCurHealthPercent <= 0.6 or (iCurHealthPercent <= 0.98 and GetGameTimeSeconds() - (oACU[M28ACU.refiTimeLastWantedToRun] or -100) <= 5) then
+                        table.insert(tUnitsToPrioritiseForShielding, oACU)
                     end
                 end
             end
-
-            for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield] do
-                if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+            if M28Utilities.IsTableEmpty(tUnitsToPrioritiseForShielding) == false then
+                for iTarget, oTarget in tUnitsToPrioritiseForShielding do
+                    if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
+                for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield] do
+                    if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                end
             end
         end
         if (M28Utilities.IsTableEmpty(tShieldsToAssign) == false or M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false) and bAssignAllShields then
@@ -1963,7 +1974,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tEnemyDFUnits = EntityCategoryFilterDown(categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits])
         tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
     end
-
+    
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
