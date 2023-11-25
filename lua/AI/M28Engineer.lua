@@ -11121,7 +11121,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     local tEnemyNavalFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
                     if M28Utilities.IsTableEmpty(tEnemyNavalFactories) == false then
                         for iFactory, oFactory in tEnemyNavalFactories do
-                            if M28UnitInfo.IsUnitValid(oEnemyEngineer) then
+                            if M28UnitInfo.IsUnitValid(oFactory) then
                                 iEnemyBP = iEnemyBP + (oFactory:GetBlueprint().Economy.BuildRate or 0)
                             end
                         end
