@@ -3445,9 +3445,15 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         if not(oArti[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oArti[M28UnitInfo.refiLastWeaponEvent] >= iOptionalDelaySecondsAndWeaponFireCheck - 0.01 then
             bProceedWithLogic = true
         end
+    elseif oArti[M28UnitInfo.refiTimeBetweenIFShots] and GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100) < oArti[M28UnitInfo.refiTimeBetweenIFShots] - 2 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to wait until Arti almost ready to fire before choosing the next target, oArti[M28UnitInfo.refiTimeBetweenIFShots]='..(oArti[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')..'; Time since last weapn event='..(GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100))) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(math.min(oArti[M28UnitInfo.refiTimeBetweenIFShots] - 2, oArti[M28UnitInfo.refiTimeBetweenIFShots] -2 - (GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100))))
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to proceed for oArti='..(oArti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArti) or 'nil')..'; Is oArti valid='..tostring(M28UnitInfo.IsUnitValid(oArti))..'; bProceedWithLogic='..tostring(bProceedWithLogic)..'; iOptionalDelaySecondsAndWeaponFireCheck='..(iOptionalDelaySecondsAndWeaponFireCheck or 'nil')..'; Is oOptionalWeapon nil='..tostring(oOptionalWeapon == nil)..'; Time='..GetGameTimeSeconds()) end
     if bProceedWithLogic and M28UnitInfo.IsUnitValid(oArti) then
+
 
         local bGivenOrder = false
         local tLastTarget
@@ -3546,16 +3552,18 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             local bTargetingMobileUnit = EntityCategoryContains(categories.MOBILE, oClosestTargetOfInterest.UnitId)
             bGivenOrder = true
             --Consider whether to ground fire
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to do ground fire attack; iClosestTargetOfInterest='..iClosestTargetOfInterest..'; oArti[M28UnitInfo.refiIndirectRange]='..(oArti[M28UnitInfo.refiIndirectRange] or 'nil')) end
             if iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Can we see the oClosestTargetOfInterest='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false))..'; oClosestTargetOfInterest='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')) end
                 if M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false) then
                     M28Orders.IssueTrackedAttack(oArti, oClosestTargetOfInterest, false, 'ArtAt', false)
                 else
                     M28Orders.IssueTrackedGroundAttack(oArti, oClosestTargetOfInterest:GetPosition(), 0.1, false, 'ArtXG', false, oClosestTargetOfInterest)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will do ground attack as cant see the unit') end
                 end
             else
                 --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
                 if oClosestTargetOfInterest.MyShield or iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] + 20 then
-                    bTargetingMobileUnit = false --ground firing so no longer need to check we have a valid target, since we will reassess when we next fire a shot
                     local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), oArti[M28UnitInfo.refiIndirectRange] - 0.05, true, false, M28Map.bIsCampaignMap)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will gorund fire as target unit is outside our range, tGroundFireTarget='..repru(tGroundFireTarget)) end
                     if tGroundFireTarget then
@@ -3571,7 +3579,7 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
 
             --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
             if bTargetingMobileUnit then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to consider t2 arti target as we are targeting a mobile unit') end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to re-consider t2 arti target as we are targeting a mobile unit') end
                 ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
             end
         end
