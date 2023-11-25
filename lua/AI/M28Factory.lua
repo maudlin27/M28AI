@@ -3417,7 +3417,7 @@ end
 
 function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForNavalFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -3754,6 +3754,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
         local iOurCumulativeAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
         local iOurCumulativeCombatThreat = tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+        local iEnemyCumulativeAntiNavyThreat = (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+        local iEnemyCumulativeCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
         local bHaveWantedAA = false
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
 
@@ -3764,6 +3766,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 local tOtherWZTeamData = M28Map.tPondDetails[iOtherPond][M28Map.subrefPondWaterZones][iOtherWZ][M28Map.subrefWZTeamData][iTeam]
                 iOurCumulativeAAThreat = iOurCumulativeAAThreat + tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]
                 iOurCumulativeCombatThreat = iOurCumulativeCombatThreat + tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+                iEnemyCumulativeAntiNavyThreat = iEnemyCumulativeAntiNavyThreat + (tOtherWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+                iEnemyCumulativeCombatThreat = iEnemyCumulativeCombatThreat + (tOtherWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy])
                 end
@@ -3785,8 +3789,16 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try and get CombatCategory or (if that fails) a sub') end
                         if bConsiderBuildingMoreCombat then
+                            --Consider building subs if T1-T2 factory and enemy has no antinavy threat and lacks T2 air
+                            if (oFactory[refiTotalBuildCount] or 0) <= 15 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 or M28Team.tAirSubteamData[aiBrain.iAirSubteam][M28Team.refbHaveAirControl]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                                --Do we want to try building a sub instead?
+                                if iEnemyCumulativeAntiNavyThreat < iEnemyCumulativeCombatThreat * 0.1 or (iEnemyCumulativeAntiNavyThreat <= 200 and iEnemyCumulativeCombatThreat >= 1000) then
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine - categories.NUKE) then return sBPIDToBuild end
+                                end
+                            end
+
                             if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
-                            --Backup - build sub
+                            --Backup for campaign/unit restrictions - build sub
                             if ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine) then return sBPIDToBuild end
                         end
 
