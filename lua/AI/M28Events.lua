@@ -1897,7 +1897,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 if oUnit:GetFractionComplete() == 1 then
-
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        --put here as extra redundancy since the 'unpause unit on transfer' code which has something similar didnt fix an issue with a loaded yolona being transferred not then firing
+                        ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 15, true)
+                    end
                     if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
                         M28Building.ReserveLocationsForGameEnder(oUnit)
                     end
@@ -2455,6 +2458,14 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                 aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount] = {}
                 for iUnit, oUnit in tCompletedUnits do
                     table.insert(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount], oUnit)
+                    --Delayed consideration of launching a missile
+                end
+                local tMissileLaunchers = EntityCategoryFilterDown(categories.SILO, tCompletedUnits)
+                if M28Utilities.IsTableEmpty(tMissileLaunchers) == false then
+                    local iCurMissiles
+                    for iLauncher, oLauncher in tMissileLaunchers do
+                        M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of completed units empty='..tostring(M28Utilities.IsTableEmpty(tCompletedUnits))..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tUpgradingUnit))) end

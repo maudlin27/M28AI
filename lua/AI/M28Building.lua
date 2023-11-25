@@ -3231,11 +3231,21 @@ function DetermineBuildingExpectedValues()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait)
+function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStillLoaded)
     --Call via forkthread
     WaitSeconds(iSecondsToWait)
     if M28UnitInfo.IsUnitValid(oLauncher) then
-        ConsiderLaunchingMissile(oLauncher)
+        local bProceed = true
+        if bCheckIfStillLoaded then
+            bProceed = false
+            local iMissiles = 0
+            if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
+            if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
+            if iMissiles > 0 then bProceed = true end
+        end
+        if bProceed then
+            ConsiderLaunchingMissile(oLauncher)
+        end
     end
 end
 
