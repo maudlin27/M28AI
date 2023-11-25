@@ -3002,51 +3002,89 @@ function RecordAdjacentLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tiSegmentAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
+    local tiBorderSegmentAdjust = {}
+    local iMaxAdjacencyToConsider = 1
+    if iMapSize <= 1024 then
+        iMaxAdjacencyToConsider = 2
+        if iMapSize <= 512 then
+            iMaxAdjacencyToConsider = 3
+            if iMapSize <= 256 then iMaxAdjacencyToConsider = 5 end
+        end
+    end
+    if iMaxAdjacencyToConsider > 1 then
+        for iMaxAdjacencyToConsider = 2, iMaxAdjacencyToConsider do
+            for iX = -iMaxAdjacencyToConsider, iMaxAdjacencyToConsider, iMaxAdjacencyToConsider do
+                for iZ = -iMaxAdjacencyToConsider, iMaxAdjacencyToConsider, iMaxAdjacencyToConsider do
+                    if not(iX == 0 and iZ == 0) then
+                        table.insert(tiBorderSegmentAdjust, {iX, iZ})
+                    end
+                end
+            end
+        end
+    end
+
+
     local iAltLandZone
     local iAltSegX, iAltSegZ
     local tRecordedAdjacentZones
     local iIslandRefWanted
+    local bHaveBorderSegment
+
+    function ConsiderAdjustmentSegment(iPlateau, iLandZone, iAltSegX, iAltSegZ)
+
+        iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
+        if iAltLandZone and not(iAltLandZone == iLandZone) then
+            bHaveBorderSegment = true
+            if not(tRecordedAdjacentZones[iAltLandZone]) then
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Consideing iAltSegX'..iAltSegX..'Z'..iAltSegZ..'; iAltLandZone='..iAltLandZone..'; Hover terrain label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) or 'nil')..'; iPlateau for base seg='..iPlateau) end
+                if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
+                    --We should have the same plateau, but double-check - do we have a land zone recorded?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
+                    if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
+                        tRecordedAdjacentZones[iAltLandZone] = true
+                        --Only actually record this as an adjacent land zone if the land pathing label is the same
+                        if NavUtils.GetLabel(refPathingTypeLand, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone][subrefMidpoint]) == iIslandRefWanted then
+                            local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                            table.insert(tLZData[subrefLZAdjacentLandZones], iAltLandZone)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering land zone '..iLandZone..' and if the adjacent segment X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
+                                M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Different island refs for iLandZone='..iLandZone..' and iAltLandZone='..iAltLandZone..' so wont record as being adjacent') end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
-        for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
-            tLandZoneInfo[subrefLZAdjacentLandZones] = {}
+        for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+            tLZData[subrefLZAdjacentLandZones] = {}
             tRecordedAdjacentZones = {}
-            iIslandRefWanted = NavUtils.GetLabel(refPathingTypeLand, tLandZoneInfo[subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')..'; iIslandRefWanted='..iIslandRefWanted) end
-            for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
+            iIslandRefWanted = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLZData[subrefLZTotalSegmentCount] or 'nil')..'; iIslandRefWanted='..iIslandRefWanted) end
+            for iSegmentRef, tSegmentXZ in tLZData[subrefLZSegments] do
+                bHaveBorderSegment = false
                 for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
-                    iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
-                    iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
-                    iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
-                    if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Consideing tSegmentXZ='..repru(tSegmentXZ)..'; iAltSegX'..iAltSegX..'Z'..iAltSegZ..'; iAltLandZone='..iAltLandZone..'; Hover terrain label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) or 'nil')..'; iPlateau for base seg='..iPlateau) end
-                        if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
-                            --We should have the same plateau, but double-check - do we have a land zone recorded?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
-                            if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
-                                tRecordedAdjacentZones[iAltLandZone] = true
-                                --Only actually record this as an adjacent land zone if the land pathing label is the same
-                                if NavUtils.GetLabel(refPathingTypeLand, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone][subrefMidpoint]) == iIslandRefWanted then
-                                    table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
-                                        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
-                                    end
-                                else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Different island refs for iLandZone='..iLandZone..' and iAltLandZone='..iAltLandZone..' so wont record as being adjacent') end
-                                end
-                            end
-                        end
+                    ConsiderAdjustmentSegment(iPlateau, iLandZone, tSegmentXZ[1] + tSegAdjXZ[1], tSegmentXZ[2] + tSegAdjXZ[2])
+                end
+                if bHaveBorderSegment and iMaxAdjacencyToConsider > 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Think we have a border segment, X'..tSegmentXZ[1]..'Z'..tSegmentXZ[2]..'; will now consider further away segments inbordersegmentadjust, iMaxAdjacencyToConsider='..iMaxAdjacencyToConsider) end
+                    for iSegAdjust, tSegAdjXZ in tiBorderSegmentAdjust do
+                        ConsiderAdjustmentSegment(iPlateau, iLandZone, tSegmentXZ[1] + tSegAdjXZ[1], tSegmentXZ[2] + tSegAdjXZ[2])
                     end
                 end
             end
 
 
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones]))
+                LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLZData[subrefLZAdjacentLandZones]))
                 local iColour = 1
                 DrawSpecificLandZone(iPlateau, iLandZone, iColour)
-                if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
-                    for _, iAdjLZ in tLandZoneInfo[subrefLZAdjacentLandZones] do
+                if M28Utilities.IsTableEmpty(tLZData[subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[subrefLZAdjacentLandZones] do
                         iColour = iColour + 1
                         if iColour > 8 then iColour = 2 end
                         DrawSpecificLandZone(iPlateau, iAdjLZ, iColour)

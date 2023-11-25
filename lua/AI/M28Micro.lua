@@ -371,7 +371,7 @@ function DelayedRemovalOfTargetToAvoid(tTargetLZTeamData, tTargetToAvoid, iDelay
 end
 
 function ConsiderDodgingShot(oUnit, oWeapon)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -430,7 +430,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
 
         else
             --Does the weapon have an aoe?
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': oWeapon.Blueprint.DamageRadius='..(oWeapon.Blueprint.DamageRadius or 'nil')..'; will consider units in an area if it is an aoe attack, oWeaponTarget='..(oWeaponTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oWeaponTarget) or 'nil')) end
             if (oWeapon.Blueprint.DamageRadius or 0) > 0.1 then
                 --Get all units in area
@@ -459,7 +458,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 end
 
                 if M28Utilities.IsTableEmpty(tWeaponTarget) == false then
-                    bDebugMessages = true
                     local iRadiusSize = math.min(5, 1 + math.max(oWeapon.Blueprint.DamageRadius + 0.5 + 7 * (oWeapon.Blueprint.FiringRandomness or 0), 1))
                     if bDebugMessages == true then LOG(sFunctionRef..': iRadiusSize='..iRadiusSize..'; based ond amage radius='..oWeapon.Blueprint.DamageRadius..'; and firing randomness='..(oWeapon.Blueprint.FiringRandomness or 'nil')..'; will draw weapon target')
                         M28Utilities.DrawLocation(tWeaponTarget, 1)

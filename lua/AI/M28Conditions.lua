@@ -2335,7 +2335,7 @@ end
 
 function HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLocationsToAvoid, iDistanceThreshold)
     --If are close to a location to avoid then gives the unit an order to run in the opposite direction
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveSentOrderToRunAwayFromLocationToAvoid'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
