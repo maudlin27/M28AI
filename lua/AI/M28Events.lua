@@ -39,8 +39,8 @@ function OnPlayerDefeated(aiBrain)
         if aiBrain.M28AI then
             --Give resources to teammates
             local bHaveTeammates = false
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) == false then
-                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
                         bHaveTeammates = true
                         break
@@ -871,6 +871,32 @@ function OnWeaponFired(oWeapon)
     end
 end
 
+--[[function ProjectileFiredAtGround(oProjectile)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile targeting ground target')
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
+    end
+end--]]
+
+--[[function ProjectileCreated(oProjectile, inWater)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile created target')
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
+    end
+end--]]
+
+--[[function ProjectileFiredFromWeapon(oProjectile)
+    if oProjectile.GetCurrentTargetPosition then
+        LOG('TEMP TEST will draw projectile created from firing weapon, oProjectile.UnitId='..(oProjectile.Unitid or 'nil')..'; launcher unit id='..(oProjectile.Launcher.UnitId or 'nil')..'; drawing projectile target='..repru(oProjectile:GetCurrentTargetPosition())..'; reprs of projectile='..reprs(oProjectile))
+        for iEntry, tTable in oProjectile do
+            LOG('reprs of iEntry='..iEntry..'='..reprs(tTable))
+        end
+        M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 3)
+    else
+        LOG('Projectyile fired but doesnt have a target position')
+    end
+end--]]
+
 function OnMissileBuilt(self, weapon)
     if M28Utilities.bM28AIInGame then
         if self.GetAIBrain and self:GetAIBrain().M28AI then
@@ -1211,9 +1237,6 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Air staging - reset timer on when we last needed one
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oJustBuilt.UnitId) then
                     M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiTimeOfLastAirStagingShortage] = 0
-                    --T2 arti - consider manual shot targets
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
-                    ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                 end
 
                 --Track non-M28AI wall segments
@@ -1412,6 +1435,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
+                        --T2 arti - consider manual shot targets
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
@@ -1871,7 +1897,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 if oUnit:GetFractionComplete() == 1 then
-
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        --put here as extra redundancy since the 'unpause unit on transfer' code which has something similar didnt fix an issue with a loaded yolona being transferred not then firing
+                        ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 15, true)
+                    end
                     if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
                         M28Building.ReserveLocationsForGameEnder(oUnit)
                     end
@@ -2429,6 +2458,14 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                 aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount] = {}
                 for iUnit, oUnit in tCompletedUnits do
                     table.insert(aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount][iCapturedUnitCount], oUnit)
+                    --Delayed consideration of launching a missile
+                end
+                local tMissileLaunchers = EntityCategoryFilterDown(categories.SILO, tCompletedUnits)
+                if M28Utilities.IsTableEmpty(tMissileLaunchers) == false then
+                    local iCurMissiles
+                    for iLauncher, oLauncher in tMissileLaunchers do
+                        M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of completed units empty='..tostring(M28Utilities.IsTableEmpty(tCompletedUnits))..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tUpgradingUnit))) end

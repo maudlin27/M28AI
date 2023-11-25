@@ -243,7 +243,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure, wz uses same ref deinition ('MAATotal')
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
-            subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies
+            subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies; used for both alnd and water zones
             subrefbLZWantsSupport = 'LZWantsSupport' --true if want DF or indirect units for the LZ
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
@@ -316,7 +316,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position (same for water zone)
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)
-            reftoClosestFriendlyM28Brain = 'ClsM28Br' --initially based on the closest friendly base (start position)
+            reftiClosestFriendlyM28BrainIndex = 'ClsM28Br' --initially based on the closest friendly base (start position)
             refiModDistancePercent = 'ModDPC' --For LZ and WZ; % of the distance to the enemy base, e.g. 0.5 should be middle of the map, >0.5 should be on the enemy's side of the map; e.g. LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
@@ -326,6 +326,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
             reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective
             refiTimeLastShowedBuildLocationFailure = 'TLFBL' --Gametimeseconds we last showed a warning that we had nowhere to build
+            --reftiLocationsToAvoid = 'TLocAv' --if have enemy aoe unit targeting an M28 unit, then the first 10 such locations get recorded - removed as not sure it actually made things better
 
 --Pond and naval variables
     --General
@@ -3001,51 +3002,89 @@ function RecordAdjacentLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tiSegmentAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
+    local tiBorderSegmentAdjust = {}
+    local iMaxAdjacencyToConsider = 1
+    if iMapSize <= 1024 then
+        iMaxAdjacencyToConsider = 2
+        if iMapSize <= 512 then
+            iMaxAdjacencyToConsider = 3
+            if iMapSize <= 256 then iMaxAdjacencyToConsider = 5 end
+        end
+    end
+    if iMaxAdjacencyToConsider > 1 then
+        for iMaxAdjacencyToConsider = 2, iMaxAdjacencyToConsider do
+            for iX = -iMaxAdjacencyToConsider, iMaxAdjacencyToConsider, iMaxAdjacencyToConsider do
+                for iZ = -iMaxAdjacencyToConsider, iMaxAdjacencyToConsider, iMaxAdjacencyToConsider do
+                    if not(iX == 0 and iZ == 0) then
+                        table.insert(tiBorderSegmentAdjust, {iX, iZ})
+                    end
+                end
+            end
+        end
+    end
+
+
     local iAltLandZone
     local iAltSegX, iAltSegZ
     local tRecordedAdjacentZones
     local iIslandRefWanted
+    local bHaveBorderSegment
+
+    function ConsiderAdjustmentSegment(iPlateau, iLandZone, iAltSegX, iAltSegZ)
+
+        iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
+        if iAltLandZone and not(iAltLandZone == iLandZone) then
+            bHaveBorderSegment = true
+            if not(tRecordedAdjacentZones[iAltLandZone]) then
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Consideing iAltSegX'..iAltSegX..'Z'..iAltSegZ..'; iAltLandZone='..iAltLandZone..'; Hover terrain label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) or 'nil')..'; iPlateau for base seg='..iPlateau) end
+                if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
+                    --We should have the same plateau, but double-check - do we have a land zone recorded?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
+                    if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
+                        tRecordedAdjacentZones[iAltLandZone] = true
+                        --Only actually record this as an adjacent land zone if the land pathing label is the same
+                        if NavUtils.GetLabel(refPathingTypeLand, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone][subrefMidpoint]) == iIslandRefWanted then
+                            local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                            table.insert(tLZData[subrefLZAdjacentLandZones], iAltLandZone)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering land zone '..iLandZone..' and if the adjacent segment X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
+                                M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Different island refs for iLandZone='..iLandZone..' and iAltLandZone='..iAltLandZone..' so wont record as being adjacent') end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
-        for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
-            tLandZoneInfo[subrefLZAdjacentLandZones] = {}
+        for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+            tLZData[subrefLZAdjacentLandZones] = {}
             tRecordedAdjacentZones = {}
-            iIslandRefWanted = NavUtils.GetLabel(refPathingTypeLand, tLandZoneInfo[subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')..'; iIslandRefWanted='..iIslandRefWanted) end
-            for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
+            iIslandRefWanted = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLZData[subrefLZTotalSegmentCount] or 'nil')..'; iIslandRefWanted='..iIslandRefWanted) end
+            for iSegmentRef, tSegmentXZ in tLZData[subrefLZSegments] do
+                bHaveBorderSegment = false
                 for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
-                    iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
-                    iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
-                    iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
-                    if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Consideing tSegmentXZ='..repru(tSegmentXZ)..'; iAltSegX'..iAltSegX..'Z'..iAltSegZ..'; iAltLandZone='..iAltLandZone..'; Hover terrain label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) or 'nil')..'; iPlateau for base seg='..iPlateau) end
-                        if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
-                            --We should have the same plateau, but double-check - do we have a land zone recorded?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
-                            if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
-                                tRecordedAdjacentZones[iAltLandZone] = true
-                                --Only actually record this as an adjacent land zone if the land pathing label is the same
-                                if NavUtils.GetLabel(refPathingTypeLand, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone][subrefMidpoint]) == iIslandRefWanted then
-                                    table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
-                                        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
-                                    end
-                                else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Different island refs for iLandZone='..iLandZone..' and iAltLandZone='..iAltLandZone..' so wont record as being adjacent') end
-                                end
-                            end
-                        end
+                    ConsiderAdjustmentSegment(iPlateau, iLandZone, tSegmentXZ[1] + tSegAdjXZ[1], tSegmentXZ[2] + tSegAdjXZ[2])
+                end
+                if bHaveBorderSegment and iMaxAdjacencyToConsider > 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Think we have a border segment, X'..tSegmentXZ[1]..'Z'..tSegmentXZ[2]..'; will now consider further away segments inbordersegmentadjust, iMaxAdjacencyToConsider='..iMaxAdjacencyToConsider) end
+                    for iSegAdjust, tSegAdjXZ in tiBorderSegmentAdjust do
+                        ConsiderAdjustmentSegment(iPlateau, iLandZone, tSegmentXZ[1] + tSegAdjXZ[1], tSegmentXZ[2] + tSegAdjXZ[2])
                     end
                 end
             end
 
 
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones]))
+                LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLZData[subrefLZAdjacentLandZones]))
                 local iColour = 1
                 DrawSpecificLandZone(iPlateau, iLandZone, iColour)
-                if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
-                    for _, iAdjLZ in tLandZoneInfo[subrefLZAdjacentLandZones] do
+                if M28Utilities.IsTableEmpty(tLZData[subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[subrefLZAdjacentLandZones] do
                         iColour = iColour + 1
                         if iColour > 8 then iColour = 2 end
                         DrawSpecificLandZone(iPlateau, iAdjLZ, iColour)
@@ -3408,7 +3447,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         return false
     end
 
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
@@ -3441,7 +3480,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             end
             local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
             tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-            tLZTeamData[reftoClosestFriendlyM28Brain] = ArmyBrains[iClosestBrainRef]
+            tLZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
             if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])) end
@@ -3529,7 +3568,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
         end
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
             --Campaign specific - check this is on a valid land zone
             if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
@@ -3565,7 +3604,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
                 end
 
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                tWZTeamData[reftoClosestFriendlyM28Brain] = ArmyBrains[iClosestBrainRef]
+                tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
                 if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
@@ -4537,9 +4576,9 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             local tFriendlyBrainStartPoints = {}
             local iFriendlyBrainCount = 0
             tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[aiBrain:GetArmyIndex()][1], PlayerStartPoints[aiBrain:GetArmyIndex()][2], PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
-            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]))) end
 
-            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain index='..oBrain:GetArmyIndex()..'; Nickname='..(oBrain.Nickname or 'nil')..'; Start point='..repru((PlayerStartPoints[oBrain:GetArmyIndex()] or {'nil'}))) end
                 --if not(oBrain == aiBrain) then
                 iFriendlyBrainCount = iFriendlyBrainCount + 1

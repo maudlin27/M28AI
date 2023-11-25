@@ -95,7 +95,7 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Do we have allies?
-    if not(bOnlySendToTeam) or table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) > 1 then
+    if not(bOnlySendToTeam) or table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
 
 
         if (iOptionalDelayBeforeSending or 0) > 0 then

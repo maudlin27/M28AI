@@ -1278,7 +1278,7 @@ function RecordUnitRange(oUnit)
     local bReplaceValues, bIgnoreValues
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
-            if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
+            if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
@@ -1386,7 +1386,7 @@ function RecordUnitRange(oUnit)
         if M28Utilities.IsTableEmpty(oBP.Enhancements) == false and (oUnit[refiDFRange] or 0) > 0 then
             --Check if we have a max range in an enhancement
             for sEnhancement, tEnhancement in oBP.Enhancements do
-                if tEnhancement.NewMaxRadius and oUnit:HasEnhancement(sEnhancement) then
+                if tEnhancement.NewMaxRadius and oUnit.HasEnhancement and oUnit:HasEnhancement(sEnhancement) then
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewMaxRadius)
                 end
             end
@@ -1908,7 +1908,7 @@ function GetUnitHealthRegenRate(oUnit)
     end
 
     --Adjust for enhancements
-    if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+    if M28Utilities.IsTableEmpty(oBP.Enhancements) == false and oUnit.HasEnhancement then
         for iEnhancement, tEnhancement in oBP.Enhancements do
             if tEnhancement.NewRegenRate and oUnit:HasEnhancement(iEnhancement) then
                 iRegenRate = iRegenRate + tEnhancement.NewRegenRate
@@ -2089,7 +2089,7 @@ function FixUnitResourceCheatModifiers(oUnit)
             local iUpgradeEnergyPerSec = 0
 
             local tPossibleUpgrades = oBP.Enhancements
-            if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
+            if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false and oUnit.HasEnhancement then
                 local iCurMassValue
                 local iCurMassMod
                 local iBaseMassValue = 1000 --Approx 20 tanks

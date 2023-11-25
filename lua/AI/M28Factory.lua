@@ -1013,13 +1013,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort, or mobile shields if we have 10+ indirect fire units and have t2 arti here that wants shielding
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
-        local iApproachingACU, tNearestACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+        local iApproachingACU, oNearestACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+        local tNearestEnemyACU
+        if oNearestACU then tNearestEnemyACU = oNearestACU:GetPosition() end
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Emergency indirect builder: iApproachingACU threat=' .. iApproachingACU .. '; Dist to it=' .. M28Utilities.GetDistanceBetweenPositions((tNearestACU or oFactory:GetPosition()), oFactory:GetPosition()) .. '; Cur indirect=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect) .. '; Lifetime indirect=' .. M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect) .. '; Is table of nearby enemy dangerous buildings empty=' .. tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy'))))
+            LOG(sFunctionRef .. ': Emergency indirect builder: iApproachingACU threat=' .. iApproachingACU .. '; Dist to it=' .. M28Utilities.GetDistanceBetweenPositions((tNearestEnemyACU or oFactory:GetPosition()), oFactory:GetPosition()) .. '; Cur indirect=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect) .. '; Lifetime indirect=' .. M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect) .. '; Is table of nearby enemy dangerous buildings empty=' .. tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy'))))
         end
         local bWantIndirectSubjectToNumbers = false
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then bWantIndirectSubjectToNumbers = true
-        elseif iApproachingACU <= 400 and tNearestACU and M28Utilities.GetDistanceBetweenPositions(tNearestACU, oFactory:GetPosition()) <= 175 then
+        elseif iApproachingACU <= 400 and tNearestEnemyACU and M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, oFactory:GetPosition()) <= 175 then
             --Does enemy have any T2+ buildings?
             local tNearbyEnemyT2Plus = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy')
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy T2Plus units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyT2Plus))) end
@@ -3752,6 +3754,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
         local iOurCumulativeAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
         local iOurCumulativeCombatThreat = tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+        local iEnemyCumulativeAntiNavyThreat = (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+        local iEnemyCumulativeCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
         local bHaveWantedAA = false
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
 
@@ -3762,6 +3766,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 local tOtherWZTeamData = M28Map.tPondDetails[iOtherPond][M28Map.subrefPondWaterZones][iOtherWZ][M28Map.subrefWZTeamData][iTeam]
                 iOurCumulativeAAThreat = iOurCumulativeAAThreat + tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]
                 iOurCumulativeCombatThreat = iOurCumulativeCombatThreat + tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+                iEnemyCumulativeAntiNavyThreat = iEnemyCumulativeAntiNavyThreat + (tOtherWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+                iEnemyCumulativeCombatThreat = iEnemyCumulativeCombatThreat + (tOtherWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy])
                 end
@@ -3783,8 +3789,16 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try and get CombatCategory or (if that fails) a sub') end
                         if bConsiderBuildingMoreCombat then
+                            --Consider building subs if T1-T2 factory and enemy has no antinavy threat and lacks T2 air
+                            if (oFactory[refiTotalBuildCount] or 0) <= 15 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 or M28Team.tAirSubteamData[aiBrain.iAirSubteam][M28Team.refbHaveAirControl]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                                --Do we want to try building a sub instead?
+                                if iEnemyCumulativeAntiNavyThreat < iEnemyCumulativeCombatThreat * 0.1 or (iEnemyCumulativeAntiNavyThreat <= 200 and iEnemyCumulativeCombatThreat >= 1000) then
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine - categories.NUKE) then return sBPIDToBuild end
+                                end
+                            end
+
                             if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
-                            --Backup - build sub
+                            --Backup for campaign/unit restrictions - build sub
                             if ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine) then return sBPIDToBuild end
                         end
 

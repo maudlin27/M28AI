@@ -596,7 +596,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
 
                         local tPossibleUpgrades = oBP.Enhancements
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is tPossibleUpgrades empty='..tostring(M28Utilities.IsTableEmpty(tPossibleUpgrades))) end
-                        if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
+                        if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false and oUnit.HasEnhancement then
                             local tbIncludedUpgrade = {}
                             for sCurUpgrade, tUpgrade in tPossibleUpgrades do
                                 if oUnit:HasEnhancement(sCurUpgrade) then
@@ -889,9 +889,9 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
     if bDebugMessages == true then LOG(sFunctionRef..': Just built power='..oPowerJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPowerJustBuilt)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Do we have active reclaimer logic for T1='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer] or false)..'; Do we ahve active t2 reclaimer='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer])) end
     if iPowerTechLevel == 2 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 + 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
-            --Check we have 1 T2 power per player
+            --Check we have 1 T2 power per M28 player
             local iT2PowerEquivalent = 0
-            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 iT2PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
             end
             if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
@@ -904,7 +904,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
     elseif iPowerTechLevel == 3 then
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             local iT3PowerEquivalent = 0
-            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 iT3PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3)
             end
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and (iT3PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
@@ -1010,6 +1010,9 @@ function ManageMassStalls(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMassStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start at time'..GetGameTimeSeconds()..'; Is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
@@ -1063,12 +1066,28 @@ function ManageMassStalls(iTeam)
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
-            local iMinBuildCountBeforePausingHQ = 5
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 0.8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                iMinBuildCountBeforePausingHQ = 2
-            end
-
             if bChangeRequired then
+                local bDontPauseUpgradingT1LandOrT2Land = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to avoid pausing a t1 factory upgrading to t2, lowest friendly land factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] or 'nil')..'; Highest='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                    for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                        if M28UnitInfo.IsUnitValid(oFactory) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+                            local tFactoryLZData, tFactoryLZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Do we want to save mass for MML for firebase for zone this factory is in='..tostring(M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true))) end
+                            if tFactoryLZTeamData and M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true) then
+                                bDontPauseUpgradingT1LandOrT2Land = true
+                                break
+                            end
+                        end
+                    end
+
+                end
+
+                local iMinBuildCountBeforePausingHQ = 5
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 0.8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or bDontPauseUpgradingT1LandOrT2Land then
+                    iMinBuildCountBeforePausingHQ = 2
+                end
+
                 --Decide on order to pause/unpause
 
                 local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoryAndActionsToPauseWhenStalling(iTeam, true, bPauseNotUnpause)
@@ -1172,7 +1191,7 @@ function ManageMassStalls(iTeam)
                         end
 
                         if iCategoryRef == iSpecialSurplusUpgradeCategory then
-                            --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade
+                            --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade. also dont pause anything that is >=85% complete
                             tRelevantUnits = {}
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
                                 local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
@@ -1185,7 +1204,7 @@ function ManageMassStalls(iTeam)
                                 end
 
                                 while iMexesToPause > 0 do
-                                    local iLowestProgress = 1
+                                    local iLowestProgress = 0.8
                                     local oLowestProgress
                                     local bAlreadyIncluded
                                     for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
@@ -1203,7 +1222,11 @@ function ManageMassStalls(iTeam)
                                             end
                                         end
                                     end
-                                    table.insert(tRelevantUnits, oLowestProgress)
+                                    if oLowestProgress then
+                                        table.insert(tRelevantUnits, oLowestProgress)
+                                    else
+                                        break
+                                    end
                                     iMexesToPause = iMexesToPause - 1
                                 end
                             end
@@ -1248,7 +1271,7 @@ function ManageMassStalls(iTeam)
                                     --Do we actually want to pause the unit? check any category specific logic
                                     bApplyActionToUnit = true
                                     if bDebugMessages == true then
-                                        LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))))
+                                        LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading')))
                                     end
                                     --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
                                     if bPauseNotUnpause and oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ)) then
@@ -1256,11 +1279,18 @@ function ManageMassStalls(iTeam)
                                         --Air HQ - dont pause first ever unit or transport
                                     elseif bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
                                         bApplyActionToUnit = false
-                                    elseif bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and oUnit[M28Factory.refiTotalBuildCount] <= 10 then
+                                    elseif bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and ((bDontPauseUpgradingT1LandOrT2Land and (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId or oUnit:IsUnitState('Upgrading'))) or oUnit[M28Factory.refiTotalBuildCount] <= 10)) then
                                         --Is this on a dif island to closest enemy base?
                                         local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                         if tUnitLZTeamData and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnitLZTeamData[M28Map.reftClosestEnemyBase])) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ * 3 then
                                             bApplyActionToUnit = false
+                                        elseif bDontPauseUpgradingT1LandOrT2Land and ((oUnit:IsUnitState('Upgrading') and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2, oUnit.UnitId)) then
+                                            for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                                                if oUnit == oFactory then
+                                                    bApplyActionToUnit = false
+                                                    break
+                                                end
+                                            end
                                         end
                                         --SMD LOGIC - Check if already have 1 missile loaded before pausing
                                     elseif iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
@@ -1634,6 +1664,21 @@ function ManageEnergyStalls(iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': Will move on to main pause or unpause logic now if change is required, bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
 
             if bChangeRequired then
+                --Consider if we want to hold off pausing a T1 land fac upgrading to T2 if enemy has T2 arti threat (since we need MMLs)
+                local bDontPauseUpgradingT1LandOrT2Land = false
+                if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                    for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                        if M28UnitInfo.IsUnitValid(oFactory) then
+                            local tFactoryLZData, tFactoryLZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
+                            if tFactoryLZTeamData and M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true) then
+                                bDontPauseUpgradingT1LandOrT2Land = true
+                                break
+                            end
+                        end
+                    end
+
+                end
+
                 if bPauseNotUnpause then
                     if bDebugMessages == true then LOG(sFunctionRef..': Change is required and we want to pause units, time='..GetGameTimeSeconds()) end
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = true
@@ -1736,7 +1781,7 @@ function ManageEnergyStalls(iTeam)
                                     iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
                                 end
                                 while iMexesToPause > 0 do
-                                    local iLowestProgress = 1
+                                    local iLowestProgress = 0.85
                                     local oLowestProgress
                                     local bAlreadyIncluded
                                     for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
@@ -1754,7 +1799,11 @@ function ManageEnergyStalls(iTeam)
                                             end
                                         end
                                     end
-                                    table.insert(tRelevantUnits, oLowestProgress)
+                                    if oLowestProgress then
+                                        table.insert(tRelevantUnits, oLowestProgress)
+                                    else
+                                        break
+                                    end
                                     iMexesToPause = iMexesToPause - 1
                                 end
                             end
@@ -1843,7 +1892,7 @@ function ManageEnergyStalls(iTeam)
                                     elseif bConsideringFactory then
                                         --Dont want to pause an HQ upgrade since it will give us better power
                                         if bPauseNotUnpause then
-                                            if not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit) then
+                                            if (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit) then
                                                 for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                     if oUnit == oFactory then
                                                         bApplyActionToUnit = false
@@ -1856,7 +1905,7 @@ function ManageEnergyStalls(iTeam)
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to pause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur blueprint building='..(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')..'; bConsideringHQ='..tostring(bConsideringHQ)..'; bApplyActionToUnit='..tostring(bApplyActionToUnit)..'; Time='..GetGameTimeSeconds()) end
                                         elseif not (bPauseNotUnpause) then
-                                            if bConsideringHQ then
+                                            if bConsideringHQ or (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) then
                                                 --Only unpause HQs
                                                 bApplyActionToUnit = false
                                                 if oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then

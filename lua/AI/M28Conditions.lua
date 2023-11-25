@@ -1017,7 +1017,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if close to unit cap, bDontWantDueToUnitCap='..tostring(bDontWantDueToUnitCap)..'; M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if close to unit cap, bDontWantDueToUnitCap='..tostring(bDontWantDueToUnitCap)..'; M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
 
     --Norush or eco slot at T2 and lower when arent overflowing mass
     if (M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30) or (tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) then
@@ -1057,8 +1057,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                 if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; Map size='..(M28Map.iMapSize or 'nil')..'; % Stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; AiX='..(M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Highest air fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Time of last energy stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 'nil')..'; Team has air control='..tostring(TeamHasAirControl(iTeam))) end
                 if iAverageCurAirAndLandFactories >= 2 and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100)) <= 10 and (TeamHasLowMass(iTeam) or GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLandFacHadNothingToBuild] or -100) <= 10)) and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100)) <= 10 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
                     --Dont want more factories
-                    --Teamgame with high number of factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Failed ot build anythign at land factory recently, and either failed to build at air factory or want land fac instead of air fac') end
+                    --Lots of facs and are stalling
+                elseif iAverageCurAirAndLandFactories >= 4 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 50 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have too little mass stored and atl east 4 factories per player so wont build more even if we lack air') end
+
+                    --Teamgame with high number of factories
                 elseif iTeamCount > 1 and iAverageCurAirAndLandFactories >= 3 and iAverageCurAirAndLandFactories * iTeamCount >= 10 and iAverageCurAirAndLandFactories >= (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0) and TeamHasLowMass(iTeam) then
                     --Dont want more factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of factories in teamgame and have low mass so dont want more') end
@@ -1582,7 +1586,7 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
             if not(M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau] = {} end
             M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau][iLandZone] = GetGameTimeSeconds()
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            if oNearestACU then return iTotalACUThreat, oNearestACU:GetPosition() end
+            if oNearestACU then return iTotalACUThreat, oNearestACU end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1591,10 +1595,18 @@ end
 
 function SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
     --If we have low mass then will prioritise building MML with what little mass we have, unless enemy has long range units (like ravagers and fatboys)
+    local sFunctionRef = 'SaveMassForMMLForFirebase'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local bSaveMassForFirebase = false
-    if bHaveLowMass and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 or tLZTeamData[3] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, bHaveLowMass='..tostring(bHaveLowMass)..'; Is table of LR enemy DF units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]))..'; Highest firneldy land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+    if bHaveLowMass and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300) then
         --Are there T2 arti in range?
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Number of T2 arti in range='..table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) end
             if table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) <= 6 then --If enemy has 7+ T2 arti then probably reached the point where MMLs wont cut it even in very large numbers
                 bSaveMassForFirebase = true
             end
@@ -1608,15 +1620,22 @@ function SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                     local iDistThreshold = 220
                     if M28Map.iMapSize <= 256 then iDistThreshold = 180 end
+                    local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                     for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                        if (oACU[M28UnitInfo.refiDFRange] or 0) >= 26 then
-                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
-                                bNearbyGuncom = true
-                                break
-                            end
-                        elseif not(bNearbyT2ACU) and (oACU:HasEnhancement('AdvancedEngineering') or oACU:HasEnhancement('T3Engineering')) then
-                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
-                                bNearbyT2ACU = true
+                        if M28UnitInfo.IsUnitValid(oACU) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist from ACU to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                            if (oACU[M28UnitInfo.refiDFRange] or 0) >= 26 then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy has nearby guncom') end
+                                    bNearbyGuncom = true
+                                    break
+                                end
+                                --If enemy ACU is upgrading fairnly nearby then assume it is upgrading to get T2 to be prudent
+                            elseif not(bNearbyT2ACU) and (oACU:HasEnhancement('AdvancedEngineering') or oACU:HasEnhancement('T3Engineering') or ((oACU[M28ACU.refiUpgradeCount] or 0) == 0 and oACU:IsUnitState('Upgrading'))) then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iDistThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy Has nearby T2 ACU') end
+                                    bNearbyT2ACU = true
+                                end
                             end
                         end
                     end
@@ -1627,6 +1646,8 @@ function SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, bSaveMassForFirebase='..tostring(bSaveMassForFirebase)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bSaveMassForFirebase
 end
 
@@ -2017,7 +2038,7 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
             bWantIndirectReinforcements = true
         else
             --local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
-            if tLZTeamData[M28Map.reftoClosestFriendlyM28Brain].GetCurrentUnits and tLZTeamData[M28Map.reftoClosestFriendlyM28Brain]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+            if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].GetCurrentUnits and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
                 bWantIndirectReinforcements = true
             end
         end
@@ -2312,4 +2333,23 @@ function ApplyM28ToOtherAI(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname..'; iCampaignAISetting='..(iCampaignAISetting or 'nil')..'; refiNone='..refiNone) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLocationsToAvoid, iDistanceThreshold)
+    --If are close to a location to avoid then gives the unit an order to run in the opposite direction
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveSentOrderToRunAwayFromLocationToAvoid'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    for iLocation, tLocation in tLocationsToAvoid do
+        if bDebugMessages == true then LOG(sFunctionRef..': Dist from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' to tLocation='..repru(tLocation)..'='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocation)..'; iDistanceThreshold='..iDistanceThreshold) end
+        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocation) <= iDistanceThreshold then
+            local tLocationToMoveTo = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(tLocation, oUnit:GetPosition()), 5, true, false, M28Map.bIsCampaignMap)
+            M28Orders.IssueTrackedMove(oUnit, tLocationToMoveTo, 1, false, 'AvdAr', false)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
 end

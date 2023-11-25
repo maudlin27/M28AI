@@ -464,6 +464,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = 0
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
+
     else
         --function GetCombatThreatRating(tUnits,                                                                                    bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
@@ -568,15 +569,18 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         end
     end
 
-
+    tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] = bNearbyEnemies
     if bNearbyEnemies then
         if bAdjacentLowThreatEnemies then
+            tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] = false
             tWZTeamData[M28Map.subrefWZCombatThreatWanted] = math.max(15, tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 2)
         else
+            tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] = true
             tWZTeamData[M28Map.subrefWZCombatThreatWanted] = math.max(200, tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 2)
         end
     else
         tWZTeamData[M28Map.subrefWZCombatThreatWanted] = 0
+        tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] = false
     end
 
     --If we have no friendly combat units and enemy has combat threat, then request less MAA, or none if we have no non-MAA/scout units

@@ -5454,7 +5454,7 @@ function UpdateTransportLocationShortlist(iTeam)
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
             table.insert(toBrainsToConsider, oBrain)
         end
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             table.insert(toBrainsToConsider, oBrain)
         end
         for iBrain, oBrain in toBrainsToConsider do
@@ -7083,7 +7083,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         local iDamageForIfUnderShield = iDamage - 1000
                         if iTotalExpBombers >= 2 and M28Utilities.IsTableEmpty(oBestEnemyTarget[M28Building.reftoShieldsProvidingCoverage]) == false then
                             local iNearbyBomberCount = 0
-                            local tNearbyBombers = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalBomber, oBomber:GetPosition(), 100, 'Ally')
+                            local tNearbyBombers = aiBrain:GetUnitsAroundPoint(categories.BOMBER * categories.EXPERIMENTAL, oBomber:GetPosition(), 100, 'Ally')
                             if M28Utilities.IsTableEmpty(tNearbyBombers) == false then
                                 for iNearbyBomber, oNearbyBomber in tNearbyBombers do
                                     if oNearbyBomber == oBomber then

@@ -382,9 +382,9 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
         for iTMDTeam = 1, M28Team.iTotalTeamCount do
             --Get all TMD that could stop this TML, and all units it could threaten
             if not(iTMDTeam == iTMLTeam) then
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                     local oTMDBrain
-                    for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                         oTMDBrain = oBrain
                         break
                     end
@@ -515,9 +515,9 @@ function TMDJustBuilt(oTMD)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local oTMLBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     oTMLBrain = oBrain
                     break
                 end
@@ -589,9 +589,9 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local oTMLBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     oTMLBrain = oBrain
                     break
                 end
@@ -620,11 +620,11 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]))..'; TimeOfGame='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; TimeOfGame='..GetGameTimeSeconds()) end
 
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
         local oTMLBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+        for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             oTMLBrain = oBrain
             break
         end
@@ -1011,7 +1011,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
             for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
                 if M28UnitInfo.IsUnitValid(oRecordedTML) then
                     --UEF ACU with billy nuke upgrade - increase value
-                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
+                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML.HasEnhancement and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
                         if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
@@ -3231,11 +3231,21 @@ function DetermineBuildingExpectedValues()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait)
+function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStillLoaded)
     --Call via forkthread
     WaitSeconds(iSecondsToWait)
     if M28UnitInfo.IsUnitValid(oLauncher) then
-        ConsiderLaunchingMissile(oLauncher)
+        local bProceed = true
+        if bCheckIfStillLoaded then
+            bProceed = false
+            local iMissiles = 0
+            if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
+            if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
+            if iMissiles > 0 then bProceed = true end
+        end
+        if bProceed then
+            ConsiderLaunchingMissile(oLauncher)
+        end
     end
 end
 
@@ -3425,8 +3435,6 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local bProceedWithLogic = true
     if iOptionalDelaySecondsAndWeaponFireCheck then
         --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently
@@ -3437,9 +3445,15 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         if not(oArti[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oArti[M28UnitInfo.refiLastWeaponEvent] >= iOptionalDelaySecondsAndWeaponFireCheck - 0.01 then
             bProceedWithLogic = true
         end
+    elseif oArti[M28UnitInfo.refiTimeBetweenIFShots] and GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100) < oArti[M28UnitInfo.refiTimeBetweenIFShots] - 2 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to wait until Arti almost ready to fire before choosing the next target, oArti[M28UnitInfo.refiTimeBetweenIFShots]='..(oArti[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')..'; Time since last weapn event='..(GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100))) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(math.min(oArti[M28UnitInfo.refiTimeBetweenIFShots] - 2, oArti[M28UnitInfo.refiTimeBetweenIFShots] -2 - (GetGameTimeSeconds() - (oArti[M28UnitInfo.refiLastWeaponEvent] or -100))))
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to proceed for oArti='..(oArti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArti) or 'nil')..'; Is oArti valid='..tostring(M28UnitInfo.IsUnitValid(oArti))..'; bProceedWithLogic='..tostring(bProceedWithLogic)..'; iOptionalDelaySecondsAndWeaponFireCheck='..(iOptionalDelaySecondsAndWeaponFireCheck or 'nil')..'; Is oOptionalWeapon nil='..tostring(oOptionalWeapon == nil)..'; Time='..GetGameTimeSeconds()) end
     if bProceedWithLogic and M28UnitInfo.IsUnitValid(oArti) then
+
 
         local bGivenOrder = false
         local tLastTarget
@@ -3457,7 +3471,13 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         local iTeam = aiBrain.M28Team
         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oArti:GetPosition(), true, iTeam)
         local oClosestTargetOfInterest
-        local iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+        local iClosestTargetOfInterest
+        if not(oArti[M28UnitInfo.refiIndirectRange]) then
+            M28Utilities.ErrorHandler('Dont have indirect fire range for T2 Arti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+            iClosestTargetOfInterest = 115 + 30
+        else
+            iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+        end
         local iCurDist
         local tArtiPosition = oArti:GetPosition()
         --Set the min range so we avoid targets inside this
@@ -3532,16 +3552,18 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             local bTargetingMobileUnit = EntityCategoryContains(categories.MOBILE, oClosestTargetOfInterest.UnitId)
             bGivenOrder = true
             --Consider whether to ground fire
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to do ground fire attack; iClosestTargetOfInterest='..iClosestTargetOfInterest..'; oArti[M28UnitInfo.refiIndirectRange]='..(oArti[M28UnitInfo.refiIndirectRange] or 'nil')) end
             if iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Can we see the oClosestTargetOfInterest='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false))..'; oClosestTargetOfInterest='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')) end
                 if M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false) then
                     M28Orders.IssueTrackedAttack(oArti, oClosestTargetOfInterest, false, 'ArtAt', false)
                 else
                     M28Orders.IssueTrackedGroundAttack(oArti, oClosestTargetOfInterest:GetPosition(), 0.1, false, 'ArtXG', false, oClosestTargetOfInterest)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will do ground attack as cant see the unit') end
                 end
             else
                 --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
                 if oClosestTargetOfInterest.MyShield or iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] + 20 then
-                    bTargetingMobileUnit = false --ground firing so no longer need to check we have a valid target, since we will reassess when we next fire a shot
                     local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), oArti[M28UnitInfo.refiIndirectRange] - 0.05, true, false, M28Map.bIsCampaignMap)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will gorund fire as target unit is outside our range, tGroundFireTarget='..repru(tGroundFireTarget)) end
                     if tGroundFireTarget then
@@ -3557,7 +3579,7 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
 
             --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
             if bTargetingMobileUnit then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to consider t2 arti target as we are targeting a mobile unit') end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to re-consider t2 arti target as we are targeting a mobile unit') end
                 ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
             end
         end
