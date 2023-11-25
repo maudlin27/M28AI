@@ -1777,7 +1777,7 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
             if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 tUnitsToPrioritiseForShielding = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield])
             end
-            if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false then
+            if M28Conditions.IsTableOfUnitsStillValid(tTeamTargetLZData[M28Map.subrefAlliedACU]) then
                 local iCurHealthPercent
                 if not(tUnitsToPrioritiseForShielding) then tUnitsToPrioritiseForShielding = {} end
                 for iACU, oACU in tTeamTargetLZData[M28Map.subrefAlliedACU] do
