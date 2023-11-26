@@ -62,7 +62,7 @@ end
 
 function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
-    --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
+        --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -198,7 +198,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
             elseif EntityCategoryContains(categories.TECH2, sBlueprint) then iCurrentTech = 2
             else iCurrentTech = 1
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each blueprint in valid blueprints, sBlueprint='..sBlueprint..': Considering whether we have high enough tech to consider, iCurrentTech='..iCurrentTech..'; iMinTechToUse='..iMinTechToUse..'; aiBrain[reftBlueprintPriorityOverride][sBlueprint]='..(aiBrain[reftBlueprintPriorityOverride][sBlueprint] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each blueprint in valid blueprints, sBlueprint='..sBlueprint..': Considering whether we have high enough tech to consider, iCurrentTech='..iCurrentTech..'; iMinTechToUse='..iMinTechToUse) end
             if iCurrentTech >= iMinTechToUse then
                 if not(bGetFastest) and not(bGetSlowest) and not(bGetCheapest) then iCurrentPriority = aiBrain[reftBlueprintPriorityOverride][sBlueprint] end
                 if iCurrentPriority == nil then iCurrentPriority = 0 end
@@ -2595,18 +2595,10 @@ function SetPreferredUnitsByCategory(aiBrain)
     --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
     aiBrain[reftBlueprintPriorityOverride] = {}
     --T1
-
-    --NOTE: Turned off prioritisation for the main combat tank, so that we build t1 arti as well as tanks
-    --aiBrain[reftBlueprintPriorityOverride]['ual0201'] = 1 --Aurora (instead of LAB)
-    --aiBrain[reftBlueprintPriorityOverride]['url0107'] = 1 --Mantis (instead of LAB)
-    --aiBrain[reftBlueprintPriorityOverride]['uel0201'] = 1 --Striker (instead of mechmarine)
-    --aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaam (instead of combat scout)
-
-    aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
-    aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
-    aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
-    aiBrain[reftBlueprintPriorityOverride]['xsl0101'] = -1 --Combat scout (so prioritise thaam instead)
-
+    aiBrain[reftBlueprintPriorityOverride]['ual0201'] = 1 --Aurora (instead of LAB)
+    aiBrain[reftBlueprintPriorityOverride]['url0107'] = 1 --Mantis (instead of LAB)
+    aiBrain[reftBlueprintPriorityOverride]['uel0201'] = 1 --Striker (instead of mechmarine)
+    aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaam (instead of combat scout)
     --T2
     aiBrain[reftBlueprintPriorityOverride]['uel0202'] = 1 --Pillar (instead of mongoose or riptide)
     aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = 1 --Ilshavoh (instead of hover tank)
