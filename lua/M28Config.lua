@@ -4,8 +4,8 @@
 --- DateTime: 16/11/2022 07:31
 ---
 
-M28ShowUnitNames = false --Will update units to reflect the order theyve been given
-M28ShowEnemyUnitNames = false --Will rename enemy units to reflect their ID and lifetime count
+M28ShowUnitNames = true --Will update units to reflect the order theyve been given
+M28ShowEnemyUnitNames = true --Will rename enemy units to reflect their ID and lifetime count
 M28RunVeryFast = false --Game starts off at +15 speed if set to adjustable
 
 --Profiling config options

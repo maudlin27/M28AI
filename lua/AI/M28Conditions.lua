@@ -1275,28 +1275,36 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
+
+
     local iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted or 1.4
 
     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]) end
     if iOurCombatThreat > iEnemyCombatThreat * iDefaultThreatRatioWanted then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have more than the default threat ratio wanted') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5 or M28Map.iMapSize <= 256 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have more threat than the enemy') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Core base so applying a lower threshold to attack the enemy') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
         --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
     elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false))) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a chance of beating enemy and friendly buildings') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont have any buildings left so might as well attack') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false) then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
         local iEnemyArtiCount = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has gameender or t3 arti so will be more aggressive') end
         for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
             if M28UnitInfo.IsUnitValid(oUnit) then
                 if oUnit:GetFractionComplete() >= 0.8 then
