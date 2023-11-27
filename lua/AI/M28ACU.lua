@@ -3681,8 +3681,13 @@ function GetACUOrder(aiBrain, oACU)
                                                 end
                                             end
                                             if oNearestUnderConstructionPower then
+                                                --Build own power if ACU is far away and it's T1 power
                                                 bBuildingOrAssistingPower = true
-                                                M28Orders.IssueTrackedRepair(oACU, oNearestUnderConstructionPower, false, 'ACUAsPwr')
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oNearestUnderConstructionPower.UnitId) and iNearestUnderConstructionPower >= 30 then
+                                                    ACUActionBuildPower(aiBrain, oACU)
+                                                else
+                                                    M28Orders.IssueTrackedRepair(oACU, oNearestUnderConstructionPower, false, 'ACUAsPwr')
+                                                end
                                             else
                                                 --build our own power if we have equal or better tech
                                                 if iHighestTechConstructed <= 1 then

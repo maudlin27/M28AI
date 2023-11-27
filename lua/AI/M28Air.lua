@@ -376,14 +376,14 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
         for iPond, tPondSubtable in M28Map.tPondDetails do
             M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] then
+                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
                     iCurAdjacencyLevel = 0
                     if not(tbAddedZones[iWaterZone]) or tiMinZoneLevelRecorded[iWaterZone] > iCurAdjacencyLevel then
                         AddWaterZoneToTorpedoDefenceZones(iWaterZone, iCurAdjacencyLevel)
 
-                        --Include adjacent zones
                         if bDebugMessages == true then LOG(sFunctionRef..': Added WZ '..iWaterZone..'; is table of adj WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
-                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false and (tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or iMaxAdjacencySearchLevel > 1) then
                             for iEntry, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                                 iCurAdjacencyLevel = 1
                                 if not(tbAddedZones[iAdjWZ]) or tiMinZoneLevelRecorded[iAdjWZ] > iCurAdjacencyLevel then
@@ -393,7 +393,7 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
                                     if iMaxAdjacencySearchLevel > iCurAdjacencyLevel then
                                         for iEntry, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                             iCurAdjacencyLevel = 2
-                                            if (not(tbAddedZones[iSecondAdjWZ]) or tiMinZoneLevelRecorded[iSecondAdjWZ] > iCurAdjacencyLevel) then
+                                            if (not(tbAddedZones[iSecondAdjWZ]) or tiMinZoneLevelRecorded[iSecondAdjWZ] > iCurAdjacencyLevel or (not(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]) and (iCurAdjacencyLevel == 2 or iCurAdjacencyLevel >= 2))) then
                                                 AddWaterZoneToTorpedoDefenceZones(iSecondAdjWZ, iCurAdjacencyLevel)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Added iSecondAdjWZ='..iSecondAdjWZ..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
                                                 --If have significant torpedo threat then consider adding the next line
