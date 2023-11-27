@@ -94,7 +94,6 @@ function GetNearestEnemyBrain(aiBrain)
         else
             local iCurDist
             local iMinDistToEnemy = 10000000
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef .. ': Start before looping through brains; aiBrain personality=' .. ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality .. '; brain.Name=' .. aiBrain.Name) end
 
             for iCurBrain, oBrain in ArmyBrains do
