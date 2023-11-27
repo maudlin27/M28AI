@@ -94,7 +94,7 @@ function GetNearestEnemyBrain(aiBrain)
         else
             local iCurDist
             local iMinDistToEnemy = 10000000
-
+            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef .. ': Start before looping through brains; aiBrain personality=' .. ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality .. '; brain.Name=' .. aiBrain.Name) end
 
             for iCurBrain, oBrain in ArmyBrains do
@@ -152,14 +152,14 @@ function GetNearestEnemyBrain(aiBrain)
         end
         if not(oNearestBrain) then
             M28Utilities.ErrorHandler('Couldnt find a nearest brain to aiBrain='..aiBrain.Nickname)
-            if GetGameTimeSeconds() <= 10 then M28Chat.SendForkedMessage(aiBrain, 'NoEnemies', 'Unable to identify any enemies, M28 may not function properly', 0, 10000, false) end
+            if GetGameTimeSeconds() <= 10 then M28Chat.SendForkedMessage(aiBrain, 'NoEnemies', 'Unable to identify any enemies for '..(aiBrain.Nickname or 'a brain')..', M28 may not function properly', 0, 10000, false) end
             M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] = true
             --Set the nearest enemy as the furthest away other brain (even if it isnt an enemy) - i.e. if do as furthest enemy then more likely to have units passing enemy units
             local iFurthestDist = 0
             local iCurDist
             for iBrain, oBrain in ArmyBrains do
                 if not(oBrain == aiBrain) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), M28Map.GetPlayerStartPosition(oBrain))
                     if iCurDist > iFurthestDist then
                         oNearestBrain = oBrain
                         iFurthestDist = iCurDist

@@ -871,7 +871,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         for iCurFac, oCurFac in tLandFactoriesInZone do
             if oFactory:GetFractionComplete() == 1 then
                 iCurFacTech = M28UnitInfo.GetUnitTechLevel(oCurFac)
-                tiLandFactoriesByTechInZone[iCurFacTech] = tiLandFactoriesByTechInZone[iCurFacTech] + 1
+                tiLandFactoriesByTechInZone[iCurFacTech] = (tiLandFactoriesByTechInZone[iCurFacTech] or 0) + 1
             end
         end
     end
