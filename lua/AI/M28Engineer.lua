@@ -7857,7 +7857,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
             if bDebugMessages == true then LOG(sFunctionRef..': T2 plus preemptive AA builder, iBPWanted='..iBPWanted) end
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(bHaveLowMass) and not(M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl]) and table.getn(tExistingFixedAA) < 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(bHaveLowMass) and not(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl]) and table.getn(tExistingFixedAA) < 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to get T3 AA preemptively') end
             HaveActionToAssign(refActionBuildAA, 3, 30)
         end
@@ -8166,7 +8166,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': Do we want more airaa? iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
     if iNearbyEnemyAirToGroundThreat > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA], 800) then
         local iGroundAAThreatWanted
-        if M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] then
+        if M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] then
             iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.4 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.15
         elseif M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir] then
             iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.8 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.3
@@ -9981,6 +9981,33 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --AA if approaching enemy air threat and have significant mexes here
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(400, tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 2) and (M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbFarBehindOnAir] or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
+        local iGroundAAWanted = 150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4)
+        if bHaveLowMass then iGroundAAWanted = iGroundAAWanted * 0.5 end
+        local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+        for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tSubtable[M28Map.subrefiDistance] >= 200 then break end
+            local tAltLZOrWZTeamData
+            if not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                tAltLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam]
+            else
+                tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefWZTeamData][iTeam]
+            end
+            iNearbyEnemyAirToGroundThreat = iNearbyEnemyAirToGroundThreat + (tAltLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
+        end
+        if bHaveLowMass then iGroundAAWanted = math.max(iGroundAAWanted,  iNearbyEnemyAirToGroundThreat * 0.4)
+        else iGroundAAWanted = math.max(iGroundAAWanted, iNearbyEnemyAirToGroundThreat * 0.8)
+        end
+        iGroundAAWanted = math.min(iGroundAAWanted, 2000)
+        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAWanted then
+            iBPWanted = tiBPByTech[math.max(iHighestTechEngiAvailable, 1)]
+            HaveActionToAssign(refActionBuildAA, math.max(1, iHighestTechEngiAvailable), iBPWanted)
+        end
+    end
+
 
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, false, bHaveLowMass, bHaveLowPower, bWantMorePower)
@@ -10018,7 +10045,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefLZSValue] >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3) then
         local iGroundAAWanted = math.max(1600, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.2)
-        if (not(M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8) or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000)) and tLZTeamData[M28Map.subrefLZSValue] >= 1500 then
+        if (not(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8) or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000)) and tLZTeamData[M28Map.subrefLZSValue] >= 1500 then
             iGroundAAWanted = math.max(3200, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.05)
         end
         if iGroundAAWanted > math.max(7000, tLZTeamData[M28Map.subrefLZSValue] * 0.5) then
