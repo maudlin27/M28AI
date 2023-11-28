@@ -882,7 +882,10 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                     local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
                     table.insert(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits], oUnit)
-                    if oUnit[M28UnitInfo.refiCombatRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId)) then table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit) end
+                    if oUnit[M28UnitInfo.refiCombatRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId)) then
+                        if not(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) then tLZTeamData[M28Map.subrefLZTAlliedCombatUnits] = {} end --redundancy for campaign scenarios with a delayed start where a unit might have moved to a zone that hasnt been setup yet
+                        table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
+                    end
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
                     --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
                     if oUnit[M28Land.refiCurrentAssignmentValue] then

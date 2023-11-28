@@ -3991,6 +3991,13 @@ function ManageACU(aiBrain, oACUOverride)
 
         oACU[refiUpgradeCount] = 0
         oACU[refbUseACUAggressively] = true
+
+        if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+
         while M28UnitInfo.IsUnitValid(oACU) do
             oACU[refbTreatingAsACU] = true
             if oACU[refbUseACUAggressively] then

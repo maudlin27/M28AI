@@ -2312,6 +2312,7 @@ function ApplyM28ToOtherAI(aiBrain)
             local bUseM28AI = false
             if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
+                if aiBrain.CampaignAI then aiBrain.HostileCampaignAI = true end
             elseif bAllyOfPlayerWithEnemy and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
             end

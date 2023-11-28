@@ -1007,7 +1007,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     if M28UnitInfo.IsUnitValid(oBomber) then
         local bContinue = true
         if M28Utilities.IsTableEmpty(tDirectionToMoveTo) then
-            if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
+            if M28Map.bIsCampaignMap and ((ScenarioInfo.OpEnded and GetGameTimeSeconds() <= 120) or (oBomber:GetAIBrain().HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds())) then
                 bContinue = false
             else
                 --Set direction to move to to the start position

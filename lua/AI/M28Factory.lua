@@ -2280,6 +2280,13 @@ function IsFactoryReadyToBuild(oFactory)
         --Issue in campaign where factories were being given a guard order by another script, meaning their command queue wasnt empty - have updated so this will be ignored
         --Add further check that we havent built something at a nearby factory and have recently stalled
         local aiBrain = oFactory:GetAIBrain()
+
+        if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
         local tLZOrWZTeamData
         local iTeam = aiBrain.M28Team
@@ -2425,160 +2432,168 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
         local bDontCheckCutsceneStatus = true
         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
 
-        local bProceed = bDontWait
-        if not (bProceed) then
-            bProceed = IsFactoryReadyToBuild(oFactory)
-        end
-
-        local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
-        local iTicksToWait = 1
-
-        while not (bProceed) do
+        if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(iTicksToWait)
+            WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if bDontCheckCutsceneStatus or not(ScenarioInfo.OpEnded) then
-                iTicksWaited = iTicksWaited + iTicksToWait
-            end
-            if M28UnitInfo.IsUnitValid(oFactory) == false then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return nil
-            end
-            bProceed = IsFactoryReadyToBuild(oFactory)
-            if oFactory:GetWorkProgress() > iWorkProgressStart then
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Factory work progress is going up so will abort as it presumably already has an order')
-                end
-                break
-            end
-
-            if iTicksWaited >= 200 then
-                if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
-                    M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
-                end
-                break
-            elseif iTicksWaited >= 40 then
-                iTicksToWait = math.min(iTicksToWait + 1, 10)
-                if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry stuck at 0 work progress, factory order blueprint='..(oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
-                    if oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] and ((oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 5) or (M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) == false)) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' has been waiting a while and isnt ready, will see if issue is a blocking unit') end
-                        MovePotentialBlockingUnitsFromFactory(oFactory)
-                    end
-                end
-            end
         end
-        if bProceed then
-            bDontCheckCutsceneStatus = false
-            --Set factory rally point if havent already
-            if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
-                SetFactoryRallyPoint(oFactory)
-            end
-            local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; sBPToBuild=' .. (sBPToBuild or 'nil') .. '; Does factory have an empty command queue=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; Factory work progress=' .. oFactory:GetWorkProgress() .. '; Factory unit state=' .. M28UnitInfo.GetUnitState(oFactory))
-            end
-            if sBPToBuild then
-                --Is this an upgrade or a unit to build?
-                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
-                    M28Economy.UpgradeUnit(oFactory, true)
-                else
-                    --Do we already have this order? If so then want to start tracking how long we have had this order for, and consider redundancies after a while in case a unit is blocking us
-                    if bDebugMessages == true then LOG(sFunctionRef..': oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')..'; Time from now='..(GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or GetGameTimeSeconds()))..'; Is factory paused='..tostring(oFactory[M28UnitInfo.refbPaused])) end
-                    if oFactory[refiFirstTimeOfLastOrder] and not(oFactory[M28UnitInfo.refbPaused]) and oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sBPToBuild then
-                        if GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or -100) >= 5 then --If changing the time from 5s need to also change it in the delayedcheck function
-                            --Redundancy with code here - would expect this to be called via DelayedCheckifFactoryBuildingAndRetry
-                            MovePotentialBlockingUnitsFromFactory(oFactory)
+        if M28UnitInfo.IsUnitValid(oFactory) then
 
-                        end
-                    else
-                        oFactory[refiFirstTimeOfLastOrder] = GetGameTimeSeconds()
-                        if bDebugMessages == true then LOG(sFunctionRef..': Setting refiFirstTimeOfLastOrder='..oFactory[refiFirstTimeOfLastOrder]) end
-                        ForkThread(DelayedCheckIfFactoryBuildingAndRetry, oFactory)
-                    end
-                    M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
-                end
-            else
-                oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds()
-                --Clear any assisting engineers
-                if bDebugMessages == true then LOG(sFunctionRef..': We dont have anything to build, will wait 10 ticks and try again.  In the meantime will clear all assisting engineers. Is table of assisting units empty='..tostring(M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]))) end
-                if M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]) == false then
-                    local tUnitsToClear = {}
-                    for iUnit, oUnit in oFactory[M28UnitInfo.reftoUnitsAssistingThis] do
-                        if M28UnitInfo.IsUnitValid(oUnit) then
-                            table.insert(tUnitsToClear, oUnit)
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsToClear empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToClear))) end
-                    if M28Utilities.IsTableEmpty(tUnitsToClear) == false then
-                        for iUnit, oUnit in tUnitsToClear do
-                            M28Orders.IssueTrackedClearCommands(oUnit)
-                        end
-                    end
-                    oFactory[M28UnitInfo.reftoUnitsAssistingThis] = {}
-                end
+            local bProceed = bDontWait
+            if not (bProceed) then
+                bProceed = IsFactoryReadyToBuild(oFactory)
+            end
+
+            local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
+            local iTicksToWait = 1
+
+            while not (bProceed) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(10)
+                WaitTicks(iTicksToWait)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                if M28UnitInfo.IsUnitValid(oFactory) then
-                    local bSelfDestructIfLowMass = false
-                    local iExistingT3Factories = 0
+                if bDontCheckCutsceneStatus or not(ScenarioInfo.OpEnded) then
+                    iTicksWaited = iTicksWaited + iTicksToWait
+                end
+                if M28UnitInfo.IsUnitValid(oFactory) == false then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return nil
+                end
+                bProceed = IsFactoryReadyToBuild(oFactory)
+                if oFactory:GetWorkProgress() > iWorkProgressStart then
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false))
+                        LOG(sFunctionRef .. ': Factory work progress is going up so will abort as it presumably already has an order')
                     end
-                    if bConsiderDestroyingForMass and M28UnitInfo.GetUnitTechLevel(oFactory) < 3 and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
-                        --Do we have a factory of the same type but of a higher tech level in this LZ?
-                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
-                        if iPlateauOrZero > 0 then
-                            local oBrain = oFactory:GetAIBrain()
-                            local iTeam = aiBrain.M28Team
-                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                            local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
-                            if iFactoryType == refiFactoryTypeLand then
-                                local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': Is table of existing T3 land factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. '; Total T3 land owned by this brain=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH3))
-                                end
-                                iExistingT3Factories = table.getn(tExistingT3Factories)
-                                if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH3) > 0 then
-                                    bSelfDestructIfLowMass = true
-                                end
+                    break
+                end
 
-                            elseif iFactoryType == refiFactoryTypeAir then
-                                if M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
-                                    local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if iTicksWaited >= 200 then
+                    if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
+                        M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                    end
+                    break
+                elseif iTicksWaited >= 40 then
+                    iTicksToWait = math.min(iTicksToWait + 1, 10)
+                    if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry stuck at 0 work progress, factory order blueprint='..(oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
+                        if oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] and ((oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 5) or (M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) == false)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' has been waiting a while and isnt ready, will see if issue is a blocking unit') end
+                            MovePotentialBlockingUnitsFromFactory(oFactory)
+                        end
+                    end
+                end
+            end
+            if bProceed then
+                bDontCheckCutsceneStatus = false
+                --Set factory rally point if havent already
+                if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
+                    SetFactoryRallyPoint(oFactory)
+                end
+                local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; sBPToBuild=' .. (sBPToBuild or 'nil') .. '; Does factory have an empty command queue=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; Factory work progress=' .. oFactory:GetWorkProgress() .. '; Factory unit state=' .. M28UnitInfo.GetUnitState(oFactory))
+                end
+                if sBPToBuild then
+                    --Is this an upgrade or a unit to build?
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
+                        M28Economy.UpgradeUnit(oFactory, true)
+                    else
+                        --Do we already have this order? If so then want to start tracking how long we have had this order for, and consider redundancies after a while in case a unit is blocking us
+                        if bDebugMessages == true then LOG(sFunctionRef..': oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')..'; Time from now='..(GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or GetGameTimeSeconds()))..'; Is factory paused='..tostring(oFactory[M28UnitInfo.refbPaused])) end
+                        if oFactory[refiFirstTimeOfLastOrder] and not(oFactory[M28UnitInfo.refbPaused]) and oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sBPToBuild then
+                            if GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or -100) >= 5 then --If changing the time from 5s need to also change it in the delayedcheck function
+                                --Redundancy with code here - would expect this to be called via DelayedCheckifFactoryBuildingAndRetry
+                                MovePotentialBlockingUnitsFromFactory(oFactory)
+
+                            end
+                        else
+                            oFactory[refiFirstTimeOfLastOrder] = GetGameTimeSeconds()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting refiFirstTimeOfLastOrder='..oFactory[refiFirstTimeOfLastOrder]) end
+                            ForkThread(DelayedCheckIfFactoryBuildingAndRetry, oFactory)
+                        end
+                        M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+                    end
+                else
+                    oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds()
+                    --Clear any assisting engineers
+                    if bDebugMessages == true then LOG(sFunctionRef..': We dont have anything to build, will wait 10 ticks and try again.  In the meantime will clear all assisting engineers. Is table of assisting units empty='..tostring(M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]))) end
+                    if M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+                        local tUnitsToClear = {}
+                        for iUnit, oUnit in oFactory[M28UnitInfo.reftoUnitsAssistingThis] do
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                table.insert(tUnitsToClear, oUnit)
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsToClear empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToClear))) end
+                        if M28Utilities.IsTableEmpty(tUnitsToClear) == false then
+                            for iUnit, oUnit in tUnitsToClear do
+                                M28Orders.IssueTrackedClearCommands(oUnit)
+                            end
+                        end
+                        oFactory[M28UnitInfo.reftoUnitsAssistingThis] = {}
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitTicks(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if M28UnitInfo.IsUnitValid(oFactory) then
+                        local bSelfDestructIfLowMass = false
+                        local iExistingT3Factories = 0
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false))
+                        end
+                        if bConsiderDestroyingForMass and M28UnitInfo.GetUnitTechLevel(oFactory) < 3 and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
+                            --Do we have a factory of the same type but of a higher tech level in this LZ?
+                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+                            if iPlateauOrZero > 0 then
+                                local oBrain = oFactory:GetAIBrain()
+                                local iTeam = aiBrain.M28Team
+                                local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                                local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
+                                if iFactoryType == refiFactoryTypeLand then
+                                    local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if bDebugMessages == true then
-                                        LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
+                                        LOG(sFunctionRef .. ': Is table of existing T3 land factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. '; Total T3 land owned by this brain=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH3))
                                     end
                                     iExistingT3Factories = table.getn(tExistingT3Factories)
-                                    if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH3) > 0 then
+                                    if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH3) > 0 then
                                         bSelfDestructIfLowMass = true
+                                    end
+
+                                elseif iFactoryType == refiFactoryTypeAir then
+                                    if M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
+                                        local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
+                                        end
+                                        iExistingT3Factories = table.getn(tExistingT3Factories)
+                                        if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH3) > 0 then
+                                            bSelfDestructIfLowMass = true
+                                        end
                                     end
                                 end
                             end
                         end
-                    end
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': bSelfDestructIfLowMass=' .. tostring(bSelfDestructIfLowMass))
-                    end
-                    if not (bSelfDestructIfLowMass) or not (M28Conditions.HaveLowMass(aiBrain)) then
-                        ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
-                    else
-                        sBPToBuild = nil
-                        if iExistingT3Factories <= 3 then
-                            sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
-                        end
                         if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Do we have something to build after checking before ctrlK? sBPToBuild=' .. (sBPToBuild or 'nil'))
+                            LOG(sFunctionRef .. ': bSelfDestructIfLowMass=' .. tostring(bSelfDestructIfLowMass))
                         end
-                        if sBPToBuild then
+                        if not (bSelfDestructIfLowMass) or not (M28Conditions.HaveLowMass(aiBrain)) then
                             ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
                         else
-                            --CtrlK for mass
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                            sBPToBuild = nil
+                            if iExistingT3Factories <= 3 then
+                                sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
                             end
-                            M28Orders.IssueTrackedKillUnit(oFactory)
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef .. ': Do we have something to build after checking before ctrlK? sBPToBuild=' .. (sBPToBuild or 'nil'))
+                            end
+                            if sBPToBuild then
+                                ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
+                            else
+                                --CtrlK for mass
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                                end
+                                M28Orders.IssueTrackedKillUnit(oFactory)
+                            end
                         end
                     end
                 end
@@ -2688,7 +2703,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         bSaveMassDueToEnemyFirebaseOrOurExperimental = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     end
 
-
+    if iFactoryTechLevel >= 2 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false) .. '; Time since a factory in this LZ last built something=' .. GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bHaveLowPower=' .. tostring(bHaveLowPower)..'; brain='..oFactory:GetAIBrain().Nickname)
@@ -3201,7 +3216,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             iNearbyEnemyNavalThreat = iNearbyEnemyNavalThreat + tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
                         end
                     end
-                    if iNearbyEnemyNavalThreat > 0 then
+                    if iNearbyEnemyNavalThreat > 25 then
                         --Do we have enough torp bombers? want basic level ourselves, and then more for large threats
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Our torp bomber threat=' .. M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] .. '; iNearbyEnemyNavalThreat=' .. iNearbyEnemyNavalThreat)

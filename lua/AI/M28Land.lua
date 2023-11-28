@@ -5900,6 +5900,11 @@ function LandZoneOverseer(iTeam)
 
     local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
     if aiBrain then
+        if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() + 1.1 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds() -1.1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
 
         if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
         ForkThread(AssignValuesToLandZones, iTeam)
