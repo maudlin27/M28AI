@@ -80,5 +80,17 @@ AIOpts = {
             },
         },
     },
-
+    {
+        default = 9,
+        label = "M28 hostile campaign AI combat delay",
+        help = "If M28 is being used for enemy campaign AI, this delays when M28 will try to attack",
+        key = 'CmpAIDelay', --refer to this with ScenarioInfo.Options.CmpAIDelay, which will return the key value below; relevant for brains where aiBrain.HostileCampaignAI is true
+        value_text = "%s",
+        value_help = "Delay (if any) in seconds to apply",
+        values = {
+            '0','30','60','90','120',
+            '150', '180', '240', '300', '360', '420', '480', '540', '600',
+            '720', '900', '1080', '1200', '1800', '2400', '3000', '3600',
+        },
+    },
 }

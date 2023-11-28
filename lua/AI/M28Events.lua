@@ -1107,7 +1107,15 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                     end
                                 end
                             end
-
+                            --ACU building t1 power far from base - flag that we dont want it assisted
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oConstruction.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                            local oEngineerBrain = oEngineer:GetAIBrain()
+                            if oEngineerBrain[M28Economy.refiGrossMassBaseIncome] >= 1.5 then
+                                local tEngineerLZData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition())
+                                if M28Utilities.GetDistanceBetweenPositions(tEngineerLZData[M28Map.subrefMidpoint], oEngineer:GetPosition()) >= 25 then
+                                    oConstruction[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+                                end
+                            end
                         end
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                         --If this is a fixed shield then instead update shield coverage

@@ -3436,7 +3436,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tEnemyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
     end
@@ -3452,7 +3452,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
         if not(bIsCampaignMap) or oBrain.M28AI then
-            tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
     end
@@ -3564,15 +3564,15 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+                tEnemyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
         end
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
             --Campaign specific - check this is on a valid land zone
-            if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
-                tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPlayerStartPosition(oBrain)) or 0) > 0 and IsInPlayableArea(GetPlayerStartPosition(oBrain))) then
+                tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
         end
@@ -4527,7 +4527,7 @@ function SetWhetherCanPathToEnemy(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain index'..aiBrain:GetArmyIndex()..'; Nickname='..(aiBrain.Nickname or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defeated='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated]) then
         local tEnemyStartPosition = GetPrimaryEnemyBaseLocation(aiBrain)
-        local tOurBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        local tOurBase = GetPlayerStartPosition(aiBrain)
 
         if NavUtils.GetTerrainLabel(refPathingTypeLand, tOurBase) == NavUtils.GetTerrainLabel(refPathingTypeLand, tEnemyStartPosition) and not(IsUnderwater({tOurBase[1], GetTerrainHeight(tOurBase[1], tOurBase[3]), tOurBase[3]})) then
             aiBrain[refbCanPathToEnemyBaseWithLand] = true
@@ -4538,11 +4538,11 @@ function SetWhetherCanPathToEnemy(aiBrain)
             aiBrain[refbCanPathToEnemyBaseWithAmphibious] = true
         else aiBrain[refbCanPathToEnemyBaseWithAmphibious] = false end
 
-        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition)
+        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tEnemyStartPosition)
         M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiMaxScoutRadius] = math.max(1500, (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiMaxScoutRadius] or 1500), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 1.5)
 
         --Record mitpoint between base (makes it easier to calc mod distance
-        aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false, false, false)
+        aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(GetPlayerStartPosition(aiBrain), M28Utilities.GetAngleFromAToB(GetPlayerStartPosition(aiBrain), tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false, false, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Set enemy base and whether we can path there, dist to nearest enem ybase='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')) end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code') end
@@ -4575,17 +4575,18 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             local tFriendlyBrainStartPoints = {}
             local iFriendlyBrainCount = 0
-            tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[aiBrain:GetArmyIndex()][1], PlayerStartPoints[aiBrain:GetArmyIndex()][2], PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
+            tFriendlyBrainStartPoints[iFriendlyBrainCount] = GetPlayerStartPosition(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]))) end
 
             for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain index='..oBrain:GetArmyIndex()..'; Nickname='..(oBrain.Nickname or 'nil')..'; Start point='..repru((PlayerStartPoints[oBrain:GetArmyIndex()] or {'nil'}))) end
                 --if not(oBrain == aiBrain) then
                 iFriendlyBrainCount = iFriendlyBrainCount + 1
-                tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[oBrain:GetArmyIndex()][1], PlayerStartPoints[oBrain:GetArmyIndex()][2], PlayerStartPoints[oBrain:GetArmyIndex()][3]}
+                tFriendlyBrainStartPoints[iFriendlyBrainCount] = GetPlayerStartPosition(oBrain)
                 --end
             end
             local tAverageTeamPosition
+            if bDebugMessages == true then LOG(sFunctionRef..': About to record average team position, iFriendlyBrainCount='..iFriendlyBrainCount) end
             if iFriendlyBrainCount == 1 then tAverageTeamPosition = tFriendlyBrainStartPoints[iFriendlyBrainCount]
             else tAverageTeamPosition = M28Utilities.GetAverageOfLocations(tFriendlyBrainStartPoints)
             end
@@ -4594,7 +4595,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
 
             if M28Utilities.GetDistanceBetweenPositions(tAverageTeamPosition, {rMapPotentialPlayableArea[1] + (rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1])*0.5, 0, rMapPotentialPlayableArea[2] + (rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2])*0.5}) <= 50 then
                 --Average is really close to middle of the map, so just  assume enemy base is in the opposite direction to us
-                aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(PlayerStartPoints[aiBrain:GetArmyIndex()])
+                aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(GetPlayerStartPosition(aiBrain))
                 if bDebugMessages == true then LOG(sFunctionRef..': Average close to middle of map so assuming enemy base is opposite direction to us') end
             else
                 --Average isnt really close to mid of map, so assume enemy base is in opposite directino to average
@@ -4603,6 +4604,29 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             end
         else --Still have enemies that are alive
             local tEnemyBase = PlayerStartPoints[M28Logic.GetNearestEnemyIndex(aiBrain)]
+            if not(tEnemyBase) then
+                --Make the enemy base the aiBrain furthest from us
+                local iCurDist
+                local iFurthestDist = 0
+                local tOurStart = GetPlayerStartPosition(aiBrain)
+
+                for iBrain, oBrain in ArmyBrains do
+                    --Get the furthest enemy brain; if none hten fursthest non-ally brain; if none then furthest ally brain
+                    local tCurBase = GetPlayerStartPosition(oBrain)
+                    iModDist = M28Utilities.GetDistanceBetweenPositions(tCurBase, tOurStart)
+                    if not(IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex())) then
+                        iModDist = iModDist + iMapSize * 2
+                        if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                            iModDist = iModDist + iMapSize * 2
+                        end
+                    end
+
+                    if iModDist > iFurthestDist then
+                        tEnemyBase = {tCurBase[1], tCurBase[2], tCurBase[3]}
+                        iFurthestDist = iModDist
+                    end
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy index='..(M28Logic.GetNearestEnemyIndex(aiBrain) or 'nil')..'; tEnemyBase='..repru(tEnemyBase)) end
             --Is this different from the current location we are using?
             if not(tEnemyBase[1] == aiBrain[reftPrimaryEnemyBaseLocation][1]) or not(tEnemyBase[3] == aiBrain[reftPrimaryEnemyBaseLocation][3]) then
@@ -4612,11 +4636,11 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
 
             --If this is on the same island as this brain, then check for overrides if we dont have a land zone for this location
             local iEnemyLandLabel = NavUtils.GetLabel(refPathingTypeLand, tEnemyBase)
-            local iOurLandLabel = NavUtils.GetLabel(refPathingTypeLand, PlayerStartPoints[aiBrain:GetArmyIndex()])
+            local iOurLandLabel = NavUtils.GetLabel(refPathingTypeLand, GetPlayerStartPosition(aiBrain))
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy base on same island as aiBrain '..aiBrain.Nickname..' base, iEnemyLandLabel='..(iEnemyLandLabel or 'nil')..'; iOurLandLabel='..(iOurLandLabel or 'nil')) end
-            if iEnemyLandLabel == iOurLandLabel then
+            if iEnemyLandLabel == iOurLandLabel and iEnemyLandLabel then
                 local iEnemyPlateau, iEnemyLandZone = GetPlateauAndLandZoneReferenceFromPosition(tEnemyBase)
-                local iOurPlateau, iOurLandZone = GetPlateauAndLandZoneReferenceFromPosition(PlayerStartPoints[aiBrain:GetArmyIndex()])
+                local iOurPlateau, iOurLandZone = GetPlateauAndLandZoneReferenceFromPosition(GetPlayerStartPosition(aiBrain))
                 if bDebugMessages == true then LOG(sFunctionRef..': We are on same island so should have a valid land zone, iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; iOurPlateau='..(iOurPlateau or 'nil')..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')) end
                 if iEnemyLandZone == nil and iOurPlateau == iEnemyPlateau then
                     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tEnemyBase)
@@ -4728,7 +4752,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             ForkThread(SetWhetherCanPathToEnemy, aiBrain)
         end
 
-        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain[reftPrimaryEnemyBaseLocation])
+        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), aiBrain[reftPrimaryEnemyBaseLocation])
 
     elseif bDebugMessages == true then LOG(sFunctionRef..': Dealing with a civilian brain')
     end
@@ -5015,7 +5039,7 @@ function RecordPondToExpandTo(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..'; Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         local bStartLocationIsUnderwater = false
-        local tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        local tStartPos = GetPlayerStartPosition(aiBrain)
         if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
         if bDebugMessages == true then
             local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
@@ -5077,7 +5101,7 @@ function RecordPondToExpandTo(aiBrain)
         local iCurModDistance
         local iDefensiveModDistanceMaxValue = math.max(120, math.min(300, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4))
 
-        local iPathingGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeHover, PlayerStartPoints[aiBrain:GetArmyIndex()])
+        local iPathingGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeHover, GetPlayerStartPosition(aiBrain))
 
         for iCurPondRef, tPondSubtable in tPondDetails do
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
@@ -5088,9 +5112,9 @@ function RecordPondToExpandTo(aiBrain)
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
 
                 --Is the pond within 175 of our start position?  First see if X is within distance threshold:
-                if math.abs(tPondSubtable[subrefPondMinX] - PlayerStartPoints[aiBrain:GetArmyIndex()][1]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][1] - tPondSubtable[subrefPondMaxX]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][1] >= tPondSubtable[subrefPondMinX] and PlayerStartPoints[aiBrain:GetArmyIndex()][1] <= tPondSubtable[subrefPondMaxX]) then
+                if math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(aiBrain)[1]) <= iDistanceThreshold or math.abs(GetPlayerStartPosition(aiBrain)[1] - tPondSubtable[subrefPondMaxX]) <= iDistanceThreshold or (GetPlayerStartPosition(aiBrain)[1] >= tPondSubtable[subrefPondMinX] and GetPlayerStartPosition(aiBrain)[1] <= tPondSubtable[subrefPondMaxX]) then
                     --X is in range, is Z?
-                    if math.abs(tPondSubtable[subrefPondMinZ] - PlayerStartPoints[aiBrain:GetArmyIndex()][3]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][3] - tPondSubtable[subrefPondMaxZ]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][3] >= tPondSubtable[subrefPondMinZ] and PlayerStartPoints[aiBrain:GetArmyIndex()][3] <= tPondSubtable[subrefPondMaxZ]) then
+                    if math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(aiBrain)[3]) <= iDistanceThreshold or math.abs(GetPlayerStartPosition(aiBrain)[3] - tPondSubtable[subrefPondMaxZ]) <= iDistanceThreshold or (GetPlayerStartPosition(aiBrain)[3] >= tPondSubtable[subrefPondMinZ] and GetPlayerStartPosition(aiBrain)[3] <= tPondSubtable[subrefPondMaxZ]) then
                         --X and Z are in range
                         if bDebugMessages == true then LOG(sFunctionRef..': repru of pond mex info='..repru(tPondSubtable[subrefPondMexInfo])) end
 
@@ -5167,14 +5191,14 @@ function RecordPondToExpandTo(aiBrain)
                             local tNavalBuildArea = {}
                             if not(bStartLocationIsUnderwater) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
-                                local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
+                                local iAngleToCentre = M28Utilities.GetAngleFromAToB(GetPlayerStartPosition(aiBrain), tPondSubtable[subrefPondMidpoint])
                                 local iDistInterval = 8
                                 local iBuildingInterval = 4
                                 local tPossibleLocationBase
                                 local tPossibleBuildLocation
                                 local bHaveValidLocation = false
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
-                                tNavalBuildArea = GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, PlayerStartPoints[aiBrain:GetArmyIndex()], iDistInterval, iCurPondRef, iAngleToCentre)
+                                tNavalBuildArea = GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, GetPlayerStartPosition(aiBrain), iDistInterval, iCurPondRef, iAngleToCentre)
                                 --[[for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
                                     for iAngleAdjust = 0, 170, 10 do
                                         for iAngleFactor = -1, 1, 2 do
@@ -5232,11 +5256,11 @@ function RecordPondToExpandTo(aiBrain)
                                 if bDebugMessages == true then LOG(sFunctionRef..': tNavalBuildArea pre adjust='..repru(tNavalBuildArea)) end
                                 --Move towards base to help with cliff building if we have cliffs
                                 local bHaveNearbyCliff = false
-                                local iDistToMoveTarget = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tNavalBuildArea)
-                                local iAngleFromTarget = M28Utilities.GetAngleFromAToB(tNavalBuildArea, PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                local iDistToMoveTarget = M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea)
+                                local iAngleFromTarget = M28Utilities.GetAngleFromAToB(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
                                 local tCliffPositionCheck
                                 local sPathing = refPathingTypeHover
-                                local iStartPathingGroup = NavUtils.GetTerrainLabel(sPathing,PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                local iStartPathingGroup = NavUtils.GetTerrainLabel(sPathing,GetPlayerStartPosition(aiBrain))
 
                                 if iDistToMoveTarget > 1 then
                                     for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
@@ -5292,7 +5316,7 @@ function RecordPondToExpandTo(aiBrain)
                                     if bDebugMessages == true then LOG(sFunctionRef..': We cant path here amphibiously') end
                                 else
                                     --Adjust value based on distance
-                                    local iDistToBuildArea = M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                    local iDistToBuildArea = M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
                                     if iDistToBuildArea <= 50 then iCurPondValue = iCurPondValue * 1.1
                                     else
                                         iCurPondValue = iCurPondValue * math.max(0.1, 1 - 0.4 * iDistToBuildArea / iDistanceThreshold)
@@ -6974,9 +6998,9 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     local tEnemyBase
     if bUseEnemyStartInstead then
         tStartPos = GetPrimaryEnemyBaseLocation(aiBrain)
-        tEnemyBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        tEnemyBase = GetPlayerStartPosition(aiBrain)
     else
-        tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        tStartPos = GetPlayerStartPosition(aiBrain)
         tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
     end
 
@@ -6992,7 +7016,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
         --If only 1 enemy group then treat anywhere behind us as the emergency range
         if bUseEnemyStartInstead then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            if bDebugMessages == true then LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(aiBrain))))) * iDistStartToTarget) end
 
             return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
         else
@@ -7005,9 +7029,9 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 end
             else
                 for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                    if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])) end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain))) end
 
-                    if M28Utilities.GetDistanceBetweenPositions(tTarget, PlayerStartPoints[oBrain:GetArmyIndex()]) < M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                    if M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain)) < M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) then
                         bIsBehindUs = false
                         break
                     end
@@ -7027,7 +7051,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
                 else
                     for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])))) * iDistStartToTarget
+                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget
                         if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
 
                         if iCurDist < iLowestDist then
@@ -8009,6 +8033,9 @@ function GetPlayerStartPosition(aiBrain, bJustReturnXAndZ)
     else
         X, Z = aiBrain:GetArmyStartPos() --(foro ther refs use this function instead of getarmystartpos, i.e. M28Map.GetPlayerStartPosition(aiBrain, true))
         if not(bJustReturnXAndZ) then tStartPosition = {X, GetSurfaceHeight(X, Z), Z} end
+        if bMapLandSetupComplete and GetGameTimeSeconds() >= 4 then
+            PlayerStartPoints[iIndex] = { X, GetSurfaceHeight(X, Z), Z}
+        end
     end
     --LOG('GetPlayerStartposition: aiBrain='..aiBrain.Nickname..'; X='..(X or 'nil')..'; Z='..(Z or 'nil')..'; bJustReturnXAndZ='..tostring(bJustReturnXAndZ or false)..'; Army start pos='..repru(aiBrain:GetArmyStartPos()))
     if bJustReturnXAndZ then return X, Z

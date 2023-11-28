@@ -209,6 +209,11 @@ function AirTeamOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     AssignScoutingIntervalPriorities(iTeam)
+    if M28Team.GetFirstActiveM28Brain(iTeam).HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() + 0.2 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds() - 0.2)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
     while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 do
         if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
             while ScenarioInfo.OpEnded do
@@ -376,14 +381,14 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
         for iPond, tPondSubtable in M28Map.tPondDetails do
             M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] then
+                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
                     iCurAdjacencyLevel = 0
                     if not(tbAddedZones[iWaterZone]) or tiMinZoneLevelRecorded[iWaterZone] > iCurAdjacencyLevel then
                         AddWaterZoneToTorpedoDefenceZones(iWaterZone, iCurAdjacencyLevel)
 
-                        --Include adjacent zones
                         if bDebugMessages == true then LOG(sFunctionRef..': Added WZ '..iWaterZone..'; is table of adj WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
-                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false and (tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or iMaxAdjacencySearchLevel > 1) then
                             for iEntry, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                                 iCurAdjacencyLevel = 1
                                 if not(tbAddedZones[iAdjWZ]) or tiMinZoneLevelRecorded[iAdjWZ] > iCurAdjacencyLevel then
@@ -393,7 +398,7 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
                                     if iMaxAdjacencySearchLevel > iCurAdjacencyLevel then
                                         for iEntry, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                             iCurAdjacencyLevel = 2
-                                            if (not(tbAddedZones[iSecondAdjWZ]) or tiMinZoneLevelRecorded[iSecondAdjWZ] > iCurAdjacencyLevel) then
+                                            if (not(tbAddedZones[iSecondAdjWZ]) or tiMinZoneLevelRecorded[iSecondAdjWZ] > iCurAdjacencyLevel or (not(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]) and (iCurAdjacencyLevel == 2 or iCurAdjacencyLevel >= 2))) then
                                                 AddWaterZoneToTorpedoDefenceZones(iSecondAdjWZ, iCurAdjacencyLevel)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Added iSecondAdjWZ='..iSecondAdjWZ..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
                                                 --If have significant torpedo threat then consider adding the next line
@@ -447,6 +452,12 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(5) --extra delay to be safe
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Team.GetFirstActiveM28Brain(iTeam).HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() + 0.1 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds() -0.1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
 
     if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
         while ScenarioInfo.OpEnded do
@@ -3629,8 +3640,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 if bConsiderEvenIfTooMuchAA or tiWZWithTooMuchAA[iWaterZone] then
                     local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want torp bombers - considering iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])) end
-                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want torp bombers - considering iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; iTorpBomberThreat='..iTorpBomberThreat..'; subrefTThreatEnemyCombatTotal='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 100 or (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]  >= 25 and iTorpBomberThreat == 0) then
                         --Check enemy doesnt have a naval fac in this zone if we have a significant torp bomber threat already
                         if iTorpBomberThreat < 2500 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefTEnemyUnits])) then
                             M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = true
