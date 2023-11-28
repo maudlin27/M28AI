@@ -1751,7 +1751,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local iTeam = oACU:GetAIBrain().M28Team
 
     --If big threat or ACU very low health then retreat; exception if ACU on full health with no enemies in this zone
-    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28UnitInfo.GetUnitHealthPercent(oACU) >= 1 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28UnitInfo.GetUnitHealthPercent(oACU) >= 1 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU is on full health and in the core zone with no major enemy threat so wont try to return to core base') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
@@ -1784,64 +1784,72 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
             end
         end
 
-        --Run if we are underwater or on a different island to our core base and enemy has subs
-        local bWaterIsDangerous = M28Team.tTeamData[iTeam][M28Team.refbEnemyHasSub]
-        if not(bWaterIsDangerous) then
-            bWaterIsDangerous = not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers]))
-            if not(bWaterIsDangerous) then
-                --If enemy has T3 air or T2 navy then treat water as dangerous for ACU
-                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 then
-                    bWaterIsDangerous = true
-                elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 2 and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] then
-                    bWaterIsDangerous = true
-                end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': bWaterIsDangerous='..tostring(bWaterIsDangerous)..'; Is ACU underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))) end
-        if bWaterIsDangerous then
-            --If ACU has 3+ upgrades and its movement target isn't more than 60% away from our base or 200 if higher, then dont run
-            local bWantACUToRun = false
-            if M28UnitInfo.IsUnitUnderwater(oACU) then
-                bWantACUToRun = true
-            else
-                local iNearestBaseIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
-                local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': iNearestBaseIsland='..(iNearestBaseIsland or 'nil')..'; iCurIsland='..(iCurIsland or 'nil')) end
-                if not(iNearestBaseIsland == iCurIsland) then
-
-                    bWantACUToRun = true
-                end
-            end
-            if bWantACUToRun and (oACU[refiUpgradeCount] or 0) >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 then
-                local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
-                if bDebugMessages == true then LOG(sFunctionRef..': repru(tLZData[M28Map.subrefMidpoint])='..repru(tLZOrWZData[M28Map.subrefMidpoint])..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'Is ACU underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; tLastOrder='..reprs(tLastOrder)) end
-                local iDistToBase
-                --Get nearest base to us
-                local tNearestFriendlyBase
-                local tNearestEnemyBase
-                if tLZOrWZTeamData[M28Map.reftClosestFriendlyBase] then
-                    tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                    tNearestEnemyBase = {tLZOrWZTeamData[M28Map.reftClosestEnemyBase][1], tLZOrWZTeamData[M28Map.reftClosestEnemyBase][2], tLZOrWZTeamData[M28Map.reftClosestEnemyBase][3]}
-                else
-                    --Use our start position
-                    local aiBrain = oACU:GetAIBrain()
-                    local iStartPositionX, iStartPositionZ = M28Map.GetPlayerStartPosition(aiBrain, true)
-                    tNearestFriendlyBase = { iStartPositionX, GetTerrainHeight(iStartPositionX, iStartPositionZ), iStartPositionZ }
-                    tNearestEnemyBase = aiBrain[M28Overseer.refoNearestEnemyBrain][M28Overseer.refoNearestEnemyBrain]
-                end
-
-                if tLastOrder and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then
-                    if bDebugMessages == true then LOG(sFunctionRef..': tNearestFriendlyBase='..repru(tNearestFriendlyBase)..'; tLastOrder[M28Orders.subreftOrderPosition]='..repru(tLastOrder[M28Orders.subreftOrderPosition])) end
-                    iDistToBase = M28Utilities.GetDistanceBetweenPositions(tNearestFriendlyBase, tLastOrder[M28Orders.subreftOrderPosition])
-                else
-                    iDistToBase = M28Utilities.GetDistanceBetweenPositions(tNearestFriendlyBase, oACU:GetPosition())
-                end
-                if iDistToBase <= math.max(250, M28Utilities.GetDistanceBetweenPositions(tNearestEnemyBase, tNearestFriendlyBase) * 0.5) then
-                    bWantACUToRun = false
-                end
-            end
+        --Return to base if enemy has signiifcant air to ground threat and we lack air control
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(1000, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2, math.min(4000, M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat])) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return bWantACUToRun
+            return true
+        else
+
+            --Run if we are underwater or on a different island to our core base and enemy has subs
+            local bWaterIsDangerous = M28Team.tTeamData[iTeam][M28Team.refbEnemyHasSub]
+            if not(bWaterIsDangerous) then
+                bWaterIsDangerous = not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers]))
+                if not(bWaterIsDangerous) then
+                    --If enemy has T3 air or T2 navy then treat water as dangerous for ACU
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 then
+                        bWaterIsDangerous = true
+                    elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 2 and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] then
+                        bWaterIsDangerous = true
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bWaterIsDangerous='..tostring(bWaterIsDangerous)..'; Is ACU underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))) end
+            if bWaterIsDangerous then
+                --If ACU has 3+ upgrades and its movement target isn't more than 60% away from our base or 200 if higher, then dont run
+                local bWantACUToRun = false
+                if M28UnitInfo.IsUnitUnderwater(oACU) then
+                    bWantACUToRun = true
+                else
+                    local iNearestBaseIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                    local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': iNearestBaseIsland='..(iNearestBaseIsland or 'nil')..'; iCurIsland='..(iCurIsland or 'nil')) end
+                    if not(iNearestBaseIsland == iCurIsland) then
+
+                        bWantACUToRun = true
+                    end
+                end
+                if bWantACUToRun and (oACU[refiUpgradeCount] or 0) >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 then
+                    local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+                    if bDebugMessages == true then LOG(sFunctionRef..': repru(tLZData[M28Map.subrefMidpoint])='..repru(tLZOrWZData[M28Map.subrefMidpoint])..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'Is ACU underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; tLastOrder='..reprs(tLastOrder)) end
+                    local iDistToBase
+                    --Get nearest base to us
+                    local tNearestFriendlyBase
+                    local tNearestEnemyBase
+                    if tLZOrWZTeamData[M28Map.reftClosestFriendlyBase] then
+                        tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                        tNearestEnemyBase = {tLZOrWZTeamData[M28Map.reftClosestEnemyBase][1], tLZOrWZTeamData[M28Map.reftClosestEnemyBase][2], tLZOrWZTeamData[M28Map.reftClosestEnemyBase][3]}
+                    else
+                        --Use our start position
+                        local aiBrain = oACU:GetAIBrain()
+                        local iStartPositionX, iStartPositionZ = M28Map.GetPlayerStartPosition(aiBrain, true)
+                        tNearestFriendlyBase = { iStartPositionX, GetTerrainHeight(iStartPositionX, iStartPositionZ), iStartPositionZ }
+                        tNearestEnemyBase = aiBrain[M28Overseer.refoNearestEnemyBrain][M28Overseer.refoNearestEnemyBrain]
+                    end
+
+                    if tLastOrder and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': tNearestFriendlyBase='..repru(tNearestFriendlyBase)..'; tLastOrder[M28Orders.subreftOrderPosition]='..repru(tLastOrder[M28Orders.subreftOrderPosition])) end
+                        iDistToBase = M28Utilities.GetDistanceBetweenPositions(tNearestFriendlyBase, tLastOrder[M28Orders.subreftOrderPosition])
+                    else
+                        iDistToBase = M28Utilities.GetDistanceBetweenPositions(tNearestFriendlyBase, oACU:GetPosition())
+                    end
+                    if iDistToBase <= math.max(250, M28Utilities.GetDistanceBetweenPositions(tNearestEnemyBase, tNearestFriendlyBase) * 0.5) then
+                        bWantACUToRun = false
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return bWantACUToRun
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

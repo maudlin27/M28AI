@@ -10263,6 +10263,21 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Pre-emptive AA turret, or radar if we have AA turret
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2) and not(bHaveLowPower) then
+        --Are we likely on a small island/plateau (due to having at least 50% of the island's mexes)? Or we have significant value here?
+        if tLZData[M28Map.subrefLZMexCount] >= 0.5 * M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 then
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 300 then
+                local iAAWanted = math.min(150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4), M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25)
+                if M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] then iAAWanted = iAAWanted * 0.25 end
+                if iAAWanted < tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] then
+                    HaveActionToAssign(refActionBuildAA, 1, 5)
+                end
+            end
+        end
+    end
+
     --Dont have low mass and have a navla fac in a WZ that wants more BP and is near enough for engineers to be sent to assist, then send BP here
 
 

@@ -1067,7 +1067,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                     --Dont want more factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of factories in teamgame and have low mass so dont want more') end
                     --More air fac if enemy has large air to ground threat and we dont have air control, and have good gross eco (regardless of current eco)
-                elseif iAverageCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.001 and M28Map.iMapSize > 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(TeamHasAirControl(iTeam)) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 then
+                elseif iAverageCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.003 / M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and M28Map.iMapSize >= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy has large air to ground threat so want more factories (on the assumption we will end up getting more air factories) to deal with it') end
                     bWantMoreFactories = true
                 elseif not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 or iAverageCurAirAndLandFactories < tiFactoryToMassByTechRatioWanted[3] * 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -1487,6 +1487,15 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             else
                                                 iAirFactoriesForEveryLandFactory = 3
                                             end
+                                        end
+                                    end
+                                    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and not(TeamHasAirControl(iTeam)) then
+                                        if M28Map.iMapSize <= 256 then
+                                            iLandFactoriesWantedBeforeAir = math.max(math.min(2, iLandFactoriesWantedBeforeAir), iLandFactoriesWantedBeforeAir * 0.5)
+                                            iAirFactoriesForEveryLandFactory = math.max(0.5, iAirFactoriesForEveryLandFactory)
+                                        else
+                                            iLandFactoriesWantedBeforeAir = 1
+                                            iAirFactoriesForEveryLandFactory = math.min(math.max(iAirFactoriesForEveryLandFactory, 6), iAirFactoriesForEveryLandFactory * 1.5)
                                         end
                                     end
                                 end

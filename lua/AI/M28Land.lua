@@ -870,7 +870,8 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
         local oEnemyToRunFrom
         local oPrevEnemyToRunFrom
-        local iRunThreshold = 15 --If get this close to being in range of an enemy should try to run
+        local iRunThreshold = 30 --If get this close to being in range of an enemy should try to run
+        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.max(5000, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 4) then iRunThreshold = 20 end
         local iAttackThreshold = 35
         if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this LZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         local oEnemyToConsiderAttacking
@@ -3097,9 +3098,31 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat) end
 
+    local bRunFromEnemyAir = false
+    if iFirebaseThreatAdjust == 0 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 and tLZTeamData[M28Map.subrefLZMAAThreatWanted] >= 50 and not(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 400 then
+        local iNetEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 2 - tLZTeamData[M28Map.subrefLZThreatAllyMAA] * 4
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                iNetEnemyAirToGroundThreat = iNetEnemyAirToGroundThreat + math.max(0, tLZTeamData[M28Map.refiEnemyAirToGroundThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 2) - tLZTeamData[M28Map.subrefLZThreatAllyMAA] * 4
+            end
+        end
+        if iNetEnemyAirToGroundThreat >= math.max(200, iAvailableCombatUnitThreat * 0.1) then
+            bRunFromEnemyAir = true
+            --If in enemy base/threatening enemy buildings then dont run
+            local iNearbyEnemyBuildingValue = 0
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                local tNearbyEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
+                iNearbyEnemyBuildingValue = M28UnitInfo.GetCombatThreatRating(tNearbyEnemyBuildings, true, true)
+            end
+            if iNearbyEnemyBuildingValue >= math.min(2000, iAvailableCombatUnitThreat * 0.2) then
+                bRunFromEnemyAir = false
+            end
+        end
+    end
 
     --If enemy has units in this or adjacent LZ, then decide what to do
-    if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and not(bRunFromFirebase) then
+    if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and not(bRunFromFirebase) and not(bRunFromEnemyAir) then
         --Cloaked units - flag we want spy plane if we have any land experimentals
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if have nearby cloaked enemy units if we have a large threat, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Is table of cloaked enemy units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]))) end
         if iAvailableCombatUnitThreat >= 10000 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
@@ -4741,7 +4764,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to run from firebase or long range enemy threat, bRunFromFirebase='..tostring(bRunFromFirebase)..'; Nearby enemy long range threat='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)..'; Zone combat total='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat) end
-    if bRunFromFirebase or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > math.max(100, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > iAvailableCombatUnitThreat * 2) then
+    if bRunFromFirebase or bRunFromEnemyAir or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > math.max(100, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > iAvailableCombatUnitThreat * 2) then
         for iUnit, oUnit in tAvailableCombatUnits do --Only retreat units from this LZ
             if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                 --If we have recently been given a short range target, or are almost in range of the target, then we may have moved into this zone temporarily, in which case continue with attacking the target
