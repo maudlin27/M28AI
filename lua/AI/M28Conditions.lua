@@ -1515,7 +1515,22 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 0.5)
                                     end
                                 end
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and iLandFactoriesWantedBeforeAir > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 then iLandFactoriesWantedBeforeAir = 1 end
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and iLandFactoriesWantedBeforeAir >= 2 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 then
+                                        iLandFactoriesWantedBeforeAir = 1
+                                        --If enemy has land combat units but no airforce then consider getting air fac earlier even on smaller maps - for simplicity will just do a count of units (could consider in future refining to cycle through all nearby zones)
+                                    elseif iLandFactoriesWantedBeforeAir > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 then
+                                        local iEnemyLandCombatCount = 0
+                                        local iEnemyGroundAACount = 0
+                                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                                            iEnemyLandCombatCount = iEnemyLandCombatCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat)
+                                            iEnemyGroundAACount = iEnemyGroundAACount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGroundAA)
+                                        end
+                                        if iEnemyLandCombatCount > iEnemyGroundAACount * 12 then
+                                            iLandFactoriesWantedBeforeAir = 1
+                                        end
+                                    end
+                                end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
                                 if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then

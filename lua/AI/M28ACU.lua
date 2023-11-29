@@ -554,6 +554,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if iCurLandFactories == 0 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+                        --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
+                    elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5) then
+                        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData) or (bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) then
+                            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                        else
+                            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+                        end
                         --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
                     elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted and ((iResourceMod >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier]) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) == 0) and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 0) >= 2 then
                         --Build a couple of PGen even if nearby hydro given cheat mult
@@ -3440,7 +3447,7 @@ function GetACUOrder(aiBrain, oACU)
                 local bWantAnotherFactory
                 local iFactoryCategoryToGet = M28UnitInfo.refCategoryLandFactory
                 local iFactoryEngineerAction = M28Engineer.refActionBuildLandFactory
-                if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.8 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 150 and aiBrain[M28Economy.refiGrossMassBaseIncome] > 2 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95) then
+                if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 or (not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.8 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 150 or (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0)) and (aiBrain[M28Economy.refiGrossMassBaseIncome] > 2 or aiBrain[M28Economy.refiNetMassBaseIncome] > 0) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have factories of any type in this LZ? Is table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
 
                     if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 then bWantAnotherFactory = true
