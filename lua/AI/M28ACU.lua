@@ -1785,7 +1785,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         end
 
         --Return to base if enemy has signiifcant air to ground threat and we lack air control
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(1000, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2, math.min(4000, M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat])) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(1000, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2, math.min(4000, M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat])) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and (oACU[refiUpgradeCount] < 3 or not(oACU:GetHealth() >= 20000 or (oACU.MyShield and oACU.MyShield:GetHealth()) >= 8000)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
