@@ -2669,7 +2669,7 @@ function DrawLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
+function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalStartPositionsInZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMidpointAndOtherDataForZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2750,7 +2750,20 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Min and max position: iMinX='..iMinX..'; iMaxX='..iMaxX..'; iMinZ='..iMinZ..'; iMaxZ='..iMaxZ) end
     end
-    tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
+    local bUseStartPosition = false
+    if tOptionalStartPositionsInZone then
+        tAverage = M28Utilities.GetAverageOfLocations(tOptionalStartPositionsInZone)
+        if iPlateau == NavUtils.GetTerrainLabel(refPathingTypeHover, tAverage) and iBaseIslandWanted == NavUtils.GetTerrainLabel(refPathingTypeLand, tAverage) then
+            local iStartSegmentX, iStartSegmentZ = GetPathingSegmentFromPosition(tAverage)
+            if tLandZoneBySegment[iStartSegmentX][iStartSegmentZ] == iZone then
+                bUseStartPosition = true
+                if bDebugMessages == true then M28Utilities.DrawLocation(tAverage) end
+            end
+        end
+    end
+    if not(bUseStartPosition) then
+        tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
+    end
     iAveragePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tAverage)
     local iAverageIsland
     iAverageIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, tAverage)
@@ -2897,10 +2910,23 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
     local sFunctionRef = 'RecordLandZoneMidpointAndUnbuiltMexes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    local tiStartPointsByPlateauAndZone = {}
+    local iCurPlateau, iCurLandZone
+    for iEntry, tStart in PlayerStartPoints do
+        iCurPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tStart)
+        if iCurPlateau then
+            if not(tiStartPointsByPlateauAndZone[iCurPlateau]) then tiStartPointsByPlateauAndZone[iCurPlateau] = {} end
+            local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStart)
+            iCurLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+            if iCurLandZone then
+                if not(tiStartPointsByPlateauAndZone[iCurPlateau][iCurLandZone]) then tiStartPointsByPlateauAndZone[iCurPlateau][iCurLandZone] = {} end
+                table.insert(tiStartPointsByPlateauAndZone[iCurPlateau][iCurLandZone], {tStart[1], tStart[2], tStart[3]})
+            end
+        end
+    end
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-            RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
+            RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tiStartPointsByPlateauAndZone[iPlateau][iZone])
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -391,6 +391,10 @@ function OnUnitDeath(oUnit)
                             M28Building.UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
                         end
 
+                        --PD specific - stop trying to build here (in case we have far away engineers still trying to build at this location for this unit)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                            M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, M28Engineer.refActionBuildEmergencyPD)
+                        end
 
                         --Run unit type specific on death logic where the unit is completed
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
@@ -660,6 +664,8 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
                             end
                         end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, self.UnitId) and M28UnitInfo.IsUnitValid(self) and (self:GetFractionComplete() <= 0.7 or (self:GetFractionComplete() <= 0.85 and M28UnitInfo.GetUnitHealthPercent(self) <= 0.5)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect, oUnitCausingDamage.UnitId) then
+                        M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(self,  M28Engineer.refActionBuildEmergencyPD)
                     end
                     --General - if enemy has non-long range direct fire structure that hit an M28 unit, then check if it is in the same or adjacen tzone, so can record if it isnt
                     if oUnitCausingDamage.GetPosition and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitCausingDamage.UnitId) and oUnitCausingDamage[M28UnitInfo.refiDFRange] and oUnitCausingDamage[M28UnitInfo.refiDFRange] < 100 and oUnitCausingDamage[M28UnitInfo.refiDFRange] > 0 and self.GetPosition then

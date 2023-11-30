@@ -1406,7 +1406,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if sBlueprintToBuild == 'urb2101' then bDebugMessages = true end
 
     local iHighestPriority = -1000
     local iCurPriority, iCurDistance
@@ -5106,9 +5106,12 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     end
                                 end
                                 if oEngi[M28Orders.reftiLastOrders] and oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': We can assist the engineer') end
-                                    oEngineerToAssist = oEngi
-                                    break
+                                    --if Engineer cur target is flagged to not  be assisted, then dont assist this engineer
+                                    if not(oEngi:GetFocusUnit()[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We can assist the engineer') end
+                                        oEngineerToAssist = oEngi
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -7358,6 +7361,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                             if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
                             local tTargetBuildLocation
                             if tNearestEnemyACU then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will get PD position, tNearestEnemyACU='..repru(tNearestEnemyACU)..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])) end
                                 tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
                             end
                             local iPDTechLevelWanted = 2
@@ -7472,6 +7476,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
                             if not(oNearestEnemy) then oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand) end
                             if oNearestEnemy then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy='..oNearestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy)..'; Position='..repru(oNearestEnemy:GetPosition())) end
                                 local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZTeamData)
                                 local iMinTechWanted = 1
                                 if iCurPDThreat > 0 then iMinTechWanted = 2 end
@@ -11903,19 +11908,19 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     return iBPWanted
 end
 
-function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
-    local bDebugMessages = false
+function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
+    local bDebugMessages = true
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tTargetBuildLocation, tLZMidpoint)
-    local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZMidpoint)
-    local iDistToMove = math.max(25, iDistToTarget * 0.6)
+    local iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tNearestEnemy, tLZMidpoint)
+    local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
+    local iDistToMove = math.max(32, iDistToTarget * 0.6)
     if iDistToTarget - iDistToMove >= 60 then
         iDistToMove = iDistToTarget - 60
     end
-    local tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+    local tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
 
     --Adjust if T2 arti nearby
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
@@ -11936,7 +11941,7 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
         if oClosestT2Arti and iClosestT2ArtiDist <= (oClosestT2Arti[M28UnitInfo.refiIndirectRange] or 120) + 4 then
             iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(oClosestT2Arti:GetPosition(), tLZMidpoint)
             iDistToMove = (oClosestT2Arti[M28UnitInfo.refiIndirectRange] or 120) + 10 - iClosestT2ArtiDist
-            tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+            tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Adjusted for T2 arti location, iClosestT2ArtiDist='..iClosestT2ArtiDist) end
         end
     end
@@ -11944,7 +11949,7 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
     --Adjust if we end up out of the zone
     local iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Time ' .. GetGameTimeSeconds() .. '; First position with iDistToMove=' .. iDistToMove .. '=' .. repru(tTargetLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; tTargetBuildLocation=' .. repru(tTargetBuildLocation) .. '; Dist to midpoint=' .. M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZMidpoint) .. '; Dist to original target=' .. M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tTargetLocation) .. '; iTargetPlateau=' .. (iTargetPlateau or 'nil') .. '; iTargetLandZone=' .. (iTargetLandZone or 'nil')..'; iLandZone='..iLandZone)
+        LOG(sFunctionRef .. ': Time ' .. GetGameTimeSeconds() .. '; First position with iDistToMove=' .. iDistToMove .. '=' .. repru(tTargetLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; tNearestEnemy=' .. repru(tNearestEnemy) .. '; Dist to midpoint=' .. M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint) .. '; Dist to original target=' .. M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tTargetLocation) .. '; iTargetPlateau=' .. (iTargetPlateau or 'nil') .. '; iTargetLandZone=' .. (iTargetLandZone or 'nil')..'; iLandZone='..iLandZone)
     end
     while not (iLandZone == iTargetLandZone) do
 
@@ -11953,16 +11958,17 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
             tTargetLocation = tLZMidpoint
             break
         end
-        tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+        tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
         iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
     end
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. '; tTargetBuildLocation=' .. repru(tTargetBuildLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; iAngleFromTargetToMidpoint=' .. iAngleFromTargetToMidpoint .. '; iDistToTarget=' .. iDistToTarget .. '; iDistToMove=' .. iDistToMove .. '; tTargetLocation=' .. repru(tTargetLocation)..'; will draw original target location in blue and the midpoint in red')
-        M28Utilities.DrawLocation(tTargetBuildLocation, 1)
+        LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. '; tNearestEnemy=' .. repru(tNearestEnemy) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; iAngleFromTargetToMidpoint=' .. iAngleFromTargetToMidpoint .. '; iDistToTarget=' .. iDistToTarget .. '; iDistToMove=' .. iDistToMove .. '; tTargetLocation=' .. repru(tTargetLocation)..'; will draw original target location in blue and the midpoint in red, and the revised target in gold')
+        M28Utilities.DrawLocation(tNearestEnemy, 1)
         M28Utilities.DrawLocation(tLZMidpoint, 2)
+        M28Utilities.DrawLocation(tTargetLocation, 4)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tTargetLocation
@@ -12340,4 +12346,46 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, iOptionalEngineerActionLimitation)
+    --E.g. intended for building emergency PD where we built too close to the frontline and it got destroyed so we dont send more engineeres to their death but try and build further back
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderClearingEngineersForUnitJustDamagedOrDestroyed'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds())
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            LOG(sFunctionRef..': Unit cur health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete())
+        end
+    end
+    oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if (iLandZone or 0) > 0 and iPlateau then
+        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+        local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+            local tEngineersToClear = {}
+            local bIgnoreBuildDistanceCheck = not(M28UnitInfo.IsUnitValid(oUnit))
+            for iEngineer, oEngineer in tEngineersInZone do
+                if M28UnitInfo.IsUnitValid(oEngineer) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer in zone, oENgineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Engineer assigned action='..(oEngineer[refiAssignedAction] or 'nil')) end
+                    if not(iOptionalEngineerActionLimitation) or oEngineer[refiAssignedAction] == iOptionalEngineerActionLimitation then
+                        local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer order blueprint='..(tLastOrder[M28Orders.subrefsOrderBlueprint] or 'nil')..'; Orer position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; Dist to unit position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), (tLastOrder[M28Orders.subreftOrderPosition] or {0,0,0}))..'; Order count='..(oEngineer[M28Orders.refiOrderCount] or 'nil')) end
+                        if tLastOrder[M28Orders.subrefsOrderBlueprint] == oUnit.UnitId and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 1 and (bIgnoreBuildDistanceCheck or M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition()) >= 2 + (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5)) then
+                            --Clear engineer
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add engiener to list of engineers whose orders are to be cleared') end
+                            table.insert(tEngineersToClear, oEngineer)
+                        end
+                    end
+                end
+                end
+            if M28Utilities.IsTableEmpty(tEngineersToClear) == false then
+                for iUnit, oEngineer in tEngineersToClear do
+                    M28Orders.IssueTrackedClearCommands(oEngineer)
+                end
+            end
+        end
+    end
 end
