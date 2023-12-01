@@ -2090,7 +2090,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                                 bFindRandomLocation = not(bNeverBuildRandom)
                             else
                                 bFindRandomLocation = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have determined the best build location for target to be '..repru(tTargetLocation)..'; will double-check we can build here') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have determined the best build location for target to be '..repru(tTargetLocation)..'; will double-check we can build here, can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true))) end
                                 if not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true)) then
                                     --if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == false or not(M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][M28Utilities.ConvertLocationToReference(tTargetLocation)])) then
                                     M28Utilities.ErrorHandler('Cant build '..sBlueprintToBuild..' on adjacency location tTargetLocation='..repru({tTargetLocation[1], tTargetLocation[2],tTargetLocation[3]}))
@@ -7591,193 +7591,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
-    if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
-        local iRangeThreshold = 65
-        local iEnemyLongRangeThreat = 0
-        local iSearchRange = 300
-        local iBestEnemyRange = 0
-        local iCurDFThreat, iCurIFThreat
-        local iHighestIndividiualLongRangeThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)
-
-        if tLZTeamData[M28Map.refbBaseInSafePosition] then
-            iSearchRange = 200
-            iHighestIndividiualLongRangeThreat = iHighestIndividiualLongRangeThreat * 0.5
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of firebases in range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
-            for iFirebase, tPlateauAndZone in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
-                iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(1500, (M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] or 0))
-                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after increasing for firebase in tPlateauAndZone '..repru(tPlateauAndZone)..'='..iEnemyLongRangeThreat) end
-            end
-        end
-        --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-            for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                if tSubtable[M28Map.subrefLZTravelDist] > iSearchRange then break
-                else
-                    local iAltLZ = tSubtable[M28Map.subrefLZNumber]
-                    local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZTeamData][iTeam]
-                    iCurDFThreat = 0
-                    iCurIFThreat = 0
-                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
-                        for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                            if iRange >= iRangeThreshold then
-                                iCurDFThreat = iCurDFThreat + iThreat
-                                iBestEnemyRange = math.max(iBestEnemyRange, iRange)
-                            end
-                        end
-                    end
-                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
-                        for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
-                            if iRange >= iRangeThreshold then
-                                iCurIFThreat = iCurIFThreat + iThreat
-                                iBestEnemyRange = math.max(iBestEnemyRange, iRange)
-                            end
-                        end
-                    end
-                    iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
-                    if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])) end
-                end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat..'; iHighestIndividiualLongRangeThreat='..iHighestIndividiualLongRangeThreat..'; Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
-        if iEnemyLongRangeThreat >= 750 or iHighestIndividiualLongRangeThreat > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-
-                --Increase long range threat based on enemy T2 arti within 175 of our midpoint
-                for iT2Arti, oT2Arti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
-                    if M28UnitInfo.IsUnitValid(oT2Arti) then
-                        if M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil') + 50 then
-                            iBestEnemyRange = math.max(iBestEnemyRange, (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil'))
-                            iEnemyLongRangeThreat = iEnemyLongRangeThreat + oT2Arti:GetBlueprint().Economy.BuildCostMass
-                        end
-                    end
-                end
-            elseif iHighestIndividiualLongRangeThreat then iBestEnemyRange = math.max(iBestEnemyRange, 80) end
+    GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
 
 
-
-            --What is our long range threat that equals their range?
-            iCurDFThreat = 0
-            iCurIFThreat = 0
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
-                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
-                    if iRange >= iBestEnemyRange then iCurDFThreat = iCurDFThreat + iThreat end
-                end
-            end
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) == false then
-                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] do
-                    if iRange >= iBestEnemyRange then iCurIFThreat = iCurIFThreat + iThreat end
-                end
-            end
-            local iThreatWanted = math.max(iEnemyLongRangeThreat * 1.5, iHighestIndividiualLongRangeThreat * 0.75) - iCurDFThreat - iCurIFThreat
-            if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurDFThreat='..iCurDFThreat..'; iCurIFThreat='..iCurIFThreat..'; iThreatWanted='..iThreatWanted) end
-            if iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
-                --Get friendly T2 arti threat
-                local iT2ArtiThreat = 0
-                local iT2ArtiCount = 0
-                local tT2Arti
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                    tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tT2Arti) == false then
-                        iT2ArtiThreat = M28UnitInfo.GetCombatThreatRating(tT2Arti, false, true) --Will be 60% of mass cost per getcombatthreatrating
-                        for iArti, oArti in tT2Arti do
-                            if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
-                        end
-                    end
-                end
-                if iT2ArtiThreat >= 11000 then iThreatWanted = iThreatWanted * 0.8 end
-                if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
-                iThreatWanted = iThreatWanted - iT2ArtiThreat
-                if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted) end
-                if iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
-                    if iThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
-                        iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
-                        if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
-                    else
-                        --Presumably up against a fatboy or are outranged and have no T2 arti so need T2 arti asap
-                        iBPWanted = math.min(240, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
-                        if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.75 end
-                    end
-
-                    --Build shield instead of T2 art ifi we ahve 2+ T2 arti and want shielding for them
-                    local bGetShieldingInstead = false
-                    if iT2ArtiCount >= 2 and tT2Arti and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.reftoLZUnitWantingFixedShield])) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want shielding for land zone for T2 arti unless we already have several fixed shields') end
-                        local tExistingFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                        local iExistingShields = 0
-                        if M28Utilities.IsTableEmpty(tExistingFixedShields) == false then
-                            for iShield, oShield in tExistingFixedShields do
-                                if oShield:GetFractionComplete() == 1 then
-                                    iExistingShields = iExistingShields + 1
-                                end
-                            end
-                        end
-                        if iExistingShields < 2 and (iExistingShields < iT2ArtiCount and (iExistingShields == 0 or iT2ArtiCount >= 3)) then bGetShieldingInstead = true end
-                    end
-                    local oArtiToShield
-                    if bGetShieldingInstead then
-                        for iArti, oArti in tT2Arti do
-                            if M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) then
-                                oArtiToShield = oArti
-                                break
-                            end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': oArtiToShield='..(oArtiToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiToShield) or 'nil')) end
-                    end
-
-                    if bGetShieldingInstead and M28UnitInfo.IsUnitValid(oArtiToShield) then
-                        iBPWanted = iBPWanted * 0.75
-                        HaveActionToAssign(refActionBuildShield, 2, iBPWanted, oArtiToShield)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority') end
-                        iCurPriority = iCurPriority + 1
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 10 then iBPWanted = iBPWanted * 0.5 end
-                    end
-
-                    local oFactoryToAssistInstead
-                    if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 then
-                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
-                            --At high mass levels want to build t2 arti anyway
-                            if bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 16 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) == 0)) then
-                                local tLandHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                if M28Utilities.IsTableEmpty(tLandHQs) == false then
-                                    for iFactory, oFactory in tLandHQs do
-                                        if oFactory[M28Factory.refiTotalBuildCount] <= 10 or (oFactory[M28Factory.refiTotalBuildCount] <= 20 and M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryMML) <= 15) then
-                                            oFactoryToAssistInstead = oFactory
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to assist land factory for MML, or get T2 arti,oFactoryToAssistInstead='..(oFactoryToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssistInstead) or 'nil')) end
-                    if oFactoryToAssistInstead then
-                        HaveActionToAssign(refActionAssistLandFactory, 1, iBPWanted, oFactoryToAssistInstead)
-                    else
-                        --adjust location to build if we already have 3 t2 arti so we build towards enemy
-                        local tLocationToBuild
-                        if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                            tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
-                            if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
-                                tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
-                            end
-                        else
-                            tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
-                        end
-
-                        HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
-                    end
-
-                end
-            end
-
-        end
-    end
 
     --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
     iCurPriority = iCurPriority + 1
@@ -9616,6 +9432,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+
+    --Get T2 arti if we have lots of mexes in this zone
+    iCurPriority = iCurPriority + 1
+    GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
 
     --Assign more BP to factories
     iCurPriority = iCurPriority + 1
@@ -12435,4 +12255,224 @@ function ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, iOptional
             end
         end
     end
+end
+
+function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
+    if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]) end
+    if tLZTeamData[M28Map.subrefLZbCoreBase] or
+        ((tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiModDistancePercent] > 0.05) then
+
+
+        local iBPWanted = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
+        if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
+            local iRangeThreshold = 65
+            local iEnemyLongRangeThreat = 0
+            local iSearchRange = 300
+            local iBestEnemyRange = 0
+            local iCurDFThreat, iCurIFThreat
+            local iHighestIndividiualLongRangeThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)
+
+            if tLZTeamData[M28Map.refbBaseInSafePosition] then
+                iSearchRange = 200
+                iHighestIndividiualLongRangeThreat = iHighestIndividiualLongRangeThreat * 0.5
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of firebases in range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                for iFirebase, tPlateauAndZone in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
+                    iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(1500, (M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] or 0))
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after increasing for firebase in tPlateauAndZone '..repru(tPlateauAndZone)..'='..iEnemyLongRangeThreat) end
+                end
+            end
+            --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                    if tSubtable[M28Map.subrefLZTravelDist] > iSearchRange then break
+                    else
+                        local iAltLZ = tSubtable[M28Map.subrefLZNumber]
+                        local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZTeamData][iTeam]
+                        iCurDFThreat = 0
+                        iCurIFThreat = 0
+                        if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                            for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                                if iRange >= iRangeThreshold then
+                                    iCurDFThreat = iCurDFThreat + iThreat
+                                    iBestEnemyRange = math.max(iBestEnemyRange, iRange)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
+                            for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
+                                if iRange >= iRangeThreshold then
+                                    iCurIFThreat = iCurIFThreat + iThreat
+                                    iBestEnemyRange = math.max(iBestEnemyRange, iRange)
+                                end
+                            end
+                        end
+                        iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
+                        if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])) end
+                    end
+                end
+            end
+            local iLongRangeFurtherAwayThreat = M28Land.GetFarAwayLandThreatOfLongRangeUnits(tLZData[M28Map.subrefMidpoint], iTeam, not(tLZTeamData[M28Map.subrefLZbCoreBase])) --Will just consider mobile long range units
+            if iLongRangeFurtherAwayThreat > 0 then iBestEnemyRange = math.max(90, iBestEnemyRange) end --assume enemy long range threat will be at least 90, e.g. fatboy
+
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat..'; iHighestIndividiualLongRangeThreat='..iHighestIndividiualLongRangeThreat..'; Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat) end
+            if iEnemyLongRangeThreat >= 750 or iLongRangeFurtherAwayThreat >= 750 or iHighestIndividiualLongRangeThreat > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+
+                    --Increase long range threat based on enemy T2 arti within 175 of our midpoint
+                    for iT2Arti, oT2Arti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                        if M28UnitInfo.IsUnitValid(oT2Arti) then
+                            if M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil') + 50 then
+                                iBestEnemyRange = math.max(iBestEnemyRange, (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil'))
+                                iEnemyLongRangeThreat = iEnemyLongRangeThreat + oT2Arti:GetBlueprint().Economy.BuildCostMass
+                            end
+                        end
+                    end
+                elseif iHighestIndividiualLongRangeThreat then iBestEnemyRange = math.max(iBestEnemyRange, 80)
+                end
+
+
+
+                --What is our long range threat that equals their range?
+                iCurDFThreat = 0
+                iCurIFThreat = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+                    for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                        if iRange >= iBestEnemyRange then iCurDFThreat = iCurDFThreat + iThreat end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) == false then
+                    for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] do
+                        if iRange >= iBestEnemyRange then iCurIFThreat = iCurIFThreat + iThreat end
+                    end
+                end
+                local iThreatWanted = math.max(iEnemyLongRangeThreat * 1.5, iHighestIndividiualLongRangeThreat * 0.75, iLongRangeFurtherAwayThreat) - iCurDFThreat * 0.75 - iCurIFThreat
+
+
+                if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                    iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true, true))
+                end
+
+
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDFThreat='..iCurDFThreat..'; iCurIFThreat='..iCurIFThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iBestEnemyRange='..iBestEnemyRange) end
+                if iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    --Get friendly T2 arti threat
+                    local iT2ArtiThreat = 0
+                    local iT2ArtiCount = 0
+                    local tT2Arti
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tT2Arti) == false then
+                            iT2ArtiThreat = M28UnitInfo.GetCombatThreatRating(tT2Arti, false, true) --Will be 60% of mass cost per getcombatthreatrating
+                            for iArti, oArti in tT2Arti do
+                                if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
+                            end
+                        end
+                    end
+                    if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
+                    if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
+                    iThreatWanted = iThreatWanted - iT2ArtiThreat
+                    iBPWanted = 240 --default
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted) end
+                    if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= 60 then
+                        if tLZTeamData[M28Map.subrefLZbCoreBase] then
+                            HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                        else
+                            HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted * 0.5)
+                        end
+                    elseif iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                        if iThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
+                            iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
+                            if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
+                        else
+                            --Presumably up against a fatboy or are outranged and have no T2 arti so need T2 arti asap
+                            iBPWanted = math.min(240, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
+                            if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.75 end
+                        end
+
+                        --Build shield instead of T2 art ifi we ahve 2+ T2 arti and want shielding for them
+                        local bGetShieldingInstead = false
+                        if iT2ArtiCount >= 2 and tT2Arti and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.reftoLZUnitWantingFixedShield])) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want shielding for land zone for T2 arti unless we already have several fixed shields') end
+                            local tExistingFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            local iExistingShields = 0
+                            if M28Utilities.IsTableEmpty(tExistingFixedShields) == false then
+                                for iShield, oShield in tExistingFixedShields do
+                                    if oShield:GetFractionComplete() == 1 then
+                                        iExistingShields = iExistingShields + 1
+                                    end
+                                end
+                            end
+                            if iExistingShields < 2 and (iExistingShields < iT2ArtiCount and (iExistingShields == 0 or iT2ArtiCount >= 3)) then bGetShieldingInstead = true end
+                        end
+                        local oArtiToShield
+                        if bGetShieldingInstead then
+                            for iArti, oArti in tT2Arti do
+                                if M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) then
+                                    oArtiToShield = oArti
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oArtiToShield='..(oArtiToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiToShield) or 'nil')) end
+                        end
+
+                        if bGetShieldingInstead and M28UnitInfo.IsUnitValid(oArtiToShield) then
+                            iBPWanted = iBPWanted * 0.75
+                            HaveActionToAssign(refActionBuildShield, 2, iBPWanted, oArtiToShield)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority') end
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 10 then iBPWanted = iBPWanted * 0.5 end
+                        end
+
+                        local oFactoryToAssistInstead
+                        if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 then
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
+                                --At high mass levels want to build t2 arti anyway
+                                if bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 16 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) == 0)) then
+                                    local tLandHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tLandHQs) == false then
+                                        for iFactory, oFactory in tLandHQs do
+                                            if oFactory[M28Factory.refiTotalBuildCount] <= 10 or (oFactory[M28Factory.refiTotalBuildCount] <= 20 and M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryMML) <= 15) then
+                                                oFactoryToAssistInstead = oFactory
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to assist land factory for MML, or get T2 arti,oFactoryToAssistInstead='..(oFactoryToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssistInstead) or 'nil')) end
+                        if oFactoryToAssistInstead then
+                            HaveActionToAssign(refActionAssistLandFactory, 1, iBPWanted, oFactoryToAssistInstead)
+                        else
+                            --adjust location to build if we already have 3 t2 arti so we build towards enemy
+                            local tLocationToBuild
+                            if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                                tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
+                                if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
+                                    tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                                end
+                            else
+                                tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            end
+
+                            HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
+                        end
+
+                    end
+                end
+
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

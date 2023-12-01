@@ -8068,3 +8068,9 @@ function GetPlayerStartPosition(aiBrain, bJustReturnXAndZ)
     else return tStartPosition
     end
 end
+
+function GetLandZoneFromPosition(tPosition)
+    --Intended for testing, since normally would want to get the plateau
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+    return tLandZoneBySegment[iSegmentX][iSegmentZ]
+end

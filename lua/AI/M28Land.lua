@@ -1882,7 +1882,7 @@ end
 
 function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData, tOptionalEnemyDFUnits, tOptionalRallyPoint)
     --If tOptionalShieldLZTeamData is specified, then will check if safe to try and shield the unit
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) then M28Utilities.ErrorHandler('Fatboy is being given orders as though it is a shielded unit') end
     local bMoveToUnit = true
     if tOptionalShieldLZTeamData and tOptionalEnemyDFUnits and tOptionalRallyPoint and (tOptionalShieldLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 180 then
         local iDistToShieldTarget = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), oShield:GetPosition())
@@ -6694,4 +6694,44 @@ function DontHaveJerichoAttackTarget(oJericho)
         return false
     end
     return true
+end
+
+function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdjustment)
+    local iLongRangeFurtherAwayThreat = 0
+    local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tStartPoint)
+    if iPlateau and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false then
+        local tMobileLandLRThreat = EntityCategoryFilterDown(categories.MOBILE * categories.LAND, M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits])
+        local iUnitBaseThreat, iDistToMidpoint, iUnitPlateau, iUnitLandZone
+        if M28Utilities.IsTableEmpty(tMobileLandLRThreat) == false then
+            local iDistThreshold = 750
+            if bMinorZoneAdjustment then iDistThreshold = 625 end
+            for iUnit, oUnit in tMobileLandLRThreat do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    --Only consider powerful units - e.g. fatboy
+                    iUnitBaseThreat = M28UnitInfo.GetCombatThreatRating({ oUnit}, true, true) --want mass value since fatboy could regain its shield at any point
+                    if bMinorZoneAdjustment then iUnitBaseThreat = iUnitBaseThreat * oUnit:GetFractionComplete() end
+                    if iUnitBaseThreat >= 1000 then
+                        --Only include if it can path to this zone
+                        if NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
+                            iDistToMidpoint = M28Utilities.GetDistanceBetweenPositions(tStartPoint, oUnit:GetPosition())
+                            if iDistToMidpoint <= iDistThreshold then
+                                if iDistToMidpoint <= 150 and not(bMinorZoneAdjustment) then
+                                    iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat * 1.2
+                                elseif iDistToMidpoint <= 200 then
+                                    iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat
+                                elseif iDistToMidpoint <= 400 then
+                                    iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat * 0.75
+                                elseif iDistToMidpoint <= 600 then
+                                    iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat * 0.5
+                                else
+                                    iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat * 0.25
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return iLongRangeFurtherAwayThreat
 end

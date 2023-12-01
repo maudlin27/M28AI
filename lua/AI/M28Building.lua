@@ -19,6 +19,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
+
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
 iEnergyStorageExpectedCapacity = 5000 --i.e. how much energy does an energy storage hold - for a long time for FAF was 5k, but beta balance changes (expected July 2023) are meant to be changing this
@@ -3435,6 +3436,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local bProceedWithLogic = true
     if iOptionalDelaySecondsAndWeaponFireCheck then
         --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently
@@ -3530,6 +3533,12 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                 UpdateClosestUnit(tNearbyUnitsOfInterest)
             end
+            if not(oClosestTargetOfInterest) then
+                tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
+                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                    UpdateClosestUnit(tNearbyUnitsOfInterest)
+                end
+            end
         end
 
         --If we have a unit consider attacking it, or groundfiring if it is out of our range
@@ -3564,7 +3573,11 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             else
                 --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
                 if oClosestTargetOfInterest.MyShield or iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] + 20 then
-                    local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), oArti[M28UnitInfo.refiIndirectRange] - 0.05, true, false, M28Map.bIsCampaignMap)
+
+                    local iDistShortfall = 1
+                    local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+                    if GetGameTimeSeconds() - (oArti[M28Events.refiLastWeaponEvent] or -100) >= 25 then iDistShortfall = 3 end --greater dist threshold in case are trying to fire at elevated position
+                    local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), (oArti[M28UnitInfo.refiIndirectRange] or 115) - iDistShortfall, true, false, M28Map.bIsCampaignMap)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will gorund fire as target unit is outside our range, tGroundFireTarget='..repru(tGroundFireTarget)) end
                     if tGroundFireTarget then
                         M28Orders.IssueTrackedGroundAttack(oArti, tGroundFireTarget, 0.1, false, 'ArtGF', false, oClosestTargetOfInterest)
@@ -3591,6 +3604,17 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             if iLastOrderType == M28Orders.refiOrderIssueGroundAttack or iLastOrderType == M28Orders.refiOrderIssueAttack then
                 if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any targets and arti was given an attack or ground fire order so will clear the order') end
                 M28Orders.IssueTrackedClearCommands(oArti)
+            else
+                --Give an attack ground order if we haven't fired a shot at all this game, so we are likely to be facing the right direction
+                local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+                if bDebugMessages == true then LOG(sFunctionRef..': Last weapon event='..(oArti[M28Events.refiLastWeaponEvent] or 'nil')) end
+                if not(oArti[M28Events.refiLastWeaponEvent]) then
+                    local tDirectionTowardsEnemy = M28Utilities.MoveInDirection(oArti:GetPosition(), M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]), (oArti[M28UnitInfo.refiIndirectRange] or 110) - 5, true, false, M28Map.bIsCampaignMap)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and fire at tDirectionTowardsEnemy='..repru(tDirectionTowardsEnemy)..', Dist to arti='..M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), tDirectionTowardsEnemy)) end
+                    M28Orders.IssueTrackedGroundAttack(oArti, tDirectionTowardsEnemy, 0.1, false, 'ArtGF', false, oClosestTargetOfInterest)
+                    --Clear this order in 5s if still not got a target
+                    ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
+                end
             end
         end
     end
