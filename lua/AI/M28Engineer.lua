@@ -8114,7 +8114,28 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-
+    --Multiple mex upgrades (core zone) - want to assist as a higher priority
+    iCurPriority = iCurPriority + 1
+    if ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.max(1, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.15)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        iBPWanted = 10
+        if not(bHaveLowPower) then
+            iBPWanted = tLZTeamData[M28Map.subrefiActiveMexUpgrades] * 15
+        end
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 or (not(bHaveLowMass) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.max(1, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])))) and bWantMoreFactories then
+            iBPWanted = iBPWanted * 2
+            if bHaveLowPower and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -10) <= 5 then
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
+            else
+                if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
+                    HaveActionToAssign(refActionBuildAirFactory, 1, iBPWanted)
+                else
+                    HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted)
+                end
+            end
+        else
+            HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
+        end
+    end
 
 
     --More power
@@ -9631,6 +9652,16 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Multiple mex upgrades (minor zone) - want to assist as a higher priority
+    iCurPriority = iCurPriority + 1
+    if (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        iBPWanted = 10
+        if not(bHaveLowPower) then
+            iBPWanted = tLZTeamData[M28Map.subrefiActiveMexUpgrades] * 10
+        end
+        HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
+    end
+
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechLevelWanted, oUnitToShield
@@ -10749,6 +10780,16 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             iBPWanted = 20
         end
         HaveActionToAssign(refActionBuildHydro, 1, iBPWanted)
+    end
+
+    --Multiple mex upgrades (water zone) - want to assist as a higher priority
+    iCurPriority = iCurPriority + 1
+    if (tWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        iBPWanted = 10
+        if not(bHaveLowPower) then
+            iBPWanted = tWZTeamData[M28Map.subrefiActiveMexUpgrades] * 15
+        end
+        HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
     end
 
     --Extra naval facs if need build power and dont have low mass and have positive net energy income

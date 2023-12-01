@@ -2430,3 +2430,23 @@ function GetCurrentM28UnitsOfCategoryInTeam(iCategory, iTeam)
     end
     return iCount
 end
+
+function WantMoreEngineersToAssistMexUpgradeAsPriority(tLZOrWZTeamData, iTeam)
+    if tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) then
+        local iEngineersWantedInZone = 7 + 3 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+        local tEngineersInZone
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+        local iEngineersInZone = 0
+        if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+            iEngineersInZone = table.getn(tEngineersInZone)
+        end
+        if iEngineersInZone < iEngineersWantedInZone then
+            --Check we dont already have 3+ engineers under construction
+            local iUnderConstruction = GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZOrWZTeamData, M28UnitInfo.refCategoryEngineer, false)
+            if iUnderConstruction < 1 + tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] then
+                return true
+            end
+        end
+    end
+    return false
+end

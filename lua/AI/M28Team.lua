@@ -411,6 +411,13 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     end
                 end
             end
+            local iActiveMexUpgrades = 0
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                end
+            end
+            tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
             if M28Map.bIsCampaignMap then
                 --Trigger on death callback if relevant
 
@@ -473,6 +480,11 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
                 end
                 table.insert(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
+                local iActiveMexUpgrades = 0
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                end
+                tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
                 if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
             end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit dead or compelted, but not in the table so no need to remove it')
