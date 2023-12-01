@@ -2204,7 +2204,7 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfNeedMoreEngineersBeforeUpgrading'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then bDebugMessages = true end
+
     local bWantMoreEngineers = false
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then

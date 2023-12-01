@@ -1406,7 +1406,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if sBlueprintToBuild == 'urb2101' then bDebugMessages = true end
+
 
     local iHighestPriority = -1000
     local iCurPriority, iCurDistance
