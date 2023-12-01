@@ -2204,7 +2204,7 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfNeedMoreEngineersBeforeUpgrading'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then bDebugMessages = true end
     local bWantMoreEngineers = false
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
@@ -2251,8 +2251,36 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
                 elseif tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have adj zones wanting engineer for mex') end
                     bWantMoreEngineers = true
-                elseif (oFactory[M28Factory.refiTotalBuildCount] or 0) <= iBuildCountAdjust + 10 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
-                    bWantMoreEngineers = true
+                elseif (oFactory[M28Factory.refiTotalBuildCount] or 0) <= iBuildCountAdjust + 10 then
+
+                    local iMinBuildCountWanted = iBuildCountAdjust
+                    local iOurHighestTech = 1
+                    if GetGameTimeSeconds() - (oFactory[M28Factory.refiTimeSinceLastFailedToGetOrder] or -100) <= 1 then
+                        iMinBuildCountWanted = 0
+                    else
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+                            if iFactoryTechLevel >= iOurHighestTech then
+                                iOurHighestTech = aiBrain[M28Economy.refiOurHighestAirFactoryTech]
+                                iMinBuildCountWanted = iMinBuildCountWanted + 1
+                                if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                            elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 2
+                            end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+                            iOurHighestTech = aiBrain[M28Economy.refiOurHighestLandFactoryTech]
+                            if iFactoryTechLevel >= iOurHighestTech then   iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                            if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) then
+                            iOurHighestTech = aiBrain[M28Economy.refiOurHighestNavalFactoryTech]
+                            iMinBuildCountWanted = iMinBuildCountWanted + 3
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMinBuildCountWanted='..iMinBuildCountWanted..'; iBuildCountAdjust='..iBuildCountAdjust..'; Lifetime engi count='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)..'; iOurHighestTech (if we calculated it)='..iOurHighestTech) end
+                    if (oFactory[M28Factory.refiTotalBuildCount] or 0) < iMinBuildCountWanted then
+                        bWantMoreEngineers = true
+                    elseif GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
+                        bWantMoreEngineers = true
+                    end
                 end
             end
         end

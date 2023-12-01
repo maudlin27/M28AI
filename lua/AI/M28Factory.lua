@@ -20,7 +20,7 @@ local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
-local refiTimeSinceLastFailedToGetOrder = 'M28FactoryTimeFailedToGetOrder' --Against factory, gametimeseconds that factory failed to find anything to do
+refiTimeSinceLastFailedToGetOrder = 'M28FactoryTimeFailedToGetOrder' --Against factory, gametimeseconds that factory failed to find anything to do
 refbWantNextUnitToBeEngineer = 'M28FacNxtUEng' --true if want next unit to be an engineer
 --NOTE: Also have a blueprint blacklist in the landsubteam data - see M28Team
 
