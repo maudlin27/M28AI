@@ -525,6 +525,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
     local sFunctionRef = 'GetCombatThreatRating'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if M28Utilities.IsTableEmpty(tUnits) then
         if bDebugMessages == true then LOG(sFunctionRef..': Warning: tUnits is empty, returning 0') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -615,7 +617,6 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                 --Are we calculating blueprint threat (per code at start of game)?
                 if bBlueprintThreat then
                     local oBP = __blueprints[oUnit.UnitId]
-
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')) end
 
                     if bJustGetMassValue == true then iBaseThreat = (oBP.Economy.BuildCostMass or 0)
@@ -627,7 +628,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             if not(bIndirectFireThreatOnly) then
                                 if bAntiNavyOnly or bSubmersibleOnly then
                                     iMassMod = 0
-                                    if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(categories.ANTINAVY+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
+                                    if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(categories.ANTINAVY+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
                                         iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                         if EntityCategoryContains(categories.ANTINAVY, oUnit.UnitId) then
                                             iMassMod = 1

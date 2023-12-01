@@ -1971,7 +1971,7 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     return false
 end
 
-function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat)
     --iOptionalThreatAbsolutePercentIncrease - will increase enemy threat factors by this (absolute increase), e.g. set to 0.1 and instead of wanting 1.3 * enemy threat to attack, will want 1.4 * enemy threat
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2020,6 +2020,12 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
                 end
             end
 
+        end
+    end
+    if bAreInScenario2 and not(bConsideringSubmarinesNotSurface) then
+        --Adjust if enemy has significant submersible threat and we dont have enough antinavy threat
+        if iEnemyNearbySubmersibleThreat > iAvailableAntiNavyThreat and iEnemyNearbySubmersibleThreat * 5 > iAdjacentAlliedCombatThreat and (iEnemyNearbySubmersibleThreat > 500 or iEnemyNearbySubmersibleThreat * 2 > iAdjacentAlliedCombatThreat) then
+            bAreInScenario2 = false
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -11776,8 +11776,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
 end
 
 function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
-    local bDebugMessages = true
-    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -12217,7 +12216,7 @@ end
 
 function ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, iOptionalEngineerActionLimitation)
     --E.g. intended for building emergency PD where we built too close to the frontline and it got destroyed so we dont send more engineeres to their death but try and build further back
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderClearingEngineersForUnitJustDamagedOrDestroyed'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

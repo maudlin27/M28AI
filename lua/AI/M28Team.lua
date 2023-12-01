@@ -992,6 +992,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
 
 
 
+
             if oUnit[M28Navy.refiCurrentWZAssignmentValue] then
                 local iLastOrderZone = oUnit[M28Navy.refiCurrentAssignmentWaterZone]
                 local bOrderZoneAdjacent = false
