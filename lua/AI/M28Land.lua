@@ -4668,7 +4668,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local iClosestPotentialTarget
                 local iCurTargetDist
                 local tMMLWithNearbyTargets = {}
-                if iLandZone == 14 and GetGameTimeSeconds() >= 880 then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tTMDAndShields empty='..tostring(M28Utilities.IsTableEmpty(tTMDAndShields))) end
                 for iUnit, oUnit in tMMLForSynchronisation do
                     if bDebugMessages == true then LOG(sFunctionRef..': Is MML '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' close to enemy DF units='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false))..'; oUnit[M28UnitInfo.refiIndirectRange]='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; iIndirectRunFigureSynchronisation='..iIndirectRunFigureSynchronisation..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; oUnit[M28UnitInfo.refiIndirectRange]='..oUnit[M28UnitInfo.refiIndirectRange]) end

@@ -868,7 +868,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Utilities.GetDistanceBetweenPositions(tStartPosition, {359.40307617188, 27.193752288818, 247.11889648438}) <= 0.5 then bDebugMessages = true end
+
 
     local iCurDist
     if bDebugMessages == true then

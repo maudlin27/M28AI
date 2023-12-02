@@ -644,7 +644,7 @@ function CreateNewTeam(aiBrain)
                     local sAiXref = ''
                     if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
                     if oBrain.CheatEnabled then
-                        sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                        sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)..'; BP '..tonumber(ScenarioInfo.Options.BuildMuilt or 1.5)
                     end
                     LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
                 end

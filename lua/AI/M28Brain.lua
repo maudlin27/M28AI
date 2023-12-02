@@ -24,7 +24,7 @@ NewAIBrain = Class(StandardBrain) {
 
     OnCreateAI = function(self, planName)
         StandardBrain.OnCreateAI(self)
-        LOG('M28AI brain class OnCreateAI triggered, brain nickname='..self.Nickname)
+        --LOG('M28AI brain class OnCreateAI triggered, brain nickname='..self.Nickname)
         self.M28AI = true
         ForkThread(M28Events.OnCreateBrain, self, planName, false)
     end,

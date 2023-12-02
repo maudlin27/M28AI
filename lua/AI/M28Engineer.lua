@@ -10648,7 +10648,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             HaveActionToAssign(refActionBuildAA, math.max(1, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1)), iBPWanted)
         end
     end
-    bDebugMessages = false
 
     --Higih priority mex if we have water zone start
     iCurPriority = iCurPriority + 1
