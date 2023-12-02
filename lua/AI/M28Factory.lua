@@ -1054,6 +1054,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+        if bWantIndirectSubjectToNumbers and M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] >= 60 then
+            if iFactoryTechLevel == 2 or M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] >= 90 then
+                bWantIndirectSubjectToNumbers = false
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectSubjectToNumbers='..tostring(bWantIndirectSubjectToNumbers)) end
         if bWantIndirectSubjectToNumbers then
             local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
@@ -1134,7 +1139,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
         --if more than 40% mass stored then consider engineer instead
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 2 then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+            if (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 55 or (iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 90) or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 10) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+            end
         end
     end
 

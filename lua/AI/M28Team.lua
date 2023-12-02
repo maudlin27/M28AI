@@ -132,6 +132,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiAlliedMAAThreat = 'M28TeamMAAThreat' --Total MAA threat only (excludes structure)
     refbEnemyHasPerciesOrBricks = 'M28TeamEnemyHasBrickOrPercy' --true if enemy has percy or brick unit at any time in the game
     refiEnemyHighestMobileLandHealth = 'M28TeamEnemyHighestMobileLandHealth' --Used to calculate storage wanted
+    refiHighestEnemyDFRangeByPlateau = 'M28TeamHighestDFRgbp' --[x] is plareau, returns highest detected df range, eg so we stop building mml when enemy has ravager
     refbDangerousForACUs = 'M28TeamDangerousForACUs' --True if are big threats that mean we should keep ACU at base
     reftEnemyFirebaseByPlateauAndLZ = 'M28TeamEnemyFirebase' --[x] is the plateua, [y] is the LZ, returns the below subrefs
         subrefiNearbyPlateauAndLandZones = 'NrbyPLZ' --ordered 1, 2 etc. in order that added, returning {iPlateau, iLandZone} for any land zone that shoudl consider itself in range of the firebase in question
@@ -1526,6 +1527,15 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     end
                                 end
                             end
+
+                            --best enemy df range
+                            local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+                            if iPlateau then
+                                local iTeam = aiBrain.M28Team
+                                if not(tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau]) then tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau] = {} end
+                                tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] = math.max((tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))
+                            end
+
                         else
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
