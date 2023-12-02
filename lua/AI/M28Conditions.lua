@@ -1067,7 +1067,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                     --Dont want more factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of factories in teamgame and have low mass so dont want more') end
                     --More air fac if enemy has large air to ground threat and we dont have air control, and have good gross eco (regardless of current eco)
-                elseif iAverageCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.001 and M28Map.iMapSize > 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(TeamHasAirControl(iTeam)) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 then
+                elseif iAverageCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.003 / M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and M28Map.iMapSize >= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy has large air to ground threat so want more factories (on the assumption we will end up getting more air factories) to deal with it') end
                     bWantMoreFactories = true
                 elseif not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 or iAverageCurAirAndLandFactories < tiFactoryToMassByTechRatioWanted[3] * 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -1181,8 +1181,8 @@ end
 
 function GetActiveMexUpgrades(tLZTeamData)
     local iActiveMexUpgrades = 0
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
-        for iUpgrade, oUpgrade in tLZTeamData[M28Map.subrefActiveUpgrades] do
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+        for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUpgrade.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
         end
     end
@@ -1489,6 +1489,15 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             end
                                         end
                                     end
+                                    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and not(TeamHasAirControl(iTeam)) then
+                                        if M28Map.iMapSize <= 256 then
+                                            iLandFactoriesWantedBeforeAir = math.max(math.min(2, iLandFactoriesWantedBeforeAir), iLandFactoriesWantedBeforeAir * 0.5)
+                                            iAirFactoriesForEveryLandFactory = math.max(0.5, iAirFactoriesForEveryLandFactory)
+                                        else
+                                            iLandFactoriesWantedBeforeAir = 1
+                                            iAirFactoriesForEveryLandFactory = math.min(math.max(iAirFactoriesForEveryLandFactory, 6), iAirFactoriesForEveryLandFactory * 1.5)
+                                        end
+                                    end
                                 end
                                 if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                                     iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
@@ -1506,7 +1515,22 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 0.5)
                                     end
                                 end
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and iLandFactoriesWantedBeforeAir > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 then iLandFactoriesWantedBeforeAir = 1 end
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and iLandFactoriesWantedBeforeAir >= 2 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 then
+                                        iLandFactoriesWantedBeforeAir = 1
+                                        --If enemy has land combat units but no airforce then consider getting air fac earlier even on smaller maps - for simplicity will just do a count of units (could consider in future refining to cycle through all nearby zones)
+                                    elseif iLandFactoriesWantedBeforeAir > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 then
+                                        local iEnemyLandCombatCount = 0
+                                        local iEnemyGroundAACount = 0
+                                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                                            iEnemyLandCombatCount = iEnemyLandCombatCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat)
+                                            iEnemyGroundAACount = iEnemyGroundAACount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGroundAA)
+                                        end
+                                        if iEnemyLandCombatCount > iEnemyGroundAACount * 12 then
+                                            iLandFactoriesWantedBeforeAir = 1
+                                        end
+                                    end
+                                end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
                                 if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
@@ -1947,7 +1971,7 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     return false
 end
 
-function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat)
     --iOptionalThreatAbsolutePercentIncrease - will increase enemy threat factors by this (absolute increase), e.g. set to 0.1 and instead of wanting 1.3 * enemy threat to attack, will want 1.4 * enemy threat
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1996,6 +2020,12 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
                 end
             end
 
+        end
+    end
+    if bAreInScenario2 and not(bConsideringSubmarinesNotSurface) then
+        --Adjust if enemy has significant submersible threat and we dont have enough antinavy threat
+        if iEnemyNearbySubmersibleThreat > iAvailableAntiNavyThreat and iEnemyNearbySubmersibleThreat * 5 > iAdjacentAlliedCombatThreat and (iEnemyNearbySubmersibleThreat > 500 or iEnemyNearbySubmersibleThreat * 2 > iAdjacentAlliedCombatThreat) then
+            bAreInScenario2 = false
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2227,8 +2257,36 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
                 elseif tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have adj zones wanting engineer for mex') end
                     bWantMoreEngineers = true
-                elseif (oFactory[M28Factory.refiTotalBuildCount] or 0) <= iBuildCountAdjust + 10 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
-                    bWantMoreEngineers = true
+                elseif (oFactory[M28Factory.refiTotalBuildCount] or 0) <= iBuildCountAdjust + 10 then
+
+                    local iMinBuildCountWanted = iBuildCountAdjust
+                    local iOurHighestTech = 1
+                    if GetGameTimeSeconds() - (oFactory[M28Factory.refiTimeSinceLastFailedToGetOrder] or -100) <= 1 then
+                        iMinBuildCountWanted = 0
+                    else
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+                            if iFactoryTechLevel >= iOurHighestTech then
+                                iOurHighestTech = aiBrain[M28Economy.refiOurHighestAirFactoryTech]
+                                iMinBuildCountWanted = iMinBuildCountWanted + 1
+                                if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                            elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 2
+                            end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+                            iOurHighestTech = aiBrain[M28Economy.refiOurHighestLandFactoryTech]
+                            if iFactoryTechLevel >= iOurHighestTech then   iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                            if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) then
+                            iOurHighestTech = aiBrain[M28Economy.refiOurHighestNavalFactoryTech]
+                            iMinBuildCountWanted = iMinBuildCountWanted + 3
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMinBuildCountWanted='..iMinBuildCountWanted..'; iBuildCountAdjust='..iBuildCountAdjust..'; Lifetime engi count='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)..'; iOurHighestTech (if we calculated it)='..iOurHighestTech) end
+                    if (oFactory[M28Factory.refiTotalBuildCount] or 0) < iMinBuildCountWanted then
+                        bWantMoreEngineers = true
+                    elseif GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
+                        bWantMoreEngineers = true
+                    end
                 end
             end
         end
@@ -2371,4 +2429,24 @@ function GetCurrentM28UnitsOfCategoryInTeam(iCategory, iTeam)
         iCount = iCount + oBrain:GetCurrentUnits(iCategory)
     end
     return iCount
+end
+
+function WantMoreEngineersToAssistMexUpgradeAsPriority(tLZOrWZTeamData, iTeam)
+    if tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) then
+        local iEngineersWantedInZone = 7 + 3 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+        local tEngineersInZone
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+        local iEngineersInZone = 0
+        if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+            iEngineersInZone = table.getn(tEngineersInZone)
+        end
+        if iEngineersInZone < iEngineersWantedInZone then
+            --Check we dont already have 3+ engineers under construction
+            local iUnderConstruction = GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZOrWZTeamData, M28UnitInfo.refCategoryEngineer, false)
+            if iUnderConstruction < 1 + tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] then
+                return true
+            end
+        end
+    end
+    return false
 end

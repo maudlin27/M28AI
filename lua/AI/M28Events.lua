@@ -391,6 +391,10 @@ function OnUnitDeath(oUnit)
                             M28Building.UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
                         end
 
+                        --PD specific - stop trying to build here (in case we have far away engineers still trying to build at this location for this unit)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                            M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, M28Engineer.refActionBuildEmergencyPD)
+                        end
 
                         --Run unit type specific on death logic where the unit is completed
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
@@ -660,6 +664,8 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
                             end
                         end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, self.UnitId) and M28UnitInfo.IsUnitValid(self) and (self:GetFractionComplete() <= 0.7 or (self:GetFractionComplete() <= 0.85 and M28UnitInfo.GetUnitHealthPercent(self) <= 0.5)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect, oUnitCausingDamage.UnitId) then
+                        M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(self,  M28Engineer.refActionBuildEmergencyPD)
                     end
                     --General - if enemy has non-long range direct fire structure that hit an M28 unit, then check if it is in the same or adjacen tzone, so can record if it isnt
                     if oUnitCausingDamage.GetPosition and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitCausingDamage.UnitId) and oUnitCausingDamage[M28UnitInfo.refiDFRange] and oUnitCausingDamage[M28UnitInfo.refiDFRange] < 100 and oUnitCausingDamage[M28UnitInfo.refiDFRange] > 0 and self.GetPosition then
@@ -760,9 +766,12 @@ function OnWeaponFired(oWeapon)
             end
         end
 
+
+
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
+
             local oParentBrain = oUnit:GetAIBrain()
             --M28 torp bomber micro (done here as want to make sure we pick up the last weapon event)
             if oParentBrain.M28AI then
@@ -865,11 +874,11 @@ function OnWeaponFired(oWeapon)
                     end
                 end
             end
-        end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+        end
     end
-end
 
 --[[function ProjectileFiredAtGround(oProjectile)
     if oProjectile.GetCurrentTargetPosition then
@@ -1348,6 +1357,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
                             end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                                ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
                             local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
@@ -1443,7 +1455,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
-                        --T2 arti - consider manual shot targets
+                            --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                         end
@@ -1738,7 +1750,6 @@ end
 
 function OnDetectedBy(oUnitDetected, iBrainIndex)
     --Appears to be called when iBrainIndex detects oUnitDetected, triggers for teammate units but not own units?
-
     --For now used to make sure we have up to date unit info
     if M28Utilities.bM28AIInGame then
         local aiBrain = ArmyBrains[iBrainIndex]
