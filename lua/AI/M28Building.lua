@@ -1764,6 +1764,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                         if oBestTarget then
                             tTarget = oBestTarget:GetPosition()
+                            --Target ground following FAF changes to TMLs
+                            tTarget[2] = GetSurfaceHeight(tTarget[1], tTarget[3])
                             if oLauncher:IsUnitState('Busy') and (GetGameTimeSeconds() - (oLauncher[refiTimeOfLastLaunch] or -100)) < 5 and M28UnitInfo.IsUnitValid(oLauncher[refoLastTMLTarget]) then
                                 oLauncher[refoLastTMLTarget][refiTMLShotsFired] = (oLauncher[refoLastTMLTarget][refiTMLShotsFired] or 0) - 1
                             end

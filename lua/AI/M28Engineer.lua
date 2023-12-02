@@ -996,11 +996,11 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
             local tResourceLocations
             local iAdjacencyBuildingRadius
             if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryMex, iCatToBuildBy, false) then
-                tResourceLocations = (tLZOrWZData[M28Map.subrefLZMexLocations] or tLZOrWZData[M28Map.subrefWZMexLocations])
+                tResourceLocations = tLZOrWZData[M28Map.subrefMexUnbuiltLocations] --Dont want all locations incase non-M28 teammate has built there
                 iAdjacencyBuildingRadius = 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build by a mex so recording tResourceLocations based on iPlateauOrZero='..(iPlateauOrZero or 'nil')..' and iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
             elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryHydro, iCatToBuildBy, false) then
-                tResourceLocations = tLZOrWZData[M28Map.subrefHydroLocations] --we use the same variable for land and water zones
+                tResourceLocations = tLZOrWZData[M28Map.subrefHydroUnbuiltLocations] --we use the same variable for land and water zones
                 iAdjacencyBuildingRadius = 3
             end
             if tResourceLocations then
