@@ -3436,8 +3436,6 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local bProceedWithLogic = true
     if iOptionalDelaySecondsAndWeaponFireCheck then
         --e.g. we have targeted a mobile unit, so only check again if we have failed to fire recently

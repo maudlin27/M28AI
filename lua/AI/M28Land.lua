@@ -4668,9 +4668,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local iClosestPotentialTarget
                 local iCurTargetDist
                 local tMMLWithNearbyTargets = {}
+                if iLandZone == 14 and GetGameTimeSeconds() >= 880 then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tTMDAndShields empty='..tostring(M28Utilities.IsTableEmpty(tTMDAndShields))) end
                 for iUnit, oUnit in tMMLForSynchronisation do
-                    if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is MML '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' close to enemy DF units='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false))..'; oUnit[M28UnitInfo.refiIndirectRange]='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; iIndirectRunFigureSynchronisation='..iIndirectRunFigureSynchronisation..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; oUnit[M28UnitInfo.refiIndirectRange]='..oUnit[M28UnitInfo.refiIndirectRange]) end
+                                        --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                              iDistThreshold,                 iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange,                                                                                        oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                    if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iIndirectRunFigureSynchronisation, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)))) then
                         if M28Utilities.IsTableEmpty(tTMDAndShields) then --redundancy - hopefully only scenario we get here is if there is 1 part-complete TMD/shield that is <30% complete
                             M28Orders.IssueTrackedAggressiveMove(oUnit, (oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oNearestEnemyToMidpoint:GetPosition()), math.max(15, (iIndirectDistanceInsideRangeThreshold or 15)), false, 'I2KAMve'..iLandZone)
                         else
@@ -4689,8 +4692,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'I2KAMve'..iLandZone)
                             else
                                 if iClosestPotentialTarget - 5 > oUnit[M28UnitInfo.refiIndirectRange] then
-                                    --Still a bit of distance until we are in range
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchAM'..iLandZone)
+                                    --Still a bit of distance until we are in range; attack move if we are far away, but do a normal move if we are almost in range
+                                    --First check if another target (e.g. upgrading ACU) we should focus fire on first though, if it's significnatly closer than the nearest shield or TMD
+                                    local oInRangeUpgradingACU
+                                    if M28Utilities.IsTableEmpty(toEnemyACUsInZone) == false and iClosestPotentialTarget - 10 > oUnit[M28UnitInfo.refiIndirectRange] then
+                                        for iACU, oACU in toEnemyACUsInZone do
+                                            if oACU:IsUnitState('Upgrading') and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiIndirectRange] then
+                                                oInRangeUpgradingACU = oACU
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if oInRangeUpgradingACU then
+                                        M28Orders.IssueTrackedGroundAttack(oUnit, oInRangeUpgradingACU:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchACU', false)
+                                        table.insert(tMMLWithNearbyTargets, oUnit)
+                                    elseif iClosestPotentialTarget - 35 > oUnit[M28UnitInfo.refiIndirectRange] then
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchAM'..iLandZone)
+                                    else
+                                        M28Orders.IssueTrackedMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchM'..iLandZone)
+                                    end
                                 else
                                     --Can attack the unit itself
                                     M28Orders.IssueTrackedGroundAttack(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchGA', false)
@@ -4699,6 +4719,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will retreat MML') end
                         --Retreat temporarily from enemy units
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MMLASKRetr'..iLandZone)
