@@ -9907,7 +9907,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iGroundAAWanted = math.min(iGroundAAWanted, 2000)
         if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAWanted then
             iBPWanted = tiBPByTech[math.max(iHighestTechEngiAvailable, 1)]
-            HaveActionToAssign(refActionBuildAA, math.max(1, iHighestTechEngiAvailable), iBPWanted)
+            if (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) >= 600 then
+                if (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) >= 1500 then
+                    HaveActionToAssign(refActionBuildAA, math.max(2, iHighestTechEngiAvailable, M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech]), iBPWanted)
+                else
+                    HaveActionToAssign(refActionBuildAA, math.max(2, iHighestTechEngiAvailable), iBPWanted)
+                end
+            else
+                HaveActionToAssign(refActionBuildAA, math.max(1, iHighestTechEngiAvailable), iBPWanted)
+            end
         end
     end
 
@@ -10202,7 +10210,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 local iAAWanted = math.min(150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4), M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25)
                 if M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] then iAAWanted = iAAWanted * 0.25 end
                 if iAAWanted < tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] then
-                    HaveActionToAssign(refActionBuildAA, 1, 5)
+                    if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 700 then
+                        HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], 5)
+                    else
+                        HaveActionToAssign(refActionBuildAA, 1, 5)
+                    end
                 end
             end
         end

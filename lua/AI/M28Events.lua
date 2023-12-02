@@ -1357,6 +1357,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
                             end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                                ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
                             local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
@@ -1452,7 +1455,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
-                        --T2 arti - consider manual shot targets
+                            --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
                         end

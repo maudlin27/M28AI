@@ -3508,7 +3508,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                     --Check unit is on land and not attached
                     if not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tArtiPosition)
-                        if iCurDist < iClosestTargetOfInterest and iMinRange >= iMinRange then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..repru(iCurDist)..'; iClosestTargetOfInterest='..repru(iClosestTargetOfInterest)..'; iMinRange='..repru(iMinRange)) end
+                        if iCurDist < iClosestTargetOfInterest and iCurDist >= iMinRange then
                             iClosestTargetOfInterest = iCurDist
                             oClosestTargetOfInterest = oUnit
                         end
