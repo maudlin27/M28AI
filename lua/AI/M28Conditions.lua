@@ -1181,8 +1181,8 @@ end
 
 function GetActiveMexUpgrades(tLZTeamData)
     local iActiveMexUpgrades = 0
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
-        for iUpgrade, oUpgrade in tLZTeamData[M28Map.subrefActiveUpgrades] do
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+        for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUpgrade.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
         end
     end

@@ -393,27 +393,27 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     tLZOrWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 end
             end
-            if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subrefActiveUpgrades]) == false then
-                for iUnit, oUnit in tTeamData[iTeam][M28Map.subrefActiveUpgrades] do
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subreftoActiveUpgrades]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][M28Map.subreftoActiveUpgrades] do
                     if oUnit == oUnitDoingUpgrade then
                         if bDebugMessages == true then LOG(sFunctionRef..': About to remove unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of upgrades for the team '..iTeam..'; Unit iPlateau='..iPlateau..'; iLZ='..iLandZone) end
-                        table.remove(tTeamData[iTeam][M28Map.subrefActiveUpgrades], iUnit)
+                        table.remove(tTeamData[iTeam][M28Map.subreftoActiveUpgrades], iUnit)
                         break
                     end
                 end
             end
             --Remove from land zone list of upgrades
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
-                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                     if oUnit == oUnitDoingUpgrade then
                         if bDebugMessages == true then LOG(sFunctionRef..': About to remove unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of upgrades for iPlateau '..iPlateau..'; iLZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')) end
-                        table.remove(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], iUnit)
+                        table.remove(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades], iUnit)
                     end
                 end
             end
             local iActiveMexUpgrades = 0
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
-                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
                 end
             end
@@ -473,19 +473,19 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subrefActiveUpgrades])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subreftoActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subreftoActiveUpgrades])) end
             if tLZOrWZTeamData then
-                if not(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
-                    tLZOrWZTeamData[M28Map.subrefActiveUpgrades] = {}
-                    if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+                if not(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
+                    tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] = {}
+                    if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) end
                 end
-                table.insert(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
+                table.insert(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades], oUnitDoingUpgrade)
                 local iActiveMexUpgrades = 0
-                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
                 end
                 tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
-                if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) end
             end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit dead or compelted, but not in the table so no need to remove it')
         end
@@ -2385,8 +2385,8 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                 end
                             end
                             --Dont do priority upgrade if this location already has an upgrade, unless we have high mass income for this brain and T1 mexes
-                            if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))) end
-                            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))) end
+                            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) then
                                 for iMexTech = 1, iTechLevelToUpgrade do
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
                                     if tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech] > 0 then

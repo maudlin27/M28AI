@@ -436,8 +436,8 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
                     --Assist upgrade if we have any
                     local oUnitToAssist
                     local iHighestFractionComplete = 0
-                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
-                        for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                        for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                             if M28UnitInfo.IsUnitValid(oUpgrading) then
                                 if oUpgrading:GetWorkProgress() < 1 and oUpgrading:GetWorkProgress() > iHighestFractionComplete then
                                     iHighestFractionComplete = oUpgrading:GetWorkProgress()
@@ -814,10 +814,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     --If we are overflowing mass and have a unit upgrading in the zone then assist that instead (e.g. intended for maps where loads of reclaim that causes us to overflow)
                                 else
                                     local oUnitToAssist
-                                    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
+                                    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                                         local iHighestFractionComplete = 0
                                         local oUnitToAssist
-                                        for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                                        for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                             if M28UnitInfo.IsUnitValid(oUpgrading) then
                                                 if oUpgrading:GetWorkProgress() < 1 and oUpgrading:GetWorkProgress() > iHighestFractionComplete then
                                                     iHighestFractionComplete = oUpgrading:GetWorkProgress()
@@ -2706,14 +2706,14 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                 M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runc')
                             end
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want upgrade or reclaim, will look for buildings to assist. Is table of ugprades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want upgrade or reclaim, will look for buildings to assist. Is table of ugprades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
                             local oUnitToAssist
                             if (not(M28Conditions.HaveLowPower(iTeam)) or (aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 25 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
                                 local bOnlyGetMexToAssist = M28Conditions.HaveLowMass(aiBrain)
                                 local iHighestFractionComplete = 0
 
-                                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
-                                    for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                                    for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                         if M28UnitInfo.IsUnitValid(oUpgrading) then
                                             if oUpgrading:GetWorkProgress() < 1 and oUpgrading:GetWorkProgress() > iHighestFractionComplete then
                                                 if not(bOnlyGetMexToAssist) or EntityCategoryContains(M28UnitInfo.refCategoryMex, oUpgrading.UnitId) then
@@ -3241,7 +3241,7 @@ function AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWater
 
 
     local oUnitToAssist
-    if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
+    if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
         local iHighestCompletion = 0
         local iHighestLowPriorityCompletion = 0
         local iCurCompletion
@@ -3264,7 +3264,7 @@ function AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWater
             end
         end
 
-        for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+        for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
             ConsiderCurUnitPriority(oUnit)
         end
         local tStorageInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryMassFab, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
