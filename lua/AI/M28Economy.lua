@@ -1348,7 +1348,7 @@ function ManageMassStalls(iTeam)
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to reclaim nearby area due to mass stall') end
                                                                     M28Engineer.GetEngineerToReclaimNearbyArea(oUnit, 1, M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam], iCurPlateau, iCurLandZone, false, true)
                                                                     --Kill engineers if htey are in a core LZ
-                                                                elseif M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                                                                elseif M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                                                     KillEngineer(oUnit)
                                                                 end
                                                             end

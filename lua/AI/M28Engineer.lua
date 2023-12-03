@@ -4667,7 +4667,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                                     oCurBuildingBP = oBuilding:GetBlueprint()
                                                     if (oCurBuildingBP.Economy.BuildCostMass or 0) * oBuilding:GetFractionComplete() <= 5000 then
                                                         --Check the building position and size means it is actually a blocking building
-                                                        if oBuilding:GetPosition()[1] >= rShieldAreaRect[1] and oBuilding:GetPosition()[1] <= rShieldAreaRect[3] and oBuilding:GetPosition()[3] >= rShieldAreaRect[2] and oBuilding:GetPosition()[3] <= rShieldAreaRect[2] then
+                                                        if oBuilding:GetPosition()[1] >= rShieldAreaRect[1] and oBuilding:GetPosition()[1] <= rShieldAreaRect[3] and oBuilding:GetPosition()[3] >= rShieldAreaRect[2] and oBuilding:GetPosition()[3] <= rShieldAreaRect[2] and (not(oBuilding[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will destroy blocking building='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)..'; Building position='..repru(oBuilding:GetPosition())..'; will draw rectangle that this is within')
                                                                 M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iSearchRadius))
                                                             end
@@ -4758,7 +4758,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if weant to ctrlK a shield, iPartConstructedShields='..iPartConstructedShields..'; iConstructedShields='..iConstructedShields) end
                                 if iPartConstructedShields == 0 and iConstructedShields >= 2 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to ctrlK a shield so can rebuild') end
-                                    if oLowestConstructedShieldHealth then
+                                    if oLowestConstructedShieldHealth and (not(oLowestConstructedShieldHealth[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will ctrlK shield '..oLowestConstructedShieldHealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestConstructedShieldHealth)) end
                                         M28Orders.IssueTrackedKillUnit(oLowestConstructedShieldHealth)
                                         --Clear assisting engineers in case they are assisting a part-complete shield that we want to stop
@@ -4783,7 +4783,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                 end
 
                 --Decide whether to ctrlK shield so can start building another
-                if iConstructedShields >= math.max(iTotalAvailableLocations, 2) or (iConstructedShields > 1 and iConstructedShields + iPartConstructedShields >= iTotalAvailableLocations and iActiveShields < iConstructedShields) then
+                if iConstructedShields >= math.max(iTotalAvailableLocations, 2) or (iConstructedShields > 1 and iConstructedShields + iPartConstructedShields >= iTotalAvailableLocations and iActiveShields < iConstructedShields) and (not(oLowestConstructedShieldHealth[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                     --CtrlK a completed shield with the lowest shield value
                     if bDebugMessages == true then LOG(sFunctionRef..': iConstructedShields='..iConstructedShields..'; iTotalAvailableLocations='..iTotalAvailableLocations..'; iConstructedShields='..iConstructedShields..'; iPartConstructedShields='..iPartConstructedShields..'; iActiveShields='..iActiveShields..'; iLowestConstructedShieldHealth='..(iLowestConstructedShieldHealth or 'nil')) end
                     M28Orders.IssueTrackedKillUnit(oLowestConstructedShieldHealth)
@@ -8622,19 +8622,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..'; after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
-                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
-                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+            --Dont capture if are a hostile AI due to the risk we capture a campaign objective and progress the map
+            if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].HostileCampaignAI) then
+                local oUnitToCapture
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
+                    if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                        oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+                    end
+                else
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
                 end
-            else
-                oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
-            end
-            if oUnitToCapture then
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
-                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                if oUnitToCapture then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                    iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
+                    HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                end
             end
         end
     end
@@ -9706,19 +9709,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..', after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
-                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
-                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+            --Dont capture if are a hostile AI due to the risk we capture a campaign objective and progress the map
+            if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].HostileCampaignAI) then
+                local oUnitToCapture
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
+                    if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                        oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+                    end
+                else
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
                 end
-            else
-                oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
-            end
-            if oUnitToCapture then
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
-                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                if oUnitToCapture then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                    iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
+                    HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                end
             end
 
         end
@@ -11219,19 +11225,22 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finishedupdating if have units to capture for zone, after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tWZData[M28Map.subreftoUnitsToCapture])
-                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
-                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tWZData[M28Map.subrefMidpoint])
+            --Dont capture if are a hostile AI due to the risk we capture a campaign objective and progress the map
+            if not(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].HostileCampaignAI) then
+                local oUnitToCapture
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tWZData[M28Map.subreftoUnitsToCapture])
+                    if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                        oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tWZData[M28Map.subrefMidpoint])
+                    end
+                else
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
                 end
-            else
-                oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
-            end
-            if oUnitToCapture then
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tWZTeamData[M28Map.subrefLZbCoreBase])
-                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                if oUnitToCapture then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                    iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tWZTeamData[M28Map.subrefLZbCoreBase])
+                    HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                end
             end
         end
     end
@@ -12115,9 +12124,11 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
                                 end
                                 if M28Utilities.IsTableEmpty(tT1Engineers) == false then
                                     for iUnit, oUnit in tT1Engineers do
-                                        KillEngineerIfSufficientlyIdle(oUnit)
-                                        if iEngineersKilled >= 3 then
-                                            break
+                                        if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                            KillEngineerIfSufficientlyIdle(oUnit)
+                                            if iEngineersKilled >= 3 then
+                                                break
+                                            end
                                         end
                                     end
                                 end
@@ -12125,9 +12136,11 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
                                     local tT2Engineers = EntityCategoryFilterDown(categories.TECH2, tT1AndT2EngineersInZone)
                                     if M28Utilities.IsTableEmpty(tT2Engineers) == false then
                                         for iUnit, oUnit in tT2Engineers do
-                                            KillEngineerIfSufficientlyIdle(oUnit)
-                                            if iEngineersKilled >= 3 then
-                                                break
+                                            if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                                KillEngineerIfSufficientlyIdle(oUnit)
+                                                if iEngineersKilled >= 3 then
+                                                    break
+                                                end
                                             end
                                         end
                                     end

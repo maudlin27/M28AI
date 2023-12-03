@@ -2602,10 +2602,12 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                 ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
                             else
                                 --CtrlK for mass
-                                if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                                if (not(oFactory[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                                    end
+                                    M28Orders.IssueTrackedKillUnit(oFactory)
                                 end
-                                M28Orders.IssueTrackedKillUnit(oFactory)
                             end
                         end
                     end

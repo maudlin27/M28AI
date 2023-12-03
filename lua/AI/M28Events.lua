@@ -1213,7 +1213,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
             if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
                 for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
-                    if M28UnitInfo.IsUnitValid(oUnit) then
+                    if M28UnitInfo.IsUnitValid(oUnit) and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                         M28Orders.IssueTrackedKillUnit(oUnit)
                     end
                 end
@@ -2135,24 +2135,35 @@ function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
     local sFunctionRef = 'CaptureTriggerAdded'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Utilities.bM28AIInGame and M28Map.bIsCampaignMap and not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
+    if M28Utilities.bM28AIInGame and M28Map.bIsCampaignMap then
+        oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
+        if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-        if M28UnitInfo.IsUnitValid(oUnit) then
-            local aiBrain
-            if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
-                for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                    aiBrain = oBrain
-                    if not(oBrain.CampaignAI) then break end
-                end
-                if not(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is not an ally so will record as a capture target') end
-                    M28Engineer.RecordUnitAsCaptureTarget(oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                local aiBrain
+                if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        aiBrain = oBrain
+                        if not(oBrain.CampaignAI) then break end
+                    end
+                    if not(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit is not an ally so will record as a capture target') end
+                        M28Engineer.RecordUnitAsCaptureTarget(oUnit)
+                    end
                 end
             end
         end
+        oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DeathTriggerAdded(oUnit)
+    oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
+end
+function CreateUnitReclaimedTrigger(oUnit)
+    oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
 end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)

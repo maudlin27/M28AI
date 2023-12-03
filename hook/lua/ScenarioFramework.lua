@@ -24,3 +24,15 @@ function ForkedPlayableAreaChange(rect, voFlag)
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayableAreaChange, rect, voFlag)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+local M28OldCreatePlatoonDeathTrigger = CreatePlatoonDeathTrigger
+CreatePlatoonDeathTrigger = function(callback, platoon)
+    M28OldCreatePlatoonDeathTrigger(callback, platoon)
+    local tUnits = platoon:GetPlatoonUnits()
+    if tUnits then
+        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+        for iUnit, oUnit in tUnits do
+            ForkThread(M28Events.DeathTriggerAdded, oUnit)
+        end
+    end
+end

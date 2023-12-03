@@ -6468,7 +6468,9 @@ function UpdateZoneIntelForRadar(oRadar)
                             local oBP = oUnit:GetBlueprint()
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange) end
                             if (oBP.Intel.RadarRadius or 0) < math.max(1, iIntelRange) and (oBP.Intel.OmniRadius or 0) < math.max(1, iOmniRange) then
-                                table.insert(tUnitsToKill, oUnit)
+                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                    table.insert(tUnitsToKill, oUnit)
+                                end
                             end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToKill) == false then

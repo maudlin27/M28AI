@@ -2130,7 +2130,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             --Ctrlk units if close to rally point and aibrain owner is close to unit cap
             local iCtrlKCount = 0
             for iUnit, oUnit in tUnitsUnableToRefuel do
-                if not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) and oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and iCtrlKCount < 3 then
+                if not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) and oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and iCtrlKCount < 3 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                     iCtrlKCount = iCtrlKCount + 1
                     M28Orders.IssueTrackedKillUnit(oUnit)
                 else
@@ -2152,7 +2152,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 then
+                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                     M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
                 end
@@ -3061,7 +3061,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                         if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
                                     end
-                                    if bMoveUnitToRally then
+                                    if bMoveUnitToRally or oUnit[M28UnitInfo.refbCampaignTriggerAdded] then
                                         M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
                                     else
                                         M28Orders.IssueTrackedKillUnit(oUnit)
@@ -6257,7 +6257,7 @@ function ManageTransports(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tCargo) == false then
                 M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRFalUnl', false)
             else
-                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition()) <= 30 then
+                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition()) <= 30 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                     M28Orders.IssueTrackedKillUnit(oUnit)
                 else
                     --Go to rally point
