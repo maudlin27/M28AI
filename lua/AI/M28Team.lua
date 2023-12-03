@@ -169,6 +169,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
     reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
+    toBomberSuicideTargets = 'M28TeamStratSuic' --Table of enemy strat bombers that we want to suicide ASFs into
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
     --subrefiOurAirAAThreat - uses same ref as air subteam

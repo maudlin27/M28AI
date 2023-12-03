@@ -7660,6 +7660,24 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Assign engineers to experimental eg in case original constructing engineers died
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+        local oExperimentalToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryExperimentalLevel, false)
+        if oExperimentalToAssist then
+            iBPWanted = 30
+            if oExperimentalToAssist:GetFractionComplete() >= 0.6 then
+                iBPWanted = 120
+                if not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then iBPWanted = math.max(iBPWanted, math.min(240, math.max(iBPWanted, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 12))) end
+            elseif not(bHaveLowPower) then
+                iBPWanted = 60
+                if not(bHaveLowMass) then iBPWanted = 120 end
+            end
+            HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oExperimentalToAssist)
+        end
+    end
+
+
     --More factories if have some mass stored and enemy is still at T1
     iCurPriority = iCurPriority + 1
     if bWantMoreFactories and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 300) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= math.min(2, M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech])) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 then

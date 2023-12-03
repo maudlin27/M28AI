@@ -133,6 +133,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     if oKillerUnit and oKillerUnit.GetAIBrain then
 
                         --Non-M28 specific killer logic:
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oKillerUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryT2Power, oKillerUnit.UnitId) then
+                            ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
+                        end
+
                         --T2 arti firebase tracking if they get lots of kills:
                         if oUnitKilled:GetAIBrain().M28AI then
                             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(oUnitKilled:GetAIBrain().M28Team, oKillerUnit) end
