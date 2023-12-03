@@ -7324,7 +7324,7 @@ end
 
 function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
     --Checks if we have any asfs or swifties in tAvailableAirAA, and if so assigns them to target enemy strats
-    local toASFs = EntityCategorFilterDown(categories.TECH2 + categories.TECH3, tAvailableAirAA)
+    local toASFs = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tAvailableAirAA)
 
     if M28Utilities.IsTableEmpty(toASFs) == false then
         --For simplicity will just consider the closest enemy strat (since we will be running this logic every second if we have more available asfs)
@@ -7343,7 +7343,7 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
         local iClosest1Dist = 10000
         local iClosest2Dist = 10000
         local oClosest1, oClosest2
-        for iUnit, oUnit in toASFsByAvailableAAIndex do
+        for iUnit, oUnit in toASFs do
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oClosestStratToRallyPoint:GetPosition(), oUnit:GetPosition())
             if iCurDist < iClosest2Dist then
                 if iCurDist < iClosest1Dist then
@@ -7387,6 +7387,7 @@ function SuicideASFIntoStrat(oStrat, oASF)
         end
         oStrat[refiAssignedSuicideASF] = (oStrat[refiAssignedSuicideASF] or 0) + iASFValue
         oASF[M28UnitInfo.refbSpecialMicroActive] = true
+        local iTeam = oASF:GetAIBrain().M28Team
         if oStrat[refiAssignedSuicideASF] >= 2 then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do
                 if oUnit == oStrat then
