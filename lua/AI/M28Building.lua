@@ -3529,13 +3529,13 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         end
 
         if not(oClosestTargetOfInterest) and tLastTarget then
-            --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti around the arti and (if so) if we want to ground fire them
-            local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
+            --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti or ravagers around the arti and (if so) if we want to ground fire them
+            local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
             if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                 UpdateClosestUnit(tNearbyUnitsOfInterest)
             end
             if not(oClosestTargetOfInterest) then
-                tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
+                tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
                 if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                     UpdateClosestUnit(tNearbyUnitsOfInterest)
                 end
