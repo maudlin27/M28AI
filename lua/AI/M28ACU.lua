@@ -3893,24 +3893,28 @@ function GetACUOrder(aiBrain, oACU)
                                                                                             if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                                                                                                 --Do nothing - will have given the order
                                                                                             else
-                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
-                                                                                                if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
-                                                                                                    --Do we have any reclaim nearby?
-                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
-                                                                                                    if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
-                                                                                                        --Assist any upgrading mex or under construction storage if we have power but low mass
+                                                                                                --Is a friendly ACU getting an upgrade in this or an adjacent zone? If so then assist it
+                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to assist a friendly nearby upgrading ACU if there is one') end
+                                                                                                if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
+                                                                                                    if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
+                                                                                                        --Do we have any reclaim nearby?
+                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
+                                                                                                        if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
+                                                                                                            --Assist any upgrading mex or under construction storage if we have power but low mass
 
-                                                                                                        if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
-                                                                                                            --Backup - assist nearest factory
-                                                                                                        else
-                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-                                                                                                            if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-                                                                                                                local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-                                                                                                                if M28Utilities.IsTableEmpty(tAllFactories) == false then
-                                                                                                                    local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
-                                                                                                                    if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                                                                                                                        M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
+                                                                                                                --Backup - assist nearest factory
+                                                                                                            else
+                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                                                                                                                if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+                                                                                                                    local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                                                                                                                    if M28Utilities.IsTableEmpty(tAllFactories) == false then
+                                                                                                                        local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
+                                                                                                                        if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                                                                                                                            M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                        end
                                                                                                                     end
                                                                                                                 end
                                                                                                             end
@@ -4135,4 +4139,33 @@ function GetValueIncreaseForACUInTrouble(iTeam)
         end
     end
     return iCurValue
+end
+
+function AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
+    local iTeam = oACU:GetAIBrain().M28Team
+    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) then
+        local iCurDist
+        local iClosestDist = 80 --dont want to assist ACU further away than this
+        if oACU[refiUpgradeCount] > 0 and not(oACU:HasEnhancement('AdvancedEngineering')) then iClosestDist = 10 end
+
+        local oClosestUpgradingACU
+        for iUpgradingACU, oUpgradingACU in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs] do
+            if not(oUpgradingACU == oACU) then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUpgradingACU:GetPosition(), oACU:GetPosition())
+                if iCurDist < iClosestDist then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, oUpgradingACU:GetPosition()) == iPlateauOrZero or (iPlateauOrZero == 0 and NavUtils.GetLabel(M28Map.refPathingTypeHover, oUpgradingACU:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())) then
+                        if oUpgradingACU:GetWorkProgress() <= 0.75 or iCurDist <= 40 then
+                            iClosestDist = iCurDist
+                            oClosestUpgradingACU = oUpgradingACU
+                        end
+                    end
+                end
+            end
+
+        end
+        if oClosestUpgradingACU then
+            M28Orders.IssueTrackedGuard(oACU, oClosestUpgradingACU, false, 'ACUAstU', false)
+            return true
+        end
+    end
 end
