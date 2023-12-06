@@ -2210,16 +2210,18 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 930 then for iUnit, oUnit in tAvailableMAA do if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel02053' then bDebugMessages = true break end end end
 
     local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
     local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance
     local tMAAToAdvance = {}
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; P='..iPlateau..'; Zone='..iLandZone) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) then
         --No DF enemies so treat all MAA as being available
         tMAAToAdvance = tAvailableMAA
+        if bDebugMessages == true then LOG(sFunctionRef..': No DF enemies so will consider advancing with all MAA') end
     else
         local iRunThreshold = 14
         if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
@@ -2247,8 +2249,10 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iRunThreshold='..iRunThreshold..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 14 of being in range of enemy direct fire
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of an enemy unit, is close to enemy='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit))) end
             --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
             if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
                 if bDebugMessages == true then
@@ -2282,6 +2286,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat') end
                 if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
                     M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, 'ORun'..iLandZone)
                 elseif bAmphibiousUnit then
@@ -2290,6 +2295,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'Run'..iLandZone)
                 end
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will treat MAA as not in danger and consider advancing with it') end
                 table.insert(tMAAToAdvance, oUnit)
             end
         end
@@ -2328,7 +2334,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 --[[if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 6, iTeam, true,               nil,                        nil,                                nil,                                    nil,                                    false) then
                     M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 7, false, 'MmaAR' )
                 else--]]
-                    M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 7, false, 'MNA')
+                M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 7, false, 'MNA')
                 --end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will do reprs of orders of the first unit in tMAAToAdvance, '..tMAAToAdvance[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[1])..': '..reprs(tMAAToAdvance[1][M28Orders.reftiLastOrders])) end
@@ -5522,7 +5528,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if bDebugMessages == true then LOG(sFunctionRef..': Setting whether we want to consider indirect threat, iCurIndirectThreat='..(iCurIndirectThreat or 'nil')..'; tLZTeamData[M28Map.subrefLZIndirectThreatWanted]='..(tLZTeamData[M28Map.subrefLZIndirectThreatWanted] or 'nil')) end
         if iCurIndirectThreat < tLZTeamData[M28Map.subrefLZIndirectThreatWanted] then bConsiderAdjacentIndirect = true end
         if iCurDFThreat < tLZTeamData[M28Map.subrefLZDFThreatWanted] then bConsiderAdjacentDF = true end
-        if iCurMAAThreat < tLZTeamData[M28Map.subrefLZMAAThreatWanted] then bConsiderAdjacentMAA = true end
+        if iCurMAAThreat < tLZTeamData[M28Map.subrefLZMAAThreatWanted] and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bConsiderAdjacentMAA = true end
 
 
 
