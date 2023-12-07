@@ -3401,7 +3401,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-
+    if GetGameTimeSeconds() >= 600 and aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -3697,10 +3697,12 @@ function GetACUOrder(aiBrain, oACU)
 
                         else tRallyPoint = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()]
                         end
-                        --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them
+                        --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them; otherwise go to nearest friendly base
                         if not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20))) then
-                            M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])) end
+
+                            M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs')
+                            --M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone')
                         end
                     else
@@ -4232,9 +4234,15 @@ function AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData,
 end
 
 function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero)
-    if not(oACU[M28Land.refoAssignedMobileShield]) and iPlateauOrZero > 0 then
+    local sFunctionRef = 'CheckForNearbyMobileShieldToRequisition'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) and iPlateauOrZero > 0 then
+        oACU[M28Land.refoAssignedMobileShield] = nil
         --Do we have access to T2 land, and aren't in our core base (hiding)?
-        if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by brain '..oACU:GetAIBrain().Nickname..'; Is in core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Highest team factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Cur mobile shields on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryMobileLandShield, iTeam)) end
+        if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 then
             if M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryMobileLandShield, iTeam) > 0 then
                 --Cycle through this zone and adjacent zones looking for mobile shields
                 local bSearchForShield = true
@@ -4247,9 +4255,11 @@ function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamD
                     if M28Utilities.IsTableEmpty(tShieldsInZone) == false then
                         for iShield, oShield in tShieldsInZone do
                             if M28UnitInfo.IsUnitValid(oShield) and oShield:GetFractionComplete() == 1 then
-                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                                if iCurShield > 0 and iCurShield > iMaxShield * 0.6 then
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to requisition shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Dist to ACU='.. M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())..'; iClosestDist='..iClosestDist) end
+                                if iCurShield > 0 and iCurShield > iMaxShield * 0.6 and (not(oShield[M28Land.refoMobileShieldTarget].UnitId) or not(EntityCategoryContains(categories.COMMAND, oShield[M28Land.refoMobileShieldTarget].UnitId))) then
                                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                                    if M28UnitInfo.IsUnitValid(oShield[M28Land.refoMobileShieldTarget]) then iCurDist = iCurDist + 15 end --want to favour an unassigned nearby shield in the unlikely event we have one
                                     if iCurDist < iClosestDist then
                                         iClosestDist = iCurDist
                                         oClosestShield = oShield
@@ -4258,6 +4268,7 @@ function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamD
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestShield='..(oClosestShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')) end
                     if oClosestShield then
                         bSearchForShield = false
                         if M28UnitInfo.IsUnitValid(oClosestShield[M28Land.refoMobileShieldTarget]) then
@@ -4271,11 +4282,14 @@ function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamD
                 CheckZoneForShields(tLZOrWZTeamData)
                 if bSearchForShield and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Searching in iAdjLZ='..iAdjLZ..' for mobile shields') end
                         CheckZoneForShields(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                        if not(bSearchForShield) then break end
                     end
                 end
             end
 
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
