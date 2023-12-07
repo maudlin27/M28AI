@@ -3426,6 +3426,9 @@ function GetACUOrder(aiBrain, oACU)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))) end
 
+    --Check for mobile shields
+    CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero)
+
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then
         --Do nothing unless in a very dangerous situation
@@ -4224,6 +4227,55 @@ function AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData,
         if oClosestUpgradingACU then
             M28Orders.IssueTrackedGuard(oACU, oClosestUpgradingACU, false, 'ACUAstU', false)
             return true
+        end
+    end
+end
+
+function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero)
+    if not(oACU[M28Land.refoAssignedMobileShield]) and iPlateauOrZero > 0 then
+        --Do we have access to T2 land, and aren't in our core base (hiding)?
+        if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] > 0 then
+            if M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryMobileLandShield, iTeam) > 0 then
+                --Cycle through this zone and adjacent zones looking for mobile shields
+                local bSearchForShield = true
+                local iCurDist
+                local iClosestDist = 100000
+                local oClosestShield
+                local iCurShield, iMaxShield
+                function CheckZoneForShields(tCurLZTeamData)
+                    local tShieldsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLandShield, tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tShieldsInZone) == false then
+                        for iShield, oShield in tShieldsInZone do
+                            if M28UnitInfo.IsUnitValid(oShield) and oShield:GetFractionComplete() == 1 then
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                                if iCurShield > 0 and iCurShield > iMaxShield * 0.6 then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                                    if iCurDist < iClosestDist then
+                                        iClosestDist = iCurDist
+                                        oClosestShield = oShield
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if oClosestShield then
+                        bSearchForShield = false
+                        if M28UnitInfo.IsUnitValid(oClosestShield[M28Land.refoMobileShieldTarget]) then
+                            oClosestShield[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
+                        end
+                        oClosestShield[M28Land.refoMobileShieldTarget] = oACU
+                        oACU[M28Land.refoAssignedMobileShield] = oClosestShield
+                        M28Land.MoveToShieldTarget(oClosestShield, tCurLZTeamData[M28Map.reftClosestEnemyBase])
+                    end
+                end
+                CheckZoneForShields(tLZOrWZTeamData)
+                if bSearchForShield and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                        CheckZoneForShields(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                    end
+                end
+            end
+
         end
     end
 end
