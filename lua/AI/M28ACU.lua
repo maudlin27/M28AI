@@ -1771,7 +1771,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         return false
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' on team '..iTeam..'; Dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Air to ground threat='..tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Team air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
-    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]) then
+    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
