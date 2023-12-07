@@ -1282,8 +1282,10 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                         local oCurBrain
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                table.insert(tiM28Brains, oBrain)
-                                iM28BrainCount = iM28BrainCount + 1
+                                if not(oBrain.CampaignAI) then
+                                    table.insert(tiM28Brains, oBrain)
+                                    iM28BrainCount = iM28BrainCount + 1
+                                end
                             end
                         elseif aiBrain.M28AI then
                             table.insert(tiM28Brains, aiBrain)
