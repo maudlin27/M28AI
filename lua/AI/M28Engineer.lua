@@ -8136,9 +8136,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Multiple mex upgrades (core zone) - want to assist as a higher priority
+    --Multiple mex upgrades (core zone), or a single upgrade but are behind enemy on eco - want to assist as a higher priority
     iCurPriority = iCurPriority + 1
-    if (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.max(1, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.15)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+    if (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.max(1, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.15)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
         iBPWanted = 10
         if not(bHaveLowPower) then
             iBPWanted = (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) * 15
