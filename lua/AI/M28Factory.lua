@@ -17,6 +17,8 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
@@ -1145,6 +1147,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --T2 MAA for ACU
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 2 and oFactory[refiTotalBuildCount] >= 3 and not(bDontConsiderBuildingMAA) then
+        --Does ACU have an MAA guard? if not then build MAA if we are in the same island; build amphibious/hover if not in same island
+        if M28UnitInfo.IsUnitValid(aiBrain[M28ACU.refoPrimaryACU]) and M28Utilities.IsTableEmpty(aiBrain[M28ACU.refoPrimaryACU][M28Land.reftoAssignedMAAGuards]) then
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, aiBrain[M28ACU.refoPrimaryACU]:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA * categories.TECH2) then return sBPIDToBuild end
+            elseif NavUtils.GetLabel(M28Map.refPathingTypeHover,  aiBrain[M28ACU.refoPrimaryACU]:GetPosition()) == iPlateau and not(M28UnitInfo.IsUnitUnderwater(aiBrain[M28ACU.refoPrimaryACU])) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA * categories.TECH2 * categories.HOVER) then return sBPIDToBuild end
+            end
+        end
+    end
+
     --Priority upgrade to T3 if have lots of T3 mexes, and no enemies in this zone (even if have enemies nearby), provided we have other factores in the zone that can build units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Priority factory upgrade, iFactoryTechLevel='..iFactoryTechLevel..'; Our highest factory tech='..(aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; T3 mexes='..(tLZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Team has low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
@@ -1231,7 +1246,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         LOG(sFunctionRef .. ': Lifetime build count for this tech level=' .. iTankLC .. '; Engi LC for this tech=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
                     end
                     if iTankLC < 3 or
-                        ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
+                            ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                         if iFactoryTechLevel < 3 then
                             if ConsiderBuildingCategory(iCategoryToGet) then
                                 return sBPIDToBuild

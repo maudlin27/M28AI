@@ -1516,6 +1516,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
                                     ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.MOBILE, oEngineer.UnitId) then
+                                --Consider assigning T2 MAA to ACU
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
+                                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
+                                end
                             end
                         end
 

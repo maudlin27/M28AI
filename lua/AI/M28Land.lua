@@ -6716,6 +6716,20 @@ function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderAssigningMAABodyguardToACU(oMAA)
+    local oACU = oMAA:GetAIBrain()[M28ACU.refoPrimaryACU]
+    if M28UnitInfo.IsUnitValid(oACU) and not(M28Conditions.IsTableOfUnitsStillValid(oACU[reftoAssignedMAAGuards])) then
+        --if enemy has T2+ air or air to ground threat then assign
+        local iTeam = oMAA:GetAIBrain().M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 2 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 then
+            --Want to assign
+            if not(oACU[reftoAssignedMAAGuards]) then oACU[reftoAssignedMAAGuards] = {} end
+            table.insert(oACU[reftoAssignedMAAGuards], oMAA)
+            oMAA[refoAssignedUnitToGuard] = oACU
+        end
+    end
+end
+
 function DontHaveJerichoAttackTarget(oJericho)
     local aiBrain = oJericho:GetAIBrain()
     local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, oJericho:GetPosition(), oJericho[M28UnitInfo.refiDFRange], 'Enemy')
