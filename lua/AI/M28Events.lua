@@ -262,193 +262,197 @@ function OnUnitDeath(oUnit)
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
                     --Rough unit count
-                    if not(oUnit['M28Dead']) then oUnit['M28Dead'] = true M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1 end
-
-                    --TMD protection logic - refresh land zone TMD entries
-                    if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
-
-                    --Big threat global team table update
-                    if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) == false then
-                        M28Team.RemoveUnitFromBigThreatTable(oUnit)
-                    end
+                    if not(oUnit['M28Dead']) then
+                        oUnit['M28Dead'] = true
+                        M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
 
 
-                    M28Orders.ClearAnyRepairingUnits(oUnit)
+                        --TMD protection logic - refresh land zone TMD entries
+                        if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
 
-                    --Hydro resource location made available again
-                    if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
-                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
-                            for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations] do
-                                if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                                    table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
-                                    break
-                                end
-                            end
-                        end
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                        --Record mex position first as it is a forked thread so may lose position if the unit dies; however ignore if looks like an upgrading mex unit
-                        if not(oUnit.CanTakeDamage == false and oUnit.IsUpgrade == true) then
-                            local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-                            if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
-                            if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
-                            ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex()) --Need to fork thread or else get an error when try to wait in the building logic
-                        end
-                        --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
-                            for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
-                                --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
-                                --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
-                                --Revised line:
-                                if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 0.9 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 0.9 then
-                                    table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], tMexLocation)
-                                    break
-                                end
-                            end
-                        end--]]
-                        --Radar intel coverage update
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
-                        ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
-                        ForkThread(M28Navy.UpdateSonarCoverageForDestroyedSonar, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
-                        M28Land.TrackWallSegment(oUnit, false)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
-                        --For each M28 team with active M28AI consider if we have a firebase
-                        M28Land.ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
-                            M28Building.TMDDied(oUnit)
-                        else
-                            M28Building.TMLDied(oUnit)
-                        end
-                    end
-
-                    --Fixed shields
-                    if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoUnitsCoveredByShield]) == false then
-                        M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
-                    end
-
-                    --Ythotha deathball avoidance
-                    --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
-                    --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
-                        OnYthothaDeath(oUnit)
-                    end
-                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL -M28UnitInfo.refCategoryMex -M28UnitInfo.refCategoryHydro, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
-                        if oUnit[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
-                            --Treat area around experimental under construction as available again
-                            M28Engineer.ClearBlacklistForUnitConstructed(oUnit)
-                        end
-                        M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
-                    end
-
-                    --Campaign specific - upgrading structure that isn't yet complete
-                    if M28Map.bIsCampaignMap and oUnit[M28UnitInfo.refbObjectiveUnit] and not(oUnit[refbAlreadyRunUnitKilled]) and oUnit:GetFractionComplete() < 1 and oUnit:GetAIBrain().CampaignAI and oUnit.DoUnitCallbacks and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
-                        oUnit:DoUnitCallbacks('OnKilled')
-                    end
-
-                    -------M28 specific logic---------
-                    --Is the unit owned by M28AI?
-                    if oUnit:GetAIBrain().M28AI then
-                        --Air units - remove any assigned strike damage
-                        if oUnit[M28Air.refoStrikeDamageAssigned] then
-                            M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
-                        end
-                        --Air scout death - record the target zone as dangerous
-                        if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
-                            M28Air.OnAirScoutDeath(oUnit)
-                        end
-                        --Transport death - record target island as dangerous
-                        if oUnit[M28Air.refiTargetIslandForDrop] then
-                            local iTeam = oUnit:GetAIBrain().M28Team
-                            local iTargetIsland = oUnit[M28Air.refiTargetIslandForDrop]
-                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iTargetIsland] = GetGameTimeSeconds()
-                            if oUnit[M28Air.refiTargetZoneForDrop] then
-                                if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland]) then
-                                    if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime] = {} end
-                                    M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland] = {}
-                                end
-                                M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
-                            end
-                        elseif oUnit[M28Air.refiTargetZoneForDrop] then --presumably a water zone if it has no island ref
-                            local iTeam = oUnit:GetAIBrain().M28Team
-                            if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] = {} end
-                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
+                        --Big threat global team table update
+                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) == false then
+                            M28Team.RemoveUnitFromBigThreatTable(oUnit)
                         end
 
-                        --Logic that doesnt require the unit to ahve finished construction:
 
-                        --Fixed shielding
-                        if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
-                            if oUnit[M28Building.reftoUnitsCoveredByShield] then
-                                --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now
-                            else
-                                M28Building.CheckIfUnitWantsFixedShield(oUnit)
-                            end
-                        end
+                        M28Orders.ClearAnyRepairingUnits(oUnit)
 
-                        --Special tracking e.g. for factions and shields and game enders - update
-                        if oUnit[M28Building.refoNearbyFactoryOfFaction] then --i.e. gameender that wants a factory's engineers - the gameender is dead so want to clear entries for it
-                            M28Building.ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
-                        end
-                        if oUnit[M28Building.reftoUnitsWantingFactoryEngineers] then --i.e. a factory that was down as the one providing engineers to a gameender - want to find a new factory
-                            M28Building.UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
-                        end
-
-                        --PD specific - stop trying to build here (in case we have far away engineers still trying to build at this location for this unit)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
-                            M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, M28Engineer.refActionBuildEmergencyPD)
-                        end
-
-                        --Run unit type specific on death logic where the unit is completed
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
-                        if oUnit:GetFractionComplete() == 1 then
-                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true) --Dont fork thread
-                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                                M28Engineer.ClearEngineerTracking(oUnit)
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
-                                if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
-                                    for iScathis, oScathis in M28Engineer.tAllScathis do
-                                        if oScathis == oUnit then
-                                            table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
-                                            break
-                                        end
+                        --Hydro resource location made available again
+                        if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
+                                for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations] do
+                                    if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
+                                        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
+                                        break
                                     end
                                 end
-                            elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                                --Check for upgrades
-                                --Upgrade tracking (even if have run this already)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                    M28Economy.UpdateZoneM28MexByTechCount(oUnit, true)
-                                    --Update upgrading mexes
-                                    M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
+                            end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                            --Record mex position first as it is a forked thread so may lose position if the unit dies; however ignore if looks like an upgrading mex unit
+                            if not(oUnit.CanTakeDamage == false and oUnit.IsUpgrade == true) then
+                                local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
+                                if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
+                                ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex()) --Need to fork thread or else get an error when try to wait in the building logic
+                            end
+                            --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
+                                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
+                                    --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
+                                    --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
+                                    --Revised line:
+                                    if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 0.9 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 0.9 then
+                                        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], tMexLocation)
+                                        break
+                                    end
                                 end
-                                M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
-
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
-                                --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
-                                M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
-                            end
-
-                            --Mobile shield update
-                            if oUnit[M28Land.refoAssignedMobileShield] then
-                                oUnit[M28Land.refoAssignedMobileShield][M28Land.refoMobileShieldTarget] = nil
-                            end
-                            if oUnit[M28Land.refoMobileShieldTarget] then
-                                oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
+                            end--]]
+                            --Radar intel coverage update
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
+                            ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
+                            ForkThread(M28Navy.UpdateSonarCoverageForDestroyedSonar, oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
+                            M28Land.TrackWallSegment(oUnit, false)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
+                            --For each M28 team with active M28AI consider if we have a firebase
+                            M28Land.ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                                M28Building.TMDDied(oUnit)
+                            else
+                                M28Building.TMLDied(oUnit)
                             end
                         end
-                        --Update record of units with disabled weapons
-                        if oUnit[M28UnitInfo.refbWeaponDisabled] then
-                            local iTeam = oUnit:GetAIBrain().M28Team
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) == false then
-                                for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
-                                    if oRecorded == oUnit then
-                                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
-                                        break
+
+                        --Fixed shields
+                        if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoUnitsCoveredByShield]) == false then
+                            M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                        end
+
+                        --Ythotha deathball avoidance
+                        --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
+                        --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
+                            OnYthothaDeath(oUnit)
+                        end
+                        if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL -M28UnitInfo.refCategoryMex -M28UnitInfo.refCategoryHydro, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
+                            if oUnit[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                                --Treat area around experimental under construction as available again
+                                M28Engineer.ClearBlacklistForUnitConstructed(oUnit)
+                            end
+                            M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
+                        end
+
+                        --Campaign specific - upgrading structure that isn't yet complete
+                        if M28Map.bIsCampaignMap and oUnit[M28UnitInfo.refbObjectiveUnit] and not(oUnit[refbAlreadyRunUnitKilled]) and oUnit:GetFractionComplete() < 1 and oUnit:GetAIBrain().CampaignAI and oUnit.DoUnitCallbacks and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+                            oUnit:DoUnitCallbacks('OnKilled')
+                        end
+
+                        -------M28 specific logic---------
+                        --Is the unit owned by M28AI?
+                        if oUnit:GetAIBrain().M28AI then
+                            --Air units - remove any assigned strike damage
+                            if oUnit[M28Air.refoStrikeDamageAssigned] then
+                                M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
+                            end
+                            --Air scout death - record the target zone as dangerous
+                            if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
+                                M28Air.OnAirScoutDeath(oUnit)
+                            end
+                            --Transport death - record target island as dangerous
+                            if oUnit[M28Air.refiTargetIslandForDrop] then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                local iTargetIsland = oUnit[M28Air.refiTargetIslandForDrop]
+                                M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iTargetIsland] = GetGameTimeSeconds()
+                                if oUnit[M28Air.refiTargetZoneForDrop] then
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland]) then
+                                        if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime] = {} end
+                                        M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland] = {}
+                                    end
+                                    M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
+                                end
+                            elseif oUnit[M28Air.refiTargetZoneForDrop] then --presumably a water zone if it has no island ref
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] = {} end
+                                M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
+                            end
+
+                            --Logic that doesnt require the unit to ahve finished construction:
+
+                            --Fixed shielding
+                            if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
+                                if oUnit[M28Building.reftoUnitsCoveredByShield] then
+                                    --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now
+                                else
+                                    M28Building.CheckIfUnitWantsFixedShield(oUnit)
+                                end
+                            end
+
+                            --Special tracking e.g. for factions and shields and game enders - update
+                            if oUnit[M28Building.refoNearbyFactoryOfFaction] then --i.e. gameender that wants a factory's engineers - the gameender is dead so want to clear entries for it
+                                M28Building.ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
+                            end
+                            if oUnit[M28Building.reftoUnitsWantingFactoryEngineers] then --i.e. a factory that was down as the one providing engineers to a gameender - want to find a new factory
+                                M28Building.UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
+                            end
+
+                            --PD specific - stop trying to build here (in case we have far away engineers still trying to build at this location for this unit)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, M28Engineer.refActionBuildEmergencyPD)
+                            end
+
+                            --Run unit type specific on death logic where the unit is completed
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
+                            if oUnit:GetFractionComplete() == 1 then
+                                M28Economy.UpdateGrossIncomeForUnit(oUnit, true) --Dont fork thread
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                    M28Engineer.ClearEngineerTracking(oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                                    if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
+                                        for iScathis, oScathis in M28Engineer.tAllScathis do
+                                            if oScathis == oUnit then
+                                                table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
+                                                break
+                                            end
+                                        end
+                                    end
+                                elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                                    --Check for upgrades
+                                    --Upgrade tracking (even if have run this already)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                    M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                        M28Economy.UpdateZoneM28MexByTechCount(oUnit, true)
+                                        --Update upgrading mexes
+                                        M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
+                                    end
+                                    M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
+
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
+                                    --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
+                                    M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
+                                end
+
+                                --Mobile shield update
+                                if oUnit[M28Land.refoAssignedMobileShield] then
+                                    oUnit[M28Land.refoAssignedMobileShield][M28Land.refoMobileShieldTarget] = nil
+                                end
+                                if oUnit[M28Land.refoMobileShieldTarget] then
+                                    oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
+                                end
+                            end
+                            --Update record of units with disabled weapons
+                            if oUnit[M28UnitInfo.refbWeaponDisabled] then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) == false then
+                                    for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
+                                        if oRecorded == oUnit then
+                                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
+                                            break
+                                        end
                                     end
                                 end
                             end

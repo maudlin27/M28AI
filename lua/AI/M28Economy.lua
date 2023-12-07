@@ -1196,10 +1196,11 @@ function ManageMassStalls(iTeam)
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
                                 local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
                                 --Want to allow multiple upgrading mexes for a brain if we have lots of mexes
-                                if iMexesToPause > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 then
+                                if iMexesToPause > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 10 and M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])) then
                                     if oBrain[refiGrossMassBaseIncome] >= 7 then
                                         local iMexPerPlayer = 0.5 + (oBrain[refiGrossMassBaseIncome] / 7)*0.25
-                                        iMexesToPause = math.min(iMexesToPause, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + iMexPerPlayer * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
+                                        if M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] then iMexPerPlayer = iMexPerPlayer * 2.5 end
+                                        iMexesToPause = math.min(iMexesToPause, math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + iMexPerPlayer * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])))
                                     end
                                 end
 
@@ -2478,13 +2479,18 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                     end
                 end
                 local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oMex)
-                if (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and oMex:GetAIBrain()[refiGrossMassBaseIncome] >= 3.5 * iMexTechLevel and (iMexTechLevel == 1 or  table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5))) then
+                if (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
+                    (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or
+                    M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or
+                    (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and oMex:GetAIBrain()[refiGrossMassBaseIncome] >= 3.5 * iMexTechLevel and (iMexTechLevel == 1 or  table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) or
+                    ((tLZOrWZData[M28Map.subrefLZMexCount] >= 4 or tLZOrWZData[M28Map.subrefLZbCoreBase]) and M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])
+                    ) then
                     --Do we have any mexes lower than this tech level? if so then dont upgrade
 
                     if iMexTechLevel > 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
                         ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
                     else
-                        --We arent stalling, we dont have any active mex upgrades, and this mex has been alive a while - proceed with upgrade
+                        --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
                         if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as it has been active a while') end
                         UpgradeUnit(oMex, true)
                     end

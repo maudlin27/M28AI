@@ -2450,3 +2450,13 @@ function WantMoreEngineersToAssistMexUpgradeAsPriority(tLZOrWZTeamData, iTeam)
     end
     return false
 end
+
+function GetHighestOtherTeamT3MexCount(iTeam)
+    local iHighestCount = 0
+    for iCurTeam = 1, M28Team.iTotalTeamCount do
+        if not(iCurTeam == iTeam) then
+            iHighestCount = math.max(iHighestCount, (M28Team.tTeamData[iCurTeam][M28Team.refiMexCountByTech][3] or 0))
+        end
+    end
+    return iHighestCount
+end

@@ -69,6 +69,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
     refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
+    refiMexCountByTech = 'M28TeamMexByTech' --for all brains, not just M28 brains, treats a 1% complete mex as being completed for these purposes (to simplify code)
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -573,6 +574,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = 1
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
+    tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
 
 
     local bHaveCampaignM28AI = false

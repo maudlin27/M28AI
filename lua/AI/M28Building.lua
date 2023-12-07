@@ -1357,10 +1357,25 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     else
         M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
     end
+
+    --Track mexes by team
+
+    local iTeam
+    for iBrain, oBrain in ArmyBrains do
+        if iBrain == iOwnerArmyIndex then
+            iTeam = oBrain.M28Team
+            break
+        end
+    end
+    local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
+    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnMexConstructionStarted(oUnit)
+    --Run for all brains
+
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1518,6 +1533,11 @@ function OnMexConstructionStarted(oUnit)
             end
         end
     end
+
+    --Track mexes by team
+    local iTeam = oUnit:GetAIBrain().M28Team
+    local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
+    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
