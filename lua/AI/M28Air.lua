@@ -1986,8 +1986,9 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         local tCurBrainStaging = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirStaging, false, true)
         if M28Utilities.IsTableEmpty(tCurBrainStaging) == false then
+            local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
             for iUnit, oAirStaging in tCurBrainStaging do
-                if M28UnitInfo.IsUnitValid(oAirStaging) and oAirStaging:GetFractionComplete() == 1 then
+                if M28UnitInfo.IsUnitValid(oAirStaging) and oAirStaging:GetFractionComplete() == 1 and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oAirStaging:GetPosition())) then
                     --Does this have capacity?
                     iMaxCapacity = 4
                     if EntityCategoryContains(categories.MOBILE, oAirStaging.UnitId) then
@@ -3822,7 +3823,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
     if bDebugMessages == true then LOG(sFunctionRef..': end of code, is table of available bomers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
 end
 
-function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
+function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam, tOptionalEnemyBaseOverride)
     --e.g. used to get the front gunship - will use straight line distance so best used for air units
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUnitNearestEnemyBase'
@@ -3834,29 +3835,38 @@ function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
     local iCurDist
     for iUnit, oUnit in tUnitsToConsider do
         if not(oClosestUnit) then oClosestUnit = oUnit end --backup incase fail to find a unit with below approach
-        --Get land/water zone, and get nearest enemy base from this
-        iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        --[[if (iCurPlateauOrZero or 0) > 0 then
-    if (iCurLZOrWZ or 0) == 0 then
-        iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
-        if (iCurLZOrWZ or 0) > 0 then
-            iCurPlateauOrZero = 0
-        end
-    end
-end--]]
-        if (iCurLZOrWZ or 0) > 0 then
-            local tLZOrWZTeamData
-            if (iCurPlateauOrZero or 0) == 0 then
-                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ][M28Map.subrefWZTeamData][iTeam]
-            else
-                tLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking unit distance, iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..' for oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
-
-            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),  tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+        if tOptionalEnemyBaseOverride then
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalEnemyBaseOverride)
             if iCurDist < iClosestDist then
                 iClosestDist = iCurDist
                 oClosestUnit = oUnit
+            end
+        else
+
+            --Get land/water zone, and get nearest enemy base from this
+            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            --[[if (iCurPlateauOrZero or 0) > 0 then
+        if (iCurLZOrWZ or 0) == 0 then
+            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+            if (iCurLZOrWZ or 0) > 0 then
+                iCurPlateauOrZero = 0
+            end
+        end
+    end--]]
+            if (iCurLZOrWZ or 0) > 0 then
+                local tLZOrWZTeamData
+                if (iCurPlateauOrZero or 0) == 0 then
+                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                else
+                    tLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking unit distance, iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..' for oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),  tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oClosestUnit = oUnit
+                end
             end
         end
     end
@@ -4141,7 +4151,12 @@ function ManageGunships(iTeam, iAirSubteam)
         --Prioroity targets to attack - search for enemies around start positions (ignore AA):
         local tEnemyGroundTargets = {}
         --Get the gunship nearest to an enemy base and record this as the front gunship
-        oFrontGunship = GetUnitNearestEnemyBase(tAvailableGunships, iTeam)
+        local tOptionalEnemyBaseOverride
+        if M28Map.bIsCampaignMap and M28Team.GetFirstActiveM28Brain(iTeam).CampaignAI then
+            --Get the nearest zone with significant enemy structure threat inside the playable area, if there is such a zone
+            tOptionalEnemyBaseOverride = M28Team.GetEnemyMainCampaignBase(iTeam)
+        end
+        oFrontGunship = GetUnitNearestEnemyBase(tAvailableGunships, iTeam, tOptionalEnemyBaseOverride)
         --Adjustment - consider changing front gunship if previous front gunship is valid and is far away but with significantly more gunships near it (unless its an experimental)
         local iAvailableGunshipCount = table.getn(tAvailableGunships)
         if iAvailableGunshipCount >= 5 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftFrontGunshipPosition]) == false and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship] == oFrontGunship) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 2500 and not(EntityCategoryContains(categories.EXPERIMENTAL, oFrontGunship.UnitId)) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftFrontGunshipPosition], oFrontGunship:GetPosition()) >= 60 then
@@ -4722,8 +4737,8 @@ function ManageGunships(iTeam, iAirSubteam)
                         end
                     end
 
-                    --Further away gunships - consider whether we want to move closer to the front gunship
-                    if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false then
+                    --Further away gunships - consider whether we want to move closer to the front gunship, if it is in the playable area
+                    if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition())) then
                         local tiPlateauAndZonesConsidered = {}
                         local bCurEntrySafe
 

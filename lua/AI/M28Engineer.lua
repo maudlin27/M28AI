@@ -2532,7 +2532,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] >= 2 then bDebugMessages = true end
 
     local iFactionRequired
     local iCategoryWanted
@@ -2865,10 +2865,13 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
                         local iEnemyT3ArtiEquivalent = M28Conditions.GetT3ArtiEquivalent(iTeam, 0.4, 3, true, nil)
                         local iFriendlyGameEnderUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryGameEnder)
-
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering aeon specific experimental, iCurAirExperimentals='..iCurAirExperimentals..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Land exp='..iTeamLandExperimentals..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iOur bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) end
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 and iCurAirExperimentals + iTeamLandExperimentals > (iFriendlyGameEnderUnderConstruction + iEnemyT3ArtiEquivalent/3) then
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
-                        elseif not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 650 and iEnemyLandExperimentalCount == 0 and iTeamLandExperimentals + iCurAirExperimentals > 0) or ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(5, iEnemyLandExperimentalCount + 1)) then
+                        --Do we want to get t3 arti or gameender?
+                        elseif not(bCanPathAmphibiously) or
+                            (not(bCanPathByLand) and iDistToNearestEnemyBase >= 650 and iEnemyLandExperimentalCount == 0 and iTeamLandExperimentals + iCurAirExperimentals > 0) or
+                            ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and (iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(3, iEnemyLandExperimentalCount + 1) or ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and iTeamLandExperimentals + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] / 15000 + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] / 15000 >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5, iEnemyLandExperimentalCount)))) then
                             if iDistToNearestEnemyBase <= 750 then
                                 if iEnemyT3ArtiEquivalent < 4 then
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 then iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
@@ -2898,6 +2901,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     bGetAirExperimentalInstead = true
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bGetAirExperimentalInstead='..tostring(bGetAirExperimentalInstead or false)) end
                             if bGetAirExperimentalInstead then
                                 iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar
                             else

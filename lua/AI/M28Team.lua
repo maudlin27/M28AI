@@ -198,6 +198,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
     refbDontHaveBuildingsOrACUInPlayableArea = 'M28BldInA' --for campaign AI, true if dont have buildings or ACU in the playable area, so can decide how aggressive to be with units
+    reftEnemyCampaignMainBase = 'M28CampMB' --midpoint of the zone containing the enemy main base provided it is in the playable area
+    refiLastUpdatedMainBase = 'M28TimCamp' -- used when getting enemy main base location for campaign map
 
 
 
@@ -3717,4 +3719,33 @@ function CheckIfCampaignTeamHasBuildings(iTeam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetEnemyMainCampaignBase(iTeam)
+    --Intended fro campaign maps wher the enemy main base location is unreliable - will periodically refresh this and get the zone with the highest enemy structure threat in the playable area; failing that will get the first enemy brain start position in the playable area
+    if GetGameTimeSeconds() - (tTeamData[iTeam][refiLastUpdatedMainBase] or -100) >= 60 then
+        tTeamData[iTeam][refiLastUpdatedMainBase] = GetGameTimeSeconds()
+        local iBestSValue = 0
+        local tBestValueMidpoint, iCurSValue
+        for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
+            for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
+                if M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        local tBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tBuildings) == false then
+                            iCurSValue = M28UnitInfo.GetCombatThreatRating(tBuildings, true, true)
+                            if iCurSValue > iBestSValue then
+                                iBestSValue = iCurSValue
+                                tBestValueMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        tTeamData[iTeam][reftEnemyCampaignMainBase] = tBestValueMidpoint
+    end
+    return tTeamData[iTeam][reftEnemyCampaignMainBase]
+
 end

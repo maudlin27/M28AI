@@ -5184,7 +5184,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if tRemainingLandUnits then
                 --Can we path to the enemy base with land? if so then send units to it
 
-                if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) and M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) then
                     if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will send all land units to closest enemy base') end
                         for iUnit, oUnit in tRemainingLandUnits do
@@ -5193,17 +5193,43 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         tRemainingLandUnits = nil
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
-                if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
-                    --Cant go to enemy base, so just follow land scouting path
-                    if bDebugMessages == true then LOG(sFunctionRef..': Follow land scouting path if we have one, is patrol path empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]))) end
-                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
-                        --Patrol the land zone
-                        for iUnit, oUnit in tRemainingLandUnits do
-                            M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                if tRemainingLandUnits then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
+                    if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                        if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(M28Team.GetEnemyMainCampaignBase(iTeam)) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Team.GetEnemyMainCampaignBase(iTeam)) == iPlateau then
+                            if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Team.GetEnemyMainCampaignBase(iTeam)) == tLZData[M28Map.subrefLZIslandRef] then
+                                for iUnit, oUnit in tRemainingLandUnits do
+                                    M28Orders.IssueTrackedMove(oUnit, M28Team.GetEnemyMainCampaignBase(iTeam), 6, false, 'CmpEnB'..iLandZone)
+                                end
+                            else
+                                --Do we have any amphibious or hover units?
+                                local tbGivenIndexUnitOrder = {}
+                                for iUnit, oUnit in tRemainingLandUnits do
+                                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                                        tbGivenIndexUnitOrder[iUnit] = true
+                                        M28Orders.IssueTrackedMove(oUnit, M28Team.GetEnemyMainCampaignBase(iTeam), 6, false, 'CmpHEnB'..iLandZone)
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tbGivenIndexUnitOrder) == false then
+                                    for iCurUnit = table.getn(tRemainingLandUnits), 1, -1 do
+                                        if tbGivenIndexUnitOrder[iCurUnit] then table.remove(tRemainingLandUnits, iCurUnit) end
+                                    end
+                                end
+
+                            end
                         end
-                    else
-                        --Do nothing
+                        if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                            --Cant go to enemy base, so just follow land scouting path
+                            if bDebugMessages == true then LOG(sFunctionRef..': Follow land scouting path if we have one, is patrol path empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]))) end
+                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                                --Patrol the land zone
+                                for iUnit, oUnit in tRemainingLandUnits do
+                                    M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                                end
+                            else
+                                --Do nothing
+                            end
+                        end
                     end
                 end
             end
