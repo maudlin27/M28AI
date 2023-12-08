@@ -3523,7 +3523,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 23 * 60 then bDebugMessages = true end
+    
 
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())
