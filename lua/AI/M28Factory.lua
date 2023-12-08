@@ -38,6 +38,7 @@ refiTotalBuildCount = 'M28FacTotBC' --against oFactory, Total number of units th
 reftFactoryRallyPoint = 'M28FacRally' --against oFactory, Location to send units to when theyre built
 refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an order for the factory to build a unit (cleared when a unit is built or a different blueprint order is given) - used to spot for factories with units blocking them
 refbWantMoreEngineersBeforeUpgrading = 'M28FWnE' --against oFactory, true if have run the factory condition and it concluded wen eeded more engineers before upgrading
+refbPausedToStopDefaultAI = 'M28FPsC' --true if we have paused factory to stop a campaign AI giving it orders
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
@@ -2268,6 +2269,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()
     oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     tLZTeamData[M28Map.subrefiTimeLandFacHadNothingToBuild] = GetGameTimeSeconds()
+
     if bDebugMessages == true then LOG(sFunctionRef..': Updated time that last had nothing to build for land factory to '..M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2460,8 +2462,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
         local iTicksWaited = 0
         local bDontCheckCutsceneStatus = true
         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
-
+        local bClearFactoryWhenReadyToBuild = false
         if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() then
+            bClearFactoryWhenReadyToBuild = true
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2512,6 +2515,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 end
             end
             if bProceed then
+                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) then IssueTrackedClearCommands(oFactory) end
                 bDontCheckCutsceneStatus = false
                 --Set factory rally point if havent already
                 if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
@@ -2522,6 +2526,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     LOG(sFunctionRef .. ': oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; sBPToBuild=' .. (sBPToBuild or 'nil') .. '; Does factory have an empty command queue=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; Factory work progress=' .. oFactory:GetWorkProgress() .. '; Factory unit state=' .. M28UnitInfo.GetUnitState(oFactory))
                 end
                 if sBPToBuild then
+                    if oFactory[refbPausedToStopDefaultAI] then M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false) end
                     --Is this an upgrade or a unit to build?
                     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
                         M28Economy.UpgradeUnit(oFactory, true)
@@ -2560,6 +2565,13 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                         end
                         oFactory[M28UnitInfo.reftoUnitsAssistingThis] = {}
                     end
+                    --Pause the factory if in campaign and are a campaign AI
+                    if M28Map.bIsCampaignMap and aiBrain.CampaignAI then
+                        --Pause the factory to stop the AI giving it something to build
+                        M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, true)
+                        oFactory[refbPausedToStopDefaultAI] = true
+                    end
+
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
