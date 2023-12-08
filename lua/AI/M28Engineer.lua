@@ -3084,7 +3084,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
     local iLZOrWZToRunTo
     local iThresholdToRunFromMobileEnemies = 35
-    if bInCoreZone then iThresholdToRunFromMobileEnemies = 10 end
+    if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then iThresholdToRunFromMobileEnemies = 10 end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
 
@@ -3115,11 +3115,13 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
 
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Time='..GetGameTimeSeconds()) end
+        local bIgnoreIfEnemyUnderwater = false
         for iEngineer, oEngineer in tEngineers do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
             bWantEngiToRun = false
             bEngiIsUnavailable = false
             if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then
+                if bIsWaterZone and EntityCategoryContains(categories.HOVER, oEngineer.UnitId) then bIgnoreIfEnemyUnderwater = true end
                 --First check for enemies that we want to run from/take action from
                 if bCheckForEnemies or bCheckForWallsToReclaim then
                     local bReclaimingDangerousEnemy = false
@@ -3148,36 +3150,39 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                 --for iUnit, oUnit in tSubtable do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemies empty for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))) end
                                 if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
+
                                     for iUnit, oUnit in tNearbyEnemiesByZone do
                                         --It's not possible to reclaim an under construction building
                                         if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt())) then
                                             if not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
-                                                iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
-                                                if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                                                iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
-                                                if iCurDistToEnemy < iNearestEnemy then
-                                                    iNearestEnemy = iCurDistToEnemy
-                                                    oNearestEnemy = oUnit
-                                                end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))) end
-                                                if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
-                                                    if oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId) then
-                                                        --Dangerous enemy
-                                                        iNearestReclaimableDangerousEnemy = iCurDistToEnemy
-                                                        oNearestReclaimableDangerousEnemy = oUnit
+                                                if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                                    iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
+                                                    if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                                    iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
+                                                    if iCurDistToEnemy < iNearestEnemy then
+                                                        iNearestEnemy = iCurDistToEnemy
+                                                        oNearestEnemy = oUnit
                                                     end
-                                                    if iCurDistToEnemy < iNearestReclaimableEnemy then
-                                                        iNearestReclaimableEnemy = iCurDistToEnemy
-                                                        oNearestReclaimableEnemy = oUnit
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))) end
+                                                    if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
+                                                        if oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId) then
+                                                            --Dangerous enemy
+                                                            iNearestReclaimableDangerousEnemy = iCurDistToEnemy
+                                                            oNearestReclaimableDangerousEnemy = oUnit
+                                                        end
+                                                        if iCurDistToEnemy < iNearestReclaimableEnemy then
+                                                            iNearestReclaimableEnemy = iCurDistToEnemy
+                                                            oNearestReclaimableEnemy = oUnit
+                                                        end
                                                     end
-                                                end
-                                                --Ignore land scouts and similar unthreatening units
-                                                if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
-                                                    iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
-                                                    if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                                                        if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
-                                                    else
-                                                        if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
+                                                    --Ignore land scouts and similar unthreatening units
+                                                    if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                                        iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
+                                                        if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                                            if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
+                                                        else
+                                                            if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
+                                                        end
                                                     end
                                                 end
                                             end
@@ -10587,7 +10592,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     local sFunctionRef = 'ConsiderWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
@@ -10632,6 +10637,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) then
         --If enemy best DF or IF range is <50 and they dont have hover units, then build torp launcher
         local bEnemyHasLongRangeOrHover = false
+        if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) end
         if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 then bEnemyHasLongRangeOrHover = true
         else
             local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
@@ -10639,6 +10645,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if iEnemyCombatThreat > 15 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tWZTeamData[M28Map.subrefTEnemyUnits])) == false then
                 bEnemyHasLongRangeOrHover = true
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)) end
             if not(bEnemyHasLongRangeOrHover) and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
@@ -10659,6 +10666,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat) end
             if not(bEnemyHasLongRangeOrHover) then
                 --Do we not have significantly more threat than enemy?
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..(tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 'nil')..'; tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')) end
                 if iEnemyCombatThreat * 3 > iOurCombatThreat or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < 3 * (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)  then
                     iBPWanted = 20
                     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
@@ -10686,6 +10694,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+    bDebugMessages = false
 
     --High priority hydro if we have low energy and water zone start
     iCurPriority = iCurPriority + 1

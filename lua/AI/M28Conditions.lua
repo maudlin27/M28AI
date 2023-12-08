@@ -1994,10 +1994,12 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
         local iEnemyAntiNavyMod = 1.5 + iModMod
         local iEnemyCombatModHigh = 1.3 + iModMod
         local iEnemyCombatModLow = 1.1 + iModMod
-
-        if (bConsideringSubmarinesNotSurface and (iAdjacentAlliedSubmersibleThreat >= 40000 or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod) end
+        if (bConsideringSubmarinesNotSurface and ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat >= 40000 or ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat > ((tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat) * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat + (tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
                 --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
-                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then bAreInScenario2 = true
+                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
+            if bDebugMessages == true then LOG(sFunctionRef..': Main scenario 2 condition satisfied') end
+            bAreInScenario2 = true
         elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
             --Consider attacking if naval fac is vulnerable, or we have slightly more threat
             if  iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat then
