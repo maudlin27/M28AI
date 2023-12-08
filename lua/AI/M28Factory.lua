@@ -669,6 +669,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
     iLandFactoriesInLZ = table.getn(tLandFactoriesInLZ)
+
     --end
 
     local bDontConsiderBuildingMAA = false
@@ -882,11 +883,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About to check if we want to build high priority MAA, bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA) .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])
+        LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About to check if we want to build high priority MAA, bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA) .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Enemy dangerous units in this zone='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]))
     end
     local iNearbyMAAThreat = 0
     local iNearbyAirToGroundThreat = 0
-    if not (bDontConsiderBuildingMAA) then
+    if not (bDontConsiderBuildingMAA) and (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or tLZTeamData[M28Map.subrefLZbCoreBase]) then
         iNearbyMAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         iNearbyAirToGroundThreat = (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then

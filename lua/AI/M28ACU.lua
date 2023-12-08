@@ -3401,7 +3401,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if GetGameTimeSeconds() >= 600 and aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -4235,7 +4235,7 @@ end
 
 function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero)
     local sFunctionRef = 'CheckForNearbyMobileShieldToRequisition'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) and iPlateauOrZero > 0 then

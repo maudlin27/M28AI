@@ -2970,6 +2970,8 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
     local sFunctionRef = 'MonitorToReissueReclaimOrder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iRemainingTicksToWait = iTicksToCheck
     local iCurDist
     local iEngineerActionRequired = oEngineer[refiAssignedAction]
@@ -2995,6 +2997,14 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer is close to target so will issue a reclaim order') end
                 M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByT', false)
                 break --Dont want to risk clearing engineer every tick and never reclaiming
+            elseif iCurDist <= iDistanceToReissue + 0.5 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oNearestReclaimableEnemy.UnitId) and oEngineer:IsUnitState('Moving') and oNearestReclaimableEnemy:IsUnitState('Moving') then
+                --If enemy unit is moving and we are moving, then likely will be in range by the time the reclaim order goes through - check enemy engi is moving towards us
+                if bDebugMessages == true then LOG(sFunctionRef..': Almost in range of enemy engineer, so will try reclaiming very slightly sooner if angle dif from them suggests they are moving towards us, angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oNearestReclaimableEnemy:GetPosition(), oEngineer:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy))) end
+                if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oNearestReclaimableEnemy:GetPosition(), oEngineer:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy)) <= 35 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Repeating reclaim order') end
+                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByET', false)
+                    break --Dont want to risk clearing engineer every tick and never reclaiming
+                end
             end
         else
             break
@@ -6624,6 +6634,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Low mass and significant relcaim with no enemies - assign 1 engineer as very high priority (so we can fund other high priority actions)
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority mass reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]..'; Signif mass='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
+        iBPWanted = 5
+        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+            iBPWanted = 10
+            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
+                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
+            end
+        end
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+    end
+
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
 
@@ -7090,7 +7115,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 else
-                    HaveActionToAssign(refActionBuildExperimental, 1, iBPWanted)
+                    local iTechLevelWanted = 3
+                    if iHighestCompleteExperimentalInZone > 0 and iHighestCompleteExperimentalInZone < 1 then iTechLevelWanted = 1 end
+                    HaveActionToAssign(refActionBuildExperimental, iTechLevelWanted, iBPWanted)
+
                 end
             end
             --end
@@ -9346,7 +9374,16 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     if bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
-        HaveActionToAssign(refActionReclaimArea, 1, 5, false)
+        iBPWanted = 5
+
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+            iBPWanted = 10
+            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
+                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
+            end
+        end
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
