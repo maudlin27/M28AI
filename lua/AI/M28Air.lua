@@ -4024,7 +4024,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0) >= 40000 and GetGameTimeSeconds() >= 40 * 60 then bDebugMessages = true end
 
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
@@ -4358,7 +4358,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     if not (bTooMuchAA) then
                         --Add enemy air units in the plateau/land zone to list of enemy unit targets
-
+                        if bDebugMessages == true then LOG(sFunctionRef..': We want to target this zone if it has enemy units in it, Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
                         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                             local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
                             local bReplaceOnFirstValidUnit = bOnlyIncludeIfMexToProtect
@@ -4377,6 +4377,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 end
                             end
                         end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Too much AA so wont try and target this zone')
                     end
                     if not(bOnlyIncludeIfMexToProtect) and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false and IsHighValueZoneToProtect() then
                         bDontLookForMoreTargets = true

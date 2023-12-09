@@ -1788,7 +1788,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+        if oUnit.UnitId == 'ueb2302' and M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then bDebugMessages = true end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs='..reprs(oUnit)) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
