@@ -2898,7 +2898,44 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
-
+        --Approaching enemy experimental - build gunships or bombers even if have low power, provided we have more than a base level
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+            local iClosestLandExp = 650 --Ignore land exp further away than this
+            local oClosestLandExp, iCurDist
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                    if iCurDist < iClosestLandExp then
+                        iClosestLandExp = iCurDist
+                        oClosestLandExp = oUnit
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Low power air fac builer - considering getting gunship, bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
+            if oClosestLandExp then
+                if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                    --Only respond if it's a bit closer
+                    if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
+                        if iClosestLandExp <= 200 then
+                            --Get gunships/bombers even though it's underwater at the moment
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                        else
+                            --Get torp bombers unless we have lots already
+                            if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 4500 then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber - categories.TECH3) then return sBPIDToBuild end
+                            end
+                        end
+                    end
+                else
+                    if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                    end
+                end
+            end
+        end
     else
         --Emergency air defence
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -3194,6 +3231,45 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                     end
                 end
+
+                --Emergency bomber production if have approaching experimental
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..iCurGunships..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurBomberThreat] + M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 15000 then
+                    local iClosestLandExp = 350 --Ignore land exp further away than this
+                    local oClosestLandExp, iCurDist
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                            if iCurDist < iClosestLandExp then
+                                iClosestLandExp = iCurDist
+                                oClosestLandExp = oUnit
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low tech level air fac considering getting  bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
+                    if oClosestLandExp then
+                        if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                            --Only respond if it's a bit closer
+                            if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
+                                if iClosestLandExp <= 200 then
+                                    --Get gunships/bombers even though it's underwater at the moment
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                                else
+                                    --Get torp bombers unless we have lots already
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 4500 then
+                                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber - categories.TECH3) then return sBPIDToBuild end
+                                    end
+                                end
+                            end
+                        else
+                            if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                            end
+                        end
+                    end
+                end
             else
                 --We have suitably high tech level to consider normal air production (and engineer production), or there are nearby threats that we want to build units to try and deal with
                 --High mass or low engi count - build more engineers
@@ -3307,12 +3383,18 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
 
                 --Engineers if we need them for our core zone and are at T3 and are defending against arti, and are building <= 2 engineers in this zone
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 500) then
                     local iCurBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
                     if iCurBPWanted > 30 then
                         local iCurEngineersBeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3)
-                        if (iCurEngineersBeingBuilt <= 2 or not(bHaveLowMass)) and iCurEngineersBeingBuilt * M28Engineer.tiBPByTech[3] < iCurBPWanted then
-                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurEngineersBeingBuilt='..iCurEngineersBeingBuilt..'; bHaveLowMass='..tostring(bHaveLowMass)..'; iCurBPWanted='..iCurBPWanted) end
+                        if ((iCurEngineersBeingBuilt <= 2 and (iCurEngineersBeingBuilt == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.03 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) or (not(bHaveLowMass) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iCurEngineersBeingBuilt <= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] * 0.02)))) and iCurEngineersBeingBuilt * M28Engineer.tiBPByTech[3] < iCurBPWanted then
+                            --If we have <1% mass stored, and aren't defending against arti, and enemy has experimental threat, then dont get more engis
+                            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.03 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] > 10000) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try building more engineers') end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                            end
                         end
                     end
                 end
@@ -3380,6 +3462,46 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20) or ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and M28Map.bIsCampaignMap)) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 or M28Map.bIsCampaignMap)))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have a large number of gunships so will get more') end
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                end
+
+                --Gunships or bombers if have approaching enemy land experimental
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..iCurGunships..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+                if iCurGunships < 20 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                    local iClosestLandExp = 650 --Ignore land exp further away than this
+                    local oClosestLandExp, iCurDist
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                            if iCurDist < iClosestLandExp then
+                                iClosestLandExp = iCurDist
+                                oClosestLandExp = oUnit
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering getting gunship, bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
+                    if oClosestLandExp then
+                        if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                            --Only respond if it's a bit closer
+                            if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
+                                if iClosestLandExp <= 200 then
+                                    --Get gunships/bombers even though it's underwater at the moment
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                                else
+                                    --Get torp bombers unless we have lots already
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 4500 then
+                                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber - categories.TECH3) then return sBPIDToBuild end
+                                    end
+                                end
+                            end
+                        else
+                            if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                            end
+                        end
+                    end
                 end
 
                 --AirAA if far behind on air (lower priority since we are alreayd building in proportion to gunships above; i.e. dont want to get stuck only building airaa if have lost air control

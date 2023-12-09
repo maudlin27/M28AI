@@ -7055,17 +7055,18 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] < 12000 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandExperimental, iTeam) == 0)) and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
+        bDebugMessages = true
         local iEnemyHighestPercentComplete = 0
         local iClosestExperimental = 100000
         for iExperimental, oExperimental in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
-            if M28UnitInfo.IsUnitValid(oExperimental) then
+            if M28UnitInfo.IsUnitValid(oExperimental) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAllAir, oExperimental.UnitId) then
                 iEnemyHighestPercentComplete = math.max(iEnemyHighestPercentComplete, oExperimental:GetFractionComplete())
                 iClosestExperimental = math.min(iClosestExperimental, M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), tLZData[M28Map.subrefMidpoint]))
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyHighestPercentComplete='..iEnemyHighestPercentComplete..'; iClosestExperimental='..iClosestExperimental) end
-        if iEnemyHighestPercentComplete > 0 and iClosestExperimental <= 750 and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithLand] then
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyHighestPercentComplete='..iEnemyHighestPercentComplete..'; iClosestExperimental='..iClosestExperimental..'; Can path with land='..tostring(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithLand])..'; Can path with amphibious='..tostring(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+        if iEnemyHighestPercentComplete > 0 and iClosestExperimental <= 750 and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithLand] or (iClosestExperimental <= 650 and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithAmphibious])) then
             --[[local iAliveExperimentals = 0
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandExperimental, false, false)
@@ -7101,13 +7102,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 --Assist air factory if we have air control or enemy experimental is already complete (since unlikely to have time to build our own to counter it)
                 if (iEnemyHighestPercentComplete == 1 and iClosestExperimental <= 650) or M28Conditions.TeamHasAirControl(iTeam) then
 
-                    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.6 then iBPWanted = 120 end
+                    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.6 then iBPWanted = 120
+                    elseif not(bHaveLowPower) and (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                        iBPWanted = 400
+                    end
                     local tAirFacsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     local oAirFactoryToAssist
                     if M28Utilities.IsTableEmpty(   tAirFacsToAssist) then
                         tAirFacsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of air facs to assist empty='..tostring(M28Utilities.IsTableEmpty(tAirFacsToAssist))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of air facs to assist empty='..tostring(M28Utilities.IsTableEmpty(tAirFacsToAssist))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iBPWanted='..iBPWanted) end
                     if M28Utilities.IsTableEmpty(tAirFacsToAssist) == false then
 
                         local iHighestAirFac = 0
@@ -7120,6 +7124,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                             end
                         end
                         if oAirFactoryToAssist then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will assist air factory '..oAirFactoryToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirFactoryToAssist)) end
                             HaveActionToAssign(refActionAssistAirFactory, 1, iBPWanted, oAirFactoryToAssist)
                         end
                     end
@@ -7133,6 +7138,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             --end
         end
     end
+    bDebugMessages = false
 
 
 
