@@ -15,6 +15,7 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -247,6 +248,8 @@ function DodgeBomb(oBomber, oWeapon, projectile)
             if iBombSize > 3 then iTimeToRun = math.min(2.6, iTimeToRun + (iBombSize - 3) * 0.5) end
         elseif EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
             iTimeToRun = 2.5
+            --Consider recording for special asf suicide logic
+            ForkThread(M28Air.ConsiderRecordingStratBomberToSuicideInto, oBomber)
         end --Some t2 bombers do damage in a spread (cybran, uef)
         --local iTimeToRun = math.min(7, iBombSize + 1)
         local iRadiusSize = iBombSize + 1

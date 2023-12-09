@@ -17,6 +17,8 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
@@ -36,6 +38,7 @@ refiTotalBuildCount = 'M28FacTotBC' --against oFactory, Total number of units th
 reftFactoryRallyPoint = 'M28FacRally' --against oFactory, Location to send units to when theyre built
 refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an order for the factory to build a unit (cleared when a unit is built or a different blueprint order is given) - used to spot for factories with units blocking them
 refbWantMoreEngineersBeforeUpgrading = 'M28FWnE' --against oFactory, true if have run the factory condition and it concluded wen eeded more engineers before upgrading
+refbPausedToStopDefaultAI = 'M28FPsC' --true if we have paused factory to stop a campaign AI giving it orders
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
@@ -667,6 +670,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
     iLandFactoriesInLZ = table.getn(tLandFactoriesInLZ)
+
     --end
 
     local bDontConsiderBuildingMAA = false
@@ -880,11 +884,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About to check if we want to build high priority MAA, bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA) .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])
+        LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About to check if we want to build high priority MAA, bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA) .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Enemy dangerous units in this zone='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]))
     end
     local iNearbyMAAThreat = 0
     local iNearbyAirToGroundThreat = 0
-    if not (bDontConsiderBuildingMAA) then
+    if not (bDontConsiderBuildingMAA) and (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or tLZTeamData[M28Map.subrefLZbCoreBase]) then
         iNearbyMAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         iNearbyAirToGroundThreat = (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -1145,6 +1149,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --T2 MAA for ACU
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 2 and oFactory[refiTotalBuildCount] >= 3 and not(bDontConsiderBuildingMAA) then
+        --Does ACU have an MAA guard? if not then build MAA if we are in the same island; build amphibious/hover if not in same island
+        if M28UnitInfo.IsUnitValid(aiBrain[M28ACU.refoPrimaryACU]) and M28Utilities.IsTableEmpty(aiBrain[M28ACU.refoPrimaryACU][M28Land.reftoAssignedMAAGuards]) then
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, aiBrain[M28ACU.refoPrimaryACU]:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA * categories.TECH2) then return sBPIDToBuild end
+            elseif NavUtils.GetLabel(M28Map.refPathingTypeHover,  aiBrain[M28ACU.refoPrimaryACU]:GetPosition()) == iPlateau and not(M28UnitInfo.IsUnitUnderwater(aiBrain[M28ACU.refoPrimaryACU])) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA * categories.TECH2 * categories.HOVER) then return sBPIDToBuild end
+            end
+        end
+    end
+
     --Priority upgrade to T3 if have lots of T3 mexes, and no enemies in this zone (even if have enemies nearby), provided we have other factores in the zone that can build units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Priority factory upgrade, iFactoryTechLevel='..iFactoryTechLevel..'; Our highest factory tech='..(aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; T3 mexes='..(tLZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Team has low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
@@ -1231,7 +1248,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         LOG(sFunctionRef .. ': Lifetime build count for this tech level=' .. iTankLC .. '; Engi LC for this tech=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
                     end
                     if iTankLC < 3 or
-                        ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
+                            ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                         if iFactoryTechLevel < 3 then
                             if ConsiderBuildingCategory(iCategoryToGet) then
                                 return sBPIDToBuild
@@ -2252,6 +2269,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()
     oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     tLZTeamData[M28Map.subrefiTimeLandFacHadNothingToBuild] = GetGameTimeSeconds()
+
     if bDebugMessages == true then LOG(sFunctionRef..': Updated time that last had nothing to build for land factory to '..M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2444,8 +2462,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
         local iTicksWaited = 0
         local bDontCheckCutsceneStatus = true
         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
-
+        local bClearFactoryWhenReadyToBuild = false
         if aiBrain.HostileCampaignAI and tonumber(ScenarioInfo.Options.CmpAIDelay) > GetGameTimeSeconds() then
+            bClearFactoryWhenReadyToBuild = true
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2496,6 +2515,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 end
             end
             if bProceed then
+                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) then IssueTrackedClearCommands(oFactory) end
                 bDontCheckCutsceneStatus = false
                 --Set factory rally point if havent already
                 if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
@@ -2506,6 +2526,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     LOG(sFunctionRef .. ': oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; sBPToBuild=' .. (sBPToBuild or 'nil') .. '; Does factory have an empty command queue=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; Factory work progress=' .. oFactory:GetWorkProgress() .. '; Factory unit state=' .. M28UnitInfo.GetUnitState(oFactory))
                 end
                 if sBPToBuild then
+                    if oFactory[refbPausedToStopDefaultAI] then M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false) end
                     --Is this an upgrade or a unit to build?
                     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
                         M28Economy.UpgradeUnit(oFactory, true)
@@ -2544,6 +2565,13 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                         end
                         oFactory[M28UnitInfo.reftoUnitsAssistingThis] = {}
                     end
+                    --Pause the factory if in campaign and are a campaign AI
+                    if M28Map.bIsCampaignMap and aiBrain.CampaignAI then
+                        --Pause the factory to stop the AI giving it something to build
+                        M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, true)
+                        oFactory[refbPausedToStopDefaultAI] = true
+                    end
+
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2602,10 +2630,12 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                 ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
                             else
                                 --CtrlK for mass
-                                if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                                if (not(oFactory[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
+                                    end
+                                    M28Orders.IssueTrackedKillUnit(oFactory)
                                 end
-                                M28Orders.IssueTrackedKillUnit(oFactory)
                             end
                         end
                     end
@@ -3493,7 +3523,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())
@@ -3562,7 +3592,12 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; WZ=' .. iWaterZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
         if sBPIDToBuild then
+            local bIsEngineer = EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild)
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tWZTeamData, iFactoryTechLevel)
+            if bDebugMessages == true then LOG(sFunctionRef..': sBPIDToBuild after adjusting for override='..(sBPIDToBuild or 'nil')..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; bIsEngineer='..tostring(bIsEngineer)) end
+            if not(sBPIDToBuild) and not(bIsEngineer) and iFactoryTechLevel < 3 and aiBrain[M28Overseer.refbCloseToUnitCap] then
+                sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+            end
         end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
@@ -3842,7 +3877,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 iEnemyCumulativeAntiNavyThreat = iEnemyCumulativeAntiNavyThreat + (tOtherWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
                 iEnemyCumulativeCombatThreat = iEnemyCumulativeCombatThreat + (tOtherWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy])
+                    LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]..'; Is table of enenmy units empty='..tostring(M28Utilities.IsTableEmpty(tOtherWZTeamData[M28Map.subrefTEnemyUnits])))
                 end
 
                 if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
@@ -4079,6 +4114,8 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': After adjusting for override we dont have anything to build') end
         end
     end
 

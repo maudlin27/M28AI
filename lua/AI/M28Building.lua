@@ -1357,10 +1357,25 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     else
         M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
     end
+
+    --Track mexes by team
+
+    local iTeam
+    for iBrain, oBrain in ArmyBrains do
+        if iBrain == iOwnerArmyIndex then
+            iTeam = oBrain.M28Team
+            break
+        end
+    end
+    local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
+    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnMexConstructionStarted(oUnit)
+    --Run for all brains
+
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1518,6 +1533,11 @@ function OnMexConstructionStarted(oUnit)
             end
         end
     end
+
+    --Track mexes by team
+    local iTeam = oUnit:GetAIBrain().M28Team
+    local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
+    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3529,13 +3549,13 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
         end
 
         if not(oClosestTargetOfInterest) and tLastTarget then
-            --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti around the arti and (if so) if we want to ground fire them
-            local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
+            --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti or ravagers around the arti and (if so) if we want to ground fire them
+            local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
             if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                 UpdateClosestUnit(tNearbyUnitsOfInterest)
             end
             if not(oClosestTargetOfInterest) then
-                tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
+                tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
                 if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                     UpdateClosestUnit(tNearbyUnitsOfInterest)
                 end

@@ -871,7 +871,7 @@ function CheckUnitCap(aiBrain)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                     local bKillUnit
                     for iUnit, oUnit in tUnitsToDestroy do
-                        if oUnit.Kill then
+                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                             --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
                             bKillUnit = true
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -1282,8 +1282,10 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                         local oCurBrain
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                table.insert(tiM28Brains, oBrain)
-                                iM28BrainCount = iM28BrainCount + 1
+                                if not(oBrain.CampaignAI) then
+                                    table.insert(tiM28Brains, oBrain)
+                                    iM28BrainCount = iM28BrainCount + 1
+                                end
                             end
                         elseif aiBrain.M28AI then
                             table.insert(tiM28Brains, aiBrain)

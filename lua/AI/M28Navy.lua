@@ -2756,36 +2756,51 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
 
-
+    local bHaveRunFromAir = false
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
+
         --Retreat to rally point
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
-            local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-            for iUnit, oUnit in tAvailableCombatUnits do
-                if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
-                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WNRetrApA'..iWaterZone)
-                else
-                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
+            if iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > 0 and iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) * 0.05 then
+                bHaveRunFromAir = true
+                local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                for iUnit, oUnit in tAvailableCombatUnits do
+                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WNRetrApA'..iWaterZone)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
+                    end
                 end
             end
+        else
+            tAvailableCombatUnits = nil
         end
+
         if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
-            local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-            for iUnit, oUnit in tAvailableSubmarines do
-                --Only retreat units from this WZ
-                if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
-                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
-                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+            --Decide if we want to run from enemy air - only run if they have torp bombers
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want our subs to run from enemy, will depend on if they ahve torps, enemy torp total threat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0)..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; Available sub mass value='..M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true)) end
+            if (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > iFriendlyAdjacentAAThreat * 1.5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] - iFriendlyAdjacentAAThreat >= 0.1 * M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true) then
+                bHaveRunFromAir = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Will retreat to closest friendly base for amphibious unit, or rally point for subs') end
+                local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                for iUnit, oUnit in tAvailableSubmarines do
+                    --Only retreat units from this WZ
+                    if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
+                        if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
+                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                        end
                     else
-                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                        oUnit[refiCurrentWZAssignmentValue] = 0
                     end
-                else
-                    oUnit[refiCurrentWZAssignmentValue] = 0
                 end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Wont retreat subs as not enough for a torp bomber threat')
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have told all units to run to tRallyPoint='..repru(tRallyPoint)) end
-    else
+    end
+    if not(bHaveRunFromAir) or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': About to get nearest enemy units to midpoint, tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
         if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
             bEnemyHasNoCombatUnits = M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies])

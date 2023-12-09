@@ -69,6 +69,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
     refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
+    refiMexCountByTech = 'M28TeamMexByTech' --for all brains, not just M28 brains, treats a 1% complete mex as being completed for these purposes (to simplify code)
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -169,6 +170,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
     reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
+    toBomberSuicideTargets = 'M28TeamStratSuic' --Table of enemy strat bombers that we want to suicide ASFs into
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
     --subrefiOurAirAAThreat - uses same ref as air subteam
@@ -196,6 +198,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
     refbDontHaveBuildingsOrACUInPlayableArea = 'M28BldInA' --for campaign AI, true if dont have buildings or ACU in the playable area, so can decide how aggressive to be with units
+    reftEnemyCampaignMainBase = 'M28CampMB' --midpoint of the zone containing the enemy main base provided it is in the playable area
+    refiLastUpdatedMainBase = 'M28TimCamp' -- used when getting enemy main base location for campaign map
 
 
 
@@ -572,6 +576,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = 1
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
+    tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
 
 
     local bHaveCampaignM28AI = false
@@ -644,7 +649,7 @@ function CreateNewTeam(aiBrain)
                     local sAiXref = ''
                     if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
                     if oBrain.CheatEnabled then
-                        sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)..'; BP '..tonumber(ScenarioInfo.Options.BuildMuilt or 1.5)
+                        sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                     end
                     LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
                 end
@@ -2317,9 +2322,14 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local bHaveSafeMexToUpgrade = GetSafeMexToUpgrade(iM28Team, true)
     local iUpgradingMexValue = iExistingT1MexUpgrades + 2.5 * iExistingT2MexUpgrades
     local iWantedUpgradingMexValue = 0
+    local bBehindOnT3Mex = false
     if tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
         iWantedUpgradingMexValue = 1
         if tTeamData[iM28Team][subrefiTeamGrossMass] >= 12 then iWantedUpgradingMexValue = iWantedUpgradingMexValue + 1 end
+        if tTeamData[iM28Team][refiMexCountByTech] < M28Conditions.GetHighestOtherTeamT3MexCount(iM28Team) then
+            bBehindOnT3Mex = true
+            iWantedUpgradingMexValue = iWantedUpgradingMexValue * 1.5
+        end
     end
     if bHaveSafeMexToUpgrade or M28Overseer.bNoRushActive then
         --if upgrading 1 mex from t1 to t2 costs roughly 0.8 mass per tick, and we want to be spenting 1/3 of mass per tick on this, then want 1/3 of gross mass / 0.8, i.e. 0.4167
@@ -2342,7 +2352,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring( M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))) end
-    if not(bWantMassForProduction) or M28Overseer.bNoRushActive or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
+    if not(bWantMassForProduction) or M28Overseer.bNoRushActive or (bBehindOnT3Mex and not(tTeamData[iM28Team][subrefbTeamIsStallingMass])) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
         if bDebugMessages == true then LOG(sFunctionRef..': iWantedUpgradingMexValue='..iWantedUpgradingMexValue..'; iUpgradingMexValue='..iUpgradingMexValue..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade)..'; iExistingT1MexUpgrades='..iExistingT1MexUpgrades..'; iExistingT2MexUpgrades='..iExistingT2MexUpgrades..'; Active brain count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; Total mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
         if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or iWantedUpgradingMexValue > iUpgradingMexValue or (tTeamData[iM28Team][subrefiTeamMassStored] >= 800 and (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0) then
             --Do we have enough energy?
@@ -3709,4 +3719,33 @@ function CheckIfCampaignTeamHasBuildings(iTeam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetEnemyMainCampaignBase(iTeam)
+    --Intended fro campaign maps wher the enemy main base location is unreliable - will periodically refresh this and get the zone with the highest enemy structure threat in the playable area; failing that will get the first enemy brain start position in the playable area
+    if GetGameTimeSeconds() - (tTeamData[iTeam][refiLastUpdatedMainBase] or -100) >= 60 then
+        tTeamData[iTeam][refiLastUpdatedMainBase] = GetGameTimeSeconds()
+        local iBestSValue = 0
+        local tBestValueMidpoint, iCurSValue
+        for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
+            for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
+                if M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        local tBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tBuildings) == false then
+                            iCurSValue = M28UnitInfo.GetCombatThreatRating(tBuildings, true, true)
+                            if iCurSValue > iBestSValue then
+                                iBestSValue = iCurSValue
+                                tBestValueMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        tTeamData[iTeam][reftEnemyCampaignMainBase] = tBestValueMidpoint
+    end
+    return tTeamData[iTeam][reftEnemyCampaignMainBase]
+
 end

@@ -733,17 +733,19 @@ function DestroyUnitAfterDelay(oUnit, iSecondsToWait)
 end
 
 function IssueTrackedKillUnit(oUnit)
-    IssueTrackedClearCommands(oUnit)
-    oUnit[refiOrderCount] = 1
-    oUnit[reftiLastOrders] = {{[subrefiOrderType] = refiOrderKill}}
-    if oUnit[M28UnitInfo.refbTriedToKill] then
-        --Fork thread to try a dif method in 1s
-        --ForkThread(DestroyUnitAfterDelay, oUnit, 1) --Disabled for now as the scneario where it happened (where I suspect it was engineers who were in a transport) didnt trigger after separate change, so not currently required
-    else
-        oUnit[M28UnitInfo.refbTriedToKill] = true
-    end
+    if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+        IssueTrackedClearCommands(oUnit)
+        oUnit[refiOrderCount] = 1
+        oUnit[reftiLastOrders] = {{[subrefiOrderType] = refiOrderKill}}
+        if oUnit[M28UnitInfo.refbTriedToKill] then
+            --Fork thread to try a dif method in 1s
+            --ForkThread(DestroyUnitAfterDelay, oUnit, 1) --Disabled for now as the scneario where it happened (where I suspect it was engineers who were in a transport) didnt trigger after separate change, so not currently required
+        else
+            oUnit[M28UnitInfo.refbTriedToKill] = true
+        end
 
-    oUnit:Kill()
+        oUnit:Kill()
+    end
 
 end
 

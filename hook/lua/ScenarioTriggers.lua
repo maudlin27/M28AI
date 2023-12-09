@@ -9,3 +9,16 @@ CreateUnitCapturedTrigger = function(cbOldUnit, cbNewUnit, unit)
     M28OldCreateUnitCapturedTrigger(cbOldUnit, cbNewUnit, unit)
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').CaptureTriggerAdded, cbOldUnit, cbNewUnit, unit)
 end
+
+local M28OldCreateUnitDeathTrigger = CreateUnitDeathTrigger
+CreateUnitDeathTrigger = function(callback, unit)
+    M28OldCreateUnitDeathTrigger(callback, unit)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').DeathTriggerAdded, unit)
+end
+
+local M28OldCreateUnitReclaimedTrigger = CreateUnitReclaimedTrigger
+CreateUnitReclaimedTrigger = function(callback, unit)
+    M28OldCreateUnitReclaimedTrigger(callback, unit)
+    local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+    ForkThread(M28Events.CreateUnitReclaimedTrigger, unit)
+end
