@@ -4871,7 +4871,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -9456,6 +9456,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; iT2PlusMex='..iT2PlusMex..'; bIncreaseBPWanted='..tostring(bIncreaseBPWanted)) end
         end
     end
+    bDebugMessages = false
 
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
@@ -9979,6 +9980,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         else iGroundAAWanted = math.max(iGroundAAWanted, iNearbyEnemyAirToGroundThreat * 0.8)
         end
         iGroundAAWanted = math.min(iGroundAAWanted, 2000)
+        if bDebugMessages == true then LOG(sFunctionRef..': Approaching air threat, tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] ='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; iGroundAAWanted='..iGroundAAWanted..'; Team air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
         if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAWanted then
             iBPWanted = tiBPByTech[math.max(iHighestTechEngiAvailable, 1)]
             if (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) >= 600 then
@@ -9992,6 +9994,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+    bDebugMessages = false
 
 
     iCurPriority = iCurPriority + 1
@@ -10036,29 +10039,50 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if iGroundAAWanted > math.max(7000, tLZTeamData[M28Map.subrefLZSValue] * 0.5) then
             iGroundAAWanted = math.max(7000, math.min(iGroundAAWanted, tLZTeamData[M28Map.subrefLZSValue] * 0.5, 4000 * tLZTeamData[M28Map.subrefMexCountByTech][3]  + 1000 * tLZTeamData[M28Map.subrefMexCountByTech][2]))
         end
+        --Cap amount of AA wanted
+
+        if iGroundAAWanted > 8000 then
+            if iGroundAAWanted > 20000 and tLZTeamData[M28Map.subrefMexCountByTech][3] < 4 then iGroundAAWanted = 20000 end
+            local iAboveThresholdFactor = 1
+            if bHaveLowMass then iAboveThresholdFactor = 0.75 end
+            if bHaveLowPower then iAboveThresholdFactor = iAboveThresholdFactor * 0.75 end
+            if M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] then iAboveThresholdFactor = iAboveThresholdFactor * 0.75 end
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 12000 then iAboveThresholdFactor = iAboveThresholdFactor * 0.75 end
+            if tLZTeamData[M28Map.subrefMexCountByTech][3] < 2 then iAboveThresholdFactor = iAboveThresholdFactor * 0.75 end
+            iGroundAAWanted = 8000 + (iGroundAAWanted - 8000) * iAboveThresholdFactor
+            if bDebugMessages == true then LOG(sFunctionRef..': We did want more than 8k groundAA threat, reduced to '..iGroundAAWanted..'; iAboveThresholdFactor=;..iAboveThresholdFactor') end
+        end
 
         if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAWanted then
             --Do we already have fixed AA in this LZ?
             local iAACategory = M28UnitInfo.refCategoryStructureAA
-            if M28Team.subrefiHighestFriendlyFactoryTech >= 3 then iAACategory = iAACategory * categories.TECH3 end
+            if M28Team.subrefiHighestFriendlyFactoryTech >= 3 then
+                iAACategory = iAACategory * categories.TECH3
+            end
             local tExistingFixedAA = EntityCategoryFilterDown(iAACategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             --Max of 1 sam per 1 T3 mex (approx), more if we have large gunship threat and lack air control
             if M28Utilities.IsTableEmpty(tExistingFixedAA) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(iNearbyEnemyAirToGroundThreat * 2, iGroundAAWanted) then
                 --Further cap on number of SAMs
-                if not(bHaveLowMass and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 6000 and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1]) > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                if bDebugMessages == true then LOG(sFunctionRef .. ': tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]=' .. tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] .. '; iNearbyEnemyAirToGroundThreat=' .. iNearbyEnemyAirToGroundThreat .. '; iGroundAAWanted=' .. iGroundAAWanted) end
+                if not (bHaveLowMass and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 6000 and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1]) > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-                    if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
-                    if not(bHaveLowPower) then
-                        if not(bHaveLowMass) then iBPWanted = iBPWanted * 4
-                        else iBPWanted = iBPWanted * 2
+                    if iNearbyEnemyAirToGroundThreat > 0 then
+                        iBPWanted = iBPWanted * 2
+                    end
+                    if not (bHaveLowPower) then
+                        if not (bHaveLowMass) then
+                            iBPWanted = iBPWanted * 4
+                        else
+                            iBPWanted = iBPWanted * 2
                         end
                     end
                     HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Wnat more AA for minor zone, iBPWanted='..iBPWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Wnat more AA for minor zone, iBPWanted=' .. iBPWanted) end
                 end
             end
         end
     end
+    bDebugMessages = false
 
     --Higher priority T2 radar creep where we have large mass income or lots of experimentals
     iCurPriority = iCurPriority + 1
@@ -10275,15 +10299,17 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
-    --Pre-emptive AA turret, or radar if we have AA turret
+    --Pre-emptive AA turret
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2) and not(bHaveLowPower) then
         --Are we likely on a small island/plateau (due to having at least 50% of the island's mexes)? Or we have significant value here?
         if tLZData[M28Map.subrefLZMexCount] >= 0.5 * M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 then
             if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 300 then
-                local iAAWanted = math.min(150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4), M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25)
+                local iAAWanted = math.min(150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4), M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25 + (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) * 0.05)
+                if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 then iAAWanted = math.max(iAAWanted, 1500) end
                 if M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl] then iAAWanted = iAAWanted * 0.25 end
-                if iAAWanted < tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] then
+                if bDebugMessages == true then LOG(sFunctionRef..': iAAWanted='..iAAWanted..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+                if iAAWanted > tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] then
                     if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 700 then
                         HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], 5)
                     else
@@ -10293,6 +10319,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+    bDebugMessages = false
 
     --Dont have low mass and have a navla fac in a WZ that wants more BP and is near enough for engineers to be sent to assist, then send BP here
 
@@ -12430,8 +12457,21 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
             local iSearchRange = 300
             local iBestEnemyRange = 0
             local iCurDFThreat, iCurIFThreat
-            local iHighestIndividiualLongRangeThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)
+
+            local iLowerThreatFactorDist = 180
+            local iLowerThreatFactor = 0.5
+            local iCurThreatFactor
+            if not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.subrefMexCountByTech][3] < 5 then
+                if tLZTeamData[M28Map.subrefMexCountByTech][3] <= 3 then
+                    iLowerThreatFactorDist = 160
+                    iSearchRange = 250
+                else
+                    iSearchRange = 275
+                end
+            end
+            local iHighestIndividiualLongRangeThreat = math.min(25000, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
             local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
+
 
             if tLZTeamData[M28Map.refbBaseInSafePosition] then
                 iSearchRange = 200
@@ -12449,6 +12489,8 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                     if tSubtable[M28Map.subrefLZTravelDist] > iSearchRange then break
                     else
+                        iCurThreatFactor = 1
+                        if tSubtable[M28Map.subrefLZTravelDist] > iLowerThreatFactorDist then iCurThreatFactor = iLowerThreatFactor end
                         local iAltLZ = tSubtable[M28Map.subrefLZNumber]
                         local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZTeamData][iTeam]
                         iCurDFThreat = 0
@@ -12456,7 +12498,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
                             for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
                                 if iRange >= iRangeThreshold then
-                                    iCurDFThreat = iCurDFThreat + iThreat
+                                    iCurDFThreat = iCurDFThreat + iThreat * iCurThreatFactor
                                     iBestEnemyRange = math.max(iBestEnemyRange, iRange)
                                 end
                             end
@@ -12464,7 +12506,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
                             for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
                                 if iRange >= iRangeThreshold then
-                                    iCurIFThreat = iCurIFThreat + iThreat
+                                    iCurIFThreat = iCurIFThreat + iThreat * iCurThreatFactor
                                     iBestEnemyRange = math.max(iBestEnemyRange, iRange)
                                 end
                             end
@@ -12472,7 +12514,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
                         if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)) end
                         iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat..'; Zone dist='..tSubtable[M28Map.subrefLZTravelDist]) end
                     end
                 end
             end
@@ -12518,6 +12560,16 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                     iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true, true))
                 end
+                if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iThreatWanted = iThreatWanted * 0.75 end
+
+                if iThreatWanted >= 25000 then
+                    if iThreatWanted >= 50000 then
+                        iThreatWanted = math.min(70000, 25000 + 12500 + (iThreatWanted - 50000) * 0.2)
+                    else
+                        iThreatWanted = 25000 + (iThreatWanted - 25000) * 0.5
+                    end
+                    if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iThreatWanted = 25000 end
+                end
 
 
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurDFThreat='..iCurDFThreat..'; iCurIFThreat='..iCurIFThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iBestEnemyRange='..iBestEnemyRange) end
@@ -12535,11 +12587,12 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             end
                         end
                     end
+
                     if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
                     if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
                     iThreatWanted = iThreatWanted - iT2ArtiThreat
                     iBPWanted = 240 --default
-                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true, true)..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat) end
                     if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= 60 then
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
