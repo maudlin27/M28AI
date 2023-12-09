@@ -3264,7 +3264,6 @@ function ManageBombers(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
-    if GetGameTimeSeconds() >= 300 then bDebugMessages = true end
     local tEnemyTargets = {}
 
     function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory) --UPDATE USAGE IN SPECIAL BOMBER LOGIC IF CHANGING
