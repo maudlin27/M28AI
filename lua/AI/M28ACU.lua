@@ -1076,8 +1076,17 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             oACU[reftPreferredUpgrades] = {'RateOfFire', 'BlastAttack', 'Teleporter'}
         else M28Utilities.ErrorHandler('Trying to do telesnipe without a cybran or seraphim ACU')
         end
+    elseif oACU:GetAIBrain()[M28Economy.refiBrainResourceMultiplier] >= 1.7 and (M28Map.iMapSize >= 512 or oACU:GetAIBrain()[M28Economy.refiBrainResourceMultiplier] >= 2.0) then
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'Shield'}
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation'}
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        end
     elseif oACU[refbStartedUnderwater] then
-
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
@@ -1101,100 +1110,100 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     end
 
-    --Check all of these are options (in case a mod has changed them)
-    local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()
+        --Check all of these are options (in case a mod has changed them)
+        local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()
     local bCheckForRestrictions = not (M28Utilities.IsTableEmpty(tRestrictedEnhancements))
     local bInvalidUpgrade
 
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
-        local tiEntriesToRemove = {}
-        for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
-            bInvalidUpgrade = false
-            if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
-                bInvalidUpgrade = true
-                oACU[reftPreferredUpgrades] = {}
-                break
-            elseif bCheckForRestrictions then
-                --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
-                if tRestrictedEnhancements[sUpgradeWanted] then
-                    bInvalidUpgrade = true
-                end
-            end
-            if bInvalidUpgrade then
-                if iUpgradeWanted <= 1 then
-                    oACU[reftPreferredUpgrades] = {}
-                    break
-                else
-                    table.insert(tiEntriesToRemove, iUpgradeWanted)
-                end
-            end
+    local tiEntriesToRemove = {}
+    for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
+    bInvalidUpgrade = false
+    if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
+    bInvalidUpgrade = true
+    oACU[reftPreferredUpgrades] = {}
+        break
+        elseif bCheckForRestrictions then
+        --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
+        if tRestrictedEnhancements[sUpgradeWanted] then
+        bInvalidUpgrade = true
+        end
+        end
+        if bInvalidUpgrade then
+        if iUpgradeWanted <= 1 then
+        oACU[reftPreferredUpgrades] = {}
+        break
+        else
+        table.insert(tiEntriesToRemove, iUpgradeWanted)
+        end
+        end
         end
         if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
-            local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
-            for iCurEntry = iTotalEntriesToRemove, 1, -1 do
-                table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
-            end
+        local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
+        for iCurEntry = iTotalEntriesToRemove, 1, -1 do
+        table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
         end
-    end
-    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
-        --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
-        oACU[reftPreferredUpgrades] = {}
-        local iLowestMassCost = 1000000
-        local sLowestUpgrade
-        if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
-            for sUpgrade, tUpgrade in oBP.Enhancements do
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
-                end
-                if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
-                    if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
-                        sLowestUpgrade = sUpgrade
-                        iLowestMassCost = tUpgrade.BuildCostMass
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
-                        end
-                    end
-                end
-            end
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil'))
-            end
-            if sLowestUpgrade then
-                oACU[reftPreferredUpgrades] = { sLowestUpgrade }
-                --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
-            elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-                oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
-            end
         end
-    end
-    --Campaign specific - add RAS upgrade if we only have 1 upgrade
+        end
+        if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
+    --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
+    oACU[reftPreferredUpgrades] = {}
+    local iLowestMassCost = 1000000
+    local sLowestUpgrade
+    if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+    for sUpgrade, tUpgrade in oBP.Enhancements do
     if bDebugMessages == true then
+    LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
+    end
+    if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
+    if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
+    sLowestUpgrade = sUpgrade
+    iLowestMassCost = tUpgrade.BuildCostMass
+    if bDebugMessages == true then
+    LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
+    end
+    end
+    end
+    end
+    if bDebugMessages == true then
+    LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil'))
+    end
+    if sLowestUpgrade then
+    oACU[reftPreferredUpgrades] = { sLowestUpgrade }
+        --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
+        elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
+        oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+        end
+        end
+        end
+        --Campaign specific - add RAS upgrade if we only have 1 upgrade
+        if bDebugMessages == true then
         LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
         if oACU[reftPreferredUpgrades] then
-            LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades]))
+        LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades]))
         end
-    end
-    if (oACU[refiUpgradeCount] or 0) > 0 and oACU[reftPreferredUpgrades] and table.getn(oACU[reftPreferredUpgrades]) <= 2 and (EntityCategoryContains(categories.AEON, oACU.UnitId) or table.getn(oACU[reftPreferredUpgrades]) <= 1) and oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-        table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
+        end
+        if (oACU[refiUpgradeCount] or 0) > 0 and oACU[reftPreferredUpgrades] and table.getn(oACU[reftPreferredUpgrades]) <= 2 and (EntityCategoryContains(categories.AEON, oACU.UnitId) or table.getn(oACU[reftPreferredUpgrades]) <= 1) and oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
+    table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
     end
 
     --Remove any upgrades that we already have
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and oACU.HasEnhancement then
-        local tObsoletePreRequisites = {}
+    local tObsoletePreRequisites = {}
         local bCheckForObsoletePrerequisites
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. oACU:GetAIBrain().Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
+        LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. oACU:GetAIBrain().Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
         end
         if (oACU[refiUpgradeCount] or 0) > 0 then
-            for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
-                if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
-                    table.insert(tObsoletePreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
-                    bCheckForObsoletePrerequisites = true
-                end
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering if sEnhancement ' .. sEnhancement .. ' has prerequisite, BP Preq val=' .. (oBP.Enhancements[sEnhancement].Prerequisite or 'nil'))
-                end
-            end
+        for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
+        if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
+        table.insert(tObsoletePreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
+        bCheckForObsoletePrerequisites = true
+        end
+        if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Considering if sEnhancement ' .. sEnhancement .. ' has prerequisite, BP Preq val=' .. (oBP.Enhancements[sEnhancement].Prerequisite or 'nil'))
+        end
+        end
         end
         local bUpgradeIsObsolete
 
@@ -1203,40 +1212,40 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 
         --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
         for iOrigIndex = 1, iTableSize do
-            if oACU[reftPreferredUpgrades][iOrigIndex] then
-                if not (oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]] or -1) >= 0.5) then
-                    --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-                    --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
-                    bUpgradeIsObsolete = false
-                    if bCheckForObsoletePrerequisites then
-                        for iEntry, sPreRequisite in tObsoletePreRequisites do
-                            if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
-                                bUpgradeIsObsolete = true
-                                break
-                            end
-                        end
-                    end
-                    if bUpgradeIsObsolete then
-                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                    else
+        if oACU[reftPreferredUpgrades][iOrigIndex] then
+        if not (oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]] or -1) >= 0.5) then
+    --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+    --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
+    bUpgradeIsObsolete = false
+    if bCheckForObsoletePrerequisites then
+    for iEntry, sPreRequisite in tObsoletePreRequisites do
+    if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
+    bUpgradeIsObsolete = true
+    break
+    end
+    end
+    end
+    if bUpgradeIsObsolete then
+    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+    else
 
-                        --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                        if (iOrigIndex ~= iRevisedIndex) then
-                            oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
-                            oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                        end
-                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-                    end
-                else
-                    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                end
-            end
-        end
+    --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+    if (iOrigIndex ~= iRevisedIndex) then
+    oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
+    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+    end
+    iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+    end
+    else
+    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+    end
+    end
+    end
 
     end
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades]=' .. repru(oACU[reftPreferredUpgrades]))
-    end
+    LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades]=' .. repru(oACU[reftPreferredUpgrades]))
+        end
 end
 
 function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamData)

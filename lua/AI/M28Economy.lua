@@ -279,6 +279,8 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
         local tUnsafeUnitsOfCategory = {}
         local iCurPlateau, iCurLZ
         for iUnit, oUnit in tUnitsOfCategory do
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then bDebugMessages = true end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit))) end
             if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
                 if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
                     if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then
@@ -2258,6 +2260,8 @@ function AllocateTeamEnergyAndMassResources(iTeam)
 
 
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
         local refiResourceEnergy = 1
@@ -2332,16 +2336,16 @@ function AllocateTeamEnergyAndMassResources(iTeam)
                 table.insert(tDetailsOfBrainsWithMass, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurMassSpare})
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare..'; Actual mass stored='..oBrain:GetEconomyStored('MASS')..'; Actual energy stored='..oBrain:GetEconomyStored('ENERGY')..'; iAverageMassStored='..iAverageMassStored) end
-            end
+        end
 
-            --Allocate resources:
-            local tBrainsNeedingResource, tBrainsWithResource
-            local iResourceToGive
-            for iResourceType = 1, 2, 1 do
+        --Allocate resources:
+        local tBrainsNeedingResource, tBrainsWithResource
+        local iResourceToGive
+        for iResourceType = 1, 2, 1 do
             if iResourceType == refiResourceEnergy then
                 tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
                 tBrainsWithResource = tDetailsOfBrainsWithEnergy
-            if bDebugMessages == true then LOG(sFunctionRef..': Allcoating energy') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Allcoating energy') end
             else
                 tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
                 tBrainsWithResource = tDetailsOfBrainsWithMass
@@ -2384,10 +2388,22 @@ function TeamResourceSharingMonitor(iTeam)
     local sFunctionRef = 'TeamResourceSharingMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..(M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 'nil')) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        local iDefaultTimeToStop = GetGameTimeSeconds() + 120
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(120) --Dont want to share in the first 2m
+        WaitSeconds(10)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        while GetGameTimeSeconds() < iDefaultTimeToStop do
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] > 0) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to start sharing resources between teammates as have T2 or alot of mass') end
+                break
+            else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do

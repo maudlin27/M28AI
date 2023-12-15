@@ -4902,11 +4902,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted')
     elseif iTotalBuildPowerWanted > 0 then
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
-        if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
+        if iTotalBuildPowerWanted > 15 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
             --Only half BP for building the first power if we have lots of power already
-            if not(iActionToAssign == refActionLoadOntoTransport) and (not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] * 500)) then
-                iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
-                if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
+            if iTotalBuildPowerWanted > 2 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] then
+                if not(iActionToAssign == refActionLoadOntoTransport) and (not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] * 500)) then
+                    iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.35)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Significantly build power wanted to reflect our build rate') end
+                end
             end
         end
 
@@ -6911,6 +6913,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             iFactoryAdjust = 4
         end
 
+        --Increase factories wanted if have lots of mexes upgrading
+        if not(bHaveLowMass) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            iFactoryAdjust = iFactoryAdjust + 1
+        end
+
         if iFactoriesInLZ < iFactoryAdjust + math.max(2 , math.min(4, tLZData[M28Map.subrefLZMexCount] + 1, 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
             iBPWanted = 5
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2.5 end
@@ -6943,8 +6950,32 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
             end
+            if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 then
+                --Get quantum gateway instead if we dont already have one
+                local tCompletedGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local iCompletedGateway = 0
+                if M28Utilities.IsTableEmpty(tCompletedGateway) == false then
+                    for iGateway, oGateway in tCompletedGateway do
+                        if oGateway:GetFractionComplete() == 1 then iCompletedGateway = iCompletedGateway + 1 end
+                    end
+                end
+                if iCompletedGateway < 2 and (iCompletedGateway == 0 or (not(bHaveLowMass) and not(bHaveLowPower))) then
+                    HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+                else
+                    HaveActionToAssign(iFactoryAction, 1, iBPWanted)
+                end
+            else
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6) then
+                    iBPWanted = iBPWanted * 0.5
+                    HaveActionToAssign(iFactoryAction, 1, iBPWanted)
+                    local iSecondAction = refActionBuildSecondLandFactory
+                    if iFactoryAction == refActionBuildAirFactory then iSecondAction = refActionBuildSecondAirFactory end
+                    HaveActionToAssign(iSecondAction, 1, iBPWanted)
+                else
+                    HaveActionToAssign(iFactoryAction, 1, iBPWanted)
+                end
+            end
 
-            HaveActionToAssign(iFactoryAction, 1, iBPWanted)
         end
     end
 
@@ -7140,6 +7171,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
     bDebugMessages = false
 
+    --Quantum gateway in a high AiX scenario
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(10, tLZData[M28Map.subrefLZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 900 then
+        --Get quantum gateway if we dont already have one
+        local tCompletedGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        local iCompletedGateway = 0
+        if M28Utilities.IsTableEmpty(tCompletedGateway) == false then
+            for iGateway, oGateway in tCompletedGateway do
+                if oGateway:GetFractionComplete() == 1 then iCompletedGateway = iCompletedGateway + 1 end
+            end
+        end
+        iBPWanted = 30
+        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 60 end
+        if iCompletedGateway < 2 and (iCompletedGateway == 0 or (not(bHaveLowMass) and not(bHaveLowPower))) then
+            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+        end
+    end
 
 
     --Shielding in a high mass scenario
