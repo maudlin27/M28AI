@@ -2532,7 +2532,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrZero == 67 and iLandOrWaterZone == 2 then bDebugMessages = true end
 
     local iFactionRequired
     local iCategoryWanted
@@ -2660,7 +2660,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         if bDebugMessages == true then LOG(sFunctionRef..': Our land subteam has access to aeon or seraphim tech so want to wait to build these gameenders since they should be better against heavily sheielded targets') end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': About to consider faction specific logic if we have enough mass, bEnemyHasExperimentalShields='..tostring(bEnemyHasExperimentalShields)..'; bDontConsiderGameEnderInMostCases='..tostring(bDontConsiderGameEnderInMostCases)) end
+                if not(bDontConsiderGameEnderInMostCases) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 999 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) <= 700 then
+                    bDontConsiderGameEnderInMostCases = true
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider faction specific logic if we have enough mass, bEnemyHasExperimentalShields='..tostring(bEnemyHasExperimentalShields)..'; bDontConsiderGameEnderInMostCases='..tostring(bDontConsiderGameEnderInMostCases)..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])..'; Is core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
 
                 --Redundancy - dont build experimentals if we are already (hopefully our build conditions wouldnt trigger if we have low mass anyway though)
                 if M28Conditions.TeamHasLowMass(iTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 2500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 and (iOtherLandZonesWithExperimental > 0 or bHaveExperimentalForThisLandZone) and iTeamLandExperimentals < iEnemyLandExperimentalCount + 1 then
@@ -2668,8 +2672,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     bDontWantExperimental = true
                 else
                     --FACTION SPECIFIC LOGIC
-                    --special case where prioritise aeon for paragon
-                    if bEnemyHasExperimentalShields and (tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) and iTeamLandExperimentals >= 2 and not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 600 and M28Map.iMapSize >= 512 then
+                    --special case where prioritise aeon for paragon if dealing with core zone
+                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and bEnemyHasExperimentalShields and (tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) and iTeamLandExperimentals >= 2 and not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 600 and M28Map.iMapSize >= 512 then
                         if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then
                             iCategoryWanted = M28UnitInfo.refCategoryParagon
                         else
@@ -2715,19 +2719,27 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     if iCurT3ArtiCount < 3 then
                                         if bWantNovaxInsteadOfArti then iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         else
-                                            iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) >= 800 then
+                                                iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                            else
+                                                iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                                            end
                                         end
                                     elseif iCurNovaxCount < iCurT3ArtiCount and not(bEnemyHasExperimentalShields) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                     else
-                                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                        if iCurT3ArtiCount >= 5 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) >= 800 then
+                                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                        else
+                                            iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                                        end
                                     end
                                 else
                                     --Novax or T3 arti
                                     if iCurNovaxCount < 3 + iCurT3ArtiCount and (not(bEnemyHasExperimentalShields) or iCurNovaxCount < 1) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                     else
-                                        if iDistToNearestEnemyBase <= 750 then
+                                        if iDistToNearestEnemyBase <= 775 then
                                             iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                         else
                                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
@@ -2868,10 +2880,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering aeon specific experimental, iCurAirExperimentals='..iCurAirExperimentals..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Land exp='..iTeamLandExperimentals..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iOur bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) end
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 and iCurAirExperimentals + iTeamLandExperimentals > (iFriendlyGameEnderUnderConstruction + iEnemyT3ArtiEquivalent/3) then
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
-                        --Do we want to get t3 arti or gameender?
+                            --Do we want to get t3 arti or gameender?
                         elseif not(bCanPathAmphibiously) or
-                            (not(bCanPathByLand) and iDistToNearestEnemyBase >= 650 and iEnemyLandExperimentalCount == 0 and iTeamLandExperimentals + iCurAirExperimentals > 0) or
-                            ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and (iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(3, iEnemyLandExperimentalCount + 1) or ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and iTeamLandExperimentals + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] / 15000 + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] / 15000 >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5, iEnemyLandExperimentalCount)))) then
+                                (not(bCanPathByLand) and iDistToNearestEnemyBase >= 650 and iEnemyLandExperimentalCount == 0 and iTeamLandExperimentals + iCurAirExperimentals > 0) or
+                                ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and (iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(3, iEnemyLandExperimentalCount + 1) or ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and iTeamLandExperimentals + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] / 15000 + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] / 15000 >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5, iEnemyLandExperimentalCount)))) then
                             if iDistToNearestEnemyBase <= 750 then
                                 if iEnemyT3ArtiEquivalent < 4 then
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 then iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
@@ -2916,7 +2928,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 else
                                     iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                                 end
-                                    --Dont reset faction requirement as GC is better than most other factions
+                                --Dont reset faction requirement as GC is better than most other factions
                             end
                         end
                     else
@@ -4788,13 +4800,35 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                             end
                                         end
                                     else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Unable to find shield to kill so will default to assisting last compelted shield') end
-                                        AssistShield(oLastCompletedShield)
+                                        local bAssistUnitToProtectInstead = false
+                                        if oUnitToProtect:GetFractionComplete() < 1 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                                            local iCurHealth, iMaxHealth = M28UnitInfo. GetCurrentAndMaximumShield(oLastCompletedShield, true)
+                                            if iCurHealth > iMaxHealth * 0.9 then
+                                                bAssistUnitToProtectInstead = true
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unable to find shield to kill so will default to assisting last compelted shield, bAssistUnitToProtectInstead='..bAssistUnitToProtectInstead) end
+                                        if bAssistUnitToProtectInstead then
+                                            AssistShield(oUnitToProtect)
+                                        else
+                                            AssistShield(oLastCompletedShield)
+                                        end
                                     end
                                 else
-                                    --We have 1 complete shield, and all other shield locations have near-complete shields, so dont want to do anything else - have the engineers assist the completed shield
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Nothing to do so will assist a complete shield, oLastCompletedShield='..oLastCompletedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLastCompletedShield)) end
-                                    AssistShield(oLastCompletedShield)
+                                    --We have 1 complete shield, and all other shield locations have near-complete shields, so dont want to do anything else - have the engineers assist the completed shield, unless it has >80% shield health and the unit to protect isnt completed yet
+                                    local bAssistUnitToProtectInstead = false
+                                    if oUnitToProtect:GetFractionComplete() < 1 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                                        local iCurHealth, iMaxHealth = M28UnitInfo. GetCurrentAndMaximumShield(oLastCompletedShield, true)
+                                        if iCurHealth > iMaxHealth * 0.9 then
+                                            bAssistUnitToProtectInstead = true
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Nothing to do so will assist a complete shield unless want to assist underconstruction gameender, oLastCompletedShield='..oLastCompletedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLastCompletedShield)..'; bAssistUnitToProtectInstead='..tostring(bAssistUnitToProtectInstead)) end
+                                    if bAssistUnitToProtectInstead then
+                                        AssistShield(oUnitToProtect)
+                                    else
+                                        AssistShield(oLastCompletedShield)
+                                    end
                                 end
                             end
                         end
