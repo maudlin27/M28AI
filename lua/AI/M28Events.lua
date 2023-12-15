@@ -502,6 +502,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     else
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityTeleSnipeExclACU, false)
                     end
+                elseif sEnhancement == 'AdvancedEngineering' then
+                    oUnit[M28ACU.refiBuildTech] = 2
+                elseif sEnhancement == 'T3Engineering' then
+                    oUnit[M28ACU.refiBuildTech] = 3
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
@@ -1512,7 +1516,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Utilities.IsTableEmpty(oEngineer[M28Factory.reftFactoryRallyPoint]) then
                                 M28Factory.SetFactoryRallyPoint(oEngineer)
                             end
+
                             M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
+
                             M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
                             if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
                             if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
@@ -1788,7 +1794,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if oUnit.UnitId == 'ueb2302' and M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then bDebugMessages = true end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs='..reprs(oUnit)) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map

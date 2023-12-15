@@ -279,7 +279,6 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
         local tUnsafeUnitsOfCategory = {}
         local iCurPlateau, iCurLZ
         for iUnit, oUnit in tUnitsOfCategory do
-            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then bDebugMessages = true end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit))) end
             if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
                 if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
