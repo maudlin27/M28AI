@@ -2166,11 +2166,12 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
-function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
+function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignAirAATargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
 
@@ -2189,6 +2190,14 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
     local iCurLoopCount
     local iMaxLoopCount = 200 --Wont assign more than this number of AA units to a particular target, partly as an infinite loop check, and partly to avoid too much on a single unit (e.g. czar or ahwassa)
     local tEnemyAirAAUnits = {}
+
+    local tPriorityEnemyTargets
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 then
+        local tCzarsAndExpBombers = EntityCategoryFilterDown(M28UnitInfo.refCategoryCzar + categories.BOMBER * categories.EXPERIMENTAL, tEnemyTargets)
+        if M28Utilities.IsTableEmpty(tCzarsAndExpBombers) == false then
+            tPriorityEnemyTargets = tCzarsAndExpBombers
+        end
+    end
 
     function ConsiderAttackingUnit(oEnemyUnit, iThreatToAssign)
         iCurLoopCount = 0
@@ -2212,13 +2221,16 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
                 LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
             end
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tBasePosition) then
-                --Manual attack order on czar as wehn doing move ended up losing 60 asfs and not even breaking the shield
-                if (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+                --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
+                if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
+                    SuicideASFIntoStrat(oEnemyUnit, oClosestUnit, true)
+                elseif (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
                     M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'AAAA', false)
                     if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
                 else
                     M28Orders.IssueTrackedMove(oClosestUnit, tBasePosition, 3, false, 'AAAM', false)
                 end
+
             else
                 --If the air unit has a target that is in the playable area then target that
                 --local bInterceptTargetFound = false
@@ -2266,31 +2278,40 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
         end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each enemy target, iEnemyTargetSize='..iEnemyTargetSize) end
-    for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
-        local oEnemyUnit = tEnemyTargets[iCurEnemyUnit]
-
-        iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
-        --Increase threat to assign to AA units
-        if EntityCategoryContains(categories.ANTIAIR + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
-            iThreatWanted = iThreatWanted * 3
-            table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
+    if tPriorityEnemyTargets then
+        for iEnemyUnit, oEnemyUnit in tPriorityEnemyTargets do
+            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
+            ConsiderAttackingUnit(oEnemyUnit, iThreatWanted)
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEnemyUnit..'; enemy unit='..tEnemyTargets[iCurEnemyUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyTargets[iCurEnemyUnit])..'; iThreatWanted='..iThreatWanted) end
-
-        ConsiderAttackingUnit(oEnemyUnit, iThreatWanted)
-        if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
     end
-    if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAUnits) == false then
-        --Assign more threat to enemy AirAA units since where there's 1 more are likely to follow, and want to overwhelm
-        for iUnit, oUnit in tEnemyAirAAUnits do
-            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 7 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
-            ConsiderAttackingUnit(oUnit, iThreatWanted)
+
+    if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each enemy target, iEnemyTargetSize='..iEnemyTargetSize) end
+        for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
+            local oEnemyUnit = tEnemyTargets[iCurEnemyUnit]
+
+            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
+            --Increase threat to assign to AA units
+            if EntityCategoryContains(categories.ANTIAIR + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
+                iThreatWanted = iThreatWanted * 3
+                table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEnemyUnit..'; enemy unit='..tEnemyTargets[iCurEnemyUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyTargets[iCurEnemyUnit])..'; iThreatWanted='..iThreatWanted) end
+
+            ConsiderAttackingUnit(oEnemyUnit, iThreatWanted)
+            if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
         end
-        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAUnits) >= 5 then
+        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAUnits) == false then
+            --Assign more threat to enemy AirAA units since where there's 1 more are likely to follow, and want to overwhelm
             for iUnit, oUnit in tEnemyAirAAUnits do
-                iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 16 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+                iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 7 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
                 ConsiderAttackingUnit(oUnit, iThreatWanted)
+            end
+            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAUnits) >= 5 then
+                for iUnit, oUnit in tEnemyAirAAUnits do
+                    iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 16 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+                    ConsiderAttackingUnit(oUnit, iThreatWanted)
+                end
             end
         end
     end
@@ -2740,7 +2761,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         --SendMessage(aiBrain, sMessageType,    sMessage,                                   iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
                         M28Chat.SendMessage(aiBrain, 'M6Czar', 'Time to pull out the goalies, every air unit attack!', 0,                           10000000,                                false,          M28Map.bIsCampaignMap)
                     end
-                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
+                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam)
                 end
             end
 
@@ -2917,7 +2938,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 --Assign available air units to targets
                 if bDebugMessages == true then LOG(sFunctionRef..': FInished checking for neemies around all start positions, is table of enemy air targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))) end
                 if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
-                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
+                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam)
                 end
             end
             --If have air units still available then cycle through every land zone and water zome from the support point, identifying land/water zones that are safe to travel to from the support point that have enemy air units in until we have no more land zones or no more available air units
@@ -2961,7 +2982,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                         if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will assign available AirAA against enemy air target') end
-                            AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
+                            AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam)
                             if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
                         end
                     end
@@ -3017,7 +3038,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     LOG(sFunctionRef..': Do we have enemy targets after checking for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'? table is empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))..'; iUnitPlateau='..iUnitPlateau..'; iUnitLandOrWaterZone='..iUnitLandOrWaterZone..'; Enemy LZ groundAA='..(tUnitLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; ENemy WZ AA='..(tUnitLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 'nil')..'; Enemy AirAA='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil'))
                                 end
                                 if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
-                                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
+                                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam)
                                     if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
                                 end
                             end
@@ -3037,7 +3058,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             local tEnemiesNearRally = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAir, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 150, 'Enemy')
                             if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesNearRally empty for backup given outside playable area='..tostring( M28Utilities.IsTableEmpty(tEnemiesNearRally))) end
                             if M28Utilities.IsTableEmpty(tEnemiesNearRally) == false then
-                                AssignAirAATargets(tAvailableAirAA, tEnemiesNearRally)
+                                AssignAirAATargets(tAvailableAirAA, tEnemiesNearRally, iTeam)
                             end
 
                         end
@@ -7409,7 +7430,7 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
     end
 end
 
-function SuicideASFIntoStrat(oStrat, oASF)
+function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
     if M28UnitInfo.IsUnitValid(oStrat) and M28UnitInfo.IsUnitValid(oASF) then
         local iASFValue = 1
         if EntityCategoryContains(categories.TECH2, oASF.UnitId) then
@@ -7418,7 +7439,7 @@ function SuicideASFIntoStrat(oStrat, oASF)
         oStrat[refiAssignedSuicideASF] = (oStrat[refiAssignedSuicideASF] or 0) + iASFValue
         oASF[M28UnitInfo.refbSpecialMicroActive] = true
         local iTeam = oASF:GetAIBrain().M28Team
-        if oStrat[refiAssignedSuicideASF] >= 2 then
+        if oStrat[refiAssignedSuicideASF] >= 2 and not(bNoLimitOnASFToAssign) then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do
                 if oUnit == oStrat then
                     table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets], iUnit)
@@ -7426,11 +7447,13 @@ function SuicideASFIntoStrat(oStrat, oASF)
                 end
             end
         end
+        --Move into range
         while M28Utilities.GetDistanceBetweenPositions(oStrat:GetPosition(), oASF:GetPosition()) > 30 do
             M28Orders.IssueTrackedMove(oASF, oStrat:GetPosition(), 10, false, 'SuicM', true)
             WaitSeconds(1)
             if not(M28UnitInfo.IsUnitValid(oStrat)) or not(M28UnitInfo.IsUnitValid(oASF)) then break end
         end
+        --Issue attack, and dont stop until either asf or strat is dead
         while M28UnitInfo.IsUnitValid(oStrat) and M28UnitInfo.IsUnitValid(oASF) do
             M28Orders.IssueTrackedAttack(oASF, oStrat, false, 'SuicA', true)
             WaitSeconds(1)

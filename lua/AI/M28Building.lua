@@ -2180,7 +2180,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     end
                     --Yolona target SMD that will stop us, if there are any, instead of our actual target, so we dont risk trying to take on loads of SMD in one go
-                    bDebugMessages = true
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Checking if we are a yolona in which case we want to target any blocking SMD first, tTarget='..repru(tTarget)..'; bCheckForSMD='..tostring(bCheckForSMD)..'; Yolona='..tostring(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId))..'; Is table of enemy SMD empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]))..'; If enemy has more than 1 SMD will consider targeting SMD instead of the best target for the missile')
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then LOG(sFunctionRef..': Number of enemy SMD='..table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD])) end
@@ -2194,7 +2193,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                         --Only target down SMD if we have 2+ SMD blocking our desired target (otherwise it may be better to just ignore)
                         if M28Utilities.IsTableEmpty(tSMDBlockingTarget) == false and table.getn(tSMDBlockingTarget) > 1 then
-                            bDebugMessages = true
                             local tAltTarget = GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, oLauncher:GetPosition(), tSMDBlockingTarget, iAOE, iDamage)
                             if bDebugMessages == true then LOG(sFunctionRef..': Yolona target will be intercepted by SMD, want to take out the nearest blocking SMD first, tTarget='..repru(tTarget)..'; tAltTarget after facotirng in blockgin SMD='..repru(tAltTarget)) end
                             if tAltTarget and (table.getn(tSMDBlockingTarget) >= 3 or HaventRecentlyNukedLocation(tAltTarget)) then
