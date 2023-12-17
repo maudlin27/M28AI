@@ -1476,6 +1476,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
+                            --Cybran ED1 shields - upgrade if enemy has novax or t3 arti
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.BUILTBYTIER2ENGINEER * categories.CYBRAN, oJustBuilt.UnitId) then
+                            if M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] then
+                                M28Economy.UpgradeUnit(oJustBuilt, true)
+                            end
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)

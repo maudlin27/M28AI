@@ -1755,6 +1755,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             ForkThread(M1AeonEndMissionBackupMonitor)
         elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then --Aeon mission 5 - build UEF T3 shield
             M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
+            M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] = 1
             if bDebugMessages == true then LOG(sFunctionRef..': Want to build T3 shielding for Aeon M5') end
             local iOurBrainIndex = M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()
             for iTarget, tRequirements in Target.Requirements do

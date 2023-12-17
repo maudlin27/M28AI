@@ -3249,7 +3249,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         --First check if we want to get upgrades to enable a tele-snipe
         local sUpgradeWanted
         if not(oACU[refbACUHasTeleport]) and EntityCategoryContains(categories.CYBRAN + categories.SERAPHIM, oACU.UnitId) then
-            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 + 450 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 0.5 >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 + 450 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 local bConsiderSniping = false
                 function GetArtiEquivValue(oUnit)
                     local iArtiValue = 0

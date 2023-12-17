@@ -178,8 +178,8 @@ tiActionCategory = {
     [refActionBuildThirdPower] = M28UnitInfo.refCategoryPower - categories.NAVAL,
     [refActionBuildT1Sonar] = M28UnitInfo.refCategoryT1Sonar,
     [refActionBuildT2Sonar] = M28UnitInfo.refCategoryT2Sonar,
-    [refActionBuildShield] = M28UnitInfo.refCategoryFixedShield,
-    [refActionBuildSecondShield] = M28UnitInfo.refCategoryFixedShield,
+    --[refActionBuildShield] = M28UnitInfo.refCategoryFixedShield, --Use custom logic so we will consider only building t2 shields in some cases
+    --[refActionBuildSecondShield] = M28UnitInfo.refCategoryFixedShield, --use custom logic so we will consider only building t2 shields in some cases
     [refActionBuildNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionAssistNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
@@ -3408,13 +3408,18 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             iCategoryToBuild, iOptionalFactionRequired = DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
         elseif iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
             --NOTE: Separately this gets changed to tech3 if need increased range
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering building shield, iMinTechLevel='..iMinTechLevel..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]..'; Novax count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount]..'; Enemy air to ground='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat]..'; SValue='..tLZOrWZTeamData[M28Map.subrefLZSValue]..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
+
             if M28Map.bIsCampaignMap then iCategoryToBuild = M28UnitInfo.refCategoryFixedShield
-            elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and not(aiBrain[M28Overseer.refbDefendAgainstArti]) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+            elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and (not(aiBrain[M28Overseer.refbDefendAgainstArti]) or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] == 0 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] <= 2)) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
-            elseif iMinTechLevel >= 3 or aiBrain[M28Overseer.refbDefendAgainstArti] or aiBrain[M28Overseer.refbCloseToUnitCap] or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build T2 shield') end
+            elseif iMinTechLevel >= 3 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] > 2)) or aiBrain[M28Overseer.refbCloseToUnitCap] or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000 and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.subrefLZSValue] >= 8000)) then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH3
+                if bDebugMessages == true then LOG(sFunctionRef..': Only want T3 shields') end
             else
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build T2 shield') end
             end
         else
             M28Utilities.ErrorHandler('Need to add code for action='..(iActionToAssign or 'nil'))
@@ -5044,7 +5049,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 for iEngi, oEngi in toAssignedEngisOfTechLevel do
                     if not(oEngi[refbPrimaryBuilder]) and not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
                         --Exception for engineers assisting a shield
-                        if not(oEngi[refiAssignedAction] == refActionAssistShield) or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+                        if not(oEngi[refiAssignedAction] == refActionAssistShield) or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) or (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] <= 2) then
                             iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
                             oHighestPriorityEngi = oEngi
                         end
@@ -5873,7 +5878,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
 
     local iBPWanted = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for game time='..GetGameTimeSeconds()..'; Are we defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 2) then
         M28Building.RecordPriorityShields(iTeam, tLZTeamData)
         if bDebugMessages == true then LOG(sFunctionRef..': Is the table of priority shields empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
@@ -6016,10 +6021,10 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)..'; (oUnit[refiFailedShieldConstructionCount] or 0)='..(oUnit[refiFailedShieldConstructionCount] or 0)) end
             end
             if oUnitToShield then
-                if iHighestMassValue >= iHighMassThreshold or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
+                if iHighestMassValue >= iHighMassThreshold or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 2)) or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                     iTechLevelWanted = 3
                     --Think have logic elsewhere which will make a T3 shield be built if nowhere for T2 shield that will cover it
 
@@ -6711,7 +6716,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
         if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-            iBPWanted = 500
+            iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
         else
             iBPWanted = 100
         end
@@ -9559,7 +9564,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-            iBPWanted = 500
+            iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
         else
             iBPWanted = 100
         end

@@ -107,6 +107,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
+    refiEnemyT3ArtiCount = 'M28TeamT3ArtC' --Number of enemy t3 arti and exp arti (exp arti count as 3)
+    refiEnemyNovaxCount = 'M28TeamNovC' --Number of enemy novax
     reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
     reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
     refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
@@ -577,6 +579,8 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
     tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
+    tTeamData[iTotalTeamCount][refiEnemyT3ArtiCount] = 0
+    tTeamData[iTotalTeamCount][refiEnemyNovaxCount] = 0
 
 
     local bHaveCampaignM28AI = false
@@ -1142,6 +1146,9 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
                     if bIsSMD then tTeamData[iTeam][refbEnemySMDDiedSinceLastNukeCheck] = true end --used to refresh nuke target zone logic
                     tTeamData[iTeam][sTableRef][iOrigIndex] = nil;
                 end
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite + M28UnitInfo.refCategoryNovaxCentre, oDeadUnit.UnitId) then
+                    RefreshArtiAndNovaxCount(iTeam)
+                end
             end
         end
     end
@@ -1344,6 +1351,10 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     --Track T3 arti
                     if not(tTeamData[iTeam][refbDefendAgainstArti]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                         tTeamData[iTeam][refbDefendAgainstArti] = true
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 1
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 2
+                        else tTeamData[iTeam][refiEnemyNovaxCount] = 1
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
                         --Refresh shielding wanted on existing units
                         local tPotentialUnitsToShield = tTeamData[iTeam][subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - categories.TECH1, {0.5*(M28Map.rMapPlayableArea[1] + M28Map.rMapPlayableArea[3]), 0, 0.5*(M28Map.rMapPlayableArea[2] + M28Map.rMapPlayableArea[4])}, 10000, 'Ally')
@@ -1354,10 +1365,24 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                                 end
                             end
                         end
+                        --Upgrade ED1 shields
+                        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                            local tED1Shields = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield * categories.BUILTBYTIER2ENGINEER * categories.CYBRAN, false, true)
+                            if M28Utilities.IsTableEmpty(tED1Shields) == false then
+                                for iShield, oShield in tED1Shields do
+                                    if oShield:GetFractionComplete() == 1 then
+                                        M28Economy.UpgradeUnit(oShield, true)
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
                 break
             end
+        end
+        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite + M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+            RefreshArtiAndNovaxCount(iTeam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3838,4 +3863,23 @@ function ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ(aiBrain, sHQJustD
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshArtiAndNovaxCount(iTeam)
+    tTeamData[iTeam][refiEnemyNovaxCount] = 0
+    tTeamData[iTeam][refiEnemyT3ArtiCount] = 0
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyArtiAndExpStructure]) == false then
+        local iSatelliteCount = 0
+        local iCentreCount = 0
+        local iT3ArtiCount = 0
+        for iUnit, oUnit in tTeamData[iTeam][reftEnemyArtiAndExpStructure] do
+            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then iT3ArtiCount = iT3ArtiCount + 1
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then iT3ArtiCount = iT3ArtiCount + 3
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then iCentreCount = iCentreCount + 1
+            elseif EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then iSatelliteCount = iSatelliteCount + 1
+            end
+        end
+        tTeamData[iTeam][refiEnemyNovaxCount] = math.max(iSatelliteCount, iCentreCount)
+        tTeamData[iTeam][refiEnemyT3ArtiCount] = iT3ArtiCount
+    end
 end

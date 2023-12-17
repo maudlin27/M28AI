@@ -2602,7 +2602,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     if not(oShieldToAssist) then
         local tPriorityUnitsToShield
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain.GetUnitsAroundPoint then
                 tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
@@ -2740,7 +2740,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                 else
                     --Assist shield if need to defend from arti
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
                         tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
                     else
                         --otherwise assist an air factory if we have one

@@ -1305,32 +1305,34 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
         return true
     elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false) then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
-        local iEnemyArtiCount = 0
-        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has gameender or t3 arti so will be more aggressive') end
-        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
-            if M28UnitInfo.IsUnitValid(oUnit) then
-                if oUnit:GetFractionComplete() >= 0.8 then
-                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
-                        iEnemyArtiCount = iEnemyArtiCount + 3
-                    else
-                        iEnemyArtiCount = iEnemyArtiCount + 1
-                    end
-                    if iEnemyArtiCount >= 3 then
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 0.5 >= 3 then
+            local iEnemyArtiCount = 0
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has gameender or t3 arti so will be more aggressive') end
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    if oUnit:GetFractionComplete() >= 0.8 then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
+                            iEnemyArtiCount = iEnemyArtiCount + 3
+                        else
+                            iEnemyArtiCount = iEnemyArtiCount + 1
+                        end
+                        if iEnemyArtiCount >= 3 then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
                     end
                 end
             end
-        end
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) == false then
-            local iNovaxCount = 0
-            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
-                iNovaxCount = iNovaxCount + 1
-            end
-            iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount * 0.5)
-            if iEnemyArtiCount >= 3 then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) == false then
+                local iNovaxCount = 0
+                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
+                    iNovaxCount = iNovaxCount + 1
+                end
+                iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount * 0.5)
+                if iEnemyArtiCount >= 3 then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
             end
         end
     end
