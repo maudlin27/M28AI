@@ -5378,6 +5378,14 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                         end
                                     end
                                     if not(bHaveNearbyFactoriesOrLargeThreat) then
+                                        --Check the zone itself as well
+                                        if bDebugMessages == true then LOG(sFunctionRef..': No major adjacent enemy threats, considering zone itself, enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Enemy ground AA='..tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                        if not(bCampaignMap) and ((tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 100 or tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] >= 175) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Drop zone itself has too great an enemy threat') end
+                                            bHaveNearbyFactoriesOrLargeThreat = true
+                                        end
+                                    end
+                                    if not(bHaveNearbyFactoriesOrLargeThreat) then
                                         if not(bHaveUnattachedEngineersOrFactories) then
                                             --Want to add to shortlist to consider dropping
                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding plateau '..iPlateau..'; land zone '..iLandZone..'; to shortlist of locations to consider dropping') end

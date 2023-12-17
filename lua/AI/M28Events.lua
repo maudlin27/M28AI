@@ -428,6 +428,11 @@ function OnUnitDeath(oUnit)
                                         M28Economy.UpdateZoneM28MexByTechCount(oUnit, true)
                                         --Update upgrading mexes
                                         M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
+                                        --Losing HQ but have a teammate of the relevant faction with better tech
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1, oUnit.UnitId) then
+                                        if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                            ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oUnit:GetAIBrain(), oUnit.UnitId)
+                                        end
                                     end
                                     M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
 
@@ -1542,6 +1547,19 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end --Clear time as only want to use this to track incase have blocking unit
                         oEngineer[M28Factory.refiTotalBuildCount] = (oEngineer[M28Factory.refiTotalBuildCount] or 0) + 1
                         oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
+                        --If T3 support factory just built a T1 unit, then consider gifting it to a teammate
+                        if EntityCategoryContains(M28UnitInfo.categories.SUPPORTFACTORY * categories.TECH3, oEngineer.UnitId) and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) then
+                            --Do we lack HQs for this brain and are dealing with an air or naval fac (since land fac should rebuild anyway)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oEngineer.UnitId) then
+                                if oEngineer:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] == 0 then
+                                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
+                                end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
+                                if oEngineer:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] == 0 then
+                                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
+                                end
+                            end
+                        end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                         --Clear any engineers trying to build this unit if we just built a building or experimental
                         if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
@@ -1773,7 +1791,6 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
     --For now used to make sure we have up to date unit info
     if M28Utilities.bM28AIInGame then
         local aiBrain = ArmyBrains[iBrainIndex]
-        --LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
         M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
         if aiBrain.M28AI then
             --Update highest enemy ground unti health

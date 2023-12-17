@@ -2532,7 +2532,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrZero == 67 and iLandOrWaterZone == 2 then bDebugMessages = true end
+
 
     local iFactionRequired
     local iCategoryWanted
@@ -2858,7 +2858,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             elseif not(bCanPathByLand) then
                                 iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
                             else
-                                if iTeamLandExperimentals == 0 then
+                                if iTeamLandExperimentals == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < 2 then
                                     iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
                                 else
                                     --Get megalith
@@ -6694,9 +6694,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
     end
 
+    --Have 1 engi start on an experimental if we have all T3 mexes and very high mass % stored
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Very high priority exp builder so we can get the build location ready') end
+        HaveActionToAssign(refActionBuildExperimental, 3, 5)
+    end
+
+
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
-
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
             for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
@@ -10709,6 +10716,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
     local iHighestTechEngiAvailable
     local iExistingWaterFactory = 0
+    local bHaveFactoryHQ = false
     local bDontCheckPlayableArea = false
     if M28Map.bIsCampaignMap then
         bDontCheckPlayableArea = true
@@ -10718,7 +10726,27 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         local tExistingWaterFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tExistingWaterFactory) == false then
             for iFactory, oFactory in tExistingWaterFactory do
-                if oFactory:GetFractionComplete() == 1 then iExistingWaterFactory = iExistingWaterFactory + 1 end
+                if oFactory:GetFractionComplete() == 1 then
+                    iExistingWaterFactory = iExistingWaterFactory + 1
+                    if not(bHaveFactoryHQ) and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
+                        bHaveFactoryHQ = true
+                    end
+                elseif not(bHaveFactoryHQ) and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
+                    bHaveFactoryHQ = true
+                end
+            end
+            --Want to set flag to rebuild naval fac if we only have support facs (this won't work 100% if e.g. a teammate has a factory of a different faction in the zone or elsewhere, but should cover majority fo cases; also have the logic to xfer support facs to a teammate of same faction which shoudl help)
+            --Note that need to keep it general as otherwise would likely run into issues of infinitely building naval facs (e.g. if we have UEF and Aeon support facs in zone, and UEF has an HQ elsewhere but Aeon doesnt, if we try and build naval fac as a result, we might be building UEF naval facs on repeat)
+            if iExistingWaterFactory > 0 and not(bHaveFactoryHQ) then
+                --Are we lacking an appropriate HQ for the support factory?
+                local bHaveHQElsewhere = false
+                for iFactory, oFactory in tExistingWaterFactory do
+                    if oFactory:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] > 0 then
+                        bHaveHQElsewhere = true
+                        break
+                    end
+                end
+                if bHaveHQElsewhere then bHaveFactoryHQ = true end
             end
         end
     end
@@ -10857,7 +10885,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
 
-    --Naval fac if this is a core WZ and we dont have any, with eco condition
+    --Naval fac if this is a core WZ and we dont have any (or lack an HQ), with eco condition
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
     if bDebugMessages == true then
@@ -10874,7 +10902,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
             end
-            if iExistingWaterFactory < iFactoriesWanted then
+            if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': We want to build a naval factory')
                 end
@@ -11041,7 +11069,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': iMaxFactories=' .. iMaxFactories .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
             end
-            if iExistingWaterFactory < iMaxFactories then
+            if iExistingWaterFactory < iMaxFactories or (iExistingWaterFactory > 0 and not(bHaveFactoryHQ)) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Lower priority builder - We want to build a naval factory')
                 end

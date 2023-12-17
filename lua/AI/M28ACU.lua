@@ -473,7 +473,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -1435,7 +1435,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -1811,7 +1811,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -3262,7 +3262,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     else
                         iArtiValue = 1
                     end
-                    return iArtiValue
+                    return iArtiValue * oUnit:GetFractionComplete()
                 end
                 local iEnemyArtiCount = 0
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
@@ -3279,31 +3279,37 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     end
                     iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; iEnemyArtiCount='..iEnemyArtiCount) end
+                if EntityCategoryContains(categories.CYBRAN, oACU.UnitId) or iEnemyArtiCount > 1 then
+                    local bWeHaveRAS = false
+                    if oACU:HasEnhancement('ResourceAllocation') or oACU:HasEnhancement('ResourceAllocationAdvanced') then bWeHaveRAS = true end
 
-                if not(ScenarioInfo.Options.Victory == "demoralization") and (iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
-                    bConsiderSniping = true
-                elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250) then
-                    bConsiderSniping = true
-                else
-                    --Assassination, and down to last ACU, only go for telesnipe as a last resort
-                    if iEnemyArtiCount >= 3 then
-                        local iFriendlyArtiCount = 0
-                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                            local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedT3Arti, false, false)
-                            for iUnit, oUnit in tFriendlyExperimentals do
-                                if oUnit:GetFractionComplete() >= 0.4 then
-                                    iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)
+                    if not(ScenarioInfo.Options.Victory == "demoralization") and not(bWeHaveRAS) and (iEnemyArtiCount >= 2 or (iEnemyArtiCount >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
+                        bConsiderSniping = true
+                    elseif not(bWeHaveRAS) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (iEnemyArtiCount >= 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250 and (iEnemyArtiCount >= 0.8 or M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)))) and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 3 or iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] * 0.8 < M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)) then
+                        bConsiderSniping = true
+                    else
+                        --Assassination, and down to last ACU, only go for telesnipe as a last resort
+                        if iEnemyArtiCount >= 3 then
+                            local iFriendlyArtiCount = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedT3Arti, false, false)
+                                for iUnit, oUnit in tFriendlyExperimentals do
+                                    if oUnit:GetFractionComplete() >= 0.4 then
+                                        iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)
+                                    end
                                 end
                             end
-                        end
-                        if iFriendlyArtiCount < 2 and iEnemyArtiCount - iFriendlyArtiCount >= 3 then
-                            bConsiderSniping = true
+                            if iFriendlyArtiCount < 2 and iEnemyArtiCount - iFriendlyArtiCount >= 3 and (iEnemyArtiCount >= 4 or M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)) then
+                                bConsiderSniping = true
+                            end
                         end
                     end
                 end
+
                 if bConsiderSniping then
-                    --Only get teleport on seraphim if we have no cybran ACU; dont get teleport on either if we are already getting teleport (or have it) on another ACU
+                    --Only get teleport on seraphim if we have no cybran ACU and enemy has a friendly arti count; dont get teleport on either if we are already getting teleport (or have it) on another ACU
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         local tFriendlyACUs = oBrain:GetListOfUnits(categories.COMMAND * categories.CYBRAN + categories.COMMAND * categories.SERAPHIM, true, false)
                         if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
@@ -3339,15 +3345,65 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if sUpgradeWanted then
             oACU[refbPlanningToGetTeleport] = true
             bGivenACUOrder = true
-            --Are we in core base? if not then move to core base
-            if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
-                if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base') end
-                ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
-            else
-                --Upgrade to telesnipe
-                if bDebugMessages == true then LOG(sFunctionRef..': Will get telesnipe upgrade') end
-                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUTeleU')
+            --Are we under a fixed shield or underwater? If not, and we have a fixed shield that we own, then move to it
+
+            local oClosestFixedShield
+            local iClosestFixedShield = 100000
+            local bUnderShieldOrWater = false
+            local iCurDist, iCurShield, iMaxShield
+            function ConsiderShield(oShield)
+                if M28UnitInfo.IsUnitValid(oShield) and oShield:GetFractionComplete() == 1 then
+                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                    if iCurShield > 0 and iCurShield > iMaxShield * 0.5 and iMaxShield >= 12000 and NavUtils.GetLabel(M28Map.refPathingTypeHover, oShield:GetPosition()) == iPlateauOrZero then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                        if iCurDist < iClosestFixedShield then
+                            iClosestFixedShield = iCurDist
+                            oClosestFixedShield = oShield
+                        end
+                    end
+                end
             end
+            if M28UnitInfo.IsUnitUnderwater(oACU) then bUnderShieldOrWater = true
+
+            elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                local tFixedShieldsInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFixedShieldsInLZ) == false then
+                    for iShield, oShield in tFixedShieldsInLZ do
+                        ConsiderShield(oShield)
+                    end
+                end
+            end
+            if not(oClosestFixedShield) then
+                local tNearbyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, oACU:GetPosition(), 120, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                    for iShield, oShield in tNearbyShields do
+                        ConsiderShield(oShield)
+                    end
+                end
+            end
+            if oClosestFixedShield and iClosestFixedShield + 1 < (oClosestFixedShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 then
+                bUnderShieldOrWater = true
+            end
+
+            if bUnderShieldOrWater then
+                --Upgrade to telesnipe
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get telesnipe upgrade as under shield') end
+                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUTeleU')
+            elseif oClosestFixedShield then
+                --Move to the closest shield
+                M28Orders.IssueTrackedMove(oACU, oClosestFixedShield:GetPosition(), 5, false, 'ACUTelSh', false)
+            else
+                if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
+                    if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base') end
+                    ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                else
+
+                    --Upgrade to telesnipe
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will get telesnipe upgrade as in core base') end
+                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUTeleU')
+                end
+            end
+
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get upgrade, does ACU already have teleport='..tostring(oACU[refbACUHasTeleport] or false)) end
             if oACU[refbACUHasTeleport] then
@@ -3452,7 +3508,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -4370,7 +4426,7 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
 
     local bGivenOrder = false
     if oACU[refiBuildTech] >= 2 then

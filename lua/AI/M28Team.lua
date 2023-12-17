@@ -630,15 +630,15 @@ function CreateNewTeam(aiBrain)
                     if oBrain.M28AI then
                         table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                         tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
-                        if oBrain.CheatEnabled then
-                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                            oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-                        else
-                            oBrain[M28Economy.refiBrainResourceMultiplier] = 1
-                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
-                        end
+                    end
+                    if oBrain.CheatEnabled then
+                        tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                        tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                    else
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
                     end
                     bHaveM28BrainInTeam = true
                     --Check if we have omni vision for the team
@@ -1072,21 +1072,37 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
     end
 end
 
+function DelayedUnitAssignmentForTeamSetup(aiBrain, oUnit)
+    while not(M28Map.bFirstM28TeamHasBeenInitialised) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 120 then
+            M28Utilities.ErrorHandler('Still dont have a team setup after waiting a long time so will abort')
+            break
+        end
+    end
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
+    end
+end
+
 function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
     --Assumes called from an event that means we will have visibility of the unit (e.g. directly via intel, or indirectly via weapon firing)
-    if aiBrain.M28AI and aiBrain.M28Team and not(aiBrain.M28IsDefeated) then
+    if aiBrain.M28AI and not(aiBrain.M28IsDefeated) then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        if not(aiBrain.M28Team) and not(M28Map.bFirstM28TeamHasBeenInitialised) then ForkThread(DelayedUnitAssignmentForTeamSetup, aiBrain, oUnit)
+        else
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)) end
-        if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
-            if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
-                AssignUnitToLandZoneOrPond(aiBrain, oUnit)
-            else
-                UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)) end
+            if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
+                if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
+                    AssignUnitToLandZoneOrPond(aiBrain, oUnit)
+                else
+                    UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+                end
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3753,4 +3769,73 @@ function GetEnemyMainCampaignBase(iTeam)
     end
     return tTeamData[iTeam][reftEnemyCampaignMainBase]
 
+end
+
+function ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ(aiBrain, sHQJustDiedOrSupportFacID)
+    --Should call vai forkthread so happens after we have updated our highest tech level for the aiBrain
+    local sFunctionRef = 'ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, brain='..aiBrain.Nickname..'; sHQJustDiedOrSupportFacID='..sHQJustDiedOrSupportFacID..' time='..GetGameTimeSeconds()) end
+    if aiBrain.M28AI then
+        local sBrainFactoryTechVaraible
+        local iFactoryCategory
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestLandFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryLandFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestAirFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryAirFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestNavalFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryNavalFactory
+        end
+        if sBrainFactoryTechVaraible then
+            local iTeam = aiBrain.M28Team
+            local iTechLevelDied = M28UnitInfo.GetBlueprintTechLevel(sHQJustDiedOrSupportFacID)
+            local iOurHighestTechLevelOfFactoryType = aiBrain[sBrainFactoryTechVaraible]
+            if bDebugMessages == true then LOG(sFunctionRef..': iOurHighestTechLevelOfFactoryType='..iOurHighestTechLevelOfFactoryType..'; iTechLevelDied='..iTechLevelDied) end
+            if iOurHighestTechLevelOfFactoryType < iTechLevelDied then
+                local iFactionType = M28UnitInfo.GetFactionNumberFromBlueprint(sHQJustDiedOrSupportFacID)
+                if bDebugMessages == true then LOG(sFunctionRef..': iFactionType='..iFactionType) end
+                local iFactionCategory = M28UnitInfo.ConvertFactionToCategory(iFactionType)
+                local iTechCategory
+                if iOurHighestTechLevelOfFactoryType <= 1 then
+                    iTechCategory = categories.TECH2 + categories.TECH3
+                else
+                    iTechCategory = categories.TECH3
+                end
+
+
+                --Do we have support factories?
+                local toSupportFactoriesToConsiderTransferring = aiBrain:GetListOfUnits(iFactoryCategory * categories.SUPPORTFACTORY * iTechCategory * iFactionCategory)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of support facs empty='..tostring(M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring))) end
+                if M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring) == false then
+                    local oTeammateToTransferTo
+                    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                        --Xfer support factories to the first teammate with a better tech level
+                        if oBrain[sBrainFactoryTechVaraible] > math.max(1, iOurHighestTechLevelOfFactoryType) then
+                            --Check if we have HQ of the right faction
+                            local iUnitsOfCategory = oBrain:GetCurrentUnits(iFactionCategory * iTechCategory * M28UnitInfo.refCategoryAllHQFactories)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iUnitsOfCategory for brain '..oBrain.Nickname..'='..iUnitsOfCategory) end
+                            if iUnitsOfCategory > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will transfer units to this brain') end
+                                oTeammateToTransferTo = oBrain
+                                break
+                            end
+                        end
+                    end
+                    if oTeammateToTransferTo then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to transfer all support factories to teammate '..oTeammateToTransferTo.Nickname..'; will list out toSupportFactoriesToConsiderTransferring')
+                            for iUnit, oUnit in toSupportFactoriesToConsiderTransferring do
+                                LOG(sFunctionRef..': Will transfer unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                            end
+                        end
+                        TransferUnitsToPlayer(toSupportFactoriesToConsiderTransferring, oTeammateToTransferTo:GetArmyIndex(), false)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

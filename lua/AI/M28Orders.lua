@@ -41,6 +41,7 @@ refiOrderLoadOntoTransport = 20
 refiOrderIssueTMLMissile = 21
 refiOrderIssueCapture = 22
 refiOrderIssueTeleport = 23
+refiOrderIssueNukeMissile = 24
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -1094,6 +1095,48 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
             ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 11)
         end
     end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Always reissue the nuke order (in contrast to approach for other orders) unless unit is busy as we arent reissuing this order every second, and in some cases would end up with the TML not firing despite having a target
+
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+    local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+
+    if not(oUnit:IsUnitState('Busy')) or (not(tLastOrder[subrefiOrderType] == refiOrderIssueNukeMissile and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+        --LOG('About to issue nuke launch for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Time='..GetGameTimeSeconds())
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+    end
+    --Apply below in all cases to ensure we actually launch a missile (it ought to just result in orders being queued if we already had such an order)
+    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+    oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueNukeMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+
+    IssueNuke({oUnit}, tOrderPosition)
+
+    oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
+    --Unpause incase we paused previously
+    if oUnit[M28Building.refbPausedAsNoTargets] then
+        oUnit[M28Building.refbPausedAsNoTargets] = false
+        if M28UnitInfo.GetMissileCount(oUnit) <= 1 then
+            oUnit:SetAutoMode(true)
+        end
+        oUnit:SetPaused(false)
+    end
+    local iTeam = oUnit:GetAIBrain().M28Team
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
+    M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tOrderPosition
+
+
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 

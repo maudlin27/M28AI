@@ -1424,6 +1424,15 @@ function ConvertTechLevelToCategory(iTechLevel)
     end
 end
 
+function ConvertFactionToCategory(iFaction)
+    if iFaction == refFactionUEF then return categories.UEF
+    elseif iFaction == refFactionCybran then return categories.CYBRAN
+    elseif iFaction == refFactionAeon then return categories.AEON
+    elseif iFaction == refFactionSeraphim then return categories.SERAPHIM
+    else return categories.ALLUNITS -categories.UEF -categories.CYBRAN -categories.AEON -categories.SERAPHIM
+    end
+end
+
 function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     --Returns support factory ID if it can be built, otherwise returns normal upgrade unit (works for any unit, not just factory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1739,6 +1748,15 @@ function GetFactionFromBP(oBlueprint)
         if sName == sUnitFactionName then return iName end
     end
     return refFactionUnrecognised
+end
+
+function GetFactionNumberFromBlueprint(sBlueprint)
+    if EntityCategoryContains(categories.UEF, sBlueprint) then return refFactionUEF
+    elseif EntityCategoryContains(categories.AEON, sBlueprint) then return refFactionAeon
+    elseif EntityCategoryContains(categories.CYBRAN, sBlueprint) then return refFactionCybran
+    elseif EntityCategoryContains(categories.SERAPHIM, sBlueprint) then return refFactionSeraphim
+    else return refFactionUnrecognised
+    end
 end
 
 function GetUnitFaction(oUnit)
