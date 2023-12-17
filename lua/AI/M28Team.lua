@@ -3774,7 +3774,7 @@ end
 function ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ(aiBrain, sHQJustDiedOrSupportFacID)
     --Should call vai forkthread so happens after we have updated our highest tech level for the aiBrain
     local sFunctionRef = 'ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, brain='..aiBrain.Nickname..'; sHQJustDiedOrSupportFacID='..sHQJustDiedOrSupportFacID..' time='..GetGameTimeSeconds()) end
     if aiBrain.M28AI then

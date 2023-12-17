@@ -3694,7 +3694,7 @@ end
 function GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, tLauncherPosition, tSMDBlockingTarget, iAOE, iDamage)
     --intended for yolona targeting blocking smds; start by getting the closest enemy SMD, returns revised target
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBestAOETargetForSpecifiedBuildings'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
