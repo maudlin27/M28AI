@@ -81,9 +81,9 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     local sFunctionRef = 'CheckIfUnitWantsFixedShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uab120211' then bDebugMessages = true end
 
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iOptionalShieldsWantedOverride='..(iOptionalShieldsWantedOverride or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iOptionalShieldsWantedOverride='..(iOptionalShieldsWantedOverride or 'nil')..'; owner='..oUnit:GetAIBrain().Nickname..'; Enemy novax count='..M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount]..'; Enemy arti count='..M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount]) end
 
     local iShieldsWanted = 0
     local iShieldCoverage = 0
@@ -107,10 +107,14 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
                     bT2ArtiAgainstEnemyT2ArtiOrFatboy = true
                 end
             end
-            if (bT2ArtiAgainstEnemyT2ArtiOrFatboy or oBP.Economy.BuildCostMass >= 2000) and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
+            if (bT2ArtiAgainstEnemyT2ArtiOrFatboy or oBP.Economy.BuildCostMass >= 2000 or (EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0)) and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
                 local iTeam = oUnit:GetAIBrain().M28Team
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
-                if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1
+                    or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId)
+                    or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId))
+                    or (EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0) then
+
                     if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 1 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) and M28Utilities.IsTableEmpty(oUnit[reftoSpecialAssignedShields]) then iShieldsWanted = 2
                     else iShieldsWanted = 1
                     end

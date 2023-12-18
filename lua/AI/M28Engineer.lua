@@ -5894,7 +5894,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                             end
 
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
-                            if oUnit:GetFractionComplete() >= 0.5 then
+                            if oUnit:GetFractionComplete() >= 0.75 then
                                 iEnemyT3ArtiValue = iEnemyT3ArtiValue + 1
                             else
                                 if oUnit:GetFractionComplete() >= 0.25 then
@@ -5917,22 +5917,33 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': Is the table of enemy arti empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]))..'; iEnemyT3ArtiValue='..iEnemyT3ArtiValue..'; number of priority shields for thie LZ='..table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])) end
             local iShieldsWantingAssistance = 0
             local iShieldsRecentlyDamaged = 0
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 and iEnemyT3ArtiValue >= 2 then
                 iShieldsWantingAssistance = table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])
             else
                 local iCurShield, iMaxShield
-                local bHaveRecentlyDamagedShields = false
 
                 for iShield, oShield in tLZTeamData[M28Map.reftPriorityShieldsToAssist] do
                     if M28UnitInfo.IsUnitValid(oShield) then
                         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
                         if iCurShield > 0 and not(oShield[M28UnitInfo.refbPaused]) then
-                            if iCurShield < iMaxShield then
-                                iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
+                            if EntityCategoryContains(categories.TECH2, oShield.UnitId) then
+                                if iCurShield < iMaxShield * 0.7 then
+                                    iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 0.5
+                                end
+                            elseif iCurShield < iMaxShield then
+                                if iCurShield < iMaxShield * 0.8 then
+                                    iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
+                                else
+                                    iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 0.75
+                                end
                             else
                                 --How long since shield took damage?
                                 if oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 40 then
-                                    iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
+                                    if oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 20 then
+                                        iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 0.7
+                                    else
+                                        iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 0.5
+                                    end
                                 end
                             end
                         end
@@ -5946,7 +5957,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                         iShieldsWantingAssistance = iShieldsRecentlyDamaged
                     end
                 end
-                if tLZTeamData[M28Map.subrefLZbCoreBase] then iShieldsWantingAssistance = math.max(iShieldsWantingAssistance, 0.6) end
+                if tLZTeamData[M28Map.subrefLZbCoreBase] then iShieldsWantingAssistance = math.max(iShieldsWantingAssistance, 0.4) end
 
             end
             --Reduce BP for shield assistance if we have lots of mass - i.e. in late game scenario better to spend mass than to assist a full health shield
@@ -5964,7 +5975,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZoneRef == 9 and iPlateau == 89 and GetGameTimeSeconds() >= 7 * 60 and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
 
     local iBPWanted = 0
     local iTechLevelWanted = 2
@@ -6010,21 +6021,23 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
                 --Increase likelihood the build location we want is available
                 SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 10)
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
-                    iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass
+                    iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil')) end
                     if iCurMass and (iCurMass > iHighestMassValue or (oUnit[refiFailedShieldConstructionCount] or 0) < iLowestShieldAttempt) then
                         --Check we are likely to be able ot build a shield nearby
                         if (oUnit[refiFailedShieldBuildDistance] or 0) <= 17 then --Cybran ED4 has a readius of 17
-                            iHighestMassValue = iCurMass
-                            oUnitToShield = oUnit
-                            iLowestShieldAttempt = (oUnit[refiFailedShieldConstructionCount] or 0)
+                            if oUnit:GetFractionComplete() >= 0.35 or not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId)) or not(bHaveLowMass) then
+                                iHighestMassValue = iCurMass
+                                oUnitToShield = oUnit
+                                iLowestShieldAttempt = (oUnit[refiFailedShieldConstructionCount] or 0)
+                            end
                         end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)..'; (oUnit[refiFailedShieldConstructionCount] or 0)='..(oUnit[refiFailedShieldConstructionCount] or 0)) end
             end
             if oUnitToShield then
-                if iHighestMassValue >= iHighMassThreshold or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 2)) or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
+                if not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnitToShield.UnitId)) and (iHighestMassValue >= iHighMassThreshold or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 2)) or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000) then
                     iTechLevelWanted = 3
                     --Think have logic elsewhere which will make a T3 shield be built if nowhere for T2 shield that will cover it
 
@@ -6056,7 +6069,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
         end
     end
 
-    if iBPWanted > 0 and oUnitToShield and (oUnitToShield[refiFailedShieldBuildDistance] or 0) > 0 then iTechLevelWanted = 3 end
+    if iBPWanted > 0 and oUnitToShield and (oUnitToShield[refiFailedShieldBuildDistance] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnitToShield.UnitId)) then iTechLevelWanted = 3 end
     if bDebugMessages == true then LOG(sFunctionRef..': oUnitToShield='..(oUnitToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToShield) or 'nil')..'; iBPWanted='..iBPWanted..'; iTechLevelWanted='..iTechLevelWanted..'; iHighestMassValue='..iHighestMassValue) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted, iTechLevelWanted, oUnitToShield
@@ -9126,6 +9139,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --local iCurCondition = 0
     local iCurPriority = 0
 
+    if iLandZone == 9 and iPlateau == 89 and M28Utilities.IsTableEmpty(toAvailableEngineersByTech[3]) == false and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
+
     function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
         ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers, false, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
@@ -9835,6 +9850,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     local iTechLevelWanted, oUnitToShield
     iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
+    if bDebugMessages == true then LOG(sFunctionRef..': Minor zone results of BP for shielding='..(iBPWanted or 'nil')..'; iTechLevelWanted='..(iTechLevelWanted or 'nil')..'; iCurPriority='..iCurPriority) end
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
