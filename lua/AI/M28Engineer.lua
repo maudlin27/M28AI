@@ -26,7 +26,7 @@ local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 --Global variables
 bBuildLocationLoopActive = false --true if have a loop that is checking for build locations
 bWZBuildLocationLoopActive = false --as above but for water zones
-tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [3] = 'ueb4302', [6] = 'ueb1201', [8] = 'ueb1301', [9]='xrl0403', [10]='uab0304', [16] = 'xsa0402', [24] = 'uaa0310'} --Blueprints to use when trying to find locations that can buid on for a building of a particular size
+tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [3] = 'ueb4302', [6] = 'ueb1201', [8] = 'ueb1301', [9]='xrl0403', [10]='uab0304', [16] = 'xsa0402', [20] = 'mai2820', [22] = 'mai2822', [24] = 'mai2824'} --[24] = 'uaa0310'} --Blueprints to use when trying to find locations that can buid on for a building of a particular size
 tsWZBlueprintsBySize = {[1] = 'ueb2109', [2] = 'ueb4201', [6] = 'ual0401', [8] = 'ura0401', [9]='uel0401', [10]='ueb0103', [14]='ueb0103', [16]='uas0401', [24]='uaa0310'} --Blueprints to use when trying to find locations that can buid on on water for a building/engineer built unit of a particular size
 iMaxBuildingSize = 24
 --Some blueprints have different skirt size offsets, e.g. naval factories; current solution is to manually note any of the BlueprintsBySize blueprints above and then list alternatives to try
@@ -492,17 +492,17 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
 
     if not(aiBrain.M28IsDefeated) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
-        local tLZOrWZData, sBlueprintSizeRef
+        local tLZOrWZData --, sBlueprintSizeRef
         if (iLandOrWaterZone or 0) == 0 then
             iLandOrWaterZone = M28Map.GetWaterZoneFromPosition(tLocation)
             if iLandOrWaterZone > 0 then
                 tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                sBlueprintSizeRef = tsWZBlueprintsBySize
+                --sBlueprintSizeRef = tsWZBlueprintsBySize
                 iPlateauOrZero = 0
             end
         else
             tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-            sBlueprintSizeRef = tsBlueprintsBySize
+            --sBlueprintSizeRef = tsBlueprintsBySize
         end
         if (iLandOrWaterZone or 0) > 0 then
             local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tLocation)
@@ -513,15 +513,14 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckLastBlacklistEntry)
 
             --Search for more building locations for every building where we havent considered the full amount if we havent considered any this cycle
-            local iTotalSegmentCount, sBlueprintSizeRef
+            --[[local iTotalSegmentCount, sBlueprintSizeRef
             if iPlateauOrZero == 0 then
                 iTotalSegmentCount = table.getn(tLZOrWZData[M28Map.subrefWZSegments])
                 sBlueprintSizeRef = tsWZBlueprintsBySize
-
             else
                 iTotalSegmentCount = tLZOrWZData[M28Map.subrefLZTotalSegmentCount]
                 sBlueprintSizeRef = tsBlueprintsBySize
-            end
+            end--]]
             if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) <= 10 then
                 if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) <= 20 then
                     SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, 10)

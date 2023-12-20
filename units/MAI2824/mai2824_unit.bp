@@ -1,0 +1,25 @@
+--------------------------------------------------------------------------------
+-- Dummy unit for finding safe positions
+-- Thanks to Balthazar who provided the lod0.scm blank file to provide a lower memory size way of doing this
+--------------------------------------------------------------------------------
+UnitBlueprint {
+    Description = "M28 template size 24",
+    Categories = { 'INVULNERABLE', 'UNTARGETABLE'},
+       Defense = { Health = 0, MaxHealth = 0 },
+       Display = { Mesh = { LODs = { { LODCutoff = 1, ShaderName = 'Unit'} } }, HideLifebars = true },
+     Footprint = {
+                         SizeX = 24,
+                         SizeZ = 24,
+                     },
+       General = { CapCost = 0, FactionName = 'None' },
+         Intel = { VisionRadius = 0, WaterVisionRadius = 0 },
+       Physics = {
+            MotionType = 'RULEUMT_None',
+            SkirtSizeX = 24,
+            SkirtSizeZ = 24,
+            SkirtOffsetX = -4,
+            SkirtOffsetZ = -4
+        },
+   ScriptClass = 'Unit',
+  ScriptModule = '/lua/sim/unit.lua',
+}
