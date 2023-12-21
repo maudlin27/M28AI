@@ -26,7 +26,7 @@ local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 --Global variables
 bBuildLocationLoopActive = false --true if have a loop that is checking for build locations
 bWZBuildLocationLoopActive = false --as above but for water zones
-tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [3] = 'ueb4302', [6] = 'ueb1201', [8] = 'ueb1301', [9]='xrl0403', [10]='uab0304', [16] = 'xsa0402', [20] = 'mai2820', [22] = 'mai2822', [24] = 'mai2824'} --[24] = 'uaa0310'} --Blueprints to use when trying to find locations that can buid on for a building of a particular size
+tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [3] = 'ueb4302', [6] = 'ueb1201', [8] = 'ueb1301', [9]='xrl0403', [10]='uab0304', [16] = 'xsa0402', [22] = 'mai2822', [24] = 'mai2824', [26] = 'mai2826'} --[24] = 'uaa0310'} --Blueprints to use when trying to find locations that can buid on for a building of a particular size
 tsWZBlueprintsBySize = {[1] = 'ueb2109', [2] = 'ueb4201', [6] = 'ual0401', [8] = 'ura0401', [9]='uel0401', [10]='ueb0103', [14]='ueb0103', [16]='uas0401', [24]='uaa0310'} --Blueprints to use when trying to find locations that can buid on on water for a building/engineer built unit of a particular size
 iMaxBuildingSize = 24
 --Some blueprints have different skirt size offsets, e.g. naval factories; current solution is to manually note any of the BlueprintsBySize blueprints above and then list alternatives to try
@@ -6020,7 +6020,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZoneRef == 9 and iPlateau == 89 and GetGameTimeSeconds() >= 7 * 60 and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
+
 
     local iBPWanted = 0
     local iTechLevelWanted = 2
@@ -9187,7 +9187,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --local iCurCondition = 0
     local iCurPriority = 0
 
-    if iLandZone == 9 and iPlateau == 89 and M28Utilities.IsTableEmpty(toAvailableEngineersByTech[3]) == false and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
+
 
     function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change

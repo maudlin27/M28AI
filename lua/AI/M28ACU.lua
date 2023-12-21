@@ -176,7 +176,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     end
     iSearchSegments = math.floor(iSearchSegments)
     if M28Overseer.refiRoughTotalUnitsInGame <= 500 then iSearchSegments = iSearchSegments * 2 end
-    bDebugMessages = true
+
     if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory') end
     M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSearchSegments)
     ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iMaxAreaToSearch * 2, M28Engineer.tiActionAdjacentCategory[(iEngineerActionOverride or M28Engineer.refActionBuildLandFactory)], M28UnitInfo.refCategoryEngineer)

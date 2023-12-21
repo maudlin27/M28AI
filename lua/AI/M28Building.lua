@@ -81,7 +81,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     local sFunctionRef = 'CheckIfUnitWantsFixedShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uab120211' then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iOptionalShieldsWantedOverride='..(iOptionalShieldsWantedOverride or 'nil')..'; owner='..oUnit:GetAIBrain().Nickname..'; Enemy novax count='..M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount]..'; Enemy arti count='..M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount]) end
 

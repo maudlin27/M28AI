@@ -135,7 +135,22 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefiCumulativeSegmentsConsideredForBuilding = 'BuildCumS' --Total number of segments considered over the course of the game
         subrefQueuedLocationsByPosition = 'BuildQu' --[x] is floor(x), y is floor(z), returns true if queued
         subrefBuildLocationBlacklistByPosition = 'Blacklst' --[x] is floor(x), [y] is floor(z), returns true if blacklisted
-        subrefGameEnderTemplateBackupLocationSizeAndSegment = 'GEBck' --returns {size, SegX, SegZ}, i.e. decided near start of game, so can be used if we no longer have somewhere large enough for gameender
+        subrefGameEnderTemplateBackupLocationSizeAndSegment = 'GEBck' --returns {size, SegX, SegZ,.... per below}, i.e. a single entry table with these values, decided near start of game, so can be used if we no longer have somewhere large enough for gameender
+            subrefiSize = 1
+            subrefiSegX = 2
+            subrefiSegZ = 3
+            --Below values for if using small shielding (Aeon/Cybran):
+            subrefiSmallArtiLocationCount = 4
+            subrefiSmallArtiMaxSize = 5
+            subrefiSmallShieldLocationCount = 6
+            subreftSmallArtiLocations = 7
+            subreftSmallShieldLocations = 8
+            --Below values for if using large shielding (UEF/Seraphim):
+            subrefiLargeArtiLocationCount = 9
+            subrefiLargeArtiMaxSize = 10
+            subrefiLargeShieldLocationCount = 11
+            subreftLargeArtiLocations = 12
+            subreftLargeShieldLocations = 13
         --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
             --subrefBlacklistLocation = 1
             --subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -8081,7 +8096,7 @@ end
 function RecordBackupGameEnderLocation()
     --Cycles through every land zone and records potential game-ender locations after waiting a while (1-off exercise)
     WaitSeconds(20)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordBackupGameEnderLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -8092,10 +8107,34 @@ function RecordBackupGameEnderLocation()
             break
         end
         local iCurCount = 0
-        local tiSizesToConsider = {24,22,20}
+        local tiSizesToConsider = {26,24,22}
         local iCurDistToMid, iMidpointX, iMidpointZ, iPreferredSegX, iPreferredSegZ, iPreferredSize, iClosestDistToMid
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
         local iSegmentsToSearch
+        local iMidpointAdjust = 0
+        --[[if math.floor(iLandZoneSegmentSize * 0.5) - iLandZoneSegmentSize * 0.5 == 0 then
+            --Have an even number, so midpoint will be rounded; however FA looks like it snaps things to a 0.5 grid
+            iMidpointAdjust = 0.49 --will increase midpoint X and Z by this - didnt solve issue of rectangles not being aligned so have commented out for now
+        end--]]
+
+        function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
+            tBaseTable[subrefiSmallArtiLocationCount] = 1
+            tBaseTable[subrefiSmallArtiMaxSize] = 10
+            tBaseTable[subrefiSmallShieldLocationCount] = 7
+            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
+            --NOTE: Moving to left means -x; moving up means -z; moving down means +z, moving right means +x
+            tBaseTable[subreftSmallArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+            tBaseTable[subreftSmallShieldLocations] = {
+                [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
+                [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
+                [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
+                [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
+                [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+                [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
+                [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+            }
+        end
+
         for iPlateau, tPlateauSubtable in tAllPlateaus do
             for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; MexCount='..(tLZData[subrefLZMexCount] or 'nil')..'; Segment count='..(tLZData[subrefLZTotalSegmentCount] or 'nil')..'; Segment size='..(iLandZoneSegmentSize or 'nil')..'; subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; Time='..GetGameTimeSeconds()) end
@@ -8116,10 +8155,12 @@ function RecordBackupGameEnderLocation()
                     iClosestDistToMid = 10000
                     iMidpointX, iMidpointZ = GetPathingSegmentFromPosition(tLZData[subrefMidpoint])
                     iPreferredSize = nil
-                    local iCurRadius
+                    local iCurRadius, bCanBuild, sCurBP
+
                     for _, iCurSize in tiSizesToConsider do
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table for size '..iCurSize..' empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize]))) end
                         if M28Utilities.IsTableEmpty(tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize]) == false then
+                            sCurBP = M28Engineer.tsBlueprintsBySize[iCurSize]
                             iCurRadius = iCurSize * 0.5
                             for iSegX, tSubtable in tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize] do
                                 for iSegZ, bValid in tSubtable do
@@ -8127,10 +8168,24 @@ function RecordBackupGameEnderLocation()
                                     if iCurDistToMid < iClosestDistToMid then
                                         --Check we can actually build here, taking into account resource deposits
                                         if not(M28Engineer.IsBuildLocationBlockedByResources(tLZData, iCurRadius, GetPositionFromPathingSegments(iSegX, iSegZ), true)) then
-                                            iClosestDistToMid = iCurDistToMid
-                                            iPreferredSize = iCurSize
-                                            iPreferredSegX = iSegX
-                                            iPreferredSegZ = iSegZ
+                                            --Double check if we adjust the midpoint we can still build here
+                                            bCanBuild = false
+                                            if iMidpointAdjust == 0 then bCanBuild = true
+                                            else
+                                                local tAdjustedMidpoint = GetPositionFromPathingSegments(iSegX, iSegZ)
+                                                tAdjustedMidpoint[1] = tAdjustedMidpoint[1] + iMidpointAdjust
+                                                tAdjustedMidpoint[3] = tAdjustedMidpoint[3] + iMidpointAdjust
+                                                if aiBrain:CanBuildStructureAt(sCurBP, tAdjustedMidpoint) then
+                                                    bCanBuild = true
+                                                end
+
+                                            end
+                                            if bCanBuild then
+                                                iClosestDistToMid = iCurDistToMid
+                                                iPreferredSize = iCurSize
+                                                iPreferredSegX = iSegX
+                                                iPreferredSegZ = iSegZ
+                                            end
                                         elseif bDebugMessages == true then LOG(sFunctionRef..': Segment X'..iSegX..'Z'..iSegZ..' is blocked by resources so will ignore')
                                         end
                                     end
@@ -8140,11 +8195,101 @@ function RecordBackupGameEnderLocation()
                         if iPreferredSize then break end
                     end
                     if iPreferredSize then
-                        --Record against the zone
-                        tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {iPreferredSize, iPreferredSegX, iPreferredSegZ}
+                        --Determine the arti location values
+                        local tMidpoint = GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)
+                        tMidpoint[1] = tMidpoint[1] + iMidpointAdjust --Snapto grid moves things to the nearest .5, i.e. doesnt do round numbers
+                        tMidpoint[3] = tMidpoint[3] + iMidpointAdjust
+
+                        --Mavor, yolona, scathis and T3 arti are size 8, novax 9, Paragon+rapid fire arti 10, while shields are size 6; fo all templates vertically want 1 gameender and 2 shields deep, or 2 gameender 1 shield deep
+                        --i.e.: Size 22: Supports 2 size 8 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
+                        --Size 24: Supports 2 size 9 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
+                        --Size 26: Supports 2 size 10 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
+                        tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
+                        local tBaseTable = tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]
+
+                        --For all sizes, want to support a gameender and Aeon/Cybran shields
+                        RecordSmallShieldTemplate(tBaseTable, tMidpoint)
+                        --Now record large shield templates, which in some cases can support more shields and gameenders
+                        if iPreferredSize == 26 then
+                            --Can support 2 paragon size gameenders and 8 shields
+                            tBaseTable[subrefiLargeArtiLocationCount] = 2
+                            tBaseTable[subrefiLargeArtiMaxSize] = 10
+                            tBaseTable[subrefiLargeShieldLocationCount] = 8
+                            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and paragon (10) above, so easier to think through adjustments
+                            tBaseTable[subreftLargeArtiLocations] = {
+                                [1]={tMidpoint[1]-8,0,tMidpoint[3]-5},
+                                [2]={tMidpoint[1]+2,0,tMidpoint[3]-5}
+                            }
+
+                            tBaseTable[subreftLargeShieldLocations] = {
+                                [1] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 }, --To the right of the RH paragon
+                                [2] = { tMidpoint[1] - 10, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
+                                [3] = { tMidpoint[1] -4,0, tMidpoint[3] + 3 }, --Row 2 Inner left
+                                [4] = { tMidpoint[1] +2,0, tMidpoint[3] + 3 }, --Row 2 inner right
+                                [5] = { tMidpoint[1] +8,0, tMidpoint[3] + 3 }, --Row 2 inner right
+                                [6] = { tMidpoint[1] - 7, 0, tMidpoint[3] + 9 }, --Row 3, LH
+                                [7] = { tMidpoint[1] -1,0, tMidpoint[3] + 9 }, --Row 3 mid
+                                [8] = { tMidpoint[1] +5,0, tMidpoint[3] + 9 }, --Row 3 Right
+                            }
+                        elseif iPreferredSize == 24 then
+                            --Can support 2 novax size gameenders and 8 shields
+                            tBaseTable[subrefiLargeArtiLocationCount] = 2
+                            tBaseTable[subrefiLargeArtiMaxSize] = 9
+                            tBaseTable[subrefiLargeShieldLocationCount] = 8
+
+                            tBaseTable[subreftLargeArtiLocations] = {
+                                [1]={tMidpoint[1]-7.5,0,tMidpoint[3]-5},
+                                [2]={tMidpoint[1]+1.5,0,tMidpoint[3]-5}
+                            }
+
+                            tBaseTable[subreftLargeShieldLocations] = {
+                                [1] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 }, --To the right of the RH novax
+                                [2] = { tMidpoint[1] - 9, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
+                                [3] = { tMidpoint[1]+ -3,0, tMidpoint[3] + 3 }, --Row 2 Inner left
+                                [4] = { tMidpoint[1]+ 3,0, tMidpoint[3] + 3 }, --Row 2 inner right
+                                [5] = { tMidpoint[1] + 9,0, tMidpoint[3] + 3 }, --Row 2 inner right
+                                [6] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 9 }, --Row 3, LH
+                                [7] = { tMidpoint[1], 0, tMidpoint[3] + 9 }, --Row 3 mid
+                                [8] = { tMidpoint[1]+ 6,0, tMidpoint[3] + 9 }, --Row 3 Right
+                            }
+                        elseif iPreferredSize == 22 then
+                            --Cant support anything other than the small shield
+                            tBaseTable[subrefiLargeArtiLocationCount] = 1
+                            tBaseTable[subrefiLargeArtiMaxSize] = 10
+                            tBaseTable[subrefiLargeShieldLocationCount] = 7
+                            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
+                            tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+                            tBaseTable[subreftLargeShieldLocations] = {
+                                [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
+                                [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
+                                [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
+                                [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
+                                [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+                                [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
+                                [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+                            }
+                        else M28Utilities.ErrorHandler('Dont have preplanned template for this size, iPreferredSize='..(iPreferredSize or 'nil'))
+                        end
+
+                        --Set the surface height of all arti and shield locations
+                        local tsLocationRefs = {subreftSmallArtiLocations, subreftSmallShieldLocations, subreftLargeArtiLocations, subreftLargeShieldLocations}
+                        for _, sTableRef in tsLocationRefs do
+                            for iEntry, tLocation in tBaseTable[sTableRef] do
+                                tLocation[2] = GetSurfaceHeight(tLocation[1], tLocation[3])
+                            end
+                        end
+
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ))))
+                            LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..'; Midpoint='..repru(tMidpoint)..'; iMidpointAdjust='..iMidpointAdjust)
                             M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ), iPreferredSize*0.5), 4, 400)
+                            --Draw the large arti locations in red, and shield locations in blue
+                            for iEntry, tLocation in tBaseTable[subreftLargeArtiLocations] do
+                                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, tBaseTable[subrefiLargeArtiMaxSize]*0.5), 2, 400)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Large shield locations='..repru(tBaseTable[subreftLargeShieldLocations])) end
+                            for iEntry, tLocation in tBaseTable[subreftLargeShieldLocations] do
+                                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, 3), 1, 400)
+                            end
                         end
 
                     end
