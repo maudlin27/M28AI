@@ -125,15 +125,17 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMinSegZ = 'LZMinSegZ'
         subrefLZMaxSegX = 'LZMaxSegX'
         subrefLZMaxSegZ = 'LZMaxSegZ'
-        subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
+        subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ or WZ
         subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against land or water zone, e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
         subrefBuildLocationsBySizeAndSegment = 'BuildLoc' --contains a table, [buildingsize][SegX][SegZ], returns true if can build on the location
         subrefBuildableSizeBySegment = 'BuildSizSeg' --Table, [x] segment, [z] segment, returns highest size of building that can be built from the segment midpoint
         subrefSegmentsConsideredThisTick = 'BuildSTisT' --Number of segments that have been through to analyse the largest build size available
         subrefBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
         subrefiLastSegmentEntryConsideredForBuilding = 'BuildLastSeg' --returns the segment ref in the LZ valid segment listings (i.e. subrefLZSegments) that we last considered
+        subrefiCumulativeSegmentsConsideredForBuilding = 'BuildCumS' --Total number of segments considered over the course of the game
         subrefQueuedLocationsByPosition = 'BuildQu' --[x] is floor(x), y is floor(z), returns true if queued
         subrefBuildLocationBlacklistByPosition = 'Blacklst' --[x] is floor(x), [y] is floor(z), returns true if blacklisted
+        subrefGameEnderTemplateBackupLocationSizeAndSegment = 'GEBck' --returns {size, SegX, SegZ}, i.e. decided near start of game, so can be used if we no longer have somewhere large enough for gameender
         --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
             --subrefBlacklistLocation = 1
             --subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -4076,7 +4078,7 @@ local function SetupLandZones()
         WaitTicks(5)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end--]]
-
+    ForkThread(RecordBackupGameEnderLocation)
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
     if bDebugMessages == true then
@@ -8074,4 +8076,82 @@ function GetLandZoneFromPosition(tPosition)
     --Intended for testing, since normally would want to get the plateau
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
     return tLandZoneBySegment[iSegmentX][iSegmentZ]
+end
+
+function RecordBackupGameEnderLocation()
+    --Cycles through every land zone and records potential game-ender locations after waiting a while (1-off exercise)
+    WaitSeconds(20)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordBackupGameEnderLocation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain
+    if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            aiBrain = oBrain
+            break
+        end
+        local iCurCount = 0
+        local tiSizesToConsider = {24,22,20}
+        local iCurDistToMid, iMidpointX, iMidpointZ, iPreferredSegX, iPreferredSegZ, iPreferredSize, iClosestDistToMid
+        local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+        local iSegmentsToSearch
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; MexCount='..(tLZData[subrefLZMexCount] or 'nil')..'; Segment count='..(tLZData[subrefLZTotalSegmentCount] or 'nil')..'; Segment size='..(iLandZoneSegmentSize or 'nil')..'; subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+                if tLZData[subrefLZMexCount] >= 1 and tLZData[subrefLZTotalSegmentCount] >= 250 / iLandZoneSegmentSize  then
+                    iCurCount = iCurCount + 1
+                    if iCurCount >= 25 then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        iCurCount = 0
+                    end
+                    iSegmentsToSearch = 50
+                    if (tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 0) < tLZData[subrefLZTotalSegmentCount] * 0.35 then
+                        iSegmentsToSearch = math.max(50, tLZData[subrefLZTotalSegmentCount] * 0.2)
+                    end
+                    M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsToSearch)
+                    if bDebugMessages == true then LOG(sFunctionRef..': After searching, subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; iSegmentsToSearch='..iSegmentsToSearch) end
+                    iClosestDistToMid = 10000
+                    iMidpointX, iMidpointZ = GetPathingSegmentFromPosition(tLZData[subrefMidpoint])
+                    iPreferredSize = nil
+                    local iCurRadius
+                    for _, iCurSize in tiSizesToConsider do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table for size '..iCurSize..' empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize]))) end
+                        if M28Utilities.IsTableEmpty(tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize]) == false then
+                            iCurRadius = iCurSize * 0.5
+                            for iSegX, tSubtable in tLZData[subrefBuildLocationsBySizeAndSegment][iCurSize] do
+                                for iSegZ, bValid in tSubtable do
+                                    iCurDistToMid = math.abs(iSegX - iMidpointX) + math.abs(iSegZ - iMidpointZ)
+                                    if iCurDistToMid < iClosestDistToMid then
+                                        --Check we can actually build here, taking into account resource deposits
+                                        if not(M28Engineer.IsBuildLocationBlockedByResources(tLZData, iCurRadius, GetPositionFromPathingSegments(iSegX, iSegZ), true)) then
+                                            iClosestDistToMid = iCurDistToMid
+                                            iPreferredSize = iCurSize
+                                            iPreferredSegX = iSegX
+                                            iPreferredSegZ = iSegZ
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Segment X'..iSegX..'Z'..iSegZ..' is blocked by resources so will ignore')
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if iPreferredSize then break end
+                    end
+                    if iPreferredSize then
+                        --Record against the zone
+                        tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {iPreferredSize, iPreferredSegX, iPreferredSegZ}
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ))))
+                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ), iPreferredSize*0.5), 4, 400)
+                        end
+
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

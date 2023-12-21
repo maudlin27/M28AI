@@ -329,6 +329,46 @@ function GetEngineerUniqueCount(oEngineer)
     return iUniqueRef
 end
 
+function IsBuildLocationBlockedByResources(tLZOrWZData, iBuildingRadius, tTargetLocation, bAvoidStorageAdjacency)
+    --Brain:CanBuildStructureAt() ignores (unbuilt) resource deposits, i.e. mexes and hydros; this cycles through all such locations and checks if they are blocking
+
+    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then
+        local iRadiusThreshold = 0.99
+        if bAvoidStorageAdjacency then iRadiusThreshold = 2.9 end
+        local iCurXDif, iCurZDif
+        for iMex, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --WZs use same ref
+            iCurXDif = math.abs(tMex[1] - tTargetLocation[1])
+            if iCurXDif <= iBuildingRadius + iRadiusThreshold then --mex is 2x2 in size
+                iCurZDif = math.abs(tMex[3] - tTargetLocation[3])
+                if iCurZDif <= iBuildingRadius + iRadiusThreshold then
+                    --Check not on a corner position
+                    if iCurXDif <= iBuildingRadius or iCurZDif <= iBuildingRadius or math.abs(iCurXDif - iCurZDif) >= iRadiusThreshold then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    --Check hydros
+    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
+        local iCurXDif, iCurZDif
+        for iHydro, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do --WZs use same ref
+            iCurXDif = math.abs(tHydro[1] - tTargetLocation[1])
+            if iCurXDif <= iBuildingRadius + 2.99 then --hydro is 6x6 in size
+                iCurZDif = math.abs(tHydro[3] - tTargetLocation[3])
+                if iCurZDif <= iBuildingRadius + 2.99 then
+                    --Check not on a corner position
+                    if iCurXDif <= iBuildingRadius or iCurZDif <= iBuildingRadius or math.abs(iCurXDif - iCurZDif) >= 0.99 then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
     --iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding and bCheckForOverlappingBuildings are optional
     --iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone: If specified, then will check this zone for queued units, if bCheckForQueuedBuildings is true
@@ -522,8 +562,10 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                 sBlueprintSizeRef = tsBlueprintsBySize
             end--]]
             if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) <= 10 then
-                if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) <= 20 then
-                    SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, 10)
+                if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) <= 30 then
+                    local iSegmentsToConsider = 4
+                    if tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] < tLZOrWZData[M28Map.subrefLZTotalSegmentCount] then iSegmentsToConsider = 15 end
+                    SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider)
                 end
             end
 
@@ -777,6 +819,7 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
             tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] = (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) + 1
         end
         tLZOrWZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] = iSegmentEnd
+        tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] = (tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) + iSegmentEnd
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of c ode, LZOrWZData[subrefBuildLocationSegmentCountBySize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize] or {'nil'})..'; tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick]='..(tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4926,9 +4969,12 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     if iExpectedBuildingSize and (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) == 0 then
         if not(iActionToAssign == refActionBuildMex) and not(iActionToAssign == refActionBuildHydro) then
 
-            if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) < 20 then
+            if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) < 30 then
+                local iSegmentsToConsider = 5
+                if tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] < tLZOrWZData[M28Map.subrefLZTotalSegmentCount] then iSegmentsToConsider = 20 end
+
                 --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-                SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveM28Brain(iTeam), iPlateauOrZero, iLandOrWaterZone, 20)
+                SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveM28Brain(iTeam), iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider)
             end
             if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Setting build power to 0 as no buildable locations, tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick]='..(tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 'nil')..'; repru of tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize] for all sizes='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])) end
@@ -5969,7 +6015,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
     return iBPWanted
 end
 
-function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower, bConsideringSecondShield, iLandZoneRef, iPlateau)
+function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower, bConsideringSecondShield, iLandZoneRef, iPlateau)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -6016,9 +6062,12 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
             local iCurMass
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             local iLowestShieldAttempt = 10 --dont want to keep trying to shield if have failed lots of times (the count gets reset over time)
+            local iSegmentsToConsider = 4
+            if tLZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] < tLZData[M28Map.subrefLZTotalSegmentCount] then iSegmentsToConsider = 15 end
+
             for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitWantingFixedShield] do
                 --Increase likelihood the build location we want is available
-                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 10)
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15)
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
                     iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil')) end
@@ -7249,7 +7298,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Shielding in a high mass scenario
     iCurPriority = iCurPriority + 1
     if (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 25 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 250 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
 
@@ -7750,7 +7799,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
 
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
             if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then iBPWanted = iBPWanted * 0.5 end
@@ -8192,7 +8241,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechLevelWanted, oUnitToShield
-    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
+    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if iBPWanted > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a shield, iBPWanted='..iBPWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; oUnitToShield='..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)..'; iTechLevelWanted='..iTechLevelWanted) end
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
@@ -9848,7 +9897,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechLevelWanted, oUnitToShield
-    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
+    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if bDebugMessages == true then LOG(sFunctionRef..': Minor zone results of BP for shielding='..(iBPWanted or 'nil')..'; iTechLevelWanted='..(iTechLevelWanted or 'nil')..'; iCurPriority='..iCurPriority) end
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
@@ -10398,7 +10447,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
     iCurPriority = iCurPriority + 1
     if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
 
