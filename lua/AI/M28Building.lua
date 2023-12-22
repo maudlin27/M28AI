@@ -65,6 +65,7 @@ reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that h
 reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
 reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
 refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
+refiArtiTemplateRef = 'M28ArtiTemplateRef' --Index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}

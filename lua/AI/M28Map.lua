@@ -309,6 +309,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                  subrefGEEngineers = 7
                  subrefGEbActiveMonitor = 8
                 subrefGEbDontNeedEngineers = 9
+                subrefbFailedToGetArtiLocation = 10
 
 
 
@@ -8110,7 +8111,7 @@ function GetLandZoneFromPosition(tPosition)
     return tLandZoneBySegment[iSegmentX][iSegmentZ]
 end
 
-function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint)
+function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
     function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
         tBaseTable[subrefiSmallArtiLocationCount] = 1
         tBaseTable[subrefiSmallArtiMaxSize] = 10
@@ -8300,7 +8301,7 @@ function RecordBackupGameEnderLocation()
                         local tBaseTable = tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]
 
                         --For all sizes, want to support a gameender and Aeon/Cybran shields
-                        AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint)
+                        AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
 
 
 

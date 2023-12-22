@@ -491,7 +491,12 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Profiler.SpawnSetUnitsForBrain(aiBrain)
+    --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
+    local iXAdjust = -8
+    local iZAdjust = -8
+    for iMex, tMex in M28Map.tMassPoints do
+        LOG('TestCustom for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
+    end
 
     --brian size profiling:
     --[[
