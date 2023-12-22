@@ -151,6 +151,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiLargeShieldLocationCount = 11
             subreftLargeArtiLocations = 12
             subreftLargeShieldLocations = 13
+            --Template usage stats
+            subrefiArtiSpacesUsed = 14
+            subrefbOnlySmallAvailable = 15
         --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
             --subrefBlacklistLocation = 1
             --subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -295,6 +298,20 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiActiveMexUpgrades = 'ActiveMexUpgrades'
             subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], returns {[1]=x,[2]=y,[3]=z} where xyz are counts of mexes
             refiZoneConstructedExperimentalCount = 'ExpConC' --Total number of experimental level units built in this zone
+            refiLastGameEnderTemplateCategory = 'ExpCatT' --If doing a 'build t3 arti/gameender per template' action, then this is used to indicate what category to use
+            reftActiveGameEnderTemplates = 'ExpTmpA' --Table of active 'gameender template' actions for this zone, [x] = 1,2,...x, returns subtable
+                 subrefGEMidpoint = 1
+                 subrefGESize = 2
+                 subrefGEArtiLocations = 3
+                 subrefGEShieldLocations = 4
+                 subrefGEArtiUnits = 5
+                 subrefGEShieldUnits = 6
+                 subrefGEEngineers = 7
+                 subrefGEbActiveMonitor = 8
+                subrefGEbDontNeedEngineers = 9
+
+
+
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
             subrefiTimeLandFacHadNothingToBuild = 'TimeLFNoB' --Gametimeseconds that had a land fac in this zone with nothing to build
             subrefiTimeAirFacHadNothingToBuild = 'TimeAFNoB' --Gametimeseconds that had an air fac in this zone with nothing to build
@@ -8093,6 +8110,97 @@ function GetLandZoneFromPosition(tPosition)
     return tLandZoneBySegment[iSegmentX][iSegmentZ]
 end
 
+function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint)
+    function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
+        tBaseTable[subrefiSmallArtiLocationCount] = 1
+        tBaseTable[subrefiSmallArtiMaxSize] = 10
+        tBaseTable[subrefiSmallShieldLocationCount] = 7
+        --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
+        --NOTE: Moving to left means -x; moving up means -z; moving down means +z, moving right means +x
+        tBaseTable[subreftSmallArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+        tBaseTable[subreftSmallShieldLocations] = {
+            [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
+            [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
+            [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
+            [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
+            [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+            [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
+            [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+        }
+    end
+
+    RecordSmallShieldTemplate(tBaseTable, tMidpoint)
+    --Now record large shield templates, which in some cases can support more shields and gameenders
+    if iPreferredSize == 26 then
+        --Can support 2 paragon size gameenders and 8 shields
+        tBaseTable[subrefiLargeArtiLocationCount] = 2
+        tBaseTable[subrefiLargeArtiMaxSize] = 10
+        tBaseTable[subrefiLargeShieldLocationCount] = 8
+        --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and paragon (10) above, so easier to think through adjustments
+        tBaseTable[subreftLargeArtiLocations] = {
+            [1]={tMidpoint[1]-8,0,tMidpoint[3]-5},
+            [2]={tMidpoint[1]+2,0,tMidpoint[3]-5}
+        }
+
+        tBaseTable[subreftLargeShieldLocations] = {
+            [1] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 }, --To the right of the RH paragon
+            [2] = { tMidpoint[1] - 10, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
+            [3] = { tMidpoint[1] -4,0, tMidpoint[3] + 3 }, --Row 2 Inner left
+            [4] = { tMidpoint[1] +2,0, tMidpoint[3] + 3 }, --Row 2 inner right
+            [5] = { tMidpoint[1] +8,0, tMidpoint[3] + 3 }, --Row 2 inner right
+            [6] = { tMidpoint[1] - 7, 0, tMidpoint[3] + 9 }, --Row 3, LH
+            [7] = { tMidpoint[1] -1,0, tMidpoint[3] + 9 }, --Row 3 mid
+            [8] = { tMidpoint[1] +5,0, tMidpoint[3] + 9 }, --Row 3 Right
+        }
+    elseif iPreferredSize == 24 then
+        --Can support 2 novax size gameenders and 8 shields
+        tBaseTable[subrefiLargeArtiLocationCount] = 2
+        tBaseTable[subrefiLargeArtiMaxSize] = 9
+        tBaseTable[subrefiLargeShieldLocationCount] = 8
+
+        tBaseTable[subreftLargeArtiLocations] = {
+            [1]={tMidpoint[1]-7.5,0,tMidpoint[3]-5},
+            [2]={tMidpoint[1]+1.5,0,tMidpoint[3]-5}
+        }
+
+        tBaseTable[subreftLargeShieldLocations] = {
+            [1] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 }, --To the right of the RH novax
+            [2] = { tMidpoint[1] - 9, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
+            [3] = { tMidpoint[1]+ -3,0, tMidpoint[3] + 3 }, --Row 2 Inner left
+            [4] = { tMidpoint[1]+ 3,0, tMidpoint[3] + 3 }, --Row 2 inner right
+            [5] = { tMidpoint[1] + 9,0, tMidpoint[3] + 3 }, --Row 2 inner right
+            [6] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 9 }, --Row 3, LH
+            [7] = { tMidpoint[1], 0, tMidpoint[3] + 9 }, --Row 3 mid
+            [8] = { tMidpoint[1]+ 6,0, tMidpoint[3] + 9 }, --Row 3 Right
+        }
+    elseif iPreferredSize == 22 then
+        --Cant support anything other than the small shield
+        tBaseTable[subrefiLargeArtiLocationCount] = 1
+        tBaseTable[subrefiLargeArtiMaxSize] = 10
+        tBaseTable[subrefiLargeShieldLocationCount] = 7
+        --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
+        tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+        tBaseTable[subreftLargeShieldLocations] = {
+            [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
+            [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
+            [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
+            [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
+            [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+            [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
+            [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+        }
+    else M28Utilities.ErrorHandler('Dont have preplanned template for this size, iPreferredSize='..(iPreferredSize or 'nil'))
+    end
+
+    --Set the surface height of all arti and shield locations
+    local tsLocationRefs = {subreftSmallArtiLocations, subreftSmallShieldLocations, subreftLargeArtiLocations, subreftLargeShieldLocations}
+    for _, sTableRef in tsLocationRefs do
+        for iEntry, tLocation in tBaseTable[sTableRef] do
+            tLocation[2] = GetSurfaceHeight(tLocation[1], tLocation[3])
+        end
+    end
+end
+
 function RecordBackupGameEnderLocation()
     --Cycles through every land zone and records potential game-ender locations after waiting a while (1-off exercise)
     WaitSeconds(20)
@@ -8107,7 +8215,7 @@ function RecordBackupGameEnderLocation()
             break
         end
         local iCurCount = 0
-        local tiSizesToConsider = {26,24,22}
+        local tiSizesToConsider = {26,24,22} --If changing, then update similar in M28Engineer AssignEngineerToGameEnderTemplate
         local iCurDistToMid, iMidpointX, iMidpointZ, iPreferredSegX, iPreferredSegZ, iPreferredSize, iClosestDistToMid
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
         local iSegmentsToSearch
@@ -8117,23 +8225,7 @@ function RecordBackupGameEnderLocation()
             iMidpointAdjust = 0.49 --will increase midpoint X and Z by this - didnt solve issue of rectangles not being aligned so have commented out for now
         end--]]
 
-        function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
-            tBaseTable[subrefiSmallArtiLocationCount] = 1
-            tBaseTable[subrefiSmallArtiMaxSize] = 10
-            tBaseTable[subrefiSmallShieldLocationCount] = 7
-            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
-            --NOTE: Moving to left means -x; moving up means -z; moving down means +z, moving right means +x
-            tBaseTable[subreftSmallArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
-            tBaseTable[subreftSmallShieldLocations] = {
-                [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
-                [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
-                [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
-                [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
-                [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
-                [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
-                [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
-            }
-        end
+
 
         for iPlateau, tPlateauSubtable in tAllPlateaus do
             for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
@@ -8208,76 +8300,9 @@ function RecordBackupGameEnderLocation()
                         local tBaseTable = tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]
 
                         --For all sizes, want to support a gameender and Aeon/Cybran shields
-                        RecordSmallShieldTemplate(tBaseTable, tMidpoint)
-                        --Now record large shield templates, which in some cases can support more shields and gameenders
-                        if iPreferredSize == 26 then
-                            --Can support 2 paragon size gameenders and 8 shields
-                            tBaseTable[subrefiLargeArtiLocationCount] = 2
-                            tBaseTable[subrefiLargeArtiMaxSize] = 10
-                            tBaseTable[subrefiLargeShieldLocationCount] = 8
-                            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and paragon (10) above, so easier to think through adjustments
-                            tBaseTable[subreftLargeArtiLocations] = {
-                                [1]={tMidpoint[1]-8,0,tMidpoint[3]-5},
-                                [2]={tMidpoint[1]+2,0,tMidpoint[3]-5}
-                            }
+                        AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint)
 
-                            tBaseTable[subreftLargeShieldLocations] = {
-                                [1] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 }, --To the right of the RH paragon
-                                [2] = { tMidpoint[1] - 10, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
-                                [3] = { tMidpoint[1] -4,0, tMidpoint[3] + 3 }, --Row 2 Inner left
-                                [4] = { tMidpoint[1] +2,0, tMidpoint[3] + 3 }, --Row 2 inner right
-                                [5] = { tMidpoint[1] +8,0, tMidpoint[3] + 3 }, --Row 2 inner right
-                                [6] = { tMidpoint[1] - 7, 0, tMidpoint[3] + 9 }, --Row 3, LH
-                                [7] = { tMidpoint[1] -1,0, tMidpoint[3] + 9 }, --Row 3 mid
-                                [8] = { tMidpoint[1] +5,0, tMidpoint[3] + 9 }, --Row 3 Right
-                            }
-                        elseif iPreferredSize == 24 then
-                            --Can support 2 novax size gameenders and 8 shields
-                            tBaseTable[subrefiLargeArtiLocationCount] = 2
-                            tBaseTable[subrefiLargeArtiMaxSize] = 9
-                            tBaseTable[subrefiLargeShieldLocationCount] = 8
 
-                            tBaseTable[subreftLargeArtiLocations] = {
-                                [1]={tMidpoint[1]-7.5,0,tMidpoint[3]-5},
-                                [2]={tMidpoint[1]+1.5,0,tMidpoint[3]-5}
-                            }
-
-                            tBaseTable[subreftLargeShieldLocations] = {
-                                [1] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 }, --To the right of the RH novax
-                                [2] = { tMidpoint[1] - 9, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
-                                [3] = { tMidpoint[1]+ -3,0, tMidpoint[3] + 3 }, --Row 2 Inner left
-                                [4] = { tMidpoint[1]+ 3,0, tMidpoint[3] + 3 }, --Row 2 inner right
-                                [5] = { tMidpoint[1] + 9,0, tMidpoint[3] + 3 }, --Row 2 inner right
-                                [6] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 9 }, --Row 3, LH
-                                [7] = { tMidpoint[1], 0, tMidpoint[3] + 9 }, --Row 3 mid
-                                [8] = { tMidpoint[1]+ 6,0, tMidpoint[3] + 9 }, --Row 3 Right
-                            }
-                        elseif iPreferredSize == 22 then
-                            --Cant support anything other than the small shield
-                            tBaseTable[subrefiLargeArtiLocationCount] = 1
-                            tBaseTable[subrefiLargeArtiMaxSize] = 10
-                            tBaseTable[subrefiLargeShieldLocationCount] = 7
-                            --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
-                            tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
-                            tBaseTable[subreftLargeShieldLocations] = {
-                                [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
-                                [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
-                                [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
-                                [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
-                                [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
-                                [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
-                                [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
-                            }
-                        else M28Utilities.ErrorHandler('Dont have preplanned template for this size, iPreferredSize='..(iPreferredSize or 'nil'))
-                        end
-
-                        --Set the surface height of all arti and shield locations
-                        local tsLocationRefs = {subreftSmallArtiLocations, subreftSmallShieldLocations, subreftLargeArtiLocations, subreftLargeShieldLocations}
-                        for _, sTableRef in tsLocationRefs do
-                            for iEntry, tLocation in tBaseTable[sTableRef] do
-                                tLocation[2] = GetSurfaceHeight(tLocation[1], tLocation[3])
-                            end
-                        end
 
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..'; Midpoint='..repru(tMidpoint)..'; iMidpointAdjust='..iMidpointAdjust)
