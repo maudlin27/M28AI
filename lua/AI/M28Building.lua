@@ -65,7 +65,7 @@ reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that h
 reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
 reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
 refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
-refiArtiTemplateRef = 'M28ArtiTemplateRef' --Index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
+reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTemplateRef}, with tempalteref being the index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -96,7 +96,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     --Determine shields wanted
     if M28UnitInfo.IsUnitValid(oUnit) then
         if iOptionalShieldsWantedOverride then iShieldsWanted = iOptionalShieldsWantedOverride
-        elseif oUnit[refiArtiTemplateRef] then
+        elseif oUnit[reftArtiTemplateRefs] then
             iShieldsWanted = 0 --we will be relying on template instead
         else
             local oBP = oUnit:GetBlueprint()
@@ -2887,7 +2887,7 @@ function ReserveLocationsForGameEnder(oUnit)
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if not(oUnit[refiArtiTemplateRef]) then --redundancy as shouldve already checked before getting here
+    if not(oUnit[reftArtiTemplateRefs]) then --redundancy as shouldve already checked before getting here
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
 

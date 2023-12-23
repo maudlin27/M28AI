@@ -2503,7 +2503,7 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
         --Do we have any active locations?
         local bActiveLocationButDoesntWantEngineers = false
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
-            for iEntry, tSutable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+            for iEntry, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
                 if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
                     return true
                 else

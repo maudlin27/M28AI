@@ -2567,8 +2567,8 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
             if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
                 for iSACU, oSACU in tRASSACU do
-                    if not(oSACU[M28Building.refiArtiTemplateRef]) then
-                        M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData)
+                    if not(oSACU[M28Building.reftArtiTemplateRefs]) then
+                        M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': RAS SACUs are assigned to gameender duty for iTemplate ref='..iTemplate) end

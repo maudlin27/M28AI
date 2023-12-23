@@ -8110,7 +8110,15 @@ function GetLandZoneFromPosition(tPosition)
     return tLandZoneBySegment[iSegmentX][iSegmentZ]
 end
 
-function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
+function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddGameEnderTemplateInfoToTable'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iPreferredSegX, iPreferredSegZ = GetPathingSegmentFromPosition(tMidpoint)
+    local tBaseTable = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
+
+    --tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
+
     function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
         tBaseTable[subrefiSmallArtiLocationCount] = 1
         tBaseTable[subrefiSmallArtiMaxSize] = 10
@@ -8128,7 +8136,7 @@ function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
             [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
         }
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Will start by recording small shield template for tMidpoint='..repru(tMidpoint)..'; iPreferredSize='..(iPreferredSize or 'nil')..' at time='..GetGameTimeSeconds()) end
     RecordSmallShieldTemplate(tBaseTable, tMidpoint)
     --Now record large shield templates, which in some cases can support more shields and gameenders
     if iPreferredSize == 26 then
@@ -8199,6 +8207,9 @@ function AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
             tLocation[2] = GetSurfaceHeight(tLocation[1], tLocation[3])
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code ,tBaseTable='..repru(tBaseTable)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tBaseTable
 end
 
 function RecordBackupGameEnderLocation()
@@ -8289,18 +8300,18 @@ function RecordBackupGameEnderLocation()
                     if iPreferredSize then
                         --Determine the arti location values
                         local tMidpoint = GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)
-                        tMidpoint[1] = tMidpoint[1] + iMidpointAdjust --Snapto grid moves things to the nearest .5, i.e. doesnt do round numbers
+                        tMidpoint[1] = tMidpoint[1] + iMidpointAdjust --Snapto grid moves things to the nearest .5, i.e. doesnt do round numbers; however have disabled logic relating to this
                         tMidpoint[3] = tMidpoint[3] + iMidpointAdjust
 
                         --Mavor, yolona, scathis and T3 arti are size 8, novax 9, Paragon+rapid fire arti 10, while shields are size 6; fo all templates vertically want 1 gameender and 2 shields deep, or 2 gameender 1 shield deep
                         --i.e.: Size 22: Supports 2 size 8 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
                         --Size 24: Supports 2 size 9 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
                         --Size 26: Supports 2 size 10 gameenders+1 shield (large shields), or 1 size 10 gameender (small shields)
-                        tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
-                        local tBaseTable = tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]
+                        --tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
+                        --local tBaseTable = tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]
 
                         --For all sizes, want to support a gameender and Aeon/Cybran shields
-                        AddGameEnderTemplateInfoToTable(tBaseTable, tMidpoint, iPreferredSize)
+                        tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
 
 
 
@@ -8308,11 +8319,11 @@ function RecordBackupGameEnderLocation()
                             LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..'; Midpoint='..repru(tMidpoint)..'; iMidpointAdjust='..iMidpointAdjust)
                             M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ), iPreferredSize*0.5), 4, 400)
                             --Draw the large arti locations in red, and shield locations in blue
-                            for iEntry, tLocation in tBaseTable[subreftLargeArtiLocations] do
-                                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, tBaseTable[subrefiLargeArtiMaxSize]*0.5), 2, 400)
+                            for iEntry, tLocation in tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeArtiLocations] do
+                                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subrefiLargeArtiMaxSize]*0.5), 2, 400)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Large shield locations='..repru(tBaseTable[subreftLargeShieldLocations])) end
-                            for iEntry, tLocation in tBaseTable[subreftLargeShieldLocations] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Large shield locations='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldLocations])) end
+                            for iEntry, tLocation in tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldLocations] do
                                 M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, 3), 1, 400)
                             end
                         end
