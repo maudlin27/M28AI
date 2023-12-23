@@ -202,6 +202,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbDontHaveBuildingsOrACUInPlayableArea = 'M28BldInA' --for campaign AI, true if dont have buildings or ACU in the playable area, so can decide how aggressive to be with units
     reftEnemyCampaignMainBase = 'M28CampMB' --midpoint of the zone containing the enemy main base provided it is in the playable area
     refiLastUpdatedMainBase = 'M28TimCamp' -- used when getting enemy main base location for campaign map
+    refbUnableToBuildArtiOrGameEnders = 'M28GERest' --true if gameenders and t3 arti are restricted
 
 
 

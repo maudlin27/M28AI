@@ -2484,52 +2484,87 @@ function GetHighestOtherTeamT3MexCount(iTeam)
     return iHighestCount
 end
 
-function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned)
+function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, iTeam)
     --Returns true if we have space for a gameender of iCategoryWanted using the special shielding template logic
-    --First check if we have that size available generally (without using backup template)
-    local iSmallestSizeNeeded = 22
-    --if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then iSmallestSizeNeeded = 20 end
-    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded]) == false then
-        for iSegmentX, tSubtable in tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded] do
-            for iSegmentZ, bValid in tSubtable do
-                if bValid then return true end
+
+    if not(M28Team.tTeamData[iTeam][M28Team.refbUnableToBuildArtiOrGameEnders]) then
+
+        --First check if we have that size available generally (without using backup template)
+        local iSmallestSizeNeeded = 22
+        --if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then iSmallestSizeNeeded = 20 end
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded]) == false then
+            for iSegmentX, tSubtable in tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded] do
+                for iSegmentZ, bValid in tSubtable do
+                    if bValid then return true end
+                end
             end
         end
-    end
 
-    --We dont have any locations large enough that are free, check if we have a recorded template, and if so if we are already using it
-    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]) == false then
-        local bUseSmallShield = true
-        if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
-            if not(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefbOnlySmallAvailable]) then
-                bUseSmallShield = false
-            end
-
-        end
-        local iSlotsAvailable, iMaxSize
-        if bUseSmallShield then
-            iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiLocationCount] or 0)
-            iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiMaxSize] or 8)
-        else
-            iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiLocationCount] or 0)
-            iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiMaxSize] or 8)
-        end
-        iSlotsAvailable = iSlotsAvailable - (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiArtiSpacesUsed] or 0)
-        if iSlotsAvailable > 0 then
-            --Is the slot large enough to fit the category we want?
-            if not(bUseSmallShield) and iSlotsAvailable >= 2 then iMaxSize = 10 end
-            if iMaxSize >= 10 then return true
-            elseif iMaxSize >= 9 then
-                if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) then
+        --Do we have any active locations?
+        local bActiveLocationButDoesntWantEngineers = false
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+            for iEntry, tSutable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
                     return true
                 else
-                    --Liekly to be trying to build paragon but it wont fit
+                    bActiveLocationButDoesntWantEngineers = true
                 end
-            else
-                --Max size 8 - so cant build novax or paragon
-                if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, iCategoryWanted)) then
-                    return true
+            end
+        end
+
+
+
+        --We dont have any locations large enough that are free, check if we have a recorded template, and if so are we already using it
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]) == false then
+            --Check the active location doesn't cross into this location
+            local bRecordedIsAlreadyUsed = false
+            if bActiveLocationButDoesntWantEngineers then
+                local tBackupMidpoint = M28Map.GetPathingSegmentFromPosition(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegX], tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegZ])
+
+                for iEntry, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                    if math.abs(tSubtable[M28Map.subrefGEMidpoint][1] - tBackupMidpoint[1]) <= tSubtable[M28Map.subrefGESize] and math.abs(tSubtable[M28Map.subrefGEMidpoint][3] - tBackupMidpoint[3]) <= tSubtable[M28Map.subrefGESize] then
+                        bRecordedIsAlreadyUsed = true
+                        break
+                    end
+
                 end
+            end
+            if not(bRecordedIsAlreadyUsed) then
+                return true
+                --Below was when thought woudl be recording some info against LZData, but have reworked how will do it
+                --[[local bUseSmallShield = true
+                if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
+                    if not(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefbOnlySmallAvailable]) then
+                        bUseSmallShield = false
+                    end
+
+                end
+                local iSlotsAvailable, iMaxSize
+                if bUseSmallShield then
+                    iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiLocationCount] or 0)
+                    iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiMaxSize] or 8)
+                else
+                    iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiLocationCount] or 0)
+                    iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiMaxSize] or 8)
+                end
+                iSlotsAvailable = iSlotsAvailable - (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiArtiSpacesUsed] or 0)
+                if iSlotsAvailable > 0 then
+                    --Is the slot large enough to fit the category we want?
+                    if not(bUseSmallShield) and iSlotsAvailable >= 2 then iMaxSize = 10 end
+                    if iMaxSize >= 10 then return true
+                    elseif iMaxSize >= 9 then
+                        if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) then
+                            return true
+                        else
+                            --Liekly to be trying to build paragon but it wont fit
+                        end
+                    else
+                        --Max size 8 - so cant build novax or paragon
+                        if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, iCategoryWanted)) then
+                            return true
+                        end
+                    end
+                end--]]
             end
         end
     end

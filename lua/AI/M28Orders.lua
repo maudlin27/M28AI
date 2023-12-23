@@ -124,7 +124,7 @@ function IssueTrackedClearCommands(oUnit)
     --Update tracking for engineers (and clear any assisting engineers via ClearEngineerTracking)
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
         --Dont clear active shield engineers since they can be given different orders (resulting in a clear commands being sent)
-        if not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
+        if not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) and not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionManageGameEnderTemplate) then
             M28Engineer.ClearEngineerTracking(oUnit) --note - will also clear if try assigning action to engineer that is different to its currently assigned action as part of the track engineer action function, which covers cases where we dont trigger this such as shield special defence
         end
         --Unpause engineers who are about to be cleared

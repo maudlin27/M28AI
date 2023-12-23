@@ -1062,6 +1062,21 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
                 end
 
+                --Track special game ender logic buildings
+                if oEngineer[M28Building.refiArtiTemplateRef] then
+                    oConstruction[M28Building.refiArtiTemplateRef] =  oEngineer[M28Building.refiArtiTemplateRef]
+                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition(), true, oConstruction:GetAIBrain().M28Team)
+                    if tLZTeamData then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.refiArtiTemplateRef]][M28Map.subrefGEShieldUnits], oConstruction)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
+                            table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.refiArtiTemplateRef]][M28Map.subrefGEArtiUnits], oConstruction)
+                        else M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic')
+                        end
+                    else M28Utilities.ErrorHandler('Started building a unit for arti template but it isnt in a zone')
+                    end
+                end
+
                 --Decide if want to shield this construction and update buildable location, or (in the case of experimentals) if we want to cancel the construction
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
@@ -1099,7 +1114,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer that is starting this construction='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')) end
                         --Game ender and T3 arti specific - reserve locations for shields
-                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.refiArtiTemplateRef]) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
@@ -1957,14 +1972,52 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 end
 
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
+                --First handle units that are important enough we have logic for while they are part-constructed
+                if oUnit:GetFractionComplete() >= 0.1 and not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                    --Gameender/t3 arti and fixed shields - consider shielding/game ender template usage
+                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                        --Work out if we are already in a special game ender template area
+                        if not(oUnit[M28Building.refiArtiTemplateRef]) then
+                            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+                                local bLikelyInTemplatePosition = false
+                                local bArti = EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId)
+                                for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                                    if bArti then
+                                        if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEArtiLocations]) == false then
+                                            for iArtiLoc, tArtiLoc in tSubtable[M28Map.subrefGEArtiLocations] do
+                                                if M28Utilities.GetDistanceBetweenPositions(tArtiLoc, oUnit:GetPosition()) < 2.5 then
+                                                    oUnit[M28Building.refiArtiTemplateRef] = iTemplate
+                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEArtiUnits], oUnit)
+                                                end
+                                            end
+                                        end
+                                    else --dealing with fixed shield
+                                        if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldLocations]) == false then
+                                            for iArtiLoc, tArtiLoc in tSubtable[M28Map.subrefGEShieldLocations] do
+                                                if M28Utilities.GetDistanceBetweenPositions(tArtiLoc, oUnit:GetPosition()) < 1 then
+                                                    oUnit[M28Building.refiArtiTemplateRef] = iTemplate
+                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEShieldUnits], oUnit)
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            --Special shielding and air defence logic
+                            if not(oUnit[M28Building.refiArtiTemplateRef]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
+                                M28Building.ReserveLocationsForGameEnder(oUnit)
+                                M28Air.AddPriorityAirDefenceTarget(oUnit)
+                            end
+                        end
+                    end
+                end
                 if oUnit:GetFractionComplete() == 1 then
                     if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
                         --put here as extra redundancy since the 'unpause unit on transfer' code which has something similar didnt fix an issue with a loaded yolona being transferred not then firing
                         ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 15, true)
                     end
-                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
-                        M28Building.ReserveLocationsForGameEnder(oUnit)
-                    end
+
 
                     M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                     M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
@@ -1999,7 +2052,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 end
                 --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()
-                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel - M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, true)

@@ -151,9 +151,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiLargeShieldLocationCount = 11
             subreftLargeArtiLocations = 12
             subreftLargeShieldLocations = 13
-            --Template usage stats
-            subrefiArtiSpacesUsed = 14
-            subrefbOnlySmallAvailable = 15
+
         --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
             --subrefBlacklistLocation = 1
             --subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -310,6 +308,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                  subrefGEbActiveMonitor = 8
                 subrefGEbDontNeedEngineers = 9
                 subrefbFailedToGetArtiLocation = 10
+                subrefGEbActiveShieldMonitor = 11
 
 
 

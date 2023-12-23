@@ -2219,3 +2219,7 @@ function GetDeathWeaponDamageAOEAndTable(oUnit)
 
     end
 end
+
+function DischargeShield(oShield)
+    import("/lua/sim/commands/discharge-shields.lua").DischargeShields({ oShield }, true)
+end
