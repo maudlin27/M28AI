@@ -491,12 +491,20 @@ end
 
 
 function TestCustom(aiBrain)
+    if aiBrain.M28Team == 1 then
+        CreateUnit('ueb2304', aiBrain:GetArmyIndex(), 80, 46, 471, 0, 0, 0, 0, 'Air')
+        while GetGameTimeSeconds() <= 113 do
+            WaitSeconds(1)
+        end
+        CreateUnit('ueb2304', aiBrain:GetArmyIndex(), 80, 46, 459, 0, 0, 0, 0, 'Air')
+    end
+
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
-    local iXAdjust = -8
+    --[[local iXAdjust = -8
     local iZAdjust = -8
     for iMex, tMex in M28Map.tMassPoints do
         LOG('TestCustom for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
-    end
+    end--]]
 
     --brian size profiling:
     --[[
@@ -1149,7 +1157,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging

@@ -8119,19 +8119,23 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
 
     --tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Adding game ender template info to table for midpoint='..repru(tMidpoint)..'; iPreferredSize='..iPreferredSize..'; Can we build a preferred size unit here='..tostring(M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt(import('/mods/M28AI/lua/AI/M28Engineer.lua').tsBlueprintsBySize[iPreferredSize], tMidpoint)))
+        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tMidpoint, iPreferredSize*0.5), 5, 400)
+    end
+
     function RecordSmallShieldTemplate(tBaseTable, tMidpoint)
         tBaseTable[subrefiSmallArtiLocationCount] = 1
         tBaseTable[subrefiSmallArtiMaxSize] = 10
         tBaseTable[subrefiSmallShieldLocationCount] = 7
         --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
         --NOTE: Moving to left means -x; moving up means -z; moving down means +z, moving right means +x
-        tBaseTable[subreftSmallArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+        tBaseTable[subreftSmallArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]-5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
         tBaseTable[subreftSmallShieldLocations] = {
             [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
             [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
             [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
             [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
-            [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+            [5] = { tMidpoint[1] + 6, 0, tMidpoint[3] + 3 }, --RH side
             [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
             [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
         }
@@ -8193,7 +8197,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
             [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
             [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down
             [4] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --Middle of the row
-            [5] = { tMidpoint[1], 0, tMidpoint[3] + 3 }, --RH side
+            [5] = { tMidpoint[1] + 6, 0, tMidpoint[3] + 3 }, --RH side
             [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
             [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
         }

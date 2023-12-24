@@ -25,8 +25,8 @@ UnitBlueprint {
             MotionType = 'RULEUMT_None',
             SkirtSizeX = 26,
             SkirtSizeZ = 26,
-            SkirtOffsetX = -4,
-            SkirtOffsetZ = -4
+            SkirtOffsetX = 0,
+            SkirtOffsetZ = 0
         },
    ScriptClass = 'Unit',
   ScriptModule = '/lua/sim/unit.lua',
