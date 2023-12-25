@@ -4489,12 +4489,20 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                     tbEngineersOfFaction[M28UnitInfo.GetUnitFaction(oACU)] = true
                     local iExperimentalCategory = M28Engineer.DecideOnExperimentalToBuild(M28Engineer.refActionReclaimFriendlyUnit, aiBrain, tbEngineersOfFaction, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
                     if iExperimentalCategory then
-                        bGivenOrder = true
-                        local oExpToAssist = M28Engineer.GetPartCompleteBuildingInZone(iTeam, iPlateauOrZero, iLandOrWaterZone, iExperimentalCategory)
-                        if oExpToAssist then
-                            M28Orders.IssueTrackedRepair(oACU, oExpToAssist, false, 'ACUAstEx', false)
+                        if not(iExperimentalCategory == M28Engineer.refActionManageGameEnderTemplate) then
+                            bGivenOrder = true
+                            local oExpToAssist = M28Engineer.GetPartCompleteBuildingInZone(iTeam, iPlateauOrZero, iLandOrWaterZone, iExperimentalCategory)
+                            if oExpToAssist then
+                                M28Orders.IssueTrackedRepair(oACU, oExpToAssist, false, 'ACUAstEx', false)
+                            else
+                                ACUBuildUnit(aiBrain, oACU, iExperimentalCategory, 50, 60, nil, nil)
+                            end
                         else
-                            ACUBuildUnit(aiBrain, oACU, iExperimentalCategory, 50, 60, nil, nil)
+                            local oExpToAssist = M28Engineer.GetPartCompleteBuildingInZone(iTeam, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryFixedShield)
+                            if oExpToAssist then
+                                bGivenOrder = true
+                                M28Orders.IssueTrackedRepair(oACU, oExpToAssist, false, 'ACUAstGEx', false)
+                            end
                         end
                     end
                 end

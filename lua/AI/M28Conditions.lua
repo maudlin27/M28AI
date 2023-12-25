@@ -2570,3 +2570,28 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
     end
     return false
 end
+
+function HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData)
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+        for iTemplate, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function WillBlockTemplateLocation(tLZTeamData, iCurSegmentX, iCurSegmentZ, iBuildingAdjustedRadius)
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+        local tBasePosition = M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+        local iDistancethreshold
+        for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+            iDistancethreshold = tSubtable[M28Map.subrefGESize] + iBuildingAdjustedRadius
+            if math.abs(tSubtable[M28Map.subrefGEMidpoint][1] - tBasePosition[1]) <= iDistancethreshold and math.abs(tSubtable[M28Map.subrefGEMidpoint][3] - tBasePosition[3]) then
+                return true
+            end
+        end
+    end
+    return false
+end

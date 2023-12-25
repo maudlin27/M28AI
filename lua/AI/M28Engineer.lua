@@ -1316,6 +1316,18 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     local iMaxSegmentAdjust = math.floor(iMaxAreaToSearch * 0.7 / M28Map.iLandZoneSegmentSize) --70% due to diagonals
                     if bDebugMessages == true then LOG(sFunctionRef..': Trying to build shield, sBlueprintToBuild='..sBlueprintToBuild..'; iMaxSegmentAdjust='..iMaxSegmentAdjust..'; iMaxAreaToSearch='..iMaxAreaToSearch) end
                     if iMaxSegmentAdjust >= 1 then
+                        local bCheckForGameEnderTemplate = false
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                        local tLZData
+                        local iBuildingTemplateSizeCheck = M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5 + 0.5 --add 0.5 due to offset issues
+                        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is considerinb building mex or hydro '..sBlueprintToBuild..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                        if (iLandZone or 0) > 0 and (iPlateau or 0) > 0 then
+                            tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                            tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+                            if M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then bCheckForGameEnderTemplate = true end
+                        end
+
+
                         local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tAlternativePositionToLookFrom)
 
                         local iSizeWanted = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
@@ -1325,8 +1337,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                             for iCurSegmentZ = math.max(1, iBaseSegmentZ - iMaxSegmentAdjust), iBaseSegmentZ + iMaxSegmentAdjust, 1 do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Max size for Cur SegmentX'..iCurSegmentX..'Z'..iCurSegmentZ..'='.. (tLZData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0)) end
                                 if (tLZData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0) >= iSizeWanted then
-                                    table.insert(tPotentialBuildLocations, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Found a segment where the highest size should be enough for a shield, will add to potential build locations') end
+                                    if not(bCheckForGameEnderTemplate) or not(M28Conditions.WillBlockTemplateLocation(tLZTeamData, iCurSegmentX, iCurSegmentZ, iBuildingTemplateSizeCheck)) then
+                                        table.insert(tPotentialBuildLocations, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Found a segment where the highest size should be enough for a shield, will add to potential build locations') end
+                                    end
                                 end
                             end
                         end
@@ -2582,6 +2596,8 @@ function RecordBuildableCoreWaterZoneLocationsNearStartOfGame()
 end
 
 function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
+    --Only intended to be used for determiming land experimentals
+
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2594,7 +2610,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local iGameEnderTemplateCategory
     if not(tbEngineersOfFactionOrNilIfAlreadyAssigned) then
         if bDebugMessages == true then LOG(sFunctionRef..': Already have unit under construction so will return experimentallevel') end
-        iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel --Already have the unit under construction
+        iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL --Already have the unit under construction
         if M28Conditions.HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData) then
             iCategoryWanted = refActionManageGameEnderTemplate
         end
@@ -2609,7 +2625,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 for iUnit, oUnit in tExperimentalsInLZ do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > 0.001 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Setting category to experimental level as have part complete experimental') end
-                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel
+                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL
                         break
                     end
                 end
@@ -3512,7 +3528,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             if bDebugMessages == true then LOG(sFunctionRef..': Considering building shield, iMinTechLevel='..iMinTechLevel..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]..'; Novax count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount]..'; Enemy air to ground='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat]..'; SValue='..tLZOrWZTeamData[M28Map.subrefLZSValue]..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
 
             if M28Map.bIsCampaignMap then iCategoryToBuild = M28UnitInfo.refCategoryFixedShield
-            elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and (not(aiBrain[M28Overseer.refbDefendAgainstArti]) or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] == 0 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] <= 2)) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+            elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and (not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti]) or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] == 0 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] <= 2)) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
                 if bDebugMessages == true then LOG(sFunctionRef..': Will build T2 shield') end
             elseif iMinTechLevel >= 3 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] > 2)) or aiBrain[M28Overseer.refbCloseToUnitCap] or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000 and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.subrefLZSValue] >= 8000)) then
@@ -5020,14 +5036,54 @@ function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
 
 end
 
-function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, bWantToChangeDueToNovax)
+    if not(oFirstUEF) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
+        --Switch from novax to T3 arti (or gameender if enemy base is very far away)
+        if M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 750 then
+            tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
+        else
+            tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre
+        end
+    elseif not(oFirstSeraphim) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySML, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
+        --Switch from yolona to gameender
+        tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
+    elseif not(oFirstAeon) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
+        tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
+    else
+        --Set to T3 arti or gameender (include novax if we have no existing arti)
+        if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) then
+            tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre
+        else
+            --If we have a novax built, then get T3 arti if enemy base is close
+            if bWantToChangeDueToNovax and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 750 then
+                tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti
+            else
+                tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder
+            end
+        end
+    end
+
+    --Check - can our first engineer build units of the desired category? If not then change the category to be an experimental level unit as we might have unit restrictions preventing this
+    if oFirstEngineer then
+        local aiBrain = oFirstEngineer:GetAIBrain()
+        local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer)
+        if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL
+            M28Team.tTeamData[aiBrain.M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] = true
+        end
+    end
+    
+end
+
+function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
     --Decide on the arti blueprint we want to try and build; priority to use:
     --Aeon (Paragon and T3 arti) > Seraphim (Yolona) > UEF (Mavor) > Cybran (Scathis)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'StartBuildingArtiOrGameEnder'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tTableRef[M28Map.subrefGEArtiLocations])) end
     local sArtiToBuild = nil
     local aiBrain
     local oEngineerToBuild
@@ -5064,9 +5120,9 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': sArtiToBuild='..(sArtiToBuild or 'nil')..'; oEngineerToBuild='..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..'; iCyclesWaitingForEngineer='..(iCyclesWaitingForEngineer or 'nil')..'; Is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': sArtiToBuild='..(sArtiToBuild or 'nil')..'; oEngineerToBuild='..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..'; iCyclesWaitingForEngineer='..(tTableRef[M28Map.subrefiCyclesWaitingForEngineer] or 'nil')..'; Is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Time='..GetGameTimeSeconds()) end
     if sArtiToBuild and oEngineerToBuild then
-        iCyclesWaitingForEngineer = 0
+        tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = 0
         --Is either of the arti locations available? If not then need to reclaim any buildings there (assuming we dont have a T3 arti there)
         local iBuildingSize = M28UnitInfo.GetBuildingSize(sArtiToBuild)
         local tLocationToBuild
@@ -5081,6 +5137,7 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
             local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
             local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
             local bHavePotentiallyValidLocation = false
+            local tUnitsToConsiderReclaiming
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEArtiLocations] do
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5))
                 if not(tBlockingUnits) then
@@ -5090,7 +5147,7 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
                     if M28Utilities.IsTableEmpty(tBlockingUnits) then
                         M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it')
                     else
-                        local tUnitsToConsiderReclaiming = {}
+                        tUnitsToConsiderReclaiming = {}
                         for iUnit, oUnit in tBlockingUnits do
                             if M28UnitInfo.IsUnitValid(oUnit) then
                                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
@@ -5115,11 +5172,12 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
             if bHavePotentiallyValidLocation then
                 tTableRef[M28Map.subrefbFailedToGetArtiLocation] = false
                 --Get all engineers to reclaim the units here
-                local oUnitToReclaim = tUnitsToConsiderReclaiming[1]
+                local oUnitToReclaim = tLowestValueBlockingBuildings[1]
                 for iEngineer, oEngineer in tAvailableEngineers do
                     M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GERecl', false)
                 end
                 tAvailableEngineers = nil
+                tAvailableT3EngineersByFaction = nil
                 if bDebugMessages == true then LOG(sFunctionRef..': Want engineers to reclaim blocking unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
             else
                 --Dont have a valid location, so need to come up with some redundancy logic, e.g. clear engis and flag that we mustn't try and use this location again, unless we already have an arti unit
@@ -5132,9 +5190,12 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
             for iEngineer, oEngineer in tAvailableEngineers do
                 if oEngineer == oEngineerToBuild then
                     table.remove(tAvailableEngineers, iEngineer)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Removing engineer from table of engineers by faction if it isnt empty, faction='..(M28UnitInfo.GetFactionNumberFromBlueprint(oEngineer.UnitId) or 'nil')..'; Engineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Is tAvailableT3EngineersByFaction empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction))..'; Is tAvailableT3EngineersByFaction for faction empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction[M28UnitInfo.GetFactionNumberFromBlueprint(oEngineer.UnitId)]))) end
+                    table.remove(tAvailableT3EngineersByFaction[M28UnitInfo.GetFactionNumberFromBlueprint(oEngineer.UnitId)], 1)
                     break
                 end
             end
+
             local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationToBuild, sArtiToBuild, 0, false)
             if tMoveLocation then
                 if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sArtiToBuild..' at location '..repru(tLocationToBuild)) end
@@ -5145,36 +5206,12 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
             end
         end
     else
-        iCyclesWaitingForEngineer = iCyclesWaitingForEngineer + 1
-        if iCyclesWaitingForEngineer >= 15 and oFirstEngineer then
+        tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = (tTableRef[M28Map.subrefiCyclesWaitingForEngineer] or 0) + 1
+        if tTableRef[M28Map.subrefiCyclesWaitingForEngineer] >= 15 and oFirstEngineer then
             --Reevaluate what gameender or T3 arti unit we want
-            if not(oFirstUEF) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
-                --Switch from novax to T3 arti (or gameender if enemy base is very far away)
-                if M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 750 then
-                    tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
-                else
-                    tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre
-                end
-            elseif not(oFirstSeraphim) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySML, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
-                --Switch from yolona to gameender
-                tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
-            elseif not(oFirstAeon) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
-                tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
-            else
-                --Set to T3 arti or gameender or novax
-                tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre
-            end
+            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)            
 
-            --Check - can our first engineer build units of the desired category? If not then change the category to be an experimental level unit as we might have unit restrictions preventing this
-            if oFirstEngineer then
-                aiBrain = oFirstEngineer:GetAIBrain()
-                sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer)
-                if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] = true
-                end
-            end
-
-            iCyclesWaitingForEngineer = 0
+            tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = 0
         end
     end
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -5182,9 +5219,9 @@ function StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AssistUnit(tAvailableEngineers, oUnit, iOptionalMax)
+function GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, oUnit, iOptionalMax)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'AssistUnit'
+    local sFunctionRef = 'GETemplateAssistUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCurEntry = 0
@@ -5196,6 +5233,15 @@ function AssistUnit(tAvailableEngineers, oUnit, iOptionalMax)
                     M28Orders.IssueTrackedRepair(oEngineer, oUnit, false, 'GEFRep', false)
                     iCurEntry = iCurEntry + 1
                     table.remove(tAvailableEngineers, iEngineer)
+                    local iFactionRef = M28UnitInfo.GetFactionNumberFromBlueprint(oEngineer.UnitId)
+                    if M28Utilities.IsTableEmpty( tAvailableT3EngineersByFaction[iFactionRef]) == false then
+                        for iFactionEngi, oFactionEngi in tAvailableT3EngineersByFaction[iFactionRef] do
+                            if oFactionEngi == oEngineer then
+                                table.remove(tAvailableT3EngineersByFaction[iFactionRef], iFactionEngi)
+                                break
+                            end
+                        end
+                    end
                     break
                 end
             end
@@ -5220,71 +5266,167 @@ function AssistUnit(tAvailableEngineers, oUnit, iOptionalMax)
     end
     if iOptionalMax then
         for iCurEngi = iCurEntry, 1, -1 do
+            local oEngineer = tAvailableEngineers[iCurEngi]
+            local iFactionRef = M28UnitInfo.GetFactionNumberFromBlueprint(oEngineer.UnitId)
+            if M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction[iFactionRef]) == false then
+                for iFactionEngi, oFactionEngi in tAvailableT3EngineersByFaction[iFactionRef] do
+                    if oFactionEngi == oEngineer then
+                        table.remove(tAvailableT3EngineersByFaction[iFactionRef], iFactionEngi)
+                        break
+                    end
+                end
+            end
+
             table.remove(tAvailableEngineers, iCurEngi)
         end
     else
         tAvailableEngineers = nil
+        tAvailableT3EngineersByFaction = nil
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function StartBuildingShield(tAvailableEngineers, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, iMaxShieldsToTryAndBuild, iOptionalMaxEngiPerAction)
     --Decide on the arti blueprint we want to try and build; priority to use:
     --Aeon (Paragon and T3 arti) > Seraphim (Yolona) > UEF (Mavor) > Cybran (Scathis)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'StartBuildingShield'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GETemplateStartBuildingShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 1 then bDebugMessages = true end
+
 
     local sShieldToBuild = nil
     local aiBrain
     local oEngineerToBuild
+    
+    local iFactionRef
     if oFirstSeraphim then
-        aiBrain = oFirstSeraphim:GetAIBrain()
-        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oFirstSeraphim)
-        oEngineerToBuild = oFirstSeraphim
+        aiBrain = oFirstSeraphim:GetAIBrain()        
+        iFactionRef = M28UnitInfo.refFactionSeraphim
+        oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
+        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)        
+
     end
     if not(sShieldToBuild) then
         if oFirstUEF then
-            aiBrain = oFirstUEF:GetAIBrain()
-            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oFirstUEF)
-            oEngineerToBuild = oFirstUEF
+            aiBrain = oFirstUEF:GetAIBrain()            
+            iFactionRef = M28UnitInfo.refFactionUEF
+            oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
+            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
         end
         if not(sShieldToBuild) then
             if oFirstAeon then
-                aiBrain = oFirstAeon:GetAIBrain()
-                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oFirstAeon)
-                oEngineerToBuild = oFirstAeon
+                aiBrain = oFirstAeon:GetAIBrain()                
+                iFactionRef = M28UnitInfo.refFactionAeon
+                oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
+                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
             end
             if not(sShieldToBuild) then
-                if oFirstEngineer then
-                    aiBrain = oFirstEngineer:GetAIBrain()
-                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oFirstEngineer)
-                    oEngineerToBuild = oFirstEngineer
+                if oFirstCybran then
+                    aiBrain = oFirstCybran:GetAIBrain()                    
+                    iFactionRef = M28UnitInfo.refFactionCybran
+                    oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
+                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                end
+                if not(sShieldToBuild) then
+                    if oFirstEngineer then
+                        aiBrain = oFirstEngineer:GetAIBrain()                        
+                        oEngineerToBuild = oFirstEngineer                        
+                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                    end
                 end
             end
         end
     end
+    local tEngisOfDesiredFaction = tAvailableT3EngineersByFaction[iFactionRef]
     if bDebugMessages == true then LOG(sFunctionRef..': dealing with iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; sShieldToBuild='..(sShieldToBuild or 'nil')..'; oEngineerToBuild='..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')) end
     if sShieldToBuild and oEngineerToBuild then
         --Is either of the arti locations available? If not then need to reclaim any buildings there (assuming we dont have a T3 arti there)
         local iBuildingSize = M28UnitInfo.GetBuildingSize(sShieldToBuild)
-        local tLocationToBuild
+        local tLocationsToBuild = {}
+        local iLocationsToBuild = 0
+        if not(iMaxShieldsToTryAndBuild) then iMaxShieldsToTryAndBuild = 1 end
         for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEShieldLocations] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering shield location '..repru(tBuildLocation)..'; can we build a shield here='..tostring(aiBrain:CanBuildStructureAt(sShieldToBuild, tBuildLocation))) end
             if aiBrain:CanBuildStructureAt(sShieldToBuild, tBuildLocation) then
-                tLocationToBuild = {tBuildLocation[1], tBuildLocation[2],tBuildLocation[3]}
-                break
+                table.insert(tLocationsToBuild, {tBuildLocation[1], tBuildLocation[2],tBuildLocation[3]})
+                iLocationsToBuild = iLocationsToBuild + 1
+                if iLocationsToBuild >= iMaxShieldsToTryAndBuild then
+                    break
+                end
             else
                 if bDebugMessages == true then  M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tBuildLocation, 3), 2) end
             end
         end
-        if not(tLocationToBuild) then
-            --Look to reclaim buildings that are blocking us, unless they are very high value buildings
+
+        if M28Utilities.IsTableEmpty(tLocationsToBuild) == false then
+            --First assign the first engineer
+
+            for iEngineer, oEngineer in tAvailableEngineers do
+                if oEngineer == oEngineerToBuild then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to build the shield') end
+                    table.remove(tAvailableEngineers, iEngineer)                    
+                    break
+                end
+            end
+            if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false then
+                for iEngineer, oEngineer in tEngisOfDesiredFaction do
+                    if oEngineer == oEngineerToBuild then
+                        table.remove(tEngisOfDesiredFaction, iEngineer)
+                        break
+                    end
+                end
+            end
+            local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationsToBuild[1], sShieldToBuild, 0, false)
+            if tMoveLocation then
+                if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sShieldToBuild..' at location '..repru(tLocationsToBuild[1])) end
+                M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationsToBuild[1], sShieldToBuild, tMoveLocation, 1, false, 'GEMBArt')
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sShieldToBuild..' at build location '..repru(tLocationsToBuild[1])) end
+                M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationsToBuild[1], sShieldToBuild, false, 'GEBArt')
+            end
+            table.remove(tLocationsToBuild, 1)
+
+            --Now try and build at the other locations if have any
+            local iMaxCount = iMaxShieldsToTryAndBuild + 1
+            local iCurLoopCount = 0
+            if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false and M28Utilities.IsTableEmpty(tLocationsToBuild) == false then
+                local iLastEngi = table.getn(tEngisOfDesiredFaction)
+                local iLastLocation = table.getn(tLocationsToBuild)
+                while M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false and M28Utilities.IsTableEmpty(tLocationsToBuild) == false do
+                    iCurLoopCount = iCurLoopCount + 1
+                    if iCurLoopCount > iMaxCount then M28Utilities.ErrorHandler('Infinite loop protection') break end
+
+                    tMoveLocation = GetLocationToMoveForConstruction(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, 0, false)
+                    if tMoveLocation then
+                        if bDebugMessages == true then LOG(sFunctionRef..': GE Extra Telling engineer '..tEngisOfDesiredFaction[iLastEngi].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngisOfDesiredFaction[iLastEngi])..' to move to '..repru(tMoveLocation)..' and then build '..sShieldToBuild..' at location '..repru(tLocationsToBuild[iLastLocation])) end
+                        M28Orders.IssueTrackedMoveAndBuild(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, tMoveLocation, 1, false, 'GEMEBArt')
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': GE Extra Telling engineer '..tEngisOfDesiredFaction[iLastEngi].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngisOfDesiredFaction[iLastEngi])..' to build '..sShieldToBuild..' at build location '..repru(tLocationsToBuild[iLastLocation])) end
+                        M28Orders.IssueTrackedBuild(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, false, 'GEEBArt')
+                    end
+                    for iEngineer, oEngineer in tAvailableEngineers do
+                        if oEngineer == tEngisOfDesiredFaction[iLastEngi] then
+                            table.remove(tAvailableEngineers, iEngineer)
+                            break
+                        end
+                    end
+                    table.remove(tEngisOfDesiredFaction, iLastEngi)
+                    iLastEngi = iLastEngi - 1
+                    table.remove(tLocationsToBuild, iLastLocation)
+                    iLastLocation = iLastLocation - 1
+                end
+            end
+
+        end
+
+        if M28Utilities.IsTableEmpty(tAvailableEngineers) == false and iLocationsToBuild < iMaxShieldsToTryAndBuild then
+            --Look to reclaim buildings that are blocking us with remaining engineers, unless they are very high value buildings
             local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
             local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
             local bHavePotentiallyValidLocation = false
+            local tUnitsToConsiderReclaiming
+            local iXDif, iZDif
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEShieldLocations] do
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5))
                 if not(tBlockingUnits) then
@@ -5294,25 +5436,47 @@ function StartBuildingShield(tAvailableEngineers, tLZTeamData, iPlateau, iLandZo
                     if M28Utilities.IsTableEmpty(tBlockingUnits) then
                         M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it')
                     else
-                        local tUnitsToConsiderReclaiming = {}
+                        tUnitsToConsiderReclaiming = {}
                         for iUnit, oUnit in tBlockingUnits do
                             if M28UnitInfo.IsUnitValid(oUnit) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Location '..repru(tBuildLocation)..' has a blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' with radius='..M28UnitInfo.GetBuildingSize(oUnit.UnitId)*0.5..'; Is unit oUnit[M28Building.reftArtiTemplateRefs] nil='..tostring(oUnit[M28Building.reftArtiTemplateRefs]==nil)) end
                                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                                     --Do nothing
                                 elseif oUnit[M28Building.reftArtiTemplateRefs] then
                                     --Do nothing
+
                                 else
-                                    table.insert(tUnitsToConsiderReclaiming, oUnit)
+                                    local bShieldToAdd = false
+                                    --e.g. has another engineer unrelated to template logic gone and built in our template, but managed to build in the right place?
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield - categories.TECH2, oUnit.UnitId) then
+                                        iXDif = math.abs(oUnit:GetPosition()[1] - tBuildLocation[1])
+                                        if iXDif <= 0.5 or (iXDif >= 2.5 and iXDif <= 3.5) then
+                                            iZDif = math.abs(oUnit:GetPosition()[3] - tBuildLocation[3])
+                                            if iZDif <= 0.5 or (iZDif >= 2.5 and iZDif <= 3.5) then
+                                                bShieldToAdd = true
+                                            end
+                                        end
+                                    end
+                                    if bShieldToAdd then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a fixed hsield that is in the right location to form part of our logic so will add') end
+                                        table.insert(tTableRef[M28Map.subrefGEShieldUnits], oUnit)
+                                        oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef}
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will add to table of units to reclaim') end
+                                        table.insert(tUnitsToConsiderReclaiming, oUnit)
+                                    end
                                 end
                             end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
                             iCurValueBlockingBuildings = M28UnitInfo.GetCombatThreatRating(tUnitsToConsiderReclaiming, false, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
                             if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
                                 iLowestValueBlockingBuildings = iCurValueBlockingBuildings
                                 tLowestValueBlockingBuildings = tUnitsToConsiderReclaiming
                                 iLowestValueRef = iEntry
                                 bHavePotentiallyValidLocation = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a potentially valid location so will reclaim if it remains the lowest value of blocking units') end
                             end
                         end
                     end
@@ -5321,37 +5485,64 @@ function StartBuildingShield(tAvailableEngineers, tLZTeamData, iPlateau, iLandZo
             if bHavePotentiallyValidLocation then
                 tTableRef[M28Map.subrefbFailedToGetArtiLocation] = false
                 --Get all engineers to reclaim the units here
-                local oUnitToReclaim = tUnitsToConsiderReclaiming[1]
+                local oUnitToReclaim = tLowestValueBlockingBuildings[1]
+                local iEngisGivenReclaimOrder = 0
                 for iEngineer, oEngineer in tAvailableEngineers do
                     M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GESRecl', false)
+                    iEngisGivenReclaimOrder = iEngisGivenReclaimOrder + 1
+                    if iOptionalMaxEngiPerAction and iEngisGivenReclaimOrder >= iOptionalMaxEngiPerAction then break end
                 end
-                tAvailableEngineers = nil
+                if iOptionalMaxEngiPerAction then
+                    for iRemoveCount = 1, iEngisGivenReclaimOrder do
+                        local oEngiToRemove = tAvailableEngineers[1]
+                        if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false then
+                            for iFactionEngi, oFactionEngi in tEngisOfDesiredFaction do
+                                if oFactionEngi == oEngiToRemove then
+                                    table.remove(tEngisOfDesiredFaction, iFactionEngi)
+                                    break
+                                end
+                            end
+                        end
+                        table.remove(tAvailableEngineers, 1)
+                    end
+                else
+                    tAvailableEngineers = nil
+                    tEngisOfDesiredFaction = nil
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for shield by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
             end
         else
-            --We have a location to build - get the faction specific engineer to build
-            local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationToBuild, sShieldToBuild, 0, false)
-            for iEngineer, oEngineer in tAvailableEngineers do
-                if oEngineer == oEngineerToBuild then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Setting engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to build the shield') end
-                    table.remove(tAvailableEngineers, iEngineer)
-                    break
-                end
-            end
+            if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
+                local iEngisGivenOrder = 1
+                if not(iOptionalMaxEngiPerAction) or iEngisGivenOrder < iOptionalMaxEngiPerAction then
+                    --Get every other engineer to assist this engineer
+                    local iRemainingEngisGivenGuard = 0
+                    for iEngineer, oEngineer in tAvailableEngineers do
+                        M28Orders.IssueTrackedGuard(oEngineer, oEngineerToBuild, false, 'GESAss', false)
+                        iRemainingEngisGivenGuard = iRemainingEngisGivenGuard + 1
+                        if iOptionalMaxEngiPerAction and iRemainingEngisGivenGuard + iEngisGivenOrder >= iOptionalMaxEngiPerAction then break end
+                    end
 
-            if tMoveLocation then
-                if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sShieldToBuild..' at location '..repru(tLocationToBuild)) end
-                M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationToBuild, sShieldToBuild, tMoveLocation, 1, false, 'GEMBArt')
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sShieldToBuild..' at build location '..repru(tLocationToBuild)) end
-                M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sShieldToBuild, false, 'GEBArt')
+                    if iOptionalMaxEngiPerAction then
+                        for iRemoveCount = 1, iRemainingEngisGivenGuard do
+                            local oEngiToRemove = tAvailableEngineers[1]
+                            if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false then
+                                for iFactionEngi, oFactionEngi in tEngisOfDesiredFaction do
+                                    if oFactionEngi == oEngiToRemove then
+                                        table.remove(tEngisOfDesiredFaction, iFactionEngi)
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            table.remove(tAvailableEngineers, 1)
+                        end
+                    else
+                        tAvailableEngineers = nil
+                        tEngisOfDesiredFaction = nil
+                    end
+                end                
             end
-
-            --Get every other engineer to assist this engineer
-            for iEngineer, oEngineer in tAvailableEngineers do
-                M28Orders.IssueTrackedGuard(oEngineer, oEngineerToBuild, false, 'GESAss', false)
-            end
-            tAvailableEngineers = nil
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5373,10 +5564,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
 
 
-        local iCompletedArti, iUnderConstructionArti, iCompletedShields, iUnderConstructionShields, oNearestCompletionShield, oNearestCompletionArti, iHighestCompletionShield, iHighestCompletionArti
-        local sArtiToBuild, oFirstUEF, oFirstAeon, oFirstCybran, oFirstSeraphim, oFirstEngineer
+        local oFirstUEF, oFirstAeon, oFirstCybran, oFirstSeraphim, oFirstEngineer
+        local bHaveAlreadyTriedSwitchingCategoryForNovax = false
 
-        local iCyclesWaitingForEngineer = 0
 
 
 
@@ -5389,6 +5579,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
             if bStillValid then
                 --Decide what to do with engineers, if we have any
                 local tAvailableEngineers = {}
+                local tAvailableT3EngineersByFaction = {}
+                local tLowCompletionShieldsToAssist = {}
                 oFirstUEF = nil
                 oFirstAeon = nil
                 oFirstCybran = nil
@@ -5404,6 +5596,14 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         if not(oFirstSeraphim) and EntityCategoryContains(categories.SERAPHIM * categories.TECH3, oEngineer.UnitId) then oFirstSeraphim = oEngineer end
                         if not(oFirstEngineer) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3 + categories.SUBCOMMANDER * categories.TECH3, oEngineer.UnitId) then oFirstEngineer = oEngineer end
                     end
+                    tAvailableT3EngineersByFaction = {}
+                    if oFirstAeon then tAvailableT3EngineersByFaction[M28UnitInfo.refFactionAeon] = EntityCategoryFilterDown(categories.AEON * categories.TECH3, tAvailableEngineers) end
+                    if oFirstUEF then tAvailableT3EngineersByFaction[M28UnitInfo.refFactionUEF] = EntityCategoryFilterDown(categories.UEF * categories.TECH3, tAvailableEngineers) end
+                    if oFirstCybran then tAvailableT3EngineersByFaction[M28UnitInfo.refFactionCybran] = EntityCategoryFilterDown(categories.CYBRAN * categories.TECH3, tAvailableEngineers) end
+                    if oFirstSeraphim then tAvailableT3EngineersByFaction[M28UnitInfo.refFactionSeraphim] = EntityCategoryFilterDown(categories.SERAPHIM * categories.TECH3, tAvailableEngineers) end
+                    if not(oFirstAeon) and not(oFirstUEF) and not(oFirstCybran) and not(oFirstSeraphim) then tAvailableT3EngineersByFaction[M28UnitInfo.refFactionUnrecognised] = EntityCategoryFilterDown(categories.TECH3, tAvailableEngineers) end
+
+
 
                     local iCompletedArti = 0
                     local iUnderConstructionArti = 0
@@ -5437,6 +5637,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                     iHighestCompletionShield = oShield:GetFractionComplete()
                                     oNearestCompletionShield = oShield
                                 end
+                                if oShield:GetFractionComplete() < 0.07 then
+                                    table.insert(tLowCompletionShieldsToAssist, oShield)
+                                end
                             end
                         end
                     end
@@ -5450,8 +5653,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
                     --If we dont have a T3 arti even started construction, then build one with the closest engineer able to build the desired category
                     if iCompletedArti == 0 and iUnderConstructionArti == 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and build an arti or gameender, is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; oFirstEngineer='..(oFirstEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer) or 'nil')) end
-                        StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and build an arti or gameender, is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; oFirstEngineer='..(oFirstEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer) or 'nil')..'; Is tAvailableT3EngineersByFaction empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction))) end
+                        GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
                         if M28Team.tTeamData[oFirstEngineer:GetAIBrain().M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] then
                             tTableRef[M28Map.subrefGEbDontNeedEngineers] = true
                             break
@@ -5459,31 +5662,55 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                     end
 
                     if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Still have available engineers for zone '..iLandZone..'; will have 1 engi assisting the gameender and then have the rest building shields or helping tocompletion') end
+                        local iOrigAvailableEngis = table.getn(tAvailableEngineers)
+                        --If have lots of engineers then spread out since the biggest delay may be starting construction of a shield
+                        if iOrigAvailableEngis >= 5 and iUnderConstructionShields > 0 and iCompletedShields + iUnderConstructionShields < iShieldLocations and iUnderConstructionShields < 4 then
+                            --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try assigning 1 engi each to building a shield since iOrigAvailableEngis='..iOrigAvailableEngis) end
+                            GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4 - iUnderConstructionShields, iShieldLocations - iCompletedShields - iUnderConstructionShields), 1)
+
+                        end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Still have available engineers for zone '..iLandZone..'; will have 1 engi assisting the gameender and then have the rest building shields or helping tocompletion. iOrigAvailableEngi'..iOrigAvailableEngis..'; Is tLowCompletionShieldsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tLowCompletionShieldsToAssist))) end
                         --Have 1 engi assisting the arti if it is under construction so it doesnt die from low health
                         if iUnderConstructionArti > 0 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have an under construction arti so will try and assist it, oNearestCompletionArti='..(oNearestCompletionArti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionArti) or 'nil')) end
-                            AssistUnit(tAvailableEngineers, oNearestCompletionArti, 1)
+                            GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, oNearestCompletionArti, 1)
                         end
+
+                        --next have 1 engi assisting each low health under construction shield
+                        if iOrigAvailableEngis >= 5 and M28Utilities.IsTableEmpty(tLowCompletionShieldsToAssist) == false and M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
+                            for iShield, oShield in tLowCompletionShieldsToAssist do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will get 1 engineer to assist the low construction shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)) end
+                                GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, oShield, 1)
+                                if M28Utilities.IsTableEmpty(tLowCompletionShieldsToAssist) then break end --redundancy, but hopefully shouldnt happen
+                            end
+                        end
+
                         --If still have available engineers, then focus on getting more shielding
                         if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                             if oNearestCompletionShield then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will assist nearest completion shield='..oNearestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionShield)) end
-                                AssistUnit(tAvailableEngineers, oNearestCompletionShield)
-                            elseif iCompletedShields < iShieldLocations then
+                                GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, oNearestCompletionShield)
+                            elseif iCompletedShields + iUnderConstructionShields < iShieldLocations then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We can build more shields so we will') end
-                                StartBuildingShield(tAvailableEngineers, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+                                GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4, iShieldLocations - iCompletedShields))
                             else
                                 --We have all our shields constructed; redundancy - check if we have under construction arti
                                 if oNearestCompletionArti then
                                     --Assist this
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will assist the arti until completion, oNearestCompletionArti='..oNearestCompletionArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionArti)) end
-                                    AssistUnit(tAvailableEngineers, oNearestCompletionArti)
+                                    GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, oNearestCompletionArti)
                                 else
                                     --We have shielding and game-ender, do we have space for a second game-ender type unit (or T3 arti)?
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have available engineers and no arti to build so want to start building a second (if its possible)') end
                                     if iCompletedArti < iArtiLocations then
-                                        StartBuildingArtiOrGameEnder(tAvailableEngineers, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+                                        --Change the category to build if we have UEF and built a novax
+                                        if not(bHaveAlreadyTriedSwitchingCategoryForNovax) and oFirstUEF and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNovaxCentre, tTableRef[M28Map.subrefGEArtiUnits])) == false and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
+                                            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true)
+                                            bHaveAlreadyTriedSwitchingCategoryForNovax = true
+                                        end
+                                        GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
                                     else
                                         --We have built all possible shields and arti/gameenders, so have no more use for engineers for this logic
                                         tTableRef[M28Map.subrefGEbDontNeedEngineers] = true
@@ -5590,7 +5817,9 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                     [M28Map.subrefGEEngineers] = {},
                     [M28Map.subrefGEbActiveMonitor] = false,
                     [M28Map.subrefGEbDontNeedEngineers] = false,
-                    [M28Map.subrefbFailedToGetArtiLocation] = false
+                    [M28Map.subrefbFailedToGetArtiLocation] = false,
+                    [M28Map.subrefGEbActiveShieldMonitor] = false,
+                    [M28Map.subrefiCyclesWaitingForEngineer] = 0
                 })
                 iTemplateRef = table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])
                 for _, tLocation in tArtiLocations do
@@ -5599,11 +5828,21 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 for _, tLocation in tShieldLocations do
                     table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEShieldLocations], {tLocation[1], tLocation[2], tLocation[3]})
                 end
+                bDebugMessages = true
+                if bDebugMessages == true then
+                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
+                    LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil'))
+                end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
 
                 --Set a blacklist for this location
                 RecordBlacklistLocation(tNewMidpoint, tBaseTable[M28Map.subrefiSize], 600)
+                --Update buildable areas around here
+                CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tNewMidpoint, true, tBaseTable[M28Map.subrefiSize])
+                if bDebugMessages == true then
+                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
+                    LOG(sFunctionRef..': Post blacklist and checking buildable locations, largest build location for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil'))
+                end
             end
         end
 
@@ -7465,8 +7704,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionBuildMassStorage, 1, 5)
     end
 
-    --FOR TESTING - Build experimental
-    HaveActionToAssign(refActionBuildGameEnder, 3, 200)
 
     --Being bombed or have large air force in our core base - need AA if dont have any fixed AA (see a bit later on for high priority AA builder when under air attack if already have 1 fixed AA)
     iCurPriority = iCurPriority + 1
@@ -8613,7 +8850,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Assign engineers to experimental eg in case original constructing engineers died
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
-        local oExperimentalToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryExperimentalLevel, false)
+        local oExperimentalToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL, false)
         if oExperimentalToAssist then
             iBPWanted = 30
             if oExperimentalToAssist:GetFractionComplete() >= 0.6 then
@@ -9781,7 +10018,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': Spare engineer action, iHighestTechEngiAvaialble='..iHighestTechEngiAvailable..'; Have low mass='..tostring(bHaveLowMass)..'; Mass stored on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Have low power='..tostring(bHaveLowPower)) end
         if iHighestTechEngiAvailable > 0 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000) and not(bHaveLowPower) then
             --Dont assist part complete shields due to risk we are using for active shielding
-            local oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel - M28UnitInfo.refCategoryFixedShield, false)
+            local oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel - M28UnitInfo.refCategoryFixedShield -categories.NAVAL, false)
             if bDebugMessages == true then LOG(sFunctionRef..': oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')) end
             if oBuildingToAssist then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will assign all remaining engineers to repair building') end

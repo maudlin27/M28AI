@@ -309,6 +309,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEbDontNeedEngineers = 9
                 subrefbFailedToGetArtiLocation = 10
                 subrefGEbActiveShieldMonitor = 11
+                subrefiCyclesWaitingForEngineer = 12
 
 
 
@@ -8111,7 +8112,7 @@ function GetLandZoneFromPosition(tPosition)
 end
 
 function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddGameEnderTemplateInfoToTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iPreferredSegX, iPreferredSegZ = GetPathingSegmentFromPosition(tMidpoint)

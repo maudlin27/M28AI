@@ -1055,8 +1055,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
 
-
-                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()..'; postiion='..repru(oConstruction:GetPosition())) end
+                if oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction) == 'ueb43017' then bDebugMessages = true end
+                if bDebugMessages == true then
+                    --local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oConstruction:GetPosition()) --decided not to include due to worry this might desync replays
+                    LOG(sFunctionRef..': Construction just started by M28 engineer belonging to '..oEngineer:GetAIBrain().Nickname..' on oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; postiion='..repru(oConstruction:GetPosition())..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])..'; Engi action (if any)='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..' at time '..GetGameTimeSeconds())
+                end
                 --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
@@ -1064,17 +1067,19 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
                 --Track special game ender logic buildings
                 if oEngineer[M28Building.reftArtiTemplateRefs] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have construction being built by engi with arti template ref, so will copy over engineer arti template ref') end
                     oConstruction[M28Building.reftArtiTemplateRefs] =  {oEngineer[M28Building.reftArtiTemplateRefs][1], oEngineer[M28Building.reftArtiTemplateRefs][2], oEngineer[M28Building.reftArtiTemplateRefs][3]}
                     local tLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oConstruction:GetAIBrain().M28Team]
                     if tLZTeamData then
-                        bDebugMessages = true
                         if bDebugMessages == true then
                             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
                             LOG(sFunctionRef..': Arti template recording of unit where construction started; engineer template ref='..repru(oEngineer[M28Building.reftArtiTemplateRefs])..'; Is table of active game ender templates for this ref empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs]]))..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Construction plateau='..(iPlateau or 'nil')..'; LZ='..(iLandZone or 'nil')..'; Engineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction))
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started fixed shield so will add to table of shields for this reference') end
                             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEShieldUnits], oConstruction)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of shields for this reference') end
                             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEArtiUnits], oConstruction)
                         else M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic')
                         end
