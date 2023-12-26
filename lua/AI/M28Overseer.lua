@@ -491,13 +491,7 @@ end
 
 
 function TestCustom(aiBrain)
-    if aiBrain.M28Team == 1 then
-        CreateUnit('ueb2304', aiBrain:GetArmyIndex(), 80, 46, 471, 0, 0, 0, 0, 'Air')
-        while GetGameTimeSeconds() <= 113 do
-            WaitSeconds(1)
-        end
-        CreateUnit('ueb2304', aiBrain:GetArmyIndex(), 80, 46, 459, 0, 0, 0, 0, 'Air')
-    end
+
 
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
     --[[local iXAdjust = -8
@@ -1157,7 +1151,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging

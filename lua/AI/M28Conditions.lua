@@ -2486,6 +2486,9 @@ end
 
 function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, iTeam)
     --Returns true if we have space for a gameender of iCategoryWanted using the special shielding template logic
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveTemplateSpaceForGameEnder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(M28Team.tTeamData[iTeam][M28Team.refbUnableToBuildArtiOrGameEnders]) then
 
@@ -2495,7 +2498,11 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded]) == false then
             for iSegmentX, tSubtable in tLZOrWZTeamData[M28Map.subrefBuildLocationsBySizeAndSegment][iSmallestSizeNeeded] do
                 for iSegmentZ, bValid in tSubtable do
-                    if bValid then return true end
+                    if bValid then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have valid size '..iSmallestSizeNeeded..' for iSegmentX='..iSegmentX..'Z'..iSegmentZ) end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
         end
@@ -2504,7 +2511,9 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
         local bActiveLocationButDoesntWantEngineers = false
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
             for iEntry, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Have active gameender template, does it no longer need engineers='..tostring(tSubtable[M28Map.subrefGEbDontNeedEngineers] or false)) end
                 if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 else
                     bActiveLocationButDoesntWantEngineers = true
@@ -2515,13 +2524,17 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
 
 
         --We dont have any locations large enough that are free, check if we have a recorded template, and if so are we already using it
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of gameender tempalte backup locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]))) end
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]) == false then
             --Check the active location doesn't cross into this location
             local bRecordedIsAlreadyUsed = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if this location overlaps with an existing active template, bActiveLocationButDoesntWantEngineers='..tostring(bActiveLocationButDoesntWantEngineers or false)) end
             if bActiveLocationButDoesntWantEngineers then
-                local tBackupMidpoint = M28Map.GetPathingSegmentFromPosition(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegX], tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegZ])
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment])) end
+                local tBackupMidpoint = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegX], tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSegZ])
 
                 for iEntry, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': tBackupMidpoint='..repru(tBackupMidpoint)..'; tSubtable midpoint='..repru(tSubtable[M28Map.subrefGEMidpoint])..'; Subtable size='..tSubtable[M28Map.subrefGESize]..'; Abs X dif='..math.abs(tSubtable[M28Map.subrefGEMidpoint][1] - tBackupMidpoint[1])..'; Abs Z dif='..math.abs(tSubtable[M28Map.subrefGEMidpoint][3] - tBackupMidpoint[3])) end
                     if math.abs(tSubtable[M28Map.subrefGEMidpoint][1] - tBackupMidpoint[1]) <= tSubtable[M28Map.subrefGESize] and math.abs(tSubtable[M28Map.subrefGEMidpoint][3] - tBackupMidpoint[3]) <= tSubtable[M28Map.subrefGESize] then
                         bRecordedIsAlreadyUsed = true
                         break
@@ -2529,45 +2542,15 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
 
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bRecordedIsAlreadyUsed='..tostring(bRecordedIsAlreadyUsed or false)) end
             if not(bRecordedIsAlreadyUsed) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
-                --Below was when thought woudl be recording some info against LZData, but have reworked how will do it
-                --[[local bUseSmallShield = true
-                if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
-                    if not(tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefbOnlySmallAvailable]) then
-                        bUseSmallShield = false
-                    end
-
-                end
-                local iSlotsAvailable, iMaxSize
-                if bUseSmallShield then
-                    iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiLocationCount] or 0)
-                    iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiSmallArtiMaxSize] or 8)
-                else
-                    iSlotsAvailable = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiLocationCount] or 0)
-                    iMaxSize = (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiLargeArtiMaxSize] or 8)
-                end
-                iSlotsAvailable = iSlotsAvailable - (tLZOrWZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subrefiArtiSpacesUsed] or 0)
-                if iSlotsAvailable > 0 then
-                    --Is the slot large enough to fit the category we want?
-                    if not(bUseSmallShield) and iSlotsAvailable >= 2 then iMaxSize = 10 end
-                    if iMaxSize >= 10 then return true
-                    elseif iMaxSize >= 9 then
-                        if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) then
-                            return true
-                        else
-                            --Liekly to be trying to build paragon but it wont fit
-                        end
-                    else
-                        --Max size 8 - so cant build novax or paragon
-                        if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, iCategoryWanted)) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, iCategoryWanted)) then
-                            return true
-                        end
-                    end
-                end--]]
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Coudlnt find any suitable locations, returning false') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 

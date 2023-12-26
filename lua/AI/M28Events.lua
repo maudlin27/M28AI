@@ -1055,7 +1055,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
 
-                if oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction) == 'ueb43017' then bDebugMessages = true end
+
                 if bDebugMessages == true then
                     --local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oConstruction:GetPosition()) --decided not to include due to worry this might desync replays
                     LOG(sFunctionRef..': Construction just started by M28 engineer belonging to '..oEngineer:GetAIBrain().Nickname..' on oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; postiion='..repru(oConstruction:GetPosition())..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])..'; Engi action (if any)='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..' at time '..GetGameTimeSeconds())

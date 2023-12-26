@@ -1238,7 +1238,7 @@ function LongRangeThreatMonitor(iTeam)
                                         end
                                     end
                                     if bInclude then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Just added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
                                         table.insert(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], oUnit)
                                     end
                                 else

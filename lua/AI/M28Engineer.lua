@@ -5077,7 +5077,7 @@ end
 function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
     --Decide on the arti blueprint we want to try and build; priority to use:
     --Aeon (Paragon and T3 arti) > Seraphim (Yolona) > UEF (Mavor) > Cybran (Scathis)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -5289,7 +5289,7 @@ end
 function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, iMaxShieldsToTryAndBuild, iOptionalMaxEngiPerAction)
     --Decide on the arti blueprint we want to try and build; priority to use:
     --Aeon (Paragon and T3 arti) > Seraphim (Yolona) > UEF (Mavor) > Cybran (Scathis)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -5549,11 +5549,11 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
 end
 
 function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GameEnderTemplateManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iTemplateRef > 1 then bDebugMessages = true end
     local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
         if bDebugMessages == true then LOG(sFunctionRef..': iTemplateRef='..(iTemplateRef or 'nil')..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
@@ -5758,13 +5758,15 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
     --Do we have an active gameendertemplate
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iEntry, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
-            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) or not(tSubtable[M28Map.subrefbFailedToGetArtiLocation]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iTemplateRef='..iEntry..'; Does it no longer need engis='..tostring(tSubtable[M28Map.subrefGEbDontNeedEngineers])..'; Has it failed ot get an arti location='..tostring(tSubtable[M28Map.subrefbFailedToGetArtiLocation])) end
+            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) and not(tSubtable[M28Map.subrefbFailedToGetArtiLocation]) then
                 iTemplateRef = iEntry
                 break
             end
         end
     end
 
+    if bDebugMessages == true then LOG(sFunctionRef..': iTemplateRef after checking active templates='..(iTemplateRef or 'nil')) end
     if not(iTemplateRef) then
         function AddBaseTableToLZTeamData(tBaseTable)
             local bProceed = true
@@ -5793,7 +5795,6 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 end
             end
             if bProceed then
-                bDebugMessages = true
                 --Work out if we have sera or UEF T3 engis in this zone
                 local tSeraAndUEFT3Engis = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.UEF * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.SERAPHIM * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 local bHaveLargeShields = not(M28Utilities.IsTableEmpty(tSeraAndUEFT3Engis))
@@ -5828,7 +5829,6 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 for _, tLocation in tShieldLocations do
                     table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEShieldLocations], {tLocation[1], tLocation[2], tLocation[3]})
                 end
-                bDebugMessages = true
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
                     LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil'))
@@ -5877,7 +5877,7 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
             end
             if iPreferredSize then break end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': iPreferredSize after checking if have large enough locatino to build with no relcaiming='..(iPreferredSize or 'nil')) end
         if iPreferredSize then
             --Add this location to the LZTeamData - need to work out where each building will go
             local tMidpoint = M28Map.GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)
@@ -5889,6 +5889,7 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]) == false then
                 --Add this location to the LZTeamData
                 AddBaseTableToLZTeamData(tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment])
+                if bDebugMessages == true then LOG(sFunctionRef..': Have just added the backup location to the gameender active table, iTemplateRef='..(iTemplateRef or 'nil')) end
             end
 
         end
@@ -6643,10 +6644,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 elseif iActionToAssign == refActionManageGameEnderTemplate then
                     if iEngiCount > 0 then
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                            bDebugMessages = true
                             AssignEngineerToGameEnderTemplate(tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone)
                             if bDebugMessages == true then LOG(sFunctionRef..': Have just assigned engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to do special game ender or t3 arti construction, iTeam='..iTeam) end
-                            bDebugMessages = false
                             --TRACKING NOTE - this will get cleared so the ActiveShieldMonitor will then impute backup values - i.e. changes made to below are unlikely to have an effect
                             TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
                             UpdateBPTracking()
@@ -13653,6 +13652,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
             end
             --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                local bHaveMobileLRThreatNearby = false
                 for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                     if tSubtable[M28Map.subrefLZTravelDist] > iSearchRange then break
                     else
@@ -13679,7 +13679,19 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             end
                         end
                         iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
-                        if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)) end
+                        if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
+                            if (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > iHighestIndividiualLongRangeThreat then
+                                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                                    bHaveMobileLRThreatNearby = false
+                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                                        if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                            iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, M28UnitInfo.GetCombatThreatRating({ oUnit }, true))
+                                        end
+                                    end
+                                end
+                            end
+
+                        end
                         iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat..'; Zone dist='..tSubtable[M28Map.subrefLZTravelDist]) end
                     end
