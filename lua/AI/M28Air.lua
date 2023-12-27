@@ -2061,50 +2061,52 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             local iClosestAirStagingDist, iCurDist, iClosestAirStagingRef
             local iCurSize
             for iUnit, oAirUnit in tUnitsForRefueling do
-                if EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oAirUnit.UnitId) then
-                    table.insert(tUnitsUnableToRefuel, oAirUnit)
-                else
-                    iClosestAirStagingDist = 100000
-                    iClosestAirStagingRef = nil
-                    iCurSize = GetUnitAirStagingSize(oAirUnit)
-                    if M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) == false then
-                        for iAirStagingRef, tSubtable in tAirStagingUnitsAndCapacity do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Looking for closest air staging '..(tSubtable[subrefoUnit].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tSubtable[subrefoUnit]) or 'nil')..', iAirStagingRef='..(iAirStagingRef or 'nil')..'; tSubtable[subrefiCapacity]='..(tSubtable[subrefiCapacity] or 'nil')..'; Unit that is trying to refuel size='..(iCurSize or 'nil')) end
-                            if tSubtable[subrefiCapacity] >= iCurSize then
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tSubtable[subrefoUnit]:GetPosition(), oAirUnit:GetPosition())
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; iClosestAirStagingDist='..(iClosestAirStagingDist or 'nil')) end
-                                if iCurDist < iClosestAirStagingDist then
-                                    iClosestAirStagingRef = iCurDist
-                                    iClosestAirStagingRef = iAirStagingRef
-                                end
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit wanting refueling='..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..'; iCurSize='..iCurSize..'; iClosestAirStagingRef='..(iClosestAirStagingRef or 'nil')..'; iClosestAirStagingDist='..iClosestAirStagingDist) end
-                    if iClosestAirStagingRef then
-                        local oClosestAirStaging = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefoUnit]
-                        M28Orders.IssueTrackedRefuel(oAirUnit, oClosestAirStaging, false, 'Refuel', false)
-                        local bRecordRefuelingUnit = true
-                        if not(oClosestAirStaging[reftAssignedRefuelingUnits]) then oClosestAirStaging[reftAssignedRefuelingUnits] = {}
-                        else
-                            for iRecordedUnit, oRecordedUnit in oClosestAirStaging[reftAssignedRefuelingUnits] do
-                                if oRecordedUnit == oAirUnit then
-                                    bRecordRefuelingUnit = false
-                                    break
-                                end
-                            end
-                        end
-                        if bRecordRefuelingUnit then
-                            table.insert(oClosestAirStaging[reftAssignedRefuelingUnits], oAirUnit)
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just told unit '..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..' to refuel at '..oClosestAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestAirStaging)..'; size of oClosestAirStaging[reftAssignedRefuelingUnits]='..table.getn(oClosestAirStaging[reftAssignedRefuelingUnits])..'; Available capacity pre this order='..tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity]..'; iCurSize='..iCurSize) end
-                        if tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] <= iCurSize then
-                            table.remove(tAirStagingUnitsAndCapacity, iClosestAirStagingRef)
-                        else
-                            tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] - iCurSize
-                        end
-                    else
+                if M28UnitInfo.IsUnitValid(oAirUnit) then
+                    if EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oAirUnit.UnitId) then
                         table.insert(tUnitsUnableToRefuel, oAirUnit)
+                    else
+                        iClosestAirStagingDist = 100000
+                        iClosestAirStagingRef = nil
+                        iCurSize = GetUnitAirStagingSize(oAirUnit)
+                        if M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) == false then
+                            for iAirStagingRef, tSubtable in tAirStagingUnitsAndCapacity do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Looking for closest air staging '..(tSubtable[subrefoUnit].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tSubtable[subrefoUnit]) or 'nil')..', iAirStagingRef='..(iAirStagingRef or 'nil')..'; tSubtable[subrefiCapacity]='..(tSubtable[subrefiCapacity] or 'nil')..'; Unit that is trying to refuel size='..(iCurSize or 'nil')) end
+                                if tSubtable[subrefiCapacity] >= iCurSize then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tSubtable[subrefoUnit]:GetPosition(), oAirUnit:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; iClosestAirStagingDist='..(iClosestAirStagingDist or 'nil')) end
+                                    if iCurDist < iClosestAirStagingDist then
+                                        iClosestAirStagingRef = iCurDist
+                                        iClosestAirStagingRef = iAirStagingRef
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit wanting refueling='..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..'; iCurSize='..iCurSize..'; iClosestAirStagingRef='..(iClosestAirStagingRef or 'nil')..'; iClosestAirStagingDist='..iClosestAirStagingDist) end
+                        if iClosestAirStagingRef then
+                            local oClosestAirStaging = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefoUnit]
+                            M28Orders.IssueTrackedRefuel(oAirUnit, oClosestAirStaging, false, 'Refuel', false)
+                            local bRecordRefuelingUnit = true
+                            if not(oClosestAirStaging[reftAssignedRefuelingUnits]) then oClosestAirStaging[reftAssignedRefuelingUnits] = {}
+                            else
+                                for iRecordedUnit, oRecordedUnit in oClosestAirStaging[reftAssignedRefuelingUnits] do
+                                    if oRecordedUnit == oAirUnit then
+                                        bRecordRefuelingUnit = false
+                                        break
+                                    end
+                                end
+                            end
+                            if bRecordRefuelingUnit then
+                                table.insert(oClosestAirStaging[reftAssignedRefuelingUnits], oAirUnit)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just told unit '..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..' to refuel at '..oClosestAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestAirStaging)..'; size of oClosestAirStaging[reftAssignedRefuelingUnits]='..table.getn(oClosestAirStaging[reftAssignedRefuelingUnits])..'; Available capacity pre this order='..tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity]..'; iCurSize='..iCurSize) end
+                            if tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] <= iCurSize then
+                                table.remove(tAirStagingUnitsAndCapacity, iClosestAirStagingRef)
+                            else
+                                tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] - iCurSize
+                            end
+                        else
+                            table.insert(tUnitsUnableToRefuel, oAirUnit)
+                        end
                     end
                 end
             end
@@ -3091,7 +3093,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                     end
                                 elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                    table.insert(tAirForRefueling, oUnit)
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        table.insert(tAirForRefueling, oUnit)
+                                    end
                                 else
                                     M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                                 end

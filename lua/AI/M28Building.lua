@@ -1199,36 +1199,44 @@ function RecordPriorityShields(iTeam, tLZTeamData)
             tLZTeamData[M28Map.reftPriorityShieldsToAssist] = {}
             local iTotalUnitMassCoverage
             local iCurMassValue
+            local bConsiderRecentlyDamagedShields = false
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 300 then bConsiderRecentlyDamagedShields = true end
             for iShield, oShield in tShieldsToAssist do
                 iTotalUnitMassCoverage = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
-                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
-                    for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
-                        if not(oUnit == oShield) then
-                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
-                                iCurMassValue = 30000
-                            elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
-                                iCurMassValue = 27500
-                            else
-                                iCurMassValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
-                            end
-                            if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
-                                iCurMassValue = iCurMassValue * 0.1
-                                if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
-                            end
-                            iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
-                            if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
-                    if iTotalUnitMassCoverage >= 25000 then
-                        --Add as a priority shield
-                        table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
-                        oShield[refbPriorityShield] = true
+                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false and not(oShield[reftArtiTemplateRefs]) then
+                    --Only flag a shield for assistance if its health is <80%
+                    local iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Shield health='..iCurShieldHealth..'; Max health='..iMaxShieldHealth) end
+                    if iCurShieldHealth > 0 and (iCurShieldHealth / iMaxShieldHealth <= 0.8 or (bConsiderRecentlyDamagedShields and oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 30)) then
+
                         for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
-                            oUnit[refoPriorityShieldProvidingCoverage] = oShield --Deliberately overwrites existing value, means if 2 shields cover same area, and one can justify it even with the ot her, but the other cant, then we wont protect the other
+                            if not(oUnit == oShield) then
+                                if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+                                    iCurMassValue = 30000
+                                elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                                    iCurMassValue = 27500
+                                else
+                                    iCurMassValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+                                end
+                                if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
+                                    iCurMassValue = iCurMassValue * 0.1
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
+                                end
+                                iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
+                                if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
+                            end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding the shield as a priority shield') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
+                        if iTotalUnitMassCoverage >= 25000 then
+                            --Add as a priority shield
+                            table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
+                            oShield[refbPriorityShield] = true
+                            for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+                                oUnit[refoPriorityShieldProvidingCoverage] = oShield --Deliberately overwrites existing value, means if 2 shields cover same area, and one can justify it even with the ot her, but the other cant, then we wont protect the other
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding the shield as a priority shield') end
+                        end
                     end
                 end
             end
