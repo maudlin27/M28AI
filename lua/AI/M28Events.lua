@@ -391,6 +391,17 @@ function OnUnitDeath(oUnit)
                                 end
                             end
 
+                            --GE template shielding
+                            if oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                                local tArtiTemplate = M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]]
+                                if tArtiTemplate then
+                                    tArtiTemplate[M28Map.subrefGEbDontNeedEngineers] = false
+                                    --also set to false in 5s due ot building animation
+                                    M28Utilities.DelayChangeVariable(tArtiTemplate, M28Map.subrefGEbDontNeedEngineers, false, 5)
+                                end
+
+                            end
+
                             --Special tracking e.g. for factions and shields and game enders - update
                             if oUnit[M28Building.refoNearbyFactoryOfFaction] then --i.e. gameender that wants a factory's engineers - the gameender is dead so want to clear entries for it
                                 M28Building.ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)

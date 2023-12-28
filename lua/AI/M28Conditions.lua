@@ -2554,11 +2554,18 @@ function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeam
     return false
 end
 
-function HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData)
+function HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData, bOptionalOnlyTrueIfNeedUEFOrSeraEngineers)
     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iTemplate, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
             if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
-                return true
+                if not(bOptionalOnlyTrueIfNeedUEFOrSeraEngineers) then
+                    return true
+                else
+                    --Only return true if this location has 2+ arti slots, and fewer than 7 shields (i.e. it wants UEF/Sera engineers)
+                    if (tSubtable[M28Map.subrefiCyclesWaitingForEngineer] or 0) > 0 or (table.getn(tSubtable[M28Map.subrefGEArtiLocations]) > 1 and (M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) or table.getn(tSubtable[M28Map.subrefGEShieldUnits]) >= table.getn(tSubtable[M28Map.subrefGEShieldLocations]))) then
+                        return true
+                    end
+                end
             end
         end
     end

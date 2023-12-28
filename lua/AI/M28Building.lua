@@ -69,6 +69,7 @@ reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTem
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
+refbProtectingAllArtiLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 
 function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShieldsWantedOverride)
     --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, e.g.:
@@ -3787,6 +3788,9 @@ function MonitorShieldsForCycling(tTableRef)
         tTableRef[M28Map.subrefGEbActiveShieldMonitor] = true
         local oLowestHealthActiveShield, oHighestHealthActiveShield, iCompletedShieldCount, iCurHealth, iMaxHealth, iLowestHealth, iHighestHealth, iLongestRechargeTime
         local iSecondsBetweenShieldCycles = 1 --will change
+        local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+        local bUpdateName = M28Config.M28ShowUnitNames
+        local iCurShieldRadius
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) do
             --Get the highest and lowest health active shields
             iLowestHealth = 1000000
@@ -3797,19 +3801,51 @@ function MonitorShieldsForCycling(tTableRef)
             iLongestRechargeTime = 10
             for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
                 if oShield:GetFractionComplete() == 1 then
-                    iCompletedShieldCount = iCompletedShieldCount + 1
-                    iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                    if iCurHealth > 0 then
-                        if iCurHealth < iLowestHealth then
-                            iLowestHealth = iCurHealth
-                            oLowestHealthActiveShield = oShield
-                        end
-                        if iCurHealth >= iHighestHealth then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
-                            iHighestHealth = iCurHealth
-                            oHighestHealthActiveShield = oShield
+                    --Check we should include the shield (i.e. that it is covering the arti locations); assume UEF and seraphim T3+ are
+                    if oShield[refbProtectingAllArtiLocations] == nil then
+                        oShield[refbProtectingAllArtiLocations] = true --default
+                        if not(EntityCategoryContains(categories.SERAPHIM + categories.UEF - categories.TECH2, oShield.UnitId)) then
+
+                            iCurShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5
+                            if iCurShieldRadius < 10 then
+                                oShield[refbProtectingAllArtiLocations] = false
+                            else
+                                if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEArtiUnits]) then
+                                    for iArti, oArti in tTableRef[M28Map.subrefGEArtiUnits] do
+                                        if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oShield:GetPosition()) > iCurShieldRadius then
+                                            oShield[refbProtectingAllArtiLocations] = false
+                                            break
+                                        end
+                                    end
+                                else
+                                    --Use expected arti locations
+                                    for iArti, tArti in tTableRef[M28Map.subrefGEArtiLocations] do
+                                        if M28Utilities.GetDistanceBetweenPositions(tArti, oShield:GetPosition()) > iCurShieldRadius then
+                                            oShield[refbProtectingAllArtiLocations] = false
+                                            break
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
-                    iLongestRechargeTime = math.max(iLongestRechargeTime, (oShield:GetBlueprint().Defense.Shield.ShieldRechargeTime or 0))
+
+                    if oShield[refbProtectingAllArtiLocations] then
+                        iCompletedShieldCount = iCompletedShieldCount + 1
+                        iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                        if iCurHealth > 0 then
+                            if iCurHealth < iLowestHealth then
+                                iLowestHealth = iCurHealth
+                                oLowestHealthActiveShield = oShield
+                            end
+                            if iCurHealth >= iHighestHealth then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
+                                iHighestHealth = iCurHealth
+                                oHighestHealthActiveShield = oShield
+                            end
+                        end
+
+                        iLongestRechargeTime = math.max(iLongestRechargeTime, (oShield:GetBlueprint().Defense.Shield.ShieldRechargeTime or 0))
+                    end
                 end
             end
             if iCompletedShieldCount == 0 then break end
@@ -3826,6 +3862,9 @@ function MonitorShieldsForCycling(tTableRef)
                     iSecondsBetweenShieldCycles = 10
                 end
                 M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                if bUpdateName then
+                    M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                end
             end
 
             WaitSeconds(iSecondsBetweenShieldCycles)
