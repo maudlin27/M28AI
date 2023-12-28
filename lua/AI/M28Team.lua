@@ -656,7 +656,7 @@ function CreateNewTeam(aiBrain)
                     if oBrain.CheatEnabled then
                         sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                     end
-                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
+                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref) --Dont know the land and air subteams yet
                 end
             elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
                 table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
@@ -716,6 +716,13 @@ function CreateNewTeam(aiBrain)
 
     --Check every brain is on a land subteam (even if have a water start)
     ForkThread(CheckForBrainsWithoutLandSubteam, iTotalTeamCount, tbBrainsWithLandSubteam)
+
+    --List out every M28 brain on this team by subteam
+    if bHaveM28BrainInTeam then
+        for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
+            LOG('M28 brain '..oBrain.Nickname..' land subteam='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil'))
+        end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

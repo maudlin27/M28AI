@@ -375,10 +375,20 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
                             end
-                        elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) and not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true
+                        elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) then
+                            if not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            --Redundancy if assisting engineer with no action (shouldnt be needed)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]].UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We are assisting an engineer, engineer action we are assisting='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction] or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) end
+                                if not(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We are assisting an engineer with no action so will make us available again') end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                end
+                            end
                         elseif iLastOrderType == M28Orders.refiOrderIssueBuild and oEngineer:IsUnitState('Moving') and not(EntityCategoryContains(M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryStructureAA * categories.TECH1, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])) then
                             --Check if there is already a constructed building at the build location
                             local tLastOrderPosition = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
@@ -2486,7 +2496,7 @@ end
 
 function HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, iTeam)
     --Returns true if we have space for a gameender of iCategoryWanted using the special shielding template logic
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveTemplateSpaceForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2562,7 +2572,7 @@ function HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData, bOptionalOnlyTrueIfNe
                     return true
                 else
                     --Only return true if this location has 2+ arti slots, and fewer than 7 shields (i.e. it wants UEF/Sera engineers)
-                    if (tSubtable[M28Map.subrefiCyclesWaitingForEngineer] or 0) > 0 or (table.getn(tSubtable[M28Map.subrefGEArtiLocations]) > 1 and (M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) or table.getn(tSubtable[M28Map.subrefGEShieldUnits]) >= table.getn(tSubtable[M28Map.subrefGEShieldLocations]))) then
+                    if (tSubtable[M28Map.subrefiCyclesWaitingForEngineer] or 0) > 0 or (table.getn(tSubtable[M28Map.subrefGEArtiLocations]) > 1 and (M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) or table.getn(tSubtable[M28Map.subrefGEShieldUnits]) >= 3)) then
                         return true
                     end
                 end

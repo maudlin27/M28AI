@@ -3081,13 +3081,14 @@ function ReserveLocationsForGameEnder(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+function GetBestFactionFactoryOfCategory(oUnitToGetTo, iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBestFactionFactoryOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iClosestFactory = iDistanceCap
-    local iCurDist, iCurPlateau, iCurLandZone
+    local iCurDist, iCurPlateau, iCurLandZone, iCurZoneDist
+    local iClosestZoneDist = iDistanceCap + 60
     local oBestFactory
     for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
         local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
@@ -3101,11 +3102,19 @@ function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, 
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..(iCurPlateau or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')) end
                     if iCurPlateau == iUnitPlateau then
                         --Get the travel distance
-                        iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
-                        if iCurDist then
-                            if iCurDist < iClosestFactory then
-                                iClosestFactory = iCurDist
-                                oBestFactory = oFactory
+                        iCurZoneDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering factory with iCurZoneDist='..(iCurZoneDist or 'nil')..'; iClosestZoneDist='..iClosestZoneDist..'; Dist between factory and unit to cover='..M28Utilities.GetDistanceBetweenPositions(oUnitToGetTo:GetPosition(), oFactory:GetPosition())) end
+                        if iCurZoneDist then
+                            if iCurZoneDist <= iClosestZoneDist then
+                                if iCurZoneDist < iClosestZoneDist then
+                                    iClosestZoneDist = iCurZoneDist
+                                    iClosestFactory = iDistanceCap + 100 --reset the distance so any factory in a closer zone will be preferred, even if the factory itself might be further away
+                                end
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnitToGetTo:GetPosition(), oFactory:GetPosition())
+                                if iCurDist < iClosestFactory then
+                                    iClosestFactory = iCurDist
+                                    oBestFactory = oFactory
+                                end
                             end
                         end
                     end
@@ -3117,40 +3126,66 @@ function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, 
     return oBestFactory
 end
 
-function RecordNearbyFactoryForShieldEngineers(oUnit)
+function UnitNoLongerRequiresFactoryFactionShieldEngineers(oUnit)
+    local oFactory = oUnit[refoNearbyFactoryOfFaction]
+    if M28UnitInfo.IsUnitValid(oFactory) and M28Utilities.IsTableEmpty(oFactory[reftoUnitsWantingFactoryEngineers]) == false then
+        for iEntry, oEntry in oFactory[reftoUnitsWantingFactoryEngineers] do
+            if oEntry == oUnit then
+                table.remove(oFactory[reftoUnitsWantingFactoryEngineers], iEntry)
+                break
+            end
+        end
+        oUnit[refoNearbyFactoryOfFaction] = nil
+    end
+end
+
+function RecordNearbyFactoryForShieldEngineers(oUnit, tbOptionalFactionsWanted)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordNearbyFactoryForShieldEngineers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
+    local iDistanceCap = 350 --Wont try and get engineers from factories further away than this.
     local aiBrain = oUnit:GetAIBrain()
     local iLandSubteam = aiBrain.M28LandSubteam
     local oBestFactory
 
-    local iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    local iUnitPlateau, iUnitLandZone
+    if oUnit[reftArtiTemplateRefs] then iUnitPlateau = oUnit[reftArtiTemplateRefs][1] iUnitLandZone = oUnit[reftArtiTemplateRefs][2]
+    else
+        iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a special factory for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tbOptionalFactionsWanted='..repru(tbOptionalFactionsWanted)..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if (iUnitLandZone or 0) > 0 then
         local tLZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone]
         --Seraphim factories
-        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
-            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+        if not(tbOptionalFactionsWanted) or tbOptionalFactionsWanted[M28UnitInfo.refFactionSeraphim] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have Seraphim T3 land on our land subteam, iLandSubteam='..iLandSubteam..'; M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim]='..repru(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim])) end
+            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
+                oBestFactory = GetBestFactionFactoryOfCategory(oUnit, M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                if bDebugMessages == true then LOG(sFunctionRef..': oBestFactory after checking for seraphim='..(oBestFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestFactory) or 'nil')) end
+            end
         end
         if not(oBestFactory) then
             --Aeon
-
-            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to try and get the best factory at time '..GetGameTimeSeconds()..'; iDistanceCap='..(iDistanceCap or 'nil')..'; iLandSubteam='..(iLandSubteam or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
-                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.AEON, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+            if not(tbOptionalFactionsWanted) or tbOptionalFactionsWanted[M28UnitInfo.refFactionAeon] then
+                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to try and get the best factory at time '..GetGameTimeSeconds()..'; iDistanceCap='..(iDistanceCap or 'nil')..'; iLandSubteam='..(iLandSubteam or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
+                    oBestFactory = GetBestFactionFactoryOfCategory(oUnit, M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.AEON, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                end
             end
             if not(oBestFactory) then
                 --UEF
-                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
-                    oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                if not(tbOptionalFactionsWanted) or tbOptionalFactionsWanted[M28UnitInfo.refFactionUEF] then
+                    if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
+                        oBestFactory = GetBestFactionFactoryOfCategory(oUnit, M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                    end
                 end
                 --If dont have any of these factions then dont worry about getting a faction specific shield
             end
         end
         --If have a best factory then record against the game ender
         oUnit[refoNearbyFactoryOfFaction] = oBestFactory
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished looking for nearby factories, oBestFactory='..(oBestFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestFactory) or 'nil')) end
         if oBestFactory then
             if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
                 oBestFactory[reftoUnitsWantingFactoryEngineers] = {}

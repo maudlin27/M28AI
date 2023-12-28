@@ -1088,7 +1088,16 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started fixed shield so will add to table of shields for this reference') end
-                            table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEShieldUnits], oConstruction)
+                            local tTemplateRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]]
+                            table.insert(tTemplateRef[M28Map.subrefGEShieldUnits], oConstruction)
+                            --Check if we no longer need special faction engineers
+                            if M28Utilities.IsTableEmpty(tTemplateRef[M28Map.subrefGEArtiUnits]) == false and table.getn(tTemplateRef[M28Map.subrefGEShieldUnits]) >= math.min(7, table.getn(tTemplateRef[M28Map.subrefGEShieldLocations])) then
+                                for iArti, oArti in tTemplateRef[M28Map.subrefGEArtiUnits] do
+                                    if oArti[M28Building.refoNearbyFactoryOfFaction] then
+                                        M28Building.UnitNoLongerRequiresFactoryFactionShieldEngineers(oArti)
+                                    end
+                                end
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of shields for this reference') end
                             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEArtiUnits], oConstruction)
@@ -1889,7 +1898,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                 --All units (not just M28 specific):
                 M28UnitInfo.RecordUnitRange(oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': Just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': First time M28OnCreate has run, just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                 if M28Config.M28ShowEnemyUnitNames then
                     local sWZOrLZRef = ''
                     if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then

@@ -351,6 +351,8 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
     local sFunctionRef = 'UpdateHighestFactoryTechLevelForBuiltUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if just built a factory HQ, Have just built unit '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..'; Fraction complete='..oUnitJustBuilt:GetFractionComplete()..'; Is it a factory HQ='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId))) end
 
     --Update total factory count
@@ -358,7 +360,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
 
     if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
         --Update factory count
-        if bDebugMessages == true then LOG(sFunctionRef..': Just built factory or gateway') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Just built factory or gateway, if we have built an HQ then will run more code') end
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
@@ -375,6 +377,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
                 --Update team details
                 M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+                M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
+            else
+                --Still consider updating subteam, as e.g. we may have T3 UEF HQ and have just built T3 Seraphim HQ
                 M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
             end
         elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then

@@ -2632,7 +2632,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
-            if iLandOrWaterZone == 7 and iPlateauOrZero == 89 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..aiBrain.Nickname..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))) end
             --Land subteam - use aiBrain.M28LandSubteam
             local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
@@ -5401,40 +5400,40 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
     local sShieldToBuild = nil
     local aiBrain
     local oEngineerToBuild
-    
+
     local iFactionRef
     if oFirstSeraphim then
-        aiBrain = oFirstSeraphim:GetAIBrain()        
+        aiBrain = oFirstSeraphim:GetAIBrain()
         iFactionRef = M28UnitInfo.refFactionSeraphim
         oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
-        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)        
+        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
 
     end
     if not(sShieldToBuild) then
         if oFirstUEF then
-            aiBrain = oFirstUEF:GetAIBrain()            
+            aiBrain = oFirstUEF:GetAIBrain()
             iFactionRef = M28UnitInfo.refFactionUEF
             oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
             sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
         end
         if not(sShieldToBuild) then
             if oFirstAeon then
-                aiBrain = oFirstAeon:GetAIBrain()                
+                aiBrain = oFirstAeon:GetAIBrain()
                 iFactionRef = M28UnitInfo.refFactionAeon
                 oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                 sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
             end
             if not(sShieldToBuild) then
                 if oFirstCybran then
-                    aiBrain = oFirstCybran:GetAIBrain()                    
+                    aiBrain = oFirstCybran:GetAIBrain()
                     iFactionRef = M28UnitInfo.refFactionCybran
                     oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                     sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
                 end
                 if not(sShieldToBuild) then
                     if oFirstEngineer then
-                        aiBrain = oFirstEngineer:GetAIBrain()                        
-                        oEngineerToBuild = oFirstEngineer                        
+                        aiBrain = oFirstEngineer:GetAIBrain()
+                        oEngineerToBuild = oFirstEngineer
                         sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
                     end
                 end
@@ -5449,16 +5448,37 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         local tbShieldEntiresNotToConsider = {}
 
         if __blueprints[sShieldToBuild].Defense.ShieldSize <= 37 and table.getn(tTableRef[M28Map.subrefGEArtiLocations]) >= 2 and not(oFirstUEF) and not(oFirstSeraphim) then
-            bUseArtiInsteadOfLastShieldLocation = true
             --Only want to build aeon/cybran shields in the 'middle' locations (where they cover both game-enders and all other shields), outer shields will need to be UEF/Seraphim
             tbShieldEntiresNotToConsider = {[1]=true,[2]=true,[5]=true,[6]=true,[8]=true}
             --Flag we want UEF and sera engineers
             if not(tLZTeamData[M28Map.subreftbBPByFactionWanted]) then tLZTeamData[M28Map.subreftbBPByFactionWanted] = {} end
             if not(oFirstUEF) then
                 tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionUEF] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want UEF engineers for zone '..iLandZone) end
             end
             if not(oFirstSeraphim) then
                 tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionSeraphim] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want Seraphim engineers for zone '..iLandZone) end
+            end
+
+            --Look for a factory to build the engineers that we want
+            if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false then
+                for iArti, oArti in tTableRef[M28Map.subrefGEArtiUnits] do
+                    if not(M28UnitInfo.IsUnitValid(oArti[M28Building.refoNearbyFactoryOfFaction])) then
+                        M28Building.RecordNearbyFactoryForShieldEngineers(oArti, { [M28UnitInfo.refFactionUEF] = true, [M28UnitInfo.refFactionSeraphim] = true })
+                    end
+                    break
+                end
+            end
+
+            --Build in arti location if we lack UEF and Seraphim factories
+            if oEngineerToBuild then
+                local iLandSubteam = oEngineerToBuild:GetAIBrain().M28LandSubteam
+                local tFactoriesByTech = M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech]
+                if (tFactoriesByTech[M28UnitInfo.refFactionUEF][1] or 0) == 0 and (tFactoriesByTech[M28UnitInfo.refFactionUEF][2] or 0) == 0 and  (tFactoriesByTech[M28UnitInfo.refFactionUEF][3] or 0) == 0
+                        and (tFactoriesByTech[M28UnitInfo.refFactionSeraphim][1] or 0) == 0 and (tFactoriesByTech[M28UnitInfo.refFactionSeraphim][2] or 0) == 0 and  (tFactoriesByTech[M28UnitInfo.refFactionSeraphim][3] or 0) == 0 then
+                    bUseArtiInsteadOfLastShieldLocation = true
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Our shield size is below 37 and we have 2+ arti locations in this zone, so will consider 1 less hsield entry and flag we want UEF or seraphim engineers for this zone') end
         end
@@ -5686,11 +5706,11 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
 end
 
 function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GameEnderTemplateManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iTemplateRef > 1 then bDebugMessages = true end
+
     local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
         if bDebugMessages == true then LOG(sFunctionRef..': iTemplateRef='..(iTemplateRef or 'nil')..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
@@ -5897,7 +5917,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 end
 
 function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPlateau, iLandZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignEngineerToGameEnderTemplate'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Will find a gameender tempalte for oEngineer to join, or create a new one if there's no active one
@@ -8230,12 +8250,29 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --At least 1 T3 engineers assigned to gameender template if one is active
+    --At least 1 T3 engineers assigned to gameender template if one is active; also assign an extra engineer if we require an engineer of a particular faction and have that engineer available
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering very high priority for active gameender template engineers, do we have active gameender template='..tostring(M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData))) end
     if M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
         HaveActionToAssign(refActionManageGameEnderTemplate, 3, 30)
-        if bDebugMessages == true then LOG(sFunctionRef..': Hihest priority We have an active gameender template so will assign engis to this') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Hihest priority We have an active gameender template so will assign engis to this, do we want UEF engis='..tostring(tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionUEF] or false)..'; do we want sera engineers='..tostring(tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionSeraphim] or false)) end
+        if tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionUEF] or tLZTeamData[M28Map.subreftbBPByFactionWanted][M28UnitInfo.refFactionSeraphim] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of available T3 engineers empty='..tostring(M28Utilities.IsTableEmpty(toAvailableEngineersByTech[3]))) end
+            if M28Utilities.IsTableEmpty(toAvailableEngineersByTech[3]) == false then
+                local tUEFAndSeraphimEngineers = EntityCategoryFilterDown(categories.UEF + categories.SERAPHIM, toAvailableEngineersByTech[3])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of UEF and sera engineers empty='..tostring(M28Utilities.IsTableEmpty(tUEFAndSeraphimEngineers))) end
+                if M28Utilities.IsTableEmpty(tUEFAndSeraphimEngineers) == false then
+                    --We have UEF/Sera T3 engineers, and this zone is flagged as wanting engineers of that faction, so assign an additional engineer
+
+                    local iFactionWanted
+                    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.SERAPHIM, tUEFAndSeraphimEngineers)) == false then iFactionWanted = M28UnitInfo.refFactionSeraphim else iFactionWanted = M28UnitInfo.refFactionUEF end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to assign faction specific engineer as a very high prioriyt for zone '..iLandZone..'; iFactionWanted='..(iFactionWanted or 'nil')) end
+                    HaveActionToAssign(refActionManageGameEnderTemplate, 3, 30, nil, false, true, iFactionWanted)
+                end
+            end
+        end
     end
+
 
     --Need SMD as enemy has nuke launcher
     iCurPriority = iCurPriority + 1
@@ -12923,6 +12960,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZData, tLZOrWZTeamData,
     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted]) == false then
         for iFaction, bWantEngineers in tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted] do
             if bWantEngineers then
+                if bDebugMessages == true then LOG(sFunctionRef..': We want engineers for iFaction='..iFaction..' for zone '..iLandOrWaterZone..'; if this is UEF or seraphim and we have an active gameender logic, then wont reset this flag to false, do we have active gameender logic='..tostring(M28Conditions.HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData, true))..'; Is this not UEF or seraphim='..tostring(not(iFaction == M28UnitInfo.refFactionUEF) and not(iFaction == M28UnitInfo.refFactionSeraphim))) end
                 if not(M28Conditions.HaveActiveGameEnderTemplateLogic(tLZOrWZTeamData, true)) or (not(iFaction == M28UnitInfo.refFactionUEF) and not(iFaction == M28UnitInfo.refFactionSeraphim)) then
                     tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted][iFaction] = false
                 end
