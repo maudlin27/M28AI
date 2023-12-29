@@ -568,6 +568,20 @@ function SafeToUpgradeUnit(oUnit)
                 bSafeZone = true
             end
 
+            --Treat as safe if we are under a shield
+            if not(bSafeZone) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false then
+                local iCurShieldHealth, iMaxShieldHealth
+                for iShield, oShield in oUnit[M28Building.reftoShieldsProvidingCoverage] do
+                    if M28UnitInfo.IsUnitValid(oShield) then
+                        iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
+                        if (iCurShieldHealth or 0) >= (iMaxShieldHealth or -1) and iCurShieldHealth >= 2000 then
+                            bSafeZone = true
+                            break
+                        end
+                    end
+                end
+            end
+
             --If are within range of enemy t2 arti and not a core base then dont trear as safe unless both mex and arti alive for at least 8m
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy T2 arti in range if we think this is safe, bSafeZone='..tostring(bSafeZone)..'; iPlateau='..iPlateauOrZero..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Zone='..(iLandOrWaterZone or 'nil')..'; Is table of enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
             if bSafeZone and iPlateauOrZero > 0 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
@@ -616,7 +630,7 @@ function SafeToUpgradeUnit(oUnit)
     if bSafeZone then
         local bDangerousTML = false
         --TML adjust
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyTML]) == false then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyTML]) == false and not(IsTableOfUnitsStillValid(oUnit[M28Building.reftoShieldsProvidingCoverage])) then
             --Buildings alreayd record TML in range and if covered by TMD
             if EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML, oUnit.UnitId) then
                 if M28Utilities.IsTableEmpty(oUnit[M28Building.reftTMDCoveringThisUnit]) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftTMLInRangeOfThisUnit]) == false then
