@@ -7370,7 +7370,7 @@ end
 
 function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
     --E.g. if enemy strat bomber fires a bomb, and we dont have it recorded as a 'suicide into' target, consider adding it
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderRecordingStratBomberToSuicideInto'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7478,7 +7478,7 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
 end
 
 function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideASFIntoStrat'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

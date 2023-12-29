@@ -3897,7 +3897,6 @@ function MonitorShieldsForCycling(tTableRef)
 
                             if oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100) >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
                                 --Enable the shield incase it was somehow paused following the transfer
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged') end
                                 M28UnitInfo.EnableUnitShield(oShield)
                             end

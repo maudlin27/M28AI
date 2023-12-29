@@ -2352,7 +2352,7 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
-    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oFactory.UnitId) then
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oFactory.UnitId) or (EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oFactory.UnitId) and oFactory.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryCarrier, oFactory.Parent.UnitId)) then
         sBPIDToBuild = GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForExperimentalFactoryBuilding(aiBrain, oFactory)
@@ -4551,31 +4551,38 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
 
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+    local tLZOrWZData, tLZOrWZTeamData
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain='..aiBrain.Nickname..'; Position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()..'; iPlateau or zero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
-
+    local iTeam = aiBrain.M28Team
     if (iPlateauOrZero or -1) == 0 and (iLandOrWaterZone or 0) > 0 then --in a water zone
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+        if bDebugMessages == true then LOG(sFunctionRef..': Are in pond '..(M28Map.tiPondByWaterZone[iLandOrWaterZone] or 'nil')) end
+    else
+        --Land zone
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of carrier code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain='..aiBrain.Nickname..'; Position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()..'; iPlateau or zero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)) end
+    if tLZOrWZTeamData then
         local sBPIDToBuild
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
-        local iPond = M28Map.tiPondByWaterZone[iLandOrWaterZone]
-        local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-        local iTeam = aiBrain.M28Team
-        local tWZTeamData = tWZData[M28Map.subrefLZTeamData][iTeam]
         local iCurrentConditionToTry = 0
         local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
         local bHaveLowEnergy = M28Conditions.HaveLowPower(iTeam)
         local iAirSubteam = aiBrain.M28AirSubteam
 
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing)
-        if false and not(bHaveLowMass) and not(bHaveLowEnergy) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6) and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 2500 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= math.max(750, (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) + 300)))  then
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have sufficient eco to build something from a carrier, bHaveLowMass='..tostring(bHaveLowMass)..'; have low energy='..tostring(bHaveLowEnergy)..'; Gross mass income='..(aiBrain[M28Economy.refiGrossMassBaseIncome] or 'nil')..'; Energy gross income='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy when last stalled='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0)) end
+        if not(bHaveLowMass) and not(bHaveLowEnergy) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6) and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 2500 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= math.max(750, (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) + 300)))  then
             function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                 sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory,  nil,            nil,        bOptionalGetCheapest, nil,                          false)
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
+                    LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; iLandOrWaterZone='..iLandOrWaterZone..'; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
                 end
                 if sBPIDToBuild then
-                    sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+                    sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZOrWZTeamData, iFactoryTechLevel)
                 end
                 if sBPIDToBuild then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
@@ -4586,27 +4593,32 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             --Build asf if behind on air
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Are far behind on air so will build airaa') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
             end
             --Build torp bomber if need them
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want torp bombers') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
             end
 
             --Build asf if lack air control
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Lack air control so will build airaa') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
             end
 
             --Build gunship if we lack gunship threat
             if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] < 50000 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get more gunships') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
             end
 
             --Build strat bomber otherwise if have loads of mass
             if aiBrain[M28Economy.refiGrossMassBaseIncome] >= 600 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get strats') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
             end
 

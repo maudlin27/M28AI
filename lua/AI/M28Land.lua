@@ -5509,9 +5509,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                             RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
                                             --Redundancy for rare cases where a units shield can be disabled from a transfer
                                             if iCurShield == 0 and oUnit[M28UnitInfo.refbTransferredUnit] and not(oUnit[M28UnitInfo.refbPaused]) and (not(M28UnitInfo.IsUnitShieldEnabled(oUnit)) or oUnit[M28UnitInfo.refbShieldIsDisabled] == nil) then
-                                                bDebugMessages = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will enable shield for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                                bDebugMessages = false
                                                 M28UnitInfo.EnableUnitShield(oUnit)
                                             end
                                         else
@@ -5528,7 +5526,6 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                 RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
                                             end
                                         end
-                                        bDebugMessages = false
                                     else
                                         table.insert(tUnavailableUnitsInThisLZ, oUnit)
                                     end

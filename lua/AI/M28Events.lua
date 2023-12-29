@@ -1563,7 +1563,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                         M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oEngineer.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) then
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer))
                         end
@@ -1613,6 +1613,17 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
+
+                        --External factories that have just built an air unit - unload the air unit
+                        if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) and EntityCategoryContains(categories.AIR - categories.EXPERIMENTAL, oJustBuilt.UnitId) and oEngineer.Parent.UnitId then
+                            local oParentUnit = oEngineer.Parent
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just built unit state='..M28UnitInfo.GetUnitState(oJustBuilt)..'; Will try and unload from the engineer; reprs='..reprs(oEngineer)..'; oParentUnit UnitID='..(oParentUnit.UnitId or 'nil')) end
+                            local tCargo = oParentUnit:GetCargo()
+                            if M28Utilities.IsTableEmpty(tCargo) == false then
+                                M28Orders.ReleaseStoredUnits(oParentUnit, false, 'Carrier', false)
+                            end
+                        end
+
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                         --Clear any engineers trying to build this unit if we just built a building or experimental
                         if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
@@ -1621,7 +1632,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Logic based on the type of unit built
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oJustBuilt.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oJustBuilt.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
@@ -2047,6 +2058,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering special logic for units created via cheat or transfer, fraction complete='..oUnit:GetFractionComplete()) end
                 if oUnit:GetFractionComplete() == 1 then
                     if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
                         --put here as extra redundancy since the 'unpause unit on transfer' code which has something similar didnt fix an issue with a loaded yolona being transferred not then firing
@@ -2103,14 +2115,18 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityT2Arti, true)
+                end
+
+                --Non-weapon priority logic
+                if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
                     --If have been gifted factory or created via cheat then want to start building something
                     oUnit[M28Factory.refiTotalBuildCount] = 0
                     if oUnit:GetFractionComplete() >= 1 then
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
                     end
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityT2Arti, true)
                 end
                 --Check unit cap
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
