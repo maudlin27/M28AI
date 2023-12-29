@@ -1910,7 +1910,7 @@ function ManageEnergyStalls(iTeam)
                                         end
                                     elseif iCategoryRef == M28UnitInfo.refCategoryPersonalShield or iCategoryRef == M28UnitInfo.refCategoryFixedShield or iCategoryRef == M28UnitInfo.refCategoryMobileLandShield then
                                         --Dont disable shield if unit has enemies nearby
-                                        if bPauseNotUnpause and M28UnitInfo.IsUnitShieldEnabled(oUnit) and M28Utilities.IsTableEmpty(oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDangerousToLand, oUnit:GetPosition(), 40, 'Enemy')) == false then
+                                        if bPauseNotUnpause and (oUnit[M28Building.reftArtiTemplateRefs] or (M28UnitInfo.IsUnitShieldEnabled(oUnit) and M28Utilities.IsTableEmpty(oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDangerousToLand, oUnit:GetPosition(), 40, 'Enemy')) == false)) then
                                             bApplyActionToUnit = false
                                         end
                                     elseif bConsideringFactory then
@@ -2542,6 +2542,47 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
         else
             --Not safe to upgrade, consider in a while
             ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderUpgradingMexDueToCompletion(oJustBuilt)
+    --Idea - if we have just completed a mex upgrade in a zone, then look to immediately start upgrading another mex (since the one we just built should be able to help fund it)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderUpgradingMexDueToCompletion'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) then
+        local aiBrain = oJustBuilt:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+            local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oJustBuilt) - 1
+            if tLZOrWZData[M28Map.subrefLZMexCount] > 1 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] < tLZOrWZData[M28Map.subrefLZMexCount] * 0.3 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] < math.max(1, tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 0.5 + tLZOrWZData[M28Map.subrefLZMexCount] * 0.15) then
+                if tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel == 3 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0) then
+                    --Basic safety check (much more limited than normal one):
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and M28Utilities.IsTableEmpty(oJustBuilt[M28Building.reftTMLInRangeOfThisUnit]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
+                        --Upgrade another mex in this zone
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then --redundancy
+                            local iMexCategory
+                            if iMexTechLevel == 1 then iMexCategory = M28UnitInfo.refCategoryT1Mex
+                            else iMexCategory = M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex
+                            end
+                            local tMexOfCategory = EntityCategoryFilterDown(iMexCategory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tMexOfCategory) == false then
+                                for iMex, oMex in tMexOfCategory do
+                                    if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex == oJustBuilt) then
+                                        UpgradeUnit(oMex, true)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade the mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as have just compelted a mex upgrade in this zone') end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

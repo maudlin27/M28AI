@@ -66,6 +66,7 @@ reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a ga
 reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
 refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
 reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTemplateRef}, with tempalteref being the index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
+refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge order, so can check for redundancies
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -3487,10 +3488,18 @@ function JustBuiltParagon(oParagon)
                     if not(oBrain == aiBrain) and not(aiBrain.M28IsDefeated) then
                         if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
                             oOtherBrain = oBrain
-                            --Gift all non-land factories (retain land so we still build some units)
-                            local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
+                            --Gift all non-land factories (retain land so we still build some units), fatboys, nukes, SMD, aircraft carriers
+                            local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryCarrier + M28UnitInfo.refCategoryHive, false, true)
                             if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
-                                M28Team.TransferUnitsToPlayer(tFactoriesToGift, aiBrain:GetArmyIndex(), false)
+                                local tUnitsToGift = {}
+                                for iUnit, oUnit in tFactoriesToGift do
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                                        table.insert(tUnitsToGift, oUnit)
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                    M28Team.TransferUnitsToPlayer(tUnitsToGift, aiBrain:GetArmyIndex(), false)
+                                end
                             end
                             if iEngineersGifted < iMaxEngineersToGift then
                                 local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
@@ -3819,6 +3828,10 @@ end
 
 function MonitorShieldsForCycling(tTableRef)
     --Called from the gameender template logic
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorShieldsForCycling'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if not(tTableRef[M28Map.subrefGEbActiveShieldMonitor]) then
         tTableRef[M28Map.subrefGEbActiveShieldMonitor] = true
         local oLowestHealthActiveShield, oHighestHealthActiveShield, iCompletedShieldCount, iCurHealth, iMaxHealth, iLowestHealth, iHighestHealth, iLongestRechargeTime
@@ -3835,6 +3848,7 @@ function MonitorShieldsForCycling(tTableRef)
             iCompletedShieldCount = 0
             iLongestRechargeTime = 10
             for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
+
                 if oShield:GetFractionComplete() == 1 then
                     --Check we should include the shield (i.e. that it is covering the arti locations); assume UEF and seraphim T3+ are
                     if oShield[refbProtectingAllArtiLocations] == nil then
@@ -3868,6 +3882,7 @@ function MonitorShieldsForCycling(tTableRef)
                     if oShield[refbProtectingAllArtiLocations] then
                         iCompletedShieldCount = iCompletedShieldCount + 1
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)) end
                         if iCurHealth > 0 then
                             if iCurHealth < iLowestHealth then
                                 iLowestHealth = iCurHealth
@@ -3876,6 +3891,15 @@ function MonitorShieldsForCycling(tTableRef)
                             if iCurHealth >= iHighestHealth then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
                                 iHighestHealth = iCurHealth
                                 oHighestHealthActiveShield = oShield
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Time since last recharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield a transferred unit='..tostring(oShield[M28UnitInfo.refbTransferredUnit])) end
+
+                            if oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100) >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
+                                --Enable the shield incase it was somehow paused following the transfer
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged') end
+                                M28UnitInfo.EnableUnitShield(oShield)
                             end
                         end
 
@@ -3897,13 +3921,16 @@ function MonitorShieldsForCycling(tTableRef)
                     iSecondsBetweenShieldCycles = 10
                 end
                 M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
                 if bUpdateName then
                     M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
                 end
             end
-
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(iSecondsBetweenShieldCycles)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
         tTableRef[M28Map.subrefGEbActiveShieldMonitor] = false
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -756,13 +756,14 @@ function OnBombFired(oWeapon, projectile)
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId then
             local sUnitID = oUnit.UnitId
-            if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())) end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())..'; Bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
             if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTorpBomber, sUnitID) then
                 --if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                    M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
 
-                    --Ahwassa - micro the bomber
+                --Ahwassa - micro the bomber
                 if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
@@ -903,10 +904,10 @@ function OnWeaponFired(oWeapon)
                     end
                 end
             end
-            end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+    end
     end
 
 --[[function ProjectileFiredAtGround(oProjectile)
@@ -1423,6 +1424,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                                 ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
                             end
+                            --COnsider upgrading another mex in this zone
+                            ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
                             local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
@@ -1560,7 +1563,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                         M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oEngineer.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oEngineer.UnitId) then
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer))
                         end
@@ -1618,7 +1621,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Logic based on the type of unit built
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oJustBuilt.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oJustBuilt.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
@@ -2100,7 +2103,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId) then
                     --If have been gifted factory or created via cheat then want to start building something
                     oUnit[M28Factory.refiTotalBuildCount] = 0
                     if oUnit:GetFractionComplete() >= 1 then
@@ -2647,6 +2650,10 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                 end
             end
         end
+    end
+    --Also flag for every unit that it has been transferred
+    for iUnit, oUnit in toCapturedUnits do
+        oUnit[M28UnitInfo.refbTransferredUnit] = true
     end
     ForkThread(M28Overseer.DelayedUnpauseOfUnits,toCapturedUnits, 1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

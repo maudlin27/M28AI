@@ -7370,8 +7370,13 @@ end
 
 function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
     --E.g. if enemy strat bomber fires a bomb, and we dont have it recorded as a 'suicide into' target, consider adding it
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderRecordingStratBomberToSuicideInto'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if not(oBomber[refiAssignedSuicideASF]) then
-        --Is bomber on our side of the map, or we have air control?
+        --Is bomber on our side of the map, or we have air control, or did ut kill a mex?
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' owned by brain '..oBomber:GetAIBrain().Nickname..'; bBomberKilledMex='..tostring(bBomberKilledMex or false)..'; Time='..GetGameTimeSeconds()) end
         local iBomberTeam = oBomber:GetAIBrain().M28Team
         local bHaveNoM28Enemies = true
         local tbTeamsConsidered = {}
@@ -7391,9 +7396,13 @@ function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
                         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oBomber:GetPosition(), true, oBrain.M28Team)
                         if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
                             bIncludeForAirSubteam = true
+                        elseif tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.65 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) < 800 and M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl] then
+                            bIncludeForAirSubteam = true
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy groundAA='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)..'; Have air control='..tostring(M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl])) end
                     end
                     if bIncludeForAirSubteam then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add bomber to potential suicide targets') end
                         AddBomberToPotentialSuicideTargets(oBomber, oBrain.M28Team)
                     end
                 end
@@ -7403,6 +7412,7 @@ function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
             oBomber[refiAssignedSuicideASF] = 0 --Dont want to consider this logic again
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AddBomberToPotentialSuicideTargets(oBomber, iTeam)
@@ -7468,7 +7478,12 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
 end
 
 function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SuicideASFIntoStrat'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28UnitInfo.IsUnitValid(oStrat) and M28UnitInfo.IsUnitValid(oASF) then
+        if bDebugMessages == true then LOG(sFunctionRef..': will suicide asf '..oASF.UnitId..M28UnitInfo.GetUnitLifetimeCount(oASF)..' into oStrat '..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)..'; bNoLimitOnASFToAssign='..tostring(bNoLimitOnASFToAssign or false)..'; Start of code, time='..GetGameTimeSeconds()) end
         local iASFValue = 1
         if EntityCategoryContains(categories.TECH2, oASF.UnitId) then
             iASFValue = 0.5
@@ -7479,6 +7494,7 @@ function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
         if oStrat[refiAssignedSuicideASF] >= 2 and not(bNoLimitOnASFToAssign) then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do
                 if oUnit == oStrat then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will remove strat from list of suicide targets as we now have at least 2 ASFs assigned to it') end
                     table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets], iUnit)
                     break
                 end
@@ -7486,15 +7502,23 @@ function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
         end
         --Move into range
         while M28Utilities.GetDistanceBetweenPositions(oStrat:GetPosition(), oASF:GetPosition()) > 30 do
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and move asf '..oASF.UnitId..M28UnitInfo.GetUnitLifetimeCount(oASF)..' into position as are far away from the strat '..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)) end
             M28Orders.IssueTrackedMove(oASF, oStrat:GetPosition(), 10, false, 'SuicM', true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if not(M28UnitInfo.IsUnitValid(oStrat)) or not(M28UnitInfo.IsUnitValid(oASF)) then break end
         end
         --Issue attack, and dont stop until either asf or strat is dead
         while M28UnitInfo.IsUnitValid(oStrat) and M28UnitInfo.IsUnitValid(oASF) do
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and give attack order to asf '..oASF.UnitId..M28UnitInfo.GetUnitLifetimeCount(oASF)..' to attack strat '..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)..'; Is ASF special micro still true='..tostring(oASF[M28UnitInfo.refbSpecialMicroActive] or false)) end
             M28Orders.IssueTrackedAttack(oASF, oStrat, false, 'SuicA', true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Either asf or strat is no longer valid, clearing asf special micro flag') end
         oASF[M28UnitInfo.refbSpecialMicroActive] = false
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

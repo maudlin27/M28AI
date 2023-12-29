@@ -63,6 +63,7 @@ refiHealthSecondLastCheck = 'M28HlthSLC' --Unit health in the previous check - u
 refbWantToHealUp = 'M28HlUp' --true if unit wants to rely on its regen to heal up - e.g. used for soulripper
 refbObjectiveUnit = 'M28ObjU' --true if unit is being used for an objective
 refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded against the unit (may not be an objective unit, but will want to avoid e.g. ctrl-King if M28 owns it)
+refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -244,6 +245,8 @@ refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
 refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
+refCategoryCarrier = categories.NAVAL * categories.NAVALCARRIER * categories.EXTERNALFACTORY
+refCategoryMobileAircraftFactory = categories.AIR * categories.EXTERNALFACTORYUNIT
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
 refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + categories.STEALTHFIELD * categories.NAVAL --Intended for units we dont want on frontline unless in bombardment mode
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
@@ -1673,11 +1676,11 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Unit is paused='..tostring(oUnit:IsPaused())..'; bExcludeProduction='..tostring(bExcludeProduction or false))
         if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
-        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
+        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Is arti template nil='..tostring(oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftArtiTemplateRefs] == nil)) end
     end
     if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
-            --Want this to run before the later stages so can properly track if unit is paused
+        --Want this to run before the later stages so can properly track if unit is paused
         if not(bExcludeProduction) or bPauseNotUnpause then
             AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 

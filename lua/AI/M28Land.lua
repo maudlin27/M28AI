@@ -5502,10 +5502,18 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                 iShieldPercentageAdjust = 0.075
                                             end
                                         end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()..'; Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is table of paused units empty for unit brain='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain()[M28Economy.reftPausedUnits]))..'; Is unit paused='..tostring(oUnit[M28UnitInfo.refbPaused] or false)..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oUnit))..'; is oUnit[refbShieldIsDisabled] nil='..tostring(oUnit[M28UnitInfo.refbShieldIsDisabled] == nil)) end
                                         if iMaxShield > 0 and iCurShield < iMaxShield * (0.35 + iShieldPercentageAdjust) and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * (iShieldPercentageAdjust + 0.05)) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
                                             table.insert(tOtherUnitsToRetreat, oUnit)
                                             RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                                            --Redundancy for rare cases where a units shield can be disabled from a transfer
+                                            if iCurShield == 0 and oUnit[M28UnitInfo.refbTransferredUnit] and not(oUnit[M28UnitInfo.refbPaused]) and (not(M28UnitInfo.IsUnitShieldEnabled(oUnit)) or oUnit[M28UnitInfo.refbShieldIsDisabled] == nil) then
+                                                bDebugMessages = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will enable shield for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                                bDebugMessages = false
+                                                M28UnitInfo.EnableUnitShield(oUnit)
+                                            end
                                         else
                                             if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
                                                 table.insert(tAvailableMAA, oUnit)
@@ -5520,6 +5528,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                 RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
                                             end
                                         end
+                                        bDebugMessages = false
                                     else
                                         table.insert(tUnavailableUnitsInThisLZ, oUnit)
                                     end

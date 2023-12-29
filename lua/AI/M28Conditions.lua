@@ -2595,3 +2595,10 @@ function WillBlockTemplateLocation(tLZTeamData, iCurSegmentX, iCurSegmentZ, iBui
     end
     return false
 end
+
+function WantT3MAAInsteadOfT2(oFactory, iTeam)
+    if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000) and (oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 20 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= 1000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 2) then
+        return true
+    end
+    return false
+end

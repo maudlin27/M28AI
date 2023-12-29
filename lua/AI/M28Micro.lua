@@ -237,6 +237,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tBombTarget = GetBombTarget(oWeapon, projectile)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
     if tBombTarget then
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end
@@ -249,6 +250,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
         elseif EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
             iTimeToRun = 2.5
             --Consider recording for special asf suicide logic
+            if bDebugMessages == true then LOG(sFunctionRef..': Will consider logic for suiciding into strat bomber') end
             ForkThread(M28Air.ConsiderRecordingStratBomberToSuicideInto, oBomber)
         end --Some t2 bombers do damage in a spread (cybran, uef)
         --local iTimeToRun = math.min(7, iBombSize + 1)
