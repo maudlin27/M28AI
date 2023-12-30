@@ -4896,14 +4896,14 @@ function ManageGunships(iTeam, iAirSubteam)
                 if M28Utilities.IsTableEmpty(oClosestEnemy[M28Building.reftoUnitsCoveredByShield]) == false then
                     for iGunship, oGunship in tAvailableGunships do
                         if oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] then
-                            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunshipShield, true)
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oGunship, M28UnitInfo.refWeaponPriorityGunshipShield, true)
                             oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] = false
                         end
                     end
                 else
                     for iGunship, oGunship in tAvailableGunships do
                         if not(oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority]) then
-                            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oGunship, M28UnitInfo.refWeaponPriorityGunship, true)
                             oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
                         end
 
