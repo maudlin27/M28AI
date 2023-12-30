@@ -4892,6 +4892,23 @@ function ManageGunships(iTeam, iAirSubteam)
 
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and get gunships to move to oClosestEnemy at position '..repru(oClosestEnemy:GetPosition())..'; is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oClosestEnemy:GetPosition()))) end
+                --If closest enemy is covered by a fixed shield then make sure all gunships will prioritise fixed shields over AA
+                if M28Utilities.IsTableEmpty(oClosestEnemy[M28Building.reftoUnitsCoveredByShield]) == false then
+                    for iGunship, oGunship in tAvailableGunships do
+                        if oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] then
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunshipShield, true)
+                            oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] = false
+                        end
+                    end
+                else
+                    for iGunship, oGunship in tAvailableGunships do
+                        if not(oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority]) then
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
+                            oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
+                        end
+
+                    end
+                end
                 GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
             end
         end
