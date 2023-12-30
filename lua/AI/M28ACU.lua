@@ -404,8 +404,8 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
         local oOptionalUnderConstructionHydro --used for redundancy
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
             for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand)) end
-                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 125 then --further than normal since we are in low mass scenario
+                if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand)) end
+                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand) <= 125 then --further than normal since we are in low mass scenario
                     bHydroBuildOrder = true
                     iCurHydroDist = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, oACU:GetPosition(), M28Map.refPathingTypeLand)
                     if iCurHydroDist < iClosestDistToACU then
@@ -596,8 +596,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
 
                             for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand)) end
-                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 90 then --Open palms is 85.65
+                                if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand)) end
+                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand) <= 90 then --Open palms is 85.65
                                     bHydroBuildOrder = true
                                     iCurHydroDist = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, oACU:GetPosition(), M28Map.refPathingTypeLand)
                                     if iCurHydroDist < iClosestDistToACU then
@@ -1462,7 +1462,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                 iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oACU:GetPosition())
             else
                 --May e.g. be underwater and not have a LZ
-                iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])
+                iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPlayerStartPosition(aiBrain))
                 iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPrimaryEnemyBaseLocation(oACU:GetAIBrain()))
             end
             local iPercentageToFriendlyBase = iDistToFriendlyBase / (iDistToFriendlyBase + iDistToEnemyBase)
@@ -2822,7 +2822,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     end
     if not(tRallyPoint) then
         if bDebugMessages == true then LOG(sFunctionRef..': No shields so will move ACU to start point') end
-        tRallyPoint = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()]
+        tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
     end
     if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
 
@@ -3553,7 +3553,7 @@ function GetACUOrder(aiBrain, oACU)
                         if not(M28Conditions.SafeToUpgradeUnit(oACU)) then
                             --Cancel upgrade
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
-                            M28Orders.IssueTrackedMove(oACU, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()], 5, false, 'CURun')
+                            M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CURun')
                         end
                     end
                 end
@@ -3807,14 +3807,14 @@ function GetACUOrder(aiBrain, oACU)
                              = M28Utilities.GetTravelDist--]]
 
 
-                        else tRallyPoint = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()]
+                        else tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
                         end
                         --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them; otherwise go to nearest friendly base
                         if not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20))) then
 
                             M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs')
                             --M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone')
                         end
                     else
@@ -3964,12 +3964,12 @@ function GetACUOrder(aiBrain, oACU)
                                             if not(iLandOrWaterZone) or (iPlateauOrZero == 0 and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart])) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': ACU isnt in a land zone, if has no orders will tell it to retreat to start position, oACU[M28Orders.refiOrderCount]='..oACU[M28Orders.refiOrderCount]..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
                                                 if oACU[M28Orders.refiOrderCount] == 0 then
-                                                    M28Orders.IssueTrackedMove(oACU, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()], 5, false, 'NLZRun')
+                                                    M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRun')
                                                 elseif oACU:IsUnitState('Attacking') and M28UnitInfo.IsUnitUnderwater(oACU) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                                                     --Came across rare issue where ACU has attack-move order, that doesnt get refreshed, but ACU gets stuck not moving in the water, its unit state when this happened was attacking, and its last order was refiOrderIssueAggressiveMove; the below is a workaround as in some cases want ACU to advance where this is the case, in others want it to retreat
                                                     local iCurWaterZone = M28Map.GetWaterZoneFromPosition(oACU:GetPosition())
                                                     if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 or not(iCurWaterZone) then
-                                                        M28Orders.IssueTrackedMove(oACU, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()], 5, false, 'NLZRn')
+                                                        M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRn')
                                                     else
                                                         --Look for nearest land zone and move here
                                                         local iPond = M28Map.tiPondByWaterZone[iCurWaterZone]
@@ -3985,7 +3985,7 @@ function GetACUOrder(aiBrain, oACU)
                                                             end
                                                         end
                                                         if bDebugMessages == true then LOG(sFunctionRef..': tLZMidpointToMoveTo after checking if have adjacent land zones that want support='..repru(tLZMidpointToMoveTo)) end
-                                                        if not(tLZMidpointToMoveTo) then tLZMidpointToMoveTo = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()] end
+                                                        if not(tLZMidpointToMoveTo) then tLZMidpointToMoveTo = M28Map.GetPlayerStartPosition(oACU:GetAIBrain()) end
                                                         M28Orders.IssueTrackedMove(oACU, tLZMidpointToMoveTo, 5, false, 'ACUWtr')
 
                                                     end

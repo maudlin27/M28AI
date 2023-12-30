@@ -274,16 +274,12 @@ function AssignScoutingIntervalPriorities(iTeam)
     --Make all enemy start positions a high priority
     local iPlateauOrZero, iLandOrWaterZone
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-        if bDebugMessages == true then LOG(sFunctionRef..': About to get closest plateau and zone for the enemy start position, oBrain='..oBrain.Nickname..'; start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Map size='..repru(ScenarioInfo.size)..'; rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get closest plateau and zone for the enemy start position, oBrain='..oBrain.Nickname..'; start point='..repru(M28Map.GetPlayerStartPosition(oBrain))..'; Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Map size='..repru(ScenarioInfo.size)..'; rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
         --Check if are within the playable area
-        local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+        local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
         if not(M28Map.bIsCampaignMap) or M28Map.InPlayableArea(tStartPoint) then
-            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            --[[iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            iWaterZone = nil
-            if (iPlateau or 0) > 0 and (iLandZone or 0) == 0 then
-                iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            end--]]
+            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
+
             if iPlateauOrZero == 0 then
                 M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
             else
@@ -1413,10 +1409,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local bDontMoveCloserToEnemyBase = false
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; iAirSubteam='..iAirSubteam) end
+            local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Start point='..repru(M28Map.GetPlayerStartPosition(oBrain))..'; iAirSubteam='..iAirSubteam) end
             if (iLandZone or 0) == 0 then
-                iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                iWaterZone = M28Map.GetWaterZoneFromPosition(tStartPoint)
                 if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..(iWaterZone or 'nil')) end
                 if (iWaterZone or 0) > 0 then
                     local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
@@ -1451,7 +1448,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         else
             --Dont have a rally point, find the zone closest to our base that is in the playable area
             local oFirstBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-            local tPlayerStartPosition = M28Map.PlayerStartPoints[oFirstBrain:GetArmyIndex()]
+            local tPlayerStartPosition = M28Map.GetPlayerStartPosition(oFirstBrain)
             if M28Conditions.IsLocationInPlayableArea(tPlayerStartPosition) then
                 M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tPlayerStartPosition[1], tPlayerStartPosition[2], tPlayerStartPosition[3]}
             else
@@ -1462,6 +1459,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 else
                     tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
                 end
+                if not(tStartLZOrWZData) then M28Utilities.ErrorHandler('unable to find a valid zone for player start position, iStartPlateauOrZero='..(iStartPlateauOrZero or 'nil')..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; Player='..(oFirstBrain.Nickname or 'nil')..' at position X'..(tPlayerStartPosition[1] or 'nil')..'Z'..(tPlayerStartPosition[3] or 'nil')) end
                 if M28Conditions.IsLocationInPlayableArea(tStartLZOrWZData[M28Map.subrefMidpoint]) then
                     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tStartLZOrWZData[M28Map.subrefMidpoint][1], tStartLZOrWZData[M28Map.subrefMidpoint][2], tStartLZOrWZData[M28Map.subrefMidpoint][3]}
                 else
@@ -1484,11 +1482,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         end
                         if iCurLandTech >= 3 then break end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Does anyone on our team have an air staging faciltiy to be used as the rally point? oUnitAsRallyPoint='..(oUnitAsRallyPoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitAsRallyPoint) or 'nil')) end
                     if oUnitAsRallyPoint then
                         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = oUnitAsRallyPoint:GetPosition()
                     else
                         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = true
                         RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of other Land and water zones by distance empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
                         if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                             for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                 local tAltLZOrWZData
@@ -1498,6 +1498,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 else
                                     tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))) end
                                 if M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
                                     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
                                     break
@@ -1598,14 +1599,15 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     local iCurBaseDist
                     local iClosestBaseDist = 100000
                     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                        iBasePlateau, iBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                        local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+                        iBasePlateau, iBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
                         if (iBaseLandOrWaterZone or 0) > 0 then
-                            iCurBaseDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tClosestMidpoint)
+                            iCurBaseDist = M28Utilities.GetDistanceBetweenPositions(tStartPoint, tClosestMidpoint)
                             if iCurBaseDist < iClosestBaseDist then
                                 if not(IsThereAANearLandOrWaterZone(iTeam, iBasePlateau, iBaseLandOrWaterZone, iBasePlateau == 0, 0, 0)) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Closest base is dangerous, but have a safe base at position '..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..' for M28 brain '..oBrain.Nickname) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Closest base is dangerous, but have a safe base at position '..repru(M28Map.GetPlayerStartPosition(oBrain))..' for M28 brain '..oBrain.Nickname) end
                                     iClosestBaseDist = iCurBaseDist
-                                    tClosestSafeMidpoint = {M28Map.PlayerStartPoints[oBrain:GetArmyIndex()][1], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()][2], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()][3]}
+                                    tClosestSafeMidpoint = {tStartPoint[1], tStartPoint[2], tStartPoint[3]}
                                 end
                             end
                         end
@@ -2665,7 +2667,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         --Add air units unless too much enemy AA
                         local bUseDetailedCheck = false
                         if tWZTeamData[M28Map.subrefWZbCoreBase] then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil')) end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': About to check for air units in a zone, iTeam='..iTeam..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
+                            LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil'))
+                        end
                         if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
                             for iUnit, oUnit in (toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
@@ -2923,7 +2928,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 local bConsiderAdjacentZones = not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])
                 if bConsiderAdjacentZones and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.8 then bConsiderAdjacentZones = false end
                 for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
                     if (iPlateauOrZero or 0) == 0 then
                         if (iLandOrWaterZone or 0) > 0 then
                             AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
@@ -2931,7 +2937,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     else
                         if (iLandOrWaterZone or 0) > 0 then
                             --Have a land zone - check for groundAA
-                            if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land or water zone near start position, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Brain start position='..oBrain.Nickname..'; Start pos='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land or water zone near start position, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Brain start position='..oBrain.Nickname..'; Start pos='..repru(M28Map.GetPlayerStartPosition(oBrain))) end
                             AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
                         end
                     end
@@ -4449,10 +4455,11 @@ function ManageGunships(iTeam, iAirSubteam)
         --Emergency response - first include any ground threats in a start position and (if none) adjacent to a start position
         local tiFriendlyStartPositionPlateauAndZones = {}
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
             if (iCurPlateauOrZero or 0) > 0 then
                 if (iCurLZOrWZ or 0) == 0 then
-                    iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
                     if (iCurLZOrWZ or 0) > 0 then
                         iCurPlateauOrZero = 0
                     end
@@ -5252,7 +5259,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             local iCurPlateau, iCurLZ, iCurIsland
 
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+                local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
                 iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
                 iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tStartPoint)
                 if (iCurIsland or 0) > 0 and (iCurLZ or 0) > 0 then
@@ -5566,7 +5573,7 @@ function UpdateTransportLocationShortlist(iTeam)
             table.insert(toBrainsToConsider, oBrain)
         end
         for iBrain, oBrain in toBrainsToConsider do
-            local tEnemyStart = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+            local tEnemyStart = M28Map.GetPlayerStartPosition(oBrain)
             iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tEnemyStart)
             iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tEnemyStart)
             if (iCurIsland or 0) > 0 then
@@ -5637,7 +5644,7 @@ function UpdateTransportLocationShortlist(iTeam)
         --Consider ponds with mexes that cant be reached by land - most of the logic is handled in UpdateTransportShortlistForPondDrops
         --First record all plateaus that have a player start position
         for iBrain, oBrain in toBrainsToConsider do
-            local tPlayerStart = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+            local tPlayerStart = M28Map.GetPlayerStartPosition(oBrain)
             local iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tPlayerStart)
             if iStartPlateau then tbPlateausWithPlayerStartOrIslandDrop[iStartPlateau] = true end
         end
@@ -7019,10 +7026,11 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 --Emergency response - first include any ground threats in a start position
                 for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
                     if (iCurPlateauOrZero or 0) > 0 then
                         if (iCurLZOrWZ or 0) == 0 then
-                            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
                             if (iCurLZOrWZ or 0) > 0 then
                                 iCurPlateauOrZero = 0
                             end

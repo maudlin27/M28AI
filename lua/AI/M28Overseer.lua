@@ -104,7 +104,9 @@ function GetNearestEnemyBrain(aiBrain)
                     if not (oBrain:IsDefeated()) and not (oBrain.M28IsDefeated) then
                         --Redundancy for AI like DD that may not trigger the aibrain hook
                         if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             M28Map.RecordBrainStartPoint(oBrain)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                         end
                         if bDebugMessages == true then
@@ -1529,6 +1531,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon))..'; UEF M5: Is ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active or false)..'; Is research facility 1 nil='..tostring(ScenarioInfo.ResearchFacility1 == nil)..'; Is research facility 2 nil='..tostring(ScenarioInfo.ResearchFacility2 == nil))
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
+            LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
         end
         if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
             if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
@@ -1898,11 +1901,17 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
-        --FA M6 - Fletcher changing sides
+            --FA M6 - Fletcher changing sides
         elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
             tbSpecialCodeForMission[21] = true
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following fletcher changing sides, Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --SC Aeon M5 - UEF changing sides
+        elseif ScenarioInfo.M2P1Obj.Active and ScenarioInfo.Ariel and ScenarioInfo.Colonies and not(tbSpecialCodeForMission[21]) then
+            tbSpecialCodeForMission[21] = true
+            --Have had a change in factions, update all unit tables
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
         end
     end
@@ -1962,6 +1971,7 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Updating for team '..iTeam..'; bChangedAlliesOrEnemies='..tostring(bChangedAlliesOrEnemies or false)) end
         if bChangedAlliesOrEnemies then
             if bDebugMessages == true then LOG(sFunctionRef..': Have a zone with units who have an updated ally/enemy status, iTeam='..iTeam) end
             tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = nil
@@ -1985,6 +1995,44 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
                 for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
                     for _, iTeam in tiTeamsToConsider do
                         UpdateStatusOfFriendlyAndEnemyUnits(tWZData[M28Map.subrefWZTeamData][iTeam], iTeam)
+                    end
+                end
+            end
+        end
+        --Update neutral units
+        for _, iTeam in tiTeamsToConsider do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoCampaignNeutralUnitsNotRecorded]) == false then
+                local oM28Brain
+                local oFirstAnyM28Brain
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if oBrain.M28AI then
+                        if not(oFirstAnyM28Brain) then oFirstAnyM28Brain = oBrain end
+                        if not(oM28Brain) and not(oBrain.CampaignAI) then oM28Brain = oBrain end
+                    end
+                end
+                if not(oM28Brain) then oM28Brain = oFirstAnyM28Brain end
+                if oM28Brain then
+                    local iM28Index = oM28Brain:GetArmyIndex()
+
+                    local tiUnitsToRemove = {}
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoCampaignNeutralUnitsNotRecorded] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            --Rerecord if this is now an enemy
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is now an enemy to team '..iTeam..'; oM28Brain='..oM28Brain.Nickname..'; Unit brain owner='..oUnit:GetAIBrain().Nickname..'; Is enemy='..tostring(IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iM28Index))) end
+                            if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iM28Index) then
+                                oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][iTeam] = nil
+                                M28Team.AssignUnitToLandZoneOrPond(oM28Brain, oUnit)
+                                table.insert(tiUnitsToRemove, iUnit)
+                            end
+                        else
+                            table.insert(tiUnitsToRemove, iUnit)
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tiUnitsToRemove) == false then
+                        local iToRemoveTotal = table.getn(tiUnitsToRemove)
+                        for iCurRemoval = iToRemoveTotal, 1, -1 do
+                            table.remove(tiUnitsToRemove, tiUnitsToRemove[iCurRemoval])
+                        end
                     end
                 end
             end

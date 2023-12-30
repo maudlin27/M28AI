@@ -5652,7 +5652,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                     ConsiderUnitsToReclaim(tBuildLocation)
                 end
             end
-            if not(bHavePotentiallyValidLocation) then ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGEArtiLocations][2]) end
+            if not(bHavePotentiallyValidLocation) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiLocations][2]) == false then ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGEArtiLocations][2]) end
             if bHavePotentiallyValidLocation then
                 --Get all engineers to reclaim the units here
                 local oUnitToReclaim = tLowestValueBlockingBuildings[1]
@@ -13354,7 +13354,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
 end
 
 function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

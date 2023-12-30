@@ -2357,9 +2357,9 @@ function DetermineWhatToBuild(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForExperimentalFactoryBuilding(aiBrain, oFactory)
     else
-        M28Utilities.ErrorHandler('Need to add code - unexpected factory type')
+        M28Utilities.ErrorHandler('Need to add code - unexpected factory type, unitID='..(oFactory.UnitId or 'nil')..'; ParentID (if external factory unit)='..(oFactory.Parent.UnitId or 'nil'))
     end
-        return sBPIDToBuild
+    return sBPIDToBuild
 end
 function IsFactoryReadyToBuild(oFactory)
     local sFunctionRef = 'IsFactoryReadyToBuild'
@@ -2583,7 +2583,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 end
             end
             if bProceed then
-                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) then IssueTrackedClearCommands(oFactory) end
+                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) then M28Orders.IssueTrackedClearCommands(oFactory) end
                 bDontCheckCutsceneStatus = false
                 --Set factory rally point if havent already
                 if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then

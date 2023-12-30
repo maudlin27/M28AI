@@ -223,7 +223,7 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZMexLocations])..'; iMexCount from this function='..iMexCount..'; iOptionalWait='..(iOptionalWait or 'nil')..'; tiRecordedMexPositionsXZ='..repru(tiRecordedMexPositionsXZ)) end
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
-        if iMexCount > table.getn( tLZOrWZData[M28Map.subrefLZMexLocations]) then
+        if iMexCount > 0 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false and iMexCount > table.getn( tLZOrWZData[M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
                 M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZOrWZTeamData[M28Map.subrefMexCountByTech]))
             end

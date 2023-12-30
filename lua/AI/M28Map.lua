@@ -52,7 +52,7 @@ tMexByPathingAndGrouping = {} --Stores position of each mex based on the pathing
 tHydroNearStart = {} --[x] is an integer count, records any hydro that we have recorded as being in a starting zone of any player (done so on high hydro maps we can avoid assigning these to zones again)
 
 --Player start points
-PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {x,y,z}; Will be updated whenever a brain is created, index is the army index, i.e. do PlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
+PlayerStartPoints = {} --Try to use M28Map.GetPlayerStartPosition(aiBrain) instead (improves campaign compatibility for where start positions arent in a valid zone); [x] is aiBrain army index, returns the start position {x,y,z}; Will be updated whenever a brain is created, index is the army index, i.e. do PlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
 
 
 --Reclaim info (non-LZ/plateau specific):
@@ -7774,7 +7774,7 @@ function RecordBrainStartPoint(oBrain)
     local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos() --(Nb: For most references use M28Map.GetPlayerStartPosition(aiBrain, true) to get this instead)
     local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()..'; will wait if havent setup land zones etc yet') end
     --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
     if not(NavUtils.IsGenerated()) then
         if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
@@ -7790,19 +7790,36 @@ function RecordBrainStartPoint(oBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         SetupPlayableAreaAndSegmentSizes()
     end
+    if not(bPlayableAreaSetup) then
+        SetupPlayableAreaAndSegmentSizes()
+    end
+    --NOTE: Cant wait for land and water zone setup to finish, as they require the brain start points
 
-    if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPoint)) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting until land zones and playable area are setup, bMapLandSetupComplete='..tostring(bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(bWaterZoneInitialCreation)..'; Checking if start point is in a valid plateau and zone for brain '..oBrain.Nickname..'; tStartPoint='..repru(tStartPoint)..'; time='..GetGameTimeSeconds()) end
+    local iLocationSegmentX, iLocationSegmentZ, tLocationSegmentMidpoint
+    function IsLocationSuitable(tLocation)
+        if (NavUtils.GetTerrainLabel(refPathingTypeHover, tLocation) or -1) > 0 then
+            iLocationSegmentX, iLocationSegmentZ = GetPathingSegmentFromPosition(tLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': iLocationSegmentX='..iLocationSegmentX..'; iLocationSegmentZ='..iLocationSegmentZ..'; Land label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLocation) or 0)..'; Water label='..((NavUtils.GetTerrainLabel(refPathingTypeNavy, tLocation) or 0))) end
+            if (NavUtils.GetTerrainLabel(refPathingTypeLand, tLocation) or 0) > 0 or (NavUtils.GetTerrainLabel(refPathingTypeNavy, tLocation) or 0) > 0 then
+                return true
+            end
+        end
+        return false
+    end
+
+    if not(IsLocationSuitable(tStartPoint)) then
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
         local bHaveValidStartPoint = false
         local tAltStartPoint
-        for iAdjustBase = 1, 250 do
+        for iAdjustBase = 1, math.min(iMapSize, 250) do
             for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
                 for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
                     if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
                         tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; Hover label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) or 'nil')) end
                         if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                            if IsLocationSuitable(tAltStartPoint) then
                                 bHaveValidStartPoint = true
                                 break
                             end
@@ -7818,7 +7835,7 @@ function RecordBrainStartPoint(oBrain)
                     if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
                         tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
                         if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                            if IsLocationSuitable(tAltStartPoint) then
                                 bHaveValidStartPoint = true
                                 break
                             end
@@ -7829,7 +7846,7 @@ function RecordBrainStartPoint(oBrain)
             end
             if bHaveValidStartPoint then break end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': After checking for alternatives, bHaveValidStartPoint='..tostring(bHaveValidStartPoint)..'; brain='..oBrain.Nickname..'; tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)) end
         if not(bIsCampaignMap) and not(M28Conditions.IsCivilianBrain(oBrain)) then M28Utilities.ErrorHandler('Non-civilian brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
 
         if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 250 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
@@ -8095,8 +8112,57 @@ function GetPlayerStartPosition(aiBrain, bJustReturnXAndZ)
     else
         X, Z = aiBrain:GetArmyStartPos() --(foro ther refs use this function instead of getarmystartpos, i.e. M28Map.GetPlayerStartPosition(aiBrain, true))
         if not(bJustReturnXAndZ) then tStartPosition = {X, GetSurfaceHeight(X, Z), Z} end
+        --if aiBrain:GetArmyIndex() == 2 then LOG('Running for brain '..aiBrain.Nickname..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete)..'; TIme='..GetGameTimeSeconds()) end
         if bMapLandSetupComplete and GetGameTimeSeconds() >= 4 then
-            PlayerStartPoints[iIndex] = { X, GetSurfaceHeight(X, Z), Z}
+            --Adjust the start position if it isn't in a valid zone
+            --The below is all a redundancy as would expect RecordBrainStartPoint to handle this, so below is unlikely to trigger
+            local tStartPositionToUse = { X, GetSurfaceHeight(X, Z), Z}
+            local iStartPlateau, iStartZone = GetClosestPlateauOrZeroAndZoneToPosition(tStartPositionToUse)
+            local iRevisedZone
+            local iRevisedSegmentX, iRevisedSegmentZ
+            if not(iStartPlateau) or not(iStartZone) then
+                local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPositionToUse)
+                for iAdjustBase = 1, math.min(250, iMapSize) do
+                    for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                        for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                            if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] or tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                    iRevisedZone = (tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] or tLandZoneBySegment[iCurSegmentX][iCurSegmentZ])
+                                    iRevisedSegmentX = iCurSegmentX
+                                    iRevisedSegmentZ = iCurSegmentZ
+                                    break
+                                end
+                            end
+                        end
+                        if iRevisedZone then break end
+                    end
+                    if iRevisedZone then break end
+                    --Then do the left and right row (excl corners which ahve already done per the above)
+                    for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                        for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                            if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] or tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                    iRevisedZone = (tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] or tLandZoneBySegment[iCurSegmentX][iCurSegmentZ])
+                                    iRevisedSegmentX = iCurSegmentX
+                                    iRevisedSegmentZ = iCurSegmentZ
+                                    break
+                                end
+                            end
+                        end
+                        if iRevisedZone then break end
+                    end
+                    if iRevisedZone then break end
+                end
+            end
+            if iRevisedZone then
+                local tPositionFromSegments = GetPositionFromPathingSegments(iRevisedSegmentX, iRevisedSegmentZ)
+                tStartPositionToUse = {tPositionFromSegments[1], GetSurfaceHeight(tPositionFromSegments[1], tPositionFromSegments[3]), tPositionFromSegments[3]}
+                if not(bIsCampaignMap) then M28Utilities.ErrorHandler('Adjusted the start position for player '..(aiBrain.Nickname or 'nil')..' to be '..repru(tStartPositionToUse)..'; previously it was X='..X..'Z='..Z..'; Normally would only have expected this to be required for a campaign map', true) end
+            else
+                M28Utilities.ErrorHandler('Unable to find a valid segment near player start point that has a zone, brain='..(aiBrain.Nickname or 'nil'))
+            end
+
+            PlayerStartPoints[iIndex] = {tStartPositionToUse[1], tStartPositionToUse[2], tStartPositionToUse[3]}
         end
     end
     --LOG('GetPlayerStartposition: aiBrain='..aiBrain.Nickname..'; X='..(X or 'nil')..'; Z='..(Z or 'nil')..'; bJustReturnXAndZ='..tostring(bJustReturnXAndZ or false)..'; Army start pos='..repru(aiBrain:GetArmyStartPos()))

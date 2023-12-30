@@ -2756,9 +2756,24 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     --GetDamageFromBomb(aiBrain, tBaseLocation,                             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
                     local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor,          false,                          iSizeAdjust,        iMultipleShotMod,               iMobileValueFactorInner,                    true,               iShieldReductionFactor,         true)
                     if iDamage >= 0 then --should mean dont have much in way of friendly forces there
-                        iBestTargetValue = iDamage
-                        M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
-                        bGivenAltTarget = true
+                        --Check there are enemy units nearby
+                        local bNearbyEnemyUnits = false
+                        local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLZTeamData[M28Map.reftClosestEnemyBase], iAOE * 1.3))
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            for iUnit, oUnit in tNearbyUnits do
+                                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure - categories.TECH1 * categories.MOBILE, oUnit.UnitId) then
+                                    if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                        bNearbyEnemyUnits = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        if bNearbyEnemyUnits then
+                            iBestTargetValue = iDamage
+                            M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                            bGivenAltTarget = true
+                        end
                     end
                 end
                 if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end

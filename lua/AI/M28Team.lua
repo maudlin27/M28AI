@@ -203,7 +203,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyCampaignMainBase = 'M28CampMB' --midpoint of the zone containing the enemy main base provided it is in the playable area
     refiLastUpdatedMainBase = 'M28TimCamp' -- used when getting enemy main base location for campaign map
     refbUnableToBuildArtiOrGameEnders = 'M28GERest' --true if gameenders and t3 arti are restricted
-
+    reftoCampaignNeutralUnitsNotRecorded = 'M28CamU' --If have a campaign map, and we choose not to record a unit as an ally or an enemy, then it should be recorded here, so if there is a faction change these units can be reassessed
 
 
 --AirSubteam data variables
@@ -582,6 +582,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
     tTeamData[iTotalTeamCount][refiEnemyT3ArtiCount] = 0
     tTeamData[iTotalTeamCount][refiEnemyNovaxCount] = 0
+    tTeamData[iTotalTeamCount][reftoCampaignNeutralUnitsNotRecorded] = {}
 
 
     local bHaveCampaignM28AI = false
@@ -1481,6 +1482,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                     --First time considering the unit for this team
                     --Campaign specific - dont record jamming crystals as units without an aoe cant damage them, leading to strange results - e.g. gunships can end up stuck trying to kill them
+                    --Also record any units that we arent recording (due to not being an enemy or an ally) in a separate table
                     if oUnit.UnitId == 'xsc9002' and M28Map.bIsCampaignMap then
                         if bDebugMessages == true then LOG(sFunctionRef..': Seraphim jamming crystal - want to ignore since it cant be hit by non aoe gunships') end
                         bIgnore = true
@@ -1591,10 +1593,25 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             end
 
                         else
+                            --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record') end
                                 bIgnore = true
+                                if M28Map.bIsCampaignMap then
+                                    local bAddToNeutralTable = true
+                                    if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded]) == false then
+                                        for iRecorded, oRecorded in tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded] do
+                                            if oRecorded == oUnit then
+                                                bAddToNeutralTable = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if bAddToNeutralTable then
+                                        table.insert(tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded], oUnit)
+                                    end
+                                end
                             else
                                 --M28 ally specific
 
