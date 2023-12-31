@@ -832,8 +832,10 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
         if not(tLZData[M28Map.subrefbPacifistArea]) then
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
-                tLZTeamData[M28Map.refbWantLandScout] = true
-                if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this LZ '..(iLandZone or 'nil')..' on plateau '..(iPlateau or 'nil')..' with island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    tLZTeamData[M28Map.refbWantLandScout] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this LZ '..(iLandZone or 'nil')..' on plateau '..(iPlateau or 'nil')..' with island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                end
             end
         end
     end
