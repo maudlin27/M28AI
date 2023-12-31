@@ -1241,7 +1241,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; iEnemyCombatThreat cumulative='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat) end
                         end
                     end
-                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, 0, false, iTeam)
+                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(iPlateau, iLZToSupport, tLZData, tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, 0, false, iTeam)
                     if not(bAttackWithEverything) then
                         --Check if we include nearby units whether we have enough threat, if we have a high enough value that worth considering
                         if iOurCombatThreat >= 500 then
@@ -1251,7 +1251,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                 local iAltCombatThreat = M28UnitInfo.GetCombatThreatRating(tNearbyAmphibious)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iOurCombatThreat='..iOurCombatThreat..'; iAltCombatThreat='..iAltCombatThreat) end
                                 if iAltCombatThreat > iOurCombatThreat then
-                                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iAltCombatThreat, iEnemyCombatThreat, 0, false, iTeam, 1.05)
+                                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(iPlateau, iLZToSupport, tLZData, tLZTeamData, iAltCombatThreat, iEnemyCombatThreat, 0, false, iTeam, 1.05)
                                 end
                             end
 
