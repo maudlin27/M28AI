@@ -639,7 +639,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 70 then bDebugMessages = true end
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -1665,19 +1665,21 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Combat units in proportion to engineers at T1 if enemy relatively nearby spawn and aren't close to overflowing
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Compat proportionate to engineers if enemy near spawn, Time='..GetGameTimeSeconds()..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]) end
-        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.8)) and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) < 450 then
+        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and tLZTeamData[M28Map.subrefLZbCoreBase] and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.8)) and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) < 450 then
             local iLifetimeEngineers = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
             local iLifetimeLandCombat = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat)
             if bDebugMessages == true then LOG(sFunctionRef..': Lifetime combat='..iLifetimeLandCombat..'; Lifetime engi='..iLifetimeEngineers) end
-            if iLifetimeLandCombat < math.max(5, iLifetimeEngineers) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) then
-                --Larger maps need to be careful we dont underbuild engineers early on
+            if GetGameTimeSeconds() >= 150 or iLifetimeEngineers >= 7 or M28Map.iMapSize < 512 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 3 or M28UnitInfo.GetUnitLifetimeCount(oFactory) >= 3 then
+                if iLifetimeLandCombat < math.max(5, iLifetimeEngineers) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) then
+                    --Larger maps need to be careful we dont underbuild engineers early on
 
-                if iLifetimeEngineers > 15 or not(tLZTeamData[M28Map.subrefTbWantBP]) or not(bHaveLowPower) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
-                else
-                    local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tEngisInZone) == false and table.getn(tEngisInZone) > math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3) then
+                    if iLifetimeEngineers > 15 or not(tLZTeamData[M28Map.subrefTbWantBP]) or not(bHaveLowPower) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
+                    else
+                        local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tEngisInZone) == false and table.getn(tEngisInZone) > math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3) then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
+                        end
                     end
                 end
             end
@@ -1698,7 +1700,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
-        --Engineers if we have few engineers in the current land zone and want more, and no adjacent enemies
+        --Engineers if we have few engineers in the current land zone (or an adjacent zone wants them urgently) and want more, and no adjacent enemies
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech=' .. tostring(bNeedCurTech) .. '; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]=' .. tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         if bNeedCurTech and not (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) and (iFactoryTechLevel >= 3 or not(bHaveLowMass) or not(M28Map.bIsLowMexMap)) then
@@ -1717,8 +1719,21 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iEngisWanted = iEngisWanted * 0.5
             end
             if iEngisInLZ < iEngisWanted then
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
-                    return sBPIDToBuild
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            elseif iEngisInLZ < 10 then
+                local bAdjacentLandZoneWantsEngineers = tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]
+                if not(bAdjacentLandZoneWantsEngineers) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                        if tAdjLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] and not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
+                            bAdjacentLandZoneWantsEngineers = true
+                            break
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': do we have adjacent zone wanting engineers='..tostring(bAdjacentLandZoneWantsEngineers)) end
+                if bAdjacentLandZoneWantsEngineers then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
                 end
             end
         end
