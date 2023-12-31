@@ -1022,6 +1022,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
+    --Want to prioritise sniperbots to deal with enemy land experimental (when enemy lacks fatboy/megalith)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId) and (iFactoryTechLevel == 3 or tLZTeamData[M28Map.subrefLZbCoreBase]) then
+        if M28Conditions.PrioritiseSniperBots(iTeam, tLZTeamData, true) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to either build sniperbots, or upgrade to t3 so we can build them') end
+            if iFactoryTechLevel < 3 then
+                if ConsiderUpgrading() then  return sBPIDToBuild end
+            else
+                if ConsiderBuildingCategory(M28UnitInfo.refCategorySniperBot) then return sBPIDToBuild end
+            end
+        end
+    end
+
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort, or mobile shields if we have 10+ indirect fire units and have t2 arti here that wants shielding
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then

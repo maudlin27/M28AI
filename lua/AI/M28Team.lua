@@ -104,6 +104,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
     subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
     subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
+    iEnemyT3MAAActiveCount = 'M28EnT3MAACn' --Number of enemy T3 MAA (approximate measure)
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
@@ -583,6 +584,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiEnemyT3ArtiCount] = 0
     tTeamData[iTotalTeamCount][refiEnemyNovaxCount] = 0
     tTeamData[iTotalTeamCount][reftoCampaignNeutralUnitsNotRecorded] = {}
+    tTeamData[iTotalTeamCount][iEnemyT3MAAActiveCount] = 0
 
 
     local bHaveCampaignM28AI = false
@@ -1529,6 +1531,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 10 then
                                     ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
+                                tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] = (tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] or 0) + 1
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni

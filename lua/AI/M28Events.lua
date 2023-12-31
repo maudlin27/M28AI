@@ -265,6 +265,13 @@ function OnUnitDeath(oUnit)
                     if not(oUnit['M28Dead']) then
                         oUnit['M28Dead'] = true
                         M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
+                        --Adjust T3 MAA count
+                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false then
+                            for iRecordedTeam, bRecorded in oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] do
+                                M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] = (M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] or 0) - 1
+                            end
+                        end
+
 
 
                         --TMD protection logic - refresh land zone TMD entries

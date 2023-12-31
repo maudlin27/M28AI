@@ -9022,7 +9022,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
 
-
+    --Assist land factory if we want to focus on getting sniperbots
+    iCurPriority = iCurPriority + 1
+    if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(iTeam, tLZTeamData) then
+        iBPWanted = 90
+        if not(bHaveLowMass) then iBPWanted = 180 end
+        local oClosestFactory
+        local tAeonAndSeraFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tAeonAndSeraFactories) == false then
+            local oClosestFactory = M28Utilities.GetNearestUnit(tAeonAndSeraFactories, tLZData[M28Map.subrefMidpoint])
+            if oClosestFactory then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to assist land factory so we can get more sniperbots') end
+                HaveActionToAssign(refActionAssistLandFactory, 1, iBPWanted, oClosestFactory)
+            end
+        end
+    end
 
     --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
     iCurPriority = iCurPriority + 1

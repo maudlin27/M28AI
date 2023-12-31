@@ -974,6 +974,19 @@ function TeamHasAirControl(iTeam)
     return false
 end
 
+function TeamIsFarBehindOnAir(iTeam)
+    --Returns true if any of the air subteams is far behind on air
+    local tbSubteams = {}
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        tbSubteams[oBrain.M28AirSubteam] = true
+    end
+    for iAirSubteam, bTrue in tbSubteams do
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then return true end
+    end
+    return false
+
+end
+
 function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'WantMoreFactories'
@@ -2625,6 +2638,25 @@ end
 function WantT3MAAInsteadOfT2(oFactory, iTeam)
     if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000) and (oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 20 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= 1000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 2) then
         return true
+    end
+    return false
+end
+
+function PrioritiseSniperBots(iTeam, tLZTeamData, bHaveAeonOrSeraFactoryInZoneOverride)
+    --Returns true if we want to prioritise building sniperbots as a counter to enemy land experimentals
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
+        --Dont get if enemy has t2 arti near this zone
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
+            if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoyrFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+                --We have access to Aeon/Seraphim tech, and enemy has land experimentals but not a megalith or fatboy; prioritise sniperbots if we have a build count of less than 20
+                if GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot) <= 12 + 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    --If we arent far behind on air and enemy lacks much in the way of T3 MAA then dont prioritise sniperbots since air likely better
+                    if TeamIsFarBehindOnAir(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 20000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4) then
+                        return true
+                    end
+                end
+            end
+        end
     end
     return false
 end
