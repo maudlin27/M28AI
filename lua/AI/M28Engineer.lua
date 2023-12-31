@@ -8482,6 +8482,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+
     --Quantum gateway in a high AiX scenario
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(10, tLZData[M28Map.subrefLZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 900 then
@@ -8506,6 +8507,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionManageGameEnderTemplate, 3, 150)
         if bDebugMessages == true then LOG(sFunctionRef..': We have an active gameender template so will assign engis to this') end
     end
+
+    --first every experimental to build - rush if have t3 mex
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
+    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+        local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)
+        if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3) then
+            iBPWanted = 150
+            if not(bHaveLowPower) then iBPWanted = 200
+                if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iBPWanted = 400 end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush our first experimental, iBPWanted='..iBPWanted) end
+            HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
+        end
+    end
+
 
     --Shielding in a high mass scenario
     iCurPriority = iCurPriority + 1
@@ -8630,7 +8647,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --TMD (including vs mobile ACUs with TML upgrade)
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; Priority of this action='..iCurPriority..'; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
