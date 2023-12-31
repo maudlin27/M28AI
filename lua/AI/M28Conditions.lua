@@ -1504,8 +1504,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             iLandFactoriesWantedBeforeAir = 4
                                             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and not(M28Map.bIsCampaignMap) then
                                                 iAirFactoriesForEveryLandFactory = 0.25
-                                                if M28Map.iMapSize <= 256 and iEnemyBaseDist <= 210 then
+                                                if M28Map.iMapSize == 256 and iEnemyBaseDist <= 210 then --Dont apply for <256 (e.g. winter duel) where if enemy goes T2 then T1 spam becomes very weak
                                                     iLandFactoriesWantedBeforeAir = 7
+                                                elseif M28Map.iMapSize < 210 then --e.g. winter duel
+                                                    iLandFactoriesWantedBeforeAir = 3 --will be increased to 4 below due to only being 1 M28 player
                                                 end
                                             else
                                                 if iEnemyBaseDist <= 250 then
@@ -2503,6 +2505,16 @@ function GetHighestOtherTeamT3MexCount(iTeam)
     for iCurTeam = 1, M28Team.iTotalTeamCount do
         if not(iCurTeam == iTeam) then
             iHighestCount = math.max(iHighestCount, (M28Team.tTeamData[iCurTeam][M28Team.refiMexCountByTech][3] or 0))
+        end
+    end
+    return iHighestCount
+end
+
+function GetHighestOtherTeamT2AndT3MexCount(iTeam)
+    local iHighestCount = 0
+    for iCurTeam = 1, M28Team.iTotalTeamCount do
+        if not(iCurTeam == iTeam) then
+            iHighestCount = math.max(iHighestCount, (M28Team.tTeamData[iCurTeam][M28Team.refiMexCountByTech][3] or 0) + (M28Team.tTeamData[iCurTeam][M28Team.refiMexCountByTech][2] or 0))
         end
     end
     return iHighestCount
