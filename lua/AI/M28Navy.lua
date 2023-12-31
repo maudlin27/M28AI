@@ -2331,12 +2331,12 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         if M28Utilities.IsTableEmpty(tEnemyStructuresNearFrontUnit) == false then
             tEnemyDefences = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti, tEnemyStructuresNearFrontUnit)
         end
-
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
             --Probably easier to just cycle through enemy experimentals rather than adjacent land zones
             for iExperimental, oExperimental in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
-                if M28UnitInfo.IsUnitValid(oExperimental) and M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), tWZData[M28Map.subrefMidpoint]) <= iSearchRange then
-                    table.insert(oExperimental, tEnemyDefences)
+                if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oExperimental) then LOG(sFunctionRef..': Dist from oExperimental to oClosestFriendlyUnitToEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oClosestFriendlyUnitToEnemyBase:GetPosition())..'; iSearchRange='..iSearchRange..'; Fraction complete='..oExperimental:GetFractionComplete()) end end
+                if M28UnitInfo.IsUnitValid(oExperimental) and oExperimental:GetFractionComplete() >= 0.95 and M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oClosestFriendlyUnitToEnemyBase:GetPosition()) <= iSearchRange + 5 then
+                    table.insert(tEnemyDefences, oExperimental)
                 end
             end
         end
@@ -2411,9 +2411,10 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering if oUnit=' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' is in range of oDefence=' .. oDefence.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oDefence) .. '; iCurEnemyRange=' .. (iCurEnemyRange or 'nil') .. '; iCurEnemyDist=' .. iCurEnemyDist .. '; Our DF/Indirect range=' .. math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))) end
 
                         iDefencesHeadroom = math.min(iDefencesHeadroom, iCurEnemyDist - iCurEnemyRange)
-                        if iCurEnemyDist <= iCurEnemyRange or (iCurEnemyDist - 10 <= iCurEnemyRange and math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)) < (iCurEnemyRange or 0)) then
-                            --Move away unless are a battleship and the enemy is more than 100 away
-                            if not (iCurEnemyDist > 100 and EntityCategoryContains(M28UnitInfo.refCategoryMobileNavalSurface * categories.TECH3 * categories.BATTLESHIP, oUnit.UnitId)) then
+                        --Are we in range of enemy, or are we almost in range of enemy and outrange them?
+                        if iCurEnemyDist <= iCurEnemyRange or (iCurEnemyDist - 12 <= iCurEnemyRange and math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)) > (iCurEnemyRange or 0) and iCurEnemyDist < math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))) then
+                            --Move away unless are a battleship and the enemy is more than 100 away (unless is a T2 arti, since we likely outrange T2 arti)
+                            if not (iCurEnemyDist > 100 and EntityCategoryContains(M28UnitInfo.refCategoryMobileNavalSurface * categories.TECH3 * categories.BATTLESHIP, oUnit.UnitId) and ((math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)) <= iCurEnemyRange) or iCurEnemyDist > 120)) then
                                 if bDebugMessages == true then LOG(sFunctionRef .. ': Want to retreat') end
                                 bRetreatUnit = true
                                 break
