@@ -3926,7 +3926,7 @@ end
 
 function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bAddAsSnipeTarget = false
@@ -3975,6 +3975,9 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': We have nearby available ACUs, size of table='..table.getn(tNearbyAvailableACUs)) end
                         if table.getn(tNearbyAvailableACUs) >= 2 or iHealthPercent < iBaseHealthThreshold - 0.1 then
                             bAddAsSnipeTarget = true
+                            for iUnit, oUnit in tNearbyAvailableACUs do
+                                oUnit[M28ACU.refbUseACUAggressively] = true
+                            end
                         end
                     end
                 end
@@ -4003,7 +4006,7 @@ end
 
 function SnipeOverseer(iTeam)
     local sFunctionRef = 'SnipeOverseer'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while true do

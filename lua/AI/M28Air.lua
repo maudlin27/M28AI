@@ -4458,6 +4458,7 @@ function ManageGunships(iTeam, iAirSubteam)
         local iCurPlateauOrZero, iCurLZOrWZ
 
         --Snipe target
+        local bUsingSnipePriority = false
         if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
                 local iTargetPlateauOrZero, iTargetLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -4470,8 +4471,8 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
             end
-
-            AssignTorpOrBomberTargets(tAvailableBombers, M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets], iAirSubteam, false, true)
+            --Make sure gunships will prioritise enemy ACU
+            bUsingSnipePriority = true
         end
 
         --Emergency response - first include any ground threats in a start position and (if none) adjacent to a start position
@@ -4915,7 +4916,14 @@ function ManageGunships(iTeam, iAirSubteam)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and get gunships to move to oClosestEnemy at position '..repru(oClosestEnemy:GetPosition())..'; is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oClosestEnemy:GetPosition()))) end
                 --If closest enemy is covered by a fixed shield then make sure all gunships will prioritise fixed shields over AA
-                if M28Utilities.IsTableEmpty(oClosestEnemy[M28Building.reftoUnitsCoveredByShield]) == false then
+                if bUsingSnipePriority then
+                    for iGunship, oGunship in tAvailableGunships do
+                        if oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] then
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oGunship, M28UnitInfo.refWeaponPriorityGunshipSnipe, true)
+                            oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] = false
+                        end
+                    end
+                elseif M28Utilities.IsTableEmpty(oClosestEnemy[M28Building.reftoUnitsCoveredByShield]) == false then
                     for iGunship, oGunship in tAvailableGunships do
                         if oGunship[M28UnitInfo.refbUsingDefaultWeaponPriority] then
                             M28UnitInfo.SetUnitWeaponTargetPriorities(oGunship, M28UnitInfo.refWeaponPriorityGunshipShield, true)

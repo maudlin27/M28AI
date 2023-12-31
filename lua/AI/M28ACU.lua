@@ -3745,11 +3745,13 @@ function GetACUOrder(aiBrain, oACU)
                         end
                     end
                     bProceedWithLogic = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': We want to build factory or power, so wont proceed with logic') end
                 end
             elseif iPlateauOrZero == 0 and (tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or M28Map.bIsCampaignMap) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) then
                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                bProceedWithLogic = false
             end
-
+            if bDebugMessages == true then LOG(sFunctionRef..': bProceedWithLogic='..tostring(bProceedWithLogic or false)) end
             if bProceedWithLogic then
                 --Special telesnipe logic (takes priorioty over running)
                 if HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone) then
@@ -3826,7 +3828,8 @@ function GetACUOrder(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': Are using ACU more as an engineer') end
                         else
                             --Snipe mode
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and not(HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to use ACU to attack a snipe target, is table of snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) or not(HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)) then
                                 --Nearby enemy naval units
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if nearby naval units that should send ACU to try and fight; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] ='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))) end
                                 local iWaterZoneEnemyRangeOverride
@@ -4174,33 +4177,38 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
     local bStillBeAggressive = true
     local aiBrain = oACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
-    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
-        bStillBeAggressive = false
-    else
-        local bHaveLotsOfSpareACUs = false
-        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
-            bStillBeAggressive = true --redundancy
+
+    --Still be aggressive if are attempting a snipe
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+        if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
+            bStillBeAggressive = false
         else
-            --If significant time elapsed then remove this flag, unless lots of reclaim in cur land zone
-            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
-            if GetGameTimeSeconds() >= 600 and (GetGameTimeSeconds() >= 900 or tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] < 350) then
-                bStillBeAggressive = false
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+                bStillBeAggressive = true --redundancy
             else
-                local iThresholdFactor = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.25
-                if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
-                if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
-                elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then
+                --If significant time elapsed then remove this flag
+                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
+                if GetGameTimeSeconds() >= 900 then
                     bStillBeAggressive = false
-                elseif M28Map.iMapSize > 512 then
-                    bStillBeAggressive = false
-                elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
-                    bStillBeAggressive = false
-                elseif M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and (oACU[refiUpgradeCount] or 0) == 0 then
-                    bStillBeAggressive = false
-                elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 50 * iThresholdFactor then
-                    bStillBeAggressive = false
-                elseif M28Map.bIsCampaignMap then
-                    bStillBeAggressive = false
+                else
+                    local iThresholdFactor = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.25
+                    if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
+                    elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then
+                        bStillBeAggressive = false
+                    elseif M28Map.iMapSize > 512 and tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.4 then
+                        bStillBeAggressive = false
+                    elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                        bStillBeAggressive = false
+                    elseif M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and (oACU[refiUpgradeCount] or 0) == 0 then
+                        bStillBeAggressive = false
+                    elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 50 * iThresholdFactor then
+                        bStillBeAggressive = false
+                    elseif M28Map.bIsCampaignMap then
+                        bStillBeAggressive = false
+                    elseif M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] > 0 or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > 0 then
+                        bStillBeAggressive = false
+                    end
                 end
             end
         end
