@@ -2325,11 +2325,22 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
 
         --Get nearby enemy defences
-        local tEnemyStructuresNearFrontUnit = aiBrain:GetUnitsAroundPoint(iBombardmentBuildingCategory, oClosestFriendlyUnitToEnemyBase:GetPosition(), math.max(iIndirectMinRange + 50, iDFMinRange + 50, 150), 'Enemy')
-        local tEnemyDefences
+        local iSearchRange = math.max(iIndirectMinRange + 50, iDFMinRange + 50, 150)
+        local tEnemyStructuresNearFrontUnit = aiBrain:GetUnitsAroundPoint(iBombardmentBuildingCategory, oClosestFriendlyUnitToEnemyBase:GetPosition(), iSearchRange, 'Enemy')
+        local tEnemyDefences = {}
         if M28Utilities.IsTableEmpty(tEnemyStructuresNearFrontUnit) == false then
             tEnemyDefences = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti, tEnemyStructuresNearFrontUnit)
         end
+
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+            --Probably easier to just cycle through enemy experimentals rather than adjacent land zones
+            for iExperimental, oExperimental in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                if M28UnitInfo.IsUnitValid(oExperimental) and M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), tWZData[M28Map.subrefMidpoint]) <= iSearchRange then
+                    table.insert(oExperimental, tEnemyDefences)
+                end
+            end
+        end
+
         local bCheckForBuildingsToAttack = true
         local bCheckForDefences = false
         local bRetreatUnit
@@ -2388,7 +2399,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
             if not (M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 bRetreatUnit = false
-                --Are we in range of enemy PD/T2 arti? If so then retreat
+                --Are we in range of enemy PD/T2 arti; or experimental that we outrange? If so then retreat
                 if bCheckForDefences then
                     local iCurEnemyRange
                     local iCurEnemyDist
