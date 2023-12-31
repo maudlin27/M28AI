@@ -1981,7 +1981,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
-                    oUnit[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser, oUnit.UnitId) then
