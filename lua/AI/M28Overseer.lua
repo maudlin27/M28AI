@@ -802,16 +802,16 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield,
-            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
-            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
-            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
+            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - categories.INSIGNIFICANTUNIT,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout - categories.INSIGNIFICANTUNIT,
         }
         --Adjust these categories for special cases
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
             --exclude T1 land from category 4
-            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3
+            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 - categories.INSIGNIFICANTUNIT
         end
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or ((M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0) then
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
@@ -822,7 +822,7 @@ function CheckUnitCap(aiBrain)
         end
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
             --Exclude MML from category 2
-            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1
+            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
         end
         --If have no T2+ power, then dont include T1 power in units to ctrlK
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
@@ -880,7 +880,7 @@ function CheckUnitCap(aiBrain)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                     local bKillUnit
                     for iUnit, oUnit in tUnitsToDestroy do
-                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
                             --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
                             bKillUnit = true
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
