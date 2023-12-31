@@ -1734,8 +1734,10 @@ function OnReclaimStarted(oEngineer, oReclaim)
         local sFunctionRef = 'OnReclaimStarted'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        
 
+        if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
+            M28Chat.SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming', 'Great, now I have to deal with my so called teammates reclaiming my units, thanks a lot '..oEngineer:GetAIBrain().Nickname, 0, 100000)
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
@@ -1853,16 +1855,19 @@ end
 function OnDetectedBy(oUnitDetected, iBrainIndex)
     --Appears to be called when iBrainIndex detects oUnitDetected, triggers for teammate units but not own units?
     --For now used to make sure we have up to date unit info
+
     if M28Utilities.bM28AIInGame then
-        local aiBrain = ArmyBrains[iBrainIndex]
-        M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
-        if aiBrain.M28AI then
-            --Update highest enemy ground unti health
-            if M28Map.bFirstM28TeamHasBeenInitialised and M28UnitInfo.IsUnitValid(oUnitDetected) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
-                local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
-                local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
-                if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
+        if not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnitDetected.UnitId)) then --redundancy, doesnt look like ubnits like cybran build drones cause this to happen
+            local aiBrain = ArmyBrains[iBrainIndex]
+            M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
+            if aiBrain.M28AI then
+                --Update highest enemy ground unti health
+                if M28Map.bFirstM28TeamHasBeenInitialised and M28UnitInfo.IsUnitValid(oUnitDetected) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
+                    local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
+                    local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
+                    if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then
+                        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
+                    end
                 end
             end
         end
@@ -1870,7 +1875,8 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
 end
 
 function OnCreate(oUnit, bIgnoreMapSetup)
-    if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
+
+    if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
