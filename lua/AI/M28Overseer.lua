@@ -427,7 +427,7 @@ function M28BrainCreated(aiBrain)
         M28Utilities.bM28AIInGame = true
 
         --Send a message warning players this could take a while
-        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'v'..import('/mods/M28AI/mod_info.lua').version..' analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
@@ -1129,7 +1129,7 @@ function DebugCheck(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    ForkThread(DebugCheck,aiBrain)
+    --ForkThread(DebugCheck,aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)

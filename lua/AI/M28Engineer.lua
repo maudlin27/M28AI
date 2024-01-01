@@ -13469,7 +13469,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                                     iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tDetailedViaPoint)
                                     if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
                                         if iCurDetailedPathDistance >= iDistToMove then
-                                            tPointToMoveFrom = M28Utilities.MoveInDirection(tDetailedViaPoint[iDetailedEntry - 1], M28Utilities.GetAngleFromAToB(tDetailedViaPoint[iDetailedEntry - 1], tDetailedViaPoint), math.max(0, iDistToMove - iCumulativeDetailedPathDistance), true, false, true)
+                                            tPointToMoveFrom = M28Utilities.MoveInDirection(tDetailedPath[iDetailedEntry - 1], M28Utilities.GetAngleFromAToB(tDetailedPath[iDetailedEntry - 1], tDetailedViaPoint), math.max(0, iDistToMove - iCumulativeDetailedPathDistance), true, false, true)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement using detailed path, tPointToMoveFrom='..repru(tPointToMoveFrom)) end
                                             break
                                         end
