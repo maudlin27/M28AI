@@ -13443,16 +13443,51 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                 end
             end
         end
+        local iCurSegmentX, iCurSegmentZ, iDetailedCurSegmentX, iDetailedCurSegmentZ
+
         for iCurEntry, tViaPoint in tFullPath do
             if iCurEntry > 1 then
                 iCurPathDistance = M28Utilities.GetDistanceBetweenPositions(tFullPath[iCurEntry - 1], tViaPoint)
+                iCumulativePathDistance = iCumulativePathDistance + iCurPathDistance
                 if bDebugMessages == true then LOG(sFunctionRef..': Are using land travel path to get PD position, iCurEntry='..iCurEntry..'; tViaPoint='..repru(tViaPoint)..'; iCurPathDistance='..iCurPathDistance..'; iCumulativePathDistance before this='..iCumulativePathDistance..'; iDistToMove='..iDistToMove) end
-                if iCumulativePathDistance + iCurPathDistance >= iDistToMove then
-                    tPointToMoveFrom = M28Utilities.MoveInDirection(tFullPath[iCurEntry - 1], M28Utilities.GetAngleFromAToB(tFullPath[iCurEntry - 1], tViaPoint), iDistToMove - iCumulativePathDistance, true, false, true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement tPointToMoveFrom='..repru(tPointToMoveFrom)) end
-                    break
+                if iCumulativePathDistance >= iDistToMove then
+                    iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tViaPoint)
+                    if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
+                        --Get the detailed path between these two points
+                        local iCumulativeDetailedPathDistance = iCumulativePathDistance - iCurPathDistance
+                        local iCurDetailedPathDistance
+                        local tDetailedPath, iDetailedPathEntries, iDetailedPathLength = NavUtils.DetailedPathTo(M28Map.refPathingTypeLand, tFullPath[iCurEntry - 1], tViaPoint)
+                        if tDetailedPath then
+                            table.insert(tDetailedPath, 1, tFullPath[iCurEntry - 1])
+                            table.insert(tFullPath, tViaPoint)
+                        end
+                        if M28Utilities.IsTableEmpty(tDetailedPath) == false and iDetailedPathEntries >= 1 then
+                            for iDetailedEntry, tDetailedViaPoint in tDetailedPath do
+                                if iDetailedEntry > 1 then
+                                    iCurDetailedPathDistance = M28Utilities.GetDistanceBetweenPositions(tDetailedViaPoint, tDetailedPath[iDetailedEntry - 1])
+                                    iCumulativeDetailedPathDistance = iCumulativeDetailedPathDistance + iCurDetailedPathDistance
+                                    iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tDetailedViaPoint)
+                                    if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
+                                        if iCurDetailedPathDistance >= iDistToMove then
+                                            tPointToMoveFrom = M28Utilities.MoveInDirection(tDetailedViaPoint[iDetailedEntry - 1], M28Utilities.GetAngleFromAToB(tDetailedViaPoint[iDetailedEntry - 1], tDetailedViaPoint), math.max(0, iDistToMove - iCumulativeDetailedPathDistance), true, false, true)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement using detailed path, tPointToMoveFrom='..repru(tPointToMoveFrom)) end
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if not(tPointToMoveFrom) then
+                            --Redundancy
+                            tPointToMoveFrom = M28Utilities.MoveInDirection(tFullPath[iCurEntry - 1], M28Utilities.GetAngleFromAToB(tFullPath[iCurEntry - 1], tViaPoint), math.max(iDistToMove - iCumulativePathDistance, 0), true, false, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement using simplified path as redundancy, tPointToMoveFrom='..repru(tPointToMoveFrom)) end
+                        end
+                        break
+                    else
+                        --Keep looking
+                    end
                 else
-                    iCumulativePathDistance = iCumulativePathDistance + iCurPathDistance
+                    --Keep looking
                 end
             end
         end
