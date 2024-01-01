@@ -1340,7 +1340,7 @@ function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOu
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any buildings left so might as well attack') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
-    elseif IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and AreAnyOfTableOfUnitsInAdjacentLandZone(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets], iPlateau, iLandZone, tLZData, tLZTeamData) then
+    elseif IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and AreAnyOfTableOfUnitsInAdjacentLandZone(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets], iPlateau, iLandZone, tLZData, tLZTeamData, iTeam) then
         if bDebugMessages == true then LOG(sFunctionRef..': Have snipe target nearby so want to target as high priority') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -2658,6 +2658,34 @@ function PrioritiseSniperBots(iTeam, tLZTeamData, bHaveAeonOrSeraFactoryInZoneOv
                         return true
                     end
                 end
+            end
+        end
+    end
+    return false
+end
+
+
+function AreAnyOfTableOfUnitsInAdjacentLandZone(tUnits, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
+    if M28Utilities.IsTableEmpty(tUnits) == false then --redundancy
+        local tbZonesWithUnits = {}
+        local iCurPlateau, iCurLZ
+        for iUnit, oUnit in tUnits do
+            iCurPlateau = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+            if iCurPlateau == iPlateau then
+                iCurLZ = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                if not(tbZonesWithUnits[iCurLZ]) then tbZonesWithUnits[iCurLZ] = true end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tbZonesWithUnits) == false then
+            if tbZonesWithUnits[iLandZone] then
+                return true
+            elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    if tbZonesWithUnits[iAdjLZ] then
+                        return true
+                    end
+                end
+
             end
         end
     end
