@@ -2277,7 +2277,7 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
         local aiBrain = oFactory:GetAIBrain()
-        if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+        if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and iFactoryTechLevel < 3 then
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
 
@@ -2301,11 +2301,10 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
                     if not(iFactoryTechLevel == 1 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and ((EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3) or (EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3))) then
 
                         --Do we have enough energy?
-                        local tiMinEnergyByTech = {[0]=20,[1]=20,[2]=60,[3]=60}
-                        local iMinEnergyWanted = tiMinEnergyByTech[iFactoryTechLevel]
+                        local tiMinEnergyByTech = {[0]=20,[1]=20,[2]=60,[3]=60,[4]=90}
+                        local iMinEnergyWanted = (tiMinEnergyByTech[iFactoryTechLevel] or 60)
                         local bHaveLowPower = HaveLowPower(iTeam)
                         local bHaveLowMass = HaveLowMass(aiBrain)
-
 
                         if not(EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId)) then iMinEnergyWanted = iMinEnergyWanted * 2 end
                         iMinEnergyWanted = iMinEnergyWanted * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] *  (aiBrain[M28Economy.refiBrainBuildRateMultiplier] or 1)

@@ -73,8 +73,7 @@ reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order o
 refbProtectingAllArtiLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 
 function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShieldsWantedOverride)
-    --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, e.g.:
-    --oUnit dies (done via OnUnitDeath)
+    --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, except for death which is handled elsewhere now
     --oUnit construction is started (done via OnConstructionStarted)
     --A shield covering oUnit dies (done via UpdateShieldCoverageOfUnits)
     --A shield covering oUnit has construction started (done via UpdateShieldCoverageOfUnits)
@@ -217,8 +216,16 @@ function RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, bDontChec
             if not(bDontCheckIfWantsFixedShield) then CheckIfUnitWantsFixedShield(oUnit) end
         end
         --Record against shield
-        if not(oShield[reftoUnitsCoveredByShield]) then oShield[reftoUnitsCoveredByShield] = {} end
-        table.insert(oShield[reftoUnitsCoveredByShield], oUnit)
+        local bAddToShield = true
+        if not(oShield[reftoUnitsCoveredByShield]) then oShield[reftoUnitsCoveredByShield] = {}
+        else
+            for iRecorded, oRecorded in oShield[reftoUnitsCoveredByShield] do
+                if oRecorded == oUnit then bAddToShield = false break end
+            end
+        end
+        if bAddToShield then
+            table.insert(oShield[reftoUnitsCoveredByShield], oUnit)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -231,10 +238,14 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
     local sFunctionRef = 'UpdateShieldCoverageOfUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 2019.2 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every unit that the shield is providing coverage to, and will update to remove this unit from that table, oShield='..(oShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShield) or 'nil')..'; Is table of units empty='..tostring(M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield])))
+        if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then LOG(sFunctionRef..': Number of units covered='..table.getn(oShield[reftoUnitsCoveredByShield])) end
+    end
     if M28Conditions.IsTableOfUnitsStillValid(oShield[reftoUnitsCoveredByShield]) then
         for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
             if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will update unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to no longer have the shield recorded as providing coverage to it') end
                 for iRecordedShield, oRecordedShield in oUnit[reftoShieldsProvidingCoverage] do
                     if oRecordedShield == oShield then
                         if bDebugMessages == true then LOG(sFunctionRef..': We had recorded shield '..oRecordedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedShield)..' as covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will now remove it') end
@@ -271,6 +282,7 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for oShield='..(oShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShield) or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

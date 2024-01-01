@@ -110,6 +110,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
         if not(oUnitKilled[refbAlreadyRunUnitKilled]) then
             oUnitKilled[refbAlreadyRunUnitKilled] = true
+            if GetGameTimeSeconds() >= 2019.2 then bDebugMessages = true end
             if bDebugMessages == true then LOG(sFunctionRef..': oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..'; GameTime='..GetGameTimeSeconds()) end
             if oUnitKilled.GetAIBrain then
                 OnUnitDeath(oUnitKilled) --Ensure this is run when a unit dies
@@ -337,6 +338,18 @@ function OnUnitDeath(oUnit)
                         --Fixed shields
                         if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoUnitsCoveredByShield]) == false then
                             M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                            --Units having shield coverage - update the shield table
+                        elseif oUnit[M28Building.reftoShieldsProvidingCoverage] and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false then
+                            for iShield, oShield in oUnit[M28Building.reftoShieldsProvidingCoverage] do
+                                if M28UnitInfo.IsUnitValid(oShield) and M28Utilities.IsTableEmpty(oShield[M28Building.reftoUnitsCoveredByShield]) == false then
+                                    for iEntry, oEntry in oShield[M28Building.reftoUnitsCoveredByShield] do
+                                        if oEntry == oUnit then
+                                            table.remove(oShield[M28Building.reftoUnitsCoveredByShield], iEntry)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
                         end
 
                         --Ythotha deathball avoidance
@@ -390,12 +403,12 @@ function OnUnitDeath(oUnit)
                             --Logic that doesnt require the unit to ahve finished construction:
 
                             --Fixed shielding
-                            if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
-                                if oUnit[M28Building.reftoUnitsCoveredByShield] then
-                                    --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now
-                                else
-                                    M28Building.CheckIfUnitWantsFixedShield(oUnit)
-                                end
+                            if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] then --or oUnit[M28Building.reftoShieldsProvidingCoverage] then
+                                --[[if oUnit[M28Building.reftoUnitsCoveredByShield] then
+                                    --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now --]]
+                                --else
+                                    M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
+                                --end
                             end
 
                             --GE template shielding
