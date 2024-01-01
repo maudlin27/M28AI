@@ -238,7 +238,7 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
     local sFunctionRef = 'UpdateShieldCoverageOfUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2019.2 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every unit that the shield is providing coverage to, and will update to remove this unit from that table, oShield='..(oShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShield) or 'nil')..'; Is table of units empty='..tostring(M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield])))
         if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then LOG(sFunctionRef..': Number of units covered='..table.getn(oShield[reftoUnitsCoveredByShield])) end
     end

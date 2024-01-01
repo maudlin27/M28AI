@@ -639,7 +639,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 70 then bDebugMessages = true end
+
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -883,6 +883,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     --MAIN BUILDER LOGIC:
+    --Workaround for issue with Aeon satellite centre categories:
+    if oFactory.UnitId == 'bab2404' then
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if ConsiderBuildingCategory(categories.ALLUNITS) then return sBPIDToBuild end
+    end
+
     --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
@@ -3769,7 +3775,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
-    if oFactory[refiTotalBuildCount] >= 4 or iFactoryTechLevel == 2 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])

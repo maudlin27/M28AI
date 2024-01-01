@@ -173,7 +173,7 @@ refCategorySMD = categories.ANTIMISSILE * categories.SILO * categories.TECH3 * c
 refCategoryTML = categories.SILO * categories.STRUCTURE * categories.TECH2 - categories.ANTIMISSILE
 refCategoryUnitsWithTMLUpgrade = categories.COMMAND * categories.UEF + categories.COMMAND * categories.SERAPHIM + categories.SUBCOMMANDER * categories.SERAPHIM
 refCategoryNovaxCentre = categories.EXPERIMENTAL * categories.STRUCTURE * categories.ORBITALSYSTEM - categories.OPTICS --OPTICS is contained in a 'spy plane novax' building in brewlan
-refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE
+refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE + categories.SATELLITE * categories.TECH1 * categories.AEON * categories.STRATEGIC --latter categories are for the blackops artemis satellite unit
 --refCategorySAM = categories.ANTIAIR * categories.STRUCTURE * categories.TECH3
 refCategoryQuantumOptics = categories.INTELLIGENCE * categories.OPTICS * categories.AEON * categories.STRUCTURE * categories.TECH3 - refCategoryRadar
 

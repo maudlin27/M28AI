@@ -456,6 +456,7 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueFactoryBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end

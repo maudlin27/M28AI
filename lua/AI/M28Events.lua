@@ -110,7 +110,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
         if not(oUnitKilled[refbAlreadyRunUnitKilled]) then
             oUnitKilled[refbAlreadyRunUnitKilled] = true
-            if GetGameTimeSeconds() >= 2019.2 then bDebugMessages = true end
+
             if bDebugMessages == true then LOG(sFunctionRef..': oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..'; GameTime='..GetGameTimeSeconds()) end
             if oUnitKilled.GetAIBrain then
                 OnUnitDeath(oUnitKilled) --Ensure this is run when a unit dies
@@ -2145,6 +2145,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityT2Arti, true)
                 end
+
 
                 --Non-weapon priority logic
                 if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))) end
