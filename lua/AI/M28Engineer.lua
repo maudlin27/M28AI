@@ -12214,16 +12214,18 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         --Is this a priority pond for our team to expand to?
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
-            local iFactoriesWanted = 1
-            --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
-            end
-            if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
+            if tWZTeamData[M28Map.subrefWZbCoreBase] or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 + 3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                local iFactoriesWanted = 1
+                --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': We want to build a naval factory')
+                    LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
                 end
-                HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+                if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef .. ': We want to build a naval factory')
+                    end
+                    HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+                end
             end
         end
     end
@@ -12394,7 +12396,10 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Lower priority builder - We want to build a naval factory')
                     end
-                    if not(bHaveLowMass) then iBPWanted = 60 else iBPWanted = 30 end
+                    if not(bHaveLowMass) then iBPWanted = 60 else
+                        iBPWanted = 30
+                        if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iBPWanted = 15 end
+                    end
                     HaveActionToAssign(refActionBuildNavalFactory, 1, iBPWanted, nil)
                 end
             end
@@ -12624,7 +12629,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Later naval fac builder We want to build a naval factory')
                         end
-                        HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+                        iBPWanted = 35
+                        if bHaveLowMass then iBPWanted = 25 end
+                        HaveActionToAssign(refActionBuildNavalFactory, 1, iBPWanted, nil)
                     end
                 end
             end
@@ -12683,6 +12690,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assign BP to build a naval fac, iBPWanted='..iBPWanted) end
+        if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iBPWanted = iBPWanted * 0.75 end
         HaveActionToAssign(refActionBuildNavalFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech], iBPWanted, nil)
     end
 

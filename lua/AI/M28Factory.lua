@@ -4046,7 +4046,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)
                 end
-                if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Mass income high enough so will try and upgrade naval fac') end
                     if ConsiderUpgrading() then
                         return sBPIDToBuild
@@ -4245,7 +4245,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 return sBPIDToBuild
             end
         elseif not(bHaveLowPower) and (GetGameTimeSeconds() >= math.max(230, 600 / aiBrain[M28Economy.refiBrainResourceMultiplier]) or not(bHaveLowMass)) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) then
-            if ConsiderUpgrading() then return sBPIDToBuild end
+            if (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
+                if ConsiderUpgrading() then return sBPIDToBuild end
+            end
         end
     end
 
