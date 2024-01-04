@@ -41,6 +41,7 @@ refiOrderLoadOntoTransport = 20
 refiOrderIssueTMLMissile = 21
 refiOrderIssueCapture = 22
 refiOrderIssueTeleport = 23
+refiOrderIssueNukeMissile = 24
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -123,7 +124,7 @@ function IssueTrackedClearCommands(oUnit)
     --Update tracking for engineers (and clear any assisting engineers via ClearEngineerTracking)
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
         --Dont clear active shield engineers since they can be given different orders (resulting in a clear commands being sent)
-        if not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
+        if not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) and not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionManageGameEnderTemplate) then
             M28Engineer.ClearEngineerTracking(oUnit) --note - will also clear if try assigning action to engineer that is different to its currently assigned action as part of the track engineer action function, which covers cases where we dont trigger this such as shield special defence
         end
         --Unpause engineers who are about to be cleared
@@ -146,7 +147,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0001' and oUnit:IsUnitState('Upgrading') then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual030912' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
@@ -455,6 +456,7 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueFactoryBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
@@ -630,10 +632,12 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         --Do we have an existing enhancement that needs removing before we can get teh upgrade?
         local sEnhancementOverride
         local tEnhancements = oUnit:GetBlueprint().Enhancements
+
         if M28Utilities.IsTableEmpty(tEnhancements) == false and oUnit.HasEnhancement then
             local tsUpgradeSlotUsed = {}
             local tbSlotInUse = {}
             local sSlotWanted
+            local sPreReq
             for sEnhancement, tEnhancementData in tEnhancements do
                 if bDebugMessages == true then LOG(sFunctionRef..': Does unit have sEnhancement='..sEnhancement..'='..tostring(oUnit:HasEnhancement(sEnhancement))) end
                 if oUnit:HasEnhancement(sEnhancement) then
@@ -641,6 +645,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
                     tbSlotInUse[tEnhancementData.Slot] = true
                 elseif sEnhancement == sUpgradeRef then
                     sSlotWanted = tEnhancementData.Slot
+                    sPreReq = tEnhancementData.Prerequisite
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': sSlotWanted='..(sSlotWanted or 'nil')..'; tbSlotInUse='..repru(tbSlotInUse)) end
@@ -649,31 +654,38 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
                 for sExistingEnhancement, sSlotUsed in tsUpgradeSlotUsed do
                     if bDebugMessages == true then LOG(sFunctionRef..': sExistingEnhancement='..sExistingEnhancement..'; sSlotUsed='..sSlotUsed) end
                     if sSlotUsed == sSlotWanted then
+                        --Check if the existing enhancement is a prereq. of the desired enhancement
                         --Find the first upgrade that removes sEnhancement
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have an enhancement in the slot that we want, will search for its removal entry') end
-                        for sEnhancement, tEnhancementData in tEnhancements do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is remove enhancements empty for sEnhancents='..tostring(tEnhancementData.RemoveEnhancements == nil)..'; sEnhancement='..sEnhancement..'; tEnhancementData.Slot='..(tEnhancementData.Slot or 'nil')..'; Prerequ='..(tEnhancementData.Prerequisite or 'nil')) end
-                            if tEnhancementData.Slot == sSlotWanted and tEnhancementData.RemoveEnhancements and (tEnhancementData.Prerequisite == nil or oUnit:HasEnhancement(tEnhancementData.Prerequisite)) then
-                                bValidRemovalEnhancement = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': tEnhancementData.RemoveEnhancements='..repru(tEnhancementData.RemoveEnhancements)) end
-                                for iEntry, sRemovedEnhancement in tEnhancementData.RemoveEnhancements do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if sRemovedEnhancement '..sRemovedEnhancement..' equals sExistingEnhancement='..sExistingEnhancement) end
-                                    if sRemovedEnhancement == sExistingEnhancement then
-                                        --Do we have the rerequisite for this removal (since later upgrades can remove all in the chain)
-                                        bValidRemovalEnhancement = true
+                        if not(sPreReq) or not(sPreReq == sExistingEnhancement) then
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have an enhancement in the slot that we want, will search for its removal entry') end
+                            for sEnhancement, tEnhancementData in tEnhancements do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is remove enhancements empty for sEnhancents='..tostring(tEnhancementData.RemoveEnhancements == nil)..'; sEnhancement='..sEnhancement..'; tEnhancementData.Slot='..(tEnhancementData.Slot or 'nil')..'; Prerequ='..(tEnhancementData.Prerequisite or 'nil')) end
+                                if tEnhancementData.Slot == sSlotWanted and tEnhancementData.RemoveEnhancements and (tEnhancementData.Prerequisite == nil or oUnit:HasEnhancement(tEnhancementData.Prerequisite)) then
+                                    bValidRemovalEnhancement = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tEnhancementData.RemoveEnhancements='..repru(tEnhancementData.RemoveEnhancements)) end
+                                    for iEntry, sRemovedEnhancement in tEnhancementData.RemoveEnhancements do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if sRemovedEnhancement '..sRemovedEnhancement..' equals sExistingEnhancement='..sExistingEnhancement) end
+                                        if sRemovedEnhancement == sExistingEnhancement then
+                                            --Do we have the rerequisite for this removal (since later upgrades can remove all in the chain)
+                                            bValidRemovalEnhancement = true
+                                            break
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bValidRemovalEnhancement='..tostring(bValidRemovalEnhancement)) end
+                                    if bValidRemovalEnhancement then
+                                        sEnhancementOverride = sEnhancement
                                         break
                                     end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bValidRemovalEnhancement='..tostring(bValidRemovalEnhancement)) end
-                                if bValidRemovalEnhancement then
-                                    sEnhancementOverride = sEnhancement
-                                    break
+
                                 end
 
                             end
-
+                            break
+                        elseif sPreReq and sPreReq == sExistingEnhancement then
+                            --Dont want to remove the enhancement
+                            break
                         end
-                        break
                     end
                 end
             end
@@ -1084,6 +1096,48 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
             ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 11)
         end
     end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Always reissue the nuke order (in contrast to approach for other orders) unless unit is busy as we arent reissuing this order every second, and in some cases would end up with the TML not firing despite having a target
+
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+    local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+
+    if not(oUnit:IsUnitState('Busy')) or (not(tLastOrder[subrefiOrderType] == refiOrderIssueNukeMissile and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+        --LOG('About to issue nuke launch for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Time='..GetGameTimeSeconds())
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+    end
+    --Apply below in all cases to ensure we actually launch a missile (it ought to just result in orders being queued if we already had such an order)
+    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+    oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueNukeMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+
+    IssueNuke({oUnit}, tOrderPosition)
+
+    oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
+    --Unpause incase we paused previously
+    if oUnit[M28Building.refbPausedAsNoTargets] then
+        oUnit[M28Building.refbPausedAsNoTargets] = false
+        if M28UnitInfo.GetMissileCount(oUnit) <= 1 then
+            oUnit:SetAutoMode(true)
+        end
+        oUnit:SetPaused(false)
+    end
+    local iTeam = oUnit:GetAIBrain().M28Team
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
+    M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tOrderPosition
+
+
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 

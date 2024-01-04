@@ -63,6 +63,8 @@ refiHealthSecondLastCheck = 'M28HlthSLC' --Unit health in the previous check - u
 refbWantToHealUp = 'M28HlUp' --true if unit wants to rely on its regen to heal up - e.g. used for soulripper
 refbObjectiveUnit = 'M28ObjU' --true if unit is being used for an objective
 refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded against the unit (may not be an objective unit, but will want to avoid e.g. ctrl-King if M28 owns it)
+refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
+refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -94,7 +96,9 @@ refiTimeBetweenIFShots = 'M28IFTime'
 refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
 
 --Weapon priorities
-refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+refWeaponPriorityGunshipShield = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'STRUCTURE SHIELD', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+refWeaponPriorityGunshipSnipe = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL, COMMAND', 'STRUCTURE SHIELD', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityBattleShip = {'EXPERIMENTAL NAVAL, TECH3 NAVAL', 'TECH2 NAVAL', 'STRUCTURE SHIELD', 'STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
@@ -103,7 +107,7 @@ refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLER
 refWeaponPriorityT2Arti = {'ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'CRUISER, ANTISHIELD', 'INDIRECTFIRE', 'SHIELD', 'VOLATILE', 'TECH3 STRUCTURE', 'TECH3 MOBILE', 'ALLUNITS'}
 refWeaponPriorityFatboy = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'MOBILE SHIELD, MOBILE ARTILLERY TECH3', 'MOBILE NAVAL TECH3, MOBILE NAVAL TECH2', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
 refWeaponPriorityMegalith = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'TECH3 STRUCTURE DEFENSE DIRECTFIRE', 'MOBILE SHIELD', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
-
+refbUsingDefaultWeaponPriority = 'M28UDfW' --true if using default weapon priroity (for unit with multiple options - e.g. gunships)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
@@ -169,7 +173,7 @@ refCategorySMD = categories.ANTIMISSILE * categories.SILO * categories.TECH3 * c
 refCategoryTML = categories.SILO * categories.STRUCTURE * categories.TECH2 - categories.ANTIMISSILE
 refCategoryUnitsWithTMLUpgrade = categories.COMMAND * categories.UEF + categories.COMMAND * categories.SERAPHIM + categories.SUBCOMMANDER * categories.SERAPHIM
 refCategoryNovaxCentre = categories.EXPERIMENTAL * categories.STRUCTURE * categories.ORBITALSYSTEM - categories.OPTICS --OPTICS is contained in a 'spy plane novax' building in brewlan
-refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE
+refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE + categories.SATELLITE * categories.TECH1 * categories.AEON * categories.STRATEGIC --latter categories are for the blackops artemis satellite unit
 --refCategorySAM = categories.ANTIAIR * categories.STRUCTURE * categories.TECH3
 refCategoryQuantumOptics = categories.INTELLIGENCE * categories.OPTICS * categories.AEON * categories.STRUCTURE * categories.TECH3 - refCategoryRadar
 
@@ -244,6 +248,8 @@ refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
 refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
+refCategoryCarrier = categories.NAVAL * categories.NAVALCARRIER * categories.EXTERNALFACTORY
+refCategoryMobileAircraftFactory = categories.AIR * categories.EXTERNALFACTORYUNIT + categories.NAVALCARRIER * categories.EXTERNALFACTORYUNIT
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
 refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + categories.STEALTHFIELD * categories.NAVAL --Intended for units we dont want on frontline unless in bombardment mode
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
@@ -1424,6 +1430,15 @@ function ConvertTechLevelToCategory(iTechLevel)
     end
 end
 
+function ConvertFactionToCategory(iFaction)
+    if iFaction == refFactionUEF then return categories.UEF
+    elseif iFaction == refFactionCybran then return categories.CYBRAN
+    elseif iFaction == refFactionAeon then return categories.AEON
+    elseif iFaction == refFactionSeraphim then return categories.SERAPHIM
+    else return categories.ALLUNITS -categories.UEF -categories.CYBRAN -categories.AEON -categories.SERAPHIM
+    end
+end
+
 function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     --Returns support factory ID if it can be built, otherwise returns normal upgrade unit (works for any unit, not just factory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1664,11 +1679,11 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Unit is paused='..tostring(oUnit:IsPaused())..'; bExcludeProduction='..tostring(bExcludeProduction or false))
         if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
-        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
+        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Is arti template nil='..tostring(oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftArtiTemplateRefs] == nil)) end
     end
     if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
-            --Want this to run before the later stages so can properly track if unit is paused
+        --Want this to run before the later stages so can properly track if unit is paused
         if not(bExcludeProduction) or bPauseNotUnpause then
             AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 
@@ -1739,6 +1754,15 @@ function GetFactionFromBP(oBlueprint)
         if sName == sUnitFactionName then return iName end
     end
     return refFactionUnrecognised
+end
+
+function GetFactionNumberFromBlueprint(sBlueprint)
+    if EntityCategoryContains(categories.UEF, sBlueprint) then return refFactionUEF
+    elseif EntityCategoryContains(categories.AEON, sBlueprint) then return refFactionAeon
+    elseif EntityCategoryContains(categories.CYBRAN, sBlueprint) then return refFactionCybran
+    elseif EntityCategoryContains(categories.SERAPHIM, sBlueprint) then return refFactionSeraphim
+    else return refFactionUnrecognised
+    end
 end
 
 function GetUnitFaction(oUnit)
@@ -2200,4 +2224,8 @@ function GetDeathWeaponDamageAOEAndTable(oUnit)
         end
 
     end
+end
+
+function DischargeShield(oShield)
+    import("/lua/sim/commands/discharge-shields.lua").DischargeShields({ oShield }, true)
 end

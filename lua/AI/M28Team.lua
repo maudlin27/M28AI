@@ -104,9 +104,12 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
     subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
     subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
+    iEnemyT3MAAActiveCount = 'M28EnT3MAACn' --Number of enemy T3 MAA (approximate measure)
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
+    refiEnemyT3ArtiCount = 'M28TeamT3ArtC' --Number of enemy t3 arti and exp arti (exp arti count as 3)
+    refiEnemyNovaxCount = 'M28TeamNovC' --Number of enemy novax
     reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
     reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
     refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
@@ -120,6 +123,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
+    reftM28ACUs = 'M28FriendlyACUs' --table of M28 ACUs on the team
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
     reftCloakedEnemyUnits = 'M28CloakedE' --long range mobile units like fatboy, and long ranged PD like ravagers
@@ -200,8 +204,11 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbDontHaveBuildingsOrACUInPlayableArea = 'M28BldInA' --for campaign AI, true if dont have buildings or ACU in the playable area, so can decide how aggressive to be with units
     reftEnemyCampaignMainBase = 'M28CampMB' --midpoint of the zone containing the enemy main base provided it is in the playable area
     refiLastUpdatedMainBase = 'M28TimCamp' -- used when getting enemy main base location for campaign map
-
-
+    refbUnableToBuildArtiOrGameEnders = 'M28GERest' --true if gameenders and t3 arti are restricted
+    reftoCampaignNeutralUnitsNotRecorded = 'M28CamU' --If have a campaign map, and we choose not to record a unit as an ally or an enemy, then it should be recorded here, so if there is a faction change these units can be reassessed
+    toActiveSnipeTargets = 'M28ActSnT' --E.g. if want to go all-out on attacking enemy ACU then the ACU would be added here
+    refiTimeOfLastM28PlayerDefeat = 'M28TLstDth' --Gametimeseconds of the last M28 player defat (used to check if shield cycling should be paused)
+    tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -577,6 +584,13 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
     tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
+    tTeamData[iTotalTeamCount][refiEnemyT3ArtiCount] = 0
+    tTeamData[iTotalTeamCount][refiEnemyNovaxCount] = 0
+    tTeamData[iTotalTeamCount][reftoCampaignNeutralUnitsNotRecorded] = {}
+    tTeamData[iTotalTeamCount][iEnemyT3MAAActiveCount] = 0
+    tTeamData[iTotalTeamCount][toActiveSnipeTargets] = {}
+    tTeamData[iTotalTeamCount][reftM28ACUs] = {}
+    tTeamData[iTotalTeamCount][tPotentiallyActiveGETemplates] = {}
 
 
     local bHaveCampaignM28AI = false
@@ -630,15 +644,15 @@ function CreateNewTeam(aiBrain)
                     if oBrain.M28AI then
                         table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                         tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
-                        if oBrain.CheatEnabled then
-                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                            oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-                        else
-                            oBrain[M28Economy.refiBrainResourceMultiplier] = 1
-                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
-                        end
+                    end
+                    if oBrain.CheatEnabled then
+                        tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                        tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                    else
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
                     end
                     bHaveM28BrainInTeam = true
                     --Check if we have omni vision for the team
@@ -651,7 +665,7 @@ function CreateNewTeam(aiBrain)
                     if oBrain.CheatEnabled then
                         sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                     end
-                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
+                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref) --Dont know the land and air subteams yet
                 end
             elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
                 table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
@@ -711,6 +725,13 @@ function CreateNewTeam(aiBrain)
 
     --Check every brain is on a land subteam (even if have a water start)
     ForkThread(CheckForBrainsWithoutLandSubteam, iTotalTeamCount, tbBrainsWithLandSubteam)
+
+    --List out every M28 brain on this team by subteam
+    if bHaveM28BrainInTeam then
+        for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
+            LOG('M28 brain '..oBrain.Nickname..' land subteam='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil'))
+        end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1072,21 +1093,37 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
     end
 end
 
+function DelayedUnitAssignmentForTeamSetup(aiBrain, oUnit)
+    while not(M28Map.bFirstM28TeamHasBeenInitialised) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 120 then
+            M28Utilities.ErrorHandler('Still dont have a team setup after waiting a long time so will abort')
+            break
+        end
+    end
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
+    end
+end
+
 function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
     --Assumes called from an event that means we will have visibility of the unit (e.g. directly via intel, or indirectly via weapon firing)
-    if aiBrain.M28AI and aiBrain.M28Team and not(aiBrain.M28IsDefeated) then
+    if aiBrain.M28AI and not(aiBrain.M28IsDefeated) then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        if not(aiBrain.M28Team) and not(M28Map.bFirstM28TeamHasBeenInitialised) then ForkThread(DelayedUnitAssignmentForTeamSetup, aiBrain, oUnit)
+        else
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)) end
-        if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
-            if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
-                AssignUnitToLandZoneOrPond(aiBrain, oUnit)
-            else
-                UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)) end
+            if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
+                if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
+                    AssignUnitToLandZoneOrPond(aiBrain, oUnit)
+                else
+                    UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+                end
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1125,6 +1162,9 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
                 else
                     if bIsSMD then tTeamData[iTeam][refbEnemySMDDiedSinceLastNukeCheck] = true end --used to refresh nuke target zone logic
                     tTeamData[iTeam][sTableRef][iOrigIndex] = nil;
+                end
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite + M28UnitInfo.refCategoryNovaxCentre, oDeadUnit.UnitId) then
+                    RefreshArtiAndNovaxCount(iTeam)
                 end
             end
         end
@@ -1214,7 +1254,7 @@ function LongRangeThreatMonitor(iTeam)
                                         end
                                     end
                                     if bInclude then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Just added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
                                         table.insert(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], oUnit)
                                     end
                                 else
@@ -1328,6 +1368,10 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     --Track T3 arti
                     if not(tTeamData[iTeam][refbDefendAgainstArti]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                         tTeamData[iTeam][refbDefendAgainstArti] = true
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 1
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 2
+                        else tTeamData[iTeam][refiEnemyNovaxCount] = 1
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
                         --Refresh shielding wanted on existing units
                         local tPotentialUnitsToShield = tTeamData[iTeam][subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - categories.TECH1, {0.5*(M28Map.rMapPlayableArea[1] + M28Map.rMapPlayableArea[3]), 0, 0.5*(M28Map.rMapPlayableArea[2] + M28Map.rMapPlayableArea[4])}, 10000, 'Ally')
@@ -1338,10 +1382,24 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                                 end
                             end
                         end
+                        --Upgrade ED1 shields
+                        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                            local tED1Shields = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield * categories.BUILTBYTIER2ENGINEER * categories.CYBRAN, false, true)
+                            if M28Utilities.IsTableEmpty(tED1Shields) == false then
+                                for iShield, oShield in tED1Shields do
+                                    if oShield:GetFractionComplete() == 1 then
+                                        M28Economy.UpgradeUnit(oShield, true)
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
                 break
             end
+        end
+        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite + M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+            RefreshArtiAndNovaxCount(iTeam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1432,6 +1490,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                     --First time considering the unit for this team
                     --Campaign specific - dont record jamming crystals as units without an aoe cant damage them, leading to strange results - e.g. gunships can end up stuck trying to kill them
+                    --Also record any units that we arent recording (due to not being an enemy or an ally) in a separate table
                     if oUnit.UnitId == 'xsc9002' and M28Map.bIsCampaignMap then
                         if bDebugMessages == true then LOG(sFunctionRef..': Seraphim jamming crystal - want to ignore since it cant be hit by non aoe gunships') end
                         bIgnore = true
@@ -1478,6 +1537,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 10 then
                                     ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
+                                tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] = (tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] or 0) + 1
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
@@ -1542,9 +1603,25 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             end
 
                         else
+                            --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record') end
                                 bIgnore = true
+                                if M28Map.bIsCampaignMap then
+                                    local bAddToNeutralTable = true
+                                    if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded]) == false then
+                                        for iRecorded, oRecorded in tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded] do
+                                            if oRecorded == oUnit then
+                                                bAddToNeutralTable = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if bAddToNeutralTable then
+                                        table.insert(tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded], oUnit)
+                                    end
+                                end
                             else
                                 --M28 ally specific
 
@@ -2087,7 +2164,10 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 then
         local bInitiallyWantUpgrade = false
         local bNearbyUpgradedEnemyACU = false
-        if (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 14 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= (20 * (2.5-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) then bWantUpgrade = true
+        if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech]
+                or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * math.min(2, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 7 * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount]) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= (20 * (2.5-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiActiveM28BrainCount])) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to get upgrade as have high eco or enemy outtechs us') end
+            bInitiallyWantUpgrade = true
         end
         --Does enemy have a nearby upgraded or upgrading AUC and we lack T2 land for a brain?
         if tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][reftEnemyACUs]) then
@@ -2104,6 +2184,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade='..tostring(bInitiallyWantUpgrade)) end
         if bInitiallyWantUpgrade then
             if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
                 local bWantUpgrade = false
@@ -2322,13 +2403,20 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local bHaveSafeMexToUpgrade = GetSafeMexToUpgrade(iM28Team, true)
     local iUpgradingMexValue = iExistingT1MexUpgrades + 2.5 * iExistingT2MexUpgrades
     local iWantedUpgradingMexValue = 0
-    local bBehindOnT3Mex = false
+    local bBehindOnT3OrNotStartedT2Mex = false
     if tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
         iWantedUpgradingMexValue = 1
         if tTeamData[iM28Team][subrefiTeamGrossMass] >= 12 then iWantedUpgradingMexValue = iWantedUpgradingMexValue + 1 end
         if tTeamData[iM28Team][refiMexCountByTech] < M28Conditions.GetHighestOtherTeamT3MexCount(iM28Team) then
-            bBehindOnT3Mex = true
+            bBehindOnT3OrNotStartedT2Mex = true
             iWantedUpgradingMexValue = iWantedUpgradingMexValue * 1.5
+        end
+    end
+    if not(bBehindOnT3OrNotStartedT2Mex) and tTeamData[iM28Team][refiMexCountByTech][3] == 0 then
+        local iOurT2MexCount = tTeamData[iM28Team][refiMexCountByTech][2]
+        local iEnemyT2AndT3MexCount = M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iM28Team)
+        if iEnemyT2AndT3MexCount >= math.max(2, 2 * iOurT2MexCount) then
+            bBehindOnT3OrNotStartedT2Mex = true
         end
     end
     if bHaveSafeMexToUpgrade or M28Overseer.bNoRushActive then
@@ -2352,7 +2440,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring( M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))) end
-    if not(bWantMassForProduction) or M28Overseer.bNoRushActive or (bBehindOnT3Mex and not(tTeamData[iM28Team][subrefbTeamIsStallingMass])) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
+    if not(bWantMassForProduction) or M28Overseer.bNoRushActive or (bBehindOnT3OrNotStartedT2Mex and not(tTeamData[iM28Team][subrefbTeamIsStallingMass])) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
         if bDebugMessages == true then LOG(sFunctionRef..': iWantedUpgradingMexValue='..iWantedUpgradingMexValue..'; iUpgradingMexValue='..iUpgradingMexValue..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade)..'; iExistingT1MexUpgrades='..iExistingT1MexUpgrades..'; iExistingT2MexUpgrades='..iExistingT2MexUpgrades..'; Active brain count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; Total mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
         if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or iWantedUpgradingMexValue > iUpgradingMexValue or (tTeamData[iM28Team][subrefiTeamMassStored] >= 800 and (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0) then
             --Do we have enough energy?
@@ -3094,6 +3182,7 @@ function TeamInitialisation(iM28Team)
             ForkThread(TeamOverseer, iM28Team)
             ForkThread(M28Economy.TeamResourceSharingMonitor, iM28Team)
             ForkThread(M28Navy.WaterZoneOverseer, iM28Team)
+            ForkThread(SnipeOverseer, iM28Team)
         end
     end
 
@@ -3748,4 +3837,204 @@ function GetEnemyMainCampaignBase(iTeam)
     end
     return tTeamData[iTeam][reftEnemyCampaignMainBase]
 
+end
+
+function ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ(aiBrain, sHQJustDiedOrSupportFacID)
+    --Should call vai forkthread so happens after we have updated our highest tech level for the aiBrain
+    local sFunctionRef = 'ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, brain='..aiBrain.Nickname..'; sHQJustDiedOrSupportFacID='..sHQJustDiedOrSupportFacID..' time='..GetGameTimeSeconds()) end
+    if aiBrain.M28AI then
+        local sBrainFactoryTechVaraible
+        local iFactoryCategory
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestLandFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryLandFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestAirFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryAirFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sHQJustDiedOrSupportFacID) then
+            sBrainFactoryTechVaraible = M28Economy.refiOurHighestNavalFactoryTech
+            iFactoryCategory = M28UnitInfo.refCategoryNavalFactory
+        end
+        if sBrainFactoryTechVaraible then
+            local iTeam = aiBrain.M28Team
+            local iTechLevelDied = M28UnitInfo.GetBlueprintTechLevel(sHQJustDiedOrSupportFacID)
+            local iOurHighestTechLevelOfFactoryType = aiBrain[sBrainFactoryTechVaraible]
+            if bDebugMessages == true then LOG(sFunctionRef..': iOurHighestTechLevelOfFactoryType='..iOurHighestTechLevelOfFactoryType..'; iTechLevelDied='..iTechLevelDied) end
+            if iOurHighestTechLevelOfFactoryType < iTechLevelDied then
+                local iFactionType = M28UnitInfo.GetFactionNumberFromBlueprint(sHQJustDiedOrSupportFacID)
+                if bDebugMessages == true then LOG(sFunctionRef..': iFactionType='..iFactionType) end
+                local iFactionCategory = M28UnitInfo.ConvertFactionToCategory(iFactionType)
+                local iTechCategory
+                if iOurHighestTechLevelOfFactoryType <= 1 then
+                    iTechCategory = categories.TECH2 + categories.TECH3
+                else
+                    iTechCategory = categories.TECH3
+                end
+
+
+                --Do we have support factories?
+                local toSupportFactoriesToConsiderTransferring = aiBrain:GetListOfUnits(iFactoryCategory * categories.SUPPORTFACTORY * iTechCategory * iFactionCategory)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of support facs empty='..tostring(M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring))) end
+                if M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring) == false then
+                    local oTeammateToTransferTo
+                    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                        --Xfer support factories to the first teammate with a better tech level
+                        if oBrain[sBrainFactoryTechVaraible] > math.max(1, iOurHighestTechLevelOfFactoryType) then
+                            --Check if we have HQ of the right faction
+                            local iUnitsOfCategory = oBrain:GetCurrentUnits(iFactionCategory * iTechCategory * M28UnitInfo.refCategoryAllHQFactories)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iUnitsOfCategory for brain '..oBrain.Nickname..'='..iUnitsOfCategory) end
+                            if iUnitsOfCategory > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will transfer units to this brain') end
+                                oTeammateToTransferTo = oBrain
+                                break
+                            end
+                        end
+                    end
+                    if oTeammateToTransferTo then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to transfer all support factories to teammate '..oTeammateToTransferTo.Nickname..'; will list out toSupportFactoriesToConsiderTransferring')
+                            for iUnit, oUnit in toSupportFactoriesToConsiderTransferring do
+                                LOG(sFunctionRef..': Will transfer unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                            end
+                        end
+                        TransferUnitsToPlayer(toSupportFactoriesToConsiderTransferring, oTeammateToTransferTo:GetArmyIndex(), false)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshArtiAndNovaxCount(iTeam)
+    tTeamData[iTeam][refiEnemyNovaxCount] = 0
+    tTeamData[iTeam][refiEnemyT3ArtiCount] = 0
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyArtiAndExpStructure]) == false then
+        local iSatelliteCount = 0
+        local iCentreCount = 0
+        local iT3ArtiCount = 0
+        for iUnit, oUnit in tTeamData[iTeam][reftEnemyArtiAndExpStructure] do
+            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then iT3ArtiCount = iT3ArtiCount + 1
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then iT3ArtiCount = iT3ArtiCount + 3
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then iCentreCount = iCentreCount + 1
+            elseif EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then iSatelliteCount = iSatelliteCount + 1
+            end
+        end
+        tTeamData[iTeam][refiEnemyNovaxCount] = math.max(iSatelliteCount, iCentreCount)
+        tTeamData[iTeam][refiEnemyT3ArtiCount] = iT3ArtiCount
+    end
+end
+
+function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
+    local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bAddAsSnipeTarget = false
+    --Low health%:
+    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+        local iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
+        local iBaseHealthThreshold = 0.6
+        if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
+        if iHealthPercent < iBaseHealthThreshold then
+            --Very low health - attack
+            if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
+                bAddAsSnipeTarget = true
+            else
+                --Is there a friendly ACU nearby with more health? Also factor in if that ACU has a better upgrade
+                local tNearbyAvailableACUs = {}
+                if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftM28ACUs]) then
+                    local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+                    local iMaxDistUntilInRange = 15
+                    local iFriendlyACUHealthThreshold = math.min(iBaseHealthThreshold * 1.3, 0.95)
+                    if iHealthPercent >= 0.5 then iFriendlyACUHealthThreshold = math.min(0.95, iFriendlyACUHealthThreshold * 1.1) end
+                    local iFriendlyACUHealthPercent
+                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iFriendlyACUHealthThreshold = iFriendlyACUHealthThreshold * 0.75 end
+                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistUntilInRange = iMaxDistUntilInRange + 15 end
+                    local iDistAdjustment
+                    for iFriendlyACU, oFriendlyACU in tTeamData[iTeam][reftM28ACUs] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is friendly ACU owend by brain '..oFriendlyACU:GetAIBrain().Nickname..' available to do snipe attakc='..tostring(oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] or false)) end
+                        if oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] then
+                            if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oFriendlyACU:GetPosition()) == iPlateauWanted then
+                                iDistAdjustment = 0
+                                if not(tTeamData[iTeam][refbDangerousForACUs]) and (oFriendlyACU[M28UnitInfo.refiDFRange] > oUnit[M28UnitInfo.refiDFRange] or (oFriendlyACU[M28ACU.refiUpgradeCount] >= 2 and (oFriendlyACU[M28ACU.refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oFriendlyACU.UnitId))) and oFriendlyACU[M28ACU.refiUpgradeCount] > (oUnit[M28ACU.refiUpgradeCount] or 0))) then
+                                    iDistAdjustment = 30
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist to friendly ACU='..M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition())..'; DF range='..oFriendlyACU[M28UnitInfo.refiDFRange]..'; iMaxDistUntilInRange='..iMaxDistUntilInRange..'; Friendly ACU health%='.. M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)) end
+                                if M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] + iMaxDistUntilInRange + iDistAdjustment then
+                                    iFriendlyACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)
+                                    if iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold or (iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold * 0.8 and oFriendlyACU[M28UnitInfo.refiDFRange] > (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
+                                        table.insert(tNearbyAvailableACUs, oFriendlyACU)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tNearbyAvailableACUs) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We have nearby available ACUs, size of table='..table.getn(tNearbyAvailableACUs)) end
+                        if table.getn(tNearbyAvailableACUs) >= 2 or iHealthPercent < iBaseHealthThreshold - 0.1 then
+                            bAddAsSnipeTarget = true
+                            for iUnit, oUnit in tNearbyAvailableACUs do
+                                oUnit[M28ACU.refbUseACUAggressively] = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; Time='..GetGameTimeSeconds()) end
+    if bAddAsSnipeTarget == (oUnit[M28UnitInfo.refbIsSnipeTarget] or false) then
+        --Do nothing
+    else
+        --Are either removing or adding to snipe table
+        if bAddAsSnipeTarget then
+            table.insert(tTeamData[iTeam][toActiveSnipeTargets], oUnit)
+        else
+            for iEntry, oEntry in tTeamData[iTeam][toActiveSnipeTargets] do
+                if oEntry == oUnit then
+                    table.remove(tTeamData[iTeam][toActiveSnipeTargets], iEntry)
+                    break
+                end
+            end
+        end
+        oUnit[M28UnitInfo.refbIsSnipeTarget] = bAddAsSnipeTarget
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SnipeOverseer(iTeam)
+    local sFunctionRef = 'SnipeOverseer'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    while true do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        --Decide if want to stop monitoring
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][toActiveSnipeTargets]) then
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyLandExperimentals]) == false or tTeamData[iTeam][refiEnemyAirAAThreat] >= 10000 or tTeamData[iTeam][refiEnemyAirToGroundThreat] >= 10000 or tTeamData[iTeam][refiConstructedExperimentalCount] > 0 or GetGameTimeSeconds() >= 1800 then
+                if bDebugMessages == true then LOG(sFunctionRef..': We want to stop monitoring for snipe targets as game has gotten too late, iTeam='..iTeam..'; TIme='..GetGameTimeSeconds()) end
+                break
+            end
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyACUs] do
+                    ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
+                end
+            end
+        else
+            --Either way we want to consider ACUs, since hte function will consider removing them from snipe targets or adding other snipe targets
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyACUs] do
+                    ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

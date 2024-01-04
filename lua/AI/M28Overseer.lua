@@ -104,7 +104,9 @@ function GetNearestEnemyBrain(aiBrain)
                     if not (oBrain:IsDefeated()) and not (oBrain.M28IsDefeated) then
                         --Redundancy for AI like DD that may not trigger the aibrain hook
                         if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             M28Map.RecordBrainStartPoint(oBrain)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                         end
                         if bDebugMessages == true then
@@ -425,7 +427,7 @@ function M28BrainCreated(aiBrain)
         M28Utilities.bM28AIInGame = true
 
         --Send a message warning players this could take a while
-        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
@@ -491,7 +493,14 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Profiler.SpawnSetUnitsForBrain(aiBrain)
+
+
+    --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
+    --[[local iXAdjust = -8
+    local iZAdjust = -8
+    for iMex, tMex in M28Map.tMassPoints do
+        LOG('TestCustom for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
+    end--]]
 
     --brian size profiling:
     --[[
@@ -793,16 +802,16 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield,
-            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
-            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
-            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
+            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - categories.INSIGNIFICANTUNIT,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout - categories.INSIGNIFICANTUNIT,
         }
         --Adjust these categories for special cases
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
             --exclude T1 land from category 4
-            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3
+            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 - categories.INSIGNIFICANTUNIT
         end
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or ((M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0) then
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
@@ -813,7 +822,7 @@ function CheckUnitCap(aiBrain)
         end
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
             --Exclude MML from category 2
-            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1
+            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
         end
         --If have no T2+ power, then dont include T1 power in units to ctrlK
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
@@ -871,7 +880,7 @@ function CheckUnitCap(aiBrain)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                     local bKillUnit
                     for iUnit, oUnit in tUnitsToDestroy do
-                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
                             --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
                             bKillUnit = true
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -1098,7 +1107,7 @@ end
 
 function DebugCheck(aiBrain)
     local sFunctionRef = 'DebugCheck'
-    local iTickTimeToStartDetailedDebug = 2372.499 --set to high number if first want to figure out the tick where this happens
+    local iTickTimeToStartDetailedDebug = 20190.2 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true
@@ -1522,6 +1531,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon))..'; UEF M5: Is ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active or false)..'; Is research facility 1 nil='..tostring(ScenarioInfo.ResearchFacility1 == nil)..'; Is research facility 2 nil='..tostring(ScenarioInfo.ResearchFacility2 == nil))
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
+            LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
         end
         if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
             if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
@@ -1755,6 +1765,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             ForkThread(M1AeonEndMissionBackupMonitor)
         elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then --Aeon mission 5 - build UEF T3 shield
             M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
+            M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] = 1
             if bDebugMessages == true then LOG(sFunctionRef..': Want to build T3 shielding for Aeon M5') end
             local iOurBrainIndex = M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()
             for iTarget, tRequirements in Target.Requirements do
@@ -1890,11 +1901,17 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
-        --FA M6 - Fletcher changing sides
+            --FA M6 - Fletcher changing sides
         elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
             tbSpecialCodeForMission[21] = true
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following fletcher changing sides, Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --SC Aeon M5 - UEF changing sides
+        elseif ScenarioInfo.M2P1Obj.Active and ScenarioInfo.Ariel and ScenarioInfo.Colonies and not(tbSpecialCodeForMission[21]) then
+            tbSpecialCodeForMission[21] = true
+            --Have had a change in factions, update all unit tables
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
         end
     end
@@ -1954,6 +1971,7 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Updating for team '..iTeam..'; bChangedAlliesOrEnemies='..tostring(bChangedAlliesOrEnemies or false)) end
         if bChangedAlliesOrEnemies then
             if bDebugMessages == true then LOG(sFunctionRef..': Have a zone with units who have an updated ally/enemy status, iTeam='..iTeam) end
             tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = nil
@@ -1977,6 +1995,44 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
                 for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
                     for _, iTeam in tiTeamsToConsider do
                         UpdateStatusOfFriendlyAndEnemyUnits(tWZData[M28Map.subrefWZTeamData][iTeam], iTeam)
+                    end
+                end
+            end
+        end
+        --Update neutral units
+        for _, iTeam in tiTeamsToConsider do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoCampaignNeutralUnitsNotRecorded]) == false then
+                local oM28Brain
+                local oFirstAnyM28Brain
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if oBrain.M28AI then
+                        if not(oFirstAnyM28Brain) then oFirstAnyM28Brain = oBrain end
+                        if not(oM28Brain) and not(oBrain.CampaignAI) then oM28Brain = oBrain end
+                    end
+                end
+                if not(oM28Brain) then oM28Brain = oFirstAnyM28Brain end
+                if oM28Brain then
+                    local iM28Index = oM28Brain:GetArmyIndex()
+
+                    local tiUnitsToRemove = {}
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoCampaignNeutralUnitsNotRecorded] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            --Rerecord if this is now an enemy
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is now an enemy to team '..iTeam..'; oM28Brain='..oM28Brain.Nickname..'; Unit brain owner='..oUnit:GetAIBrain().Nickname..'; Is enemy='..tostring(IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iM28Index))) end
+                            if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iM28Index) then
+                                oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][iTeam] = nil
+                                M28Team.AssignUnitToLandZoneOrPond(oM28Brain, oUnit)
+                                table.insert(tiUnitsToRemove, iUnit)
+                            end
+                        else
+                            table.insert(tiUnitsToRemove, iUnit)
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tiUnitsToRemove) == false then
+                        local iToRemoveTotal = table.getn(tiUnitsToRemove)
+                        for iCurRemoval = iToRemoveTotal, 1, -1 do
+                            table.remove(tiUnitsToRemove, tiUnitsToRemove[iCurRemoval])
+                        end
                     end
                 end
             end
@@ -2057,7 +2113,6 @@ function RemoveUnitsFromPlatoon(oPlatoon, tUnits, bReturnToBase, oPlatoonToAddTo
         end
         if not(oPlatoonToAddTo == oPlatoon) then
             local oArmyPool = aiBrain:GetPlatoonUniquelyNamed('ArmyPool')
-            --if not(oPlatoon==oArmyPool) then if oPlatoon:GetPlan() == 'M27ACUMain' then bDebugMessages = true end end
             local sName
             if oPlatoonToAddTo == nil then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will add units to army pool') end
@@ -2179,7 +2234,7 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
 
     if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
         for iUnit, oUnit in tUnits do
-            if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())..'; Time='..GetGameTimeSeconds()) end
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
         end
     end

@@ -237,6 +237,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tBombTarget = GetBombTarget(oWeapon, projectile)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
     if tBombTarget then
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end
@@ -249,6 +250,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
         elseif EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
             iTimeToRun = 2.5
             --Consider recording for special asf suicide logic
+            if bDebugMessages == true then LOG(sFunctionRef..': Will consider logic for suiciding into strat bomber') end
             ForkThread(M28Air.ConsiderRecordingStratBomberToSuicideInto, oBomber)
         end --Some t2 bombers do damage in a spread (cybran, uef)
         --local iTimeToRun = math.min(7, iBombSize + 1)
@@ -1118,6 +1120,10 @@ end
 
 function MoveAwayFromFactory(oUnit, oFactory)
     if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'MoveAwayFromFactory'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         local aiBrain = oFactory:GetAIBrain()
         if aiBrain.M28AI then --redundancy
             local iTeam = aiBrain.M28Team
@@ -1134,12 +1140,25 @@ function MoveAwayFromFactory(oUnit, oFactory)
                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) == false then
                     local iFactorySize = M28UnitInfo.GetBuildingSize(oFactory.UnitId)
                     local tOrderPosition = M28Utilities.MoveInDirection(oFactory:GetPosition(), M28Utilities.GetAngleFromAToB(oFactory:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase]), iFactorySize + 2, true, false, true)
+                    --If dealing with land fac then rotate engineer
+                    local bLandFacRotatedEngineer = false
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        local iAngleToDestination = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tOrderPosition)
+                        if oUnit.SetRotation then oUnit:SetRotation(iAngleToDestination) end
+
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Will try and rotate engineer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' since FAF code does this, unit facing direction='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to factory rally='..iAngleToDestination..'; will draw tOrderPosition, is set rotation nil='..tostring(oUnit.SetRotation == nil))
+                            M28Utilities.DrawLocation(tOrderPosition)
+                        end
+                    end
                     M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 0, false, 'JustBuilt', true)
                     TrackTemporaryUnitMicro(oUnit, 1.5)
                 end
 
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' built from factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time='..GetGameTimeSeconds()) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
