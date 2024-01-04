@@ -207,6 +207,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbUnableToBuildArtiOrGameEnders = 'M28GERest' --true if gameenders and t3 arti are restricted
     reftoCampaignNeutralUnitsNotRecorded = 'M28CamU' --If have a campaign map, and we choose not to record a unit as an ally or an enemy, then it should be recorded here, so if there is a faction change these units can be reassessed
     toActiveSnipeTargets = 'M28ActSnT' --E.g. if want to go all-out on attacking enemy ACU then the ACU would be added here
+    refiTimeOfLastM28PlayerDefeat = 'M28TLstDth' --Gametimeseconds of the last M28 player defat (used to check if shield cycling should be paused)
+    tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -588,6 +590,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][iEnemyT3MAAActiveCount] = 0
     tTeamData[iTotalTeamCount][toActiveSnipeTargets] = {}
     tTeamData[iTotalTeamCount][reftM28ACUs] = {}
+    tTeamData[iTotalTeamCount][tPotentiallyActiveGETemplates] = {}
 
 
     local bHaveCampaignM28AI = false
@@ -3928,7 +3931,6 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local bAddAsSnipeTarget = false
     --Low health%:
     if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
@@ -3938,7 +3940,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
         if iHealthPercent < iBaseHealthThreshold then
             --Very low health - attack
-            if iHealthPercent < 0.25 or (iHealthPercent < 0.35 and oUnit[M28UnitInfo.refbIsSnipeTarget]) then
+            if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
                 bAddAsSnipeTarget = true
             else
@@ -4018,14 +4020,21 @@ function SnipeOverseer(iTeam)
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyLandExperimentals]) == false or tTeamData[iTeam][refiEnemyAirAAThreat] >= 10000 or tTeamData[iTeam][refiEnemyAirToGroundThreat] >= 10000 or tTeamData[iTeam][refiConstructedExperimentalCount] > 0 or GetGameTimeSeconds() >= 1800 then
                 if bDebugMessages == true then LOG(sFunctionRef..': We want to stop monitoring for snipe targets as game has gotten too late, iTeam='..iTeam..'; TIme='..GetGameTimeSeconds()) end
                 break
-            else
-                if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
-                    for iUnit, oUnit in tTeamData[iTeam][reftEnemyACUs] do
-                        ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
-                    end
+            end
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyACUs] do
+                    ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
+                end
+            end
+        else
+            --Either way we want to consider ACUs, since hte function will consider removing them from snipe targets or adding other snipe targets
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyACUs] do
+                    ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

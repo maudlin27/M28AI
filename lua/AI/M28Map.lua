@@ -302,14 +302,16 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                  subrefGESize = 2
                  subrefGEArtiLocations = 3
                  subrefGEShieldLocations = 4
-                 subrefGEArtiUnits = 5
-                 subrefGEShieldUnits = 6
-                 subrefGEEngineers = 7
-                 subrefGEbActiveMonitor = 8
-                subrefGEbDontNeedEngineers = 9
-                subrefbFailedToGetArtiLocation = 10
-                subrefGEbActiveShieldMonitor = 11
-                subrefiCyclesWaitingForEngineer = 12
+                 subrefGESMDLocation = 5 --Only one location to be allowed, in contrast to the other slots
+                 subrefGEArtiUnits = 6
+                 subrefGEShieldUnits = 7
+                 subrefGESMDUnit = 8 --SINGLE unit not a table
+                 subrefGEEngineers = 9
+                 subrefGEbActiveMonitor = 10
+                subrefGEbDontNeedEngineers = 11
+                subrefbFailedToGetArtiLocation = 12
+                subrefGEbActiveShieldMonitor = 13
+                subrefiCyclesWaitingForEngineer = 14
 
 
 

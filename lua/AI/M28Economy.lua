@@ -821,7 +821,10 @@ function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
                                     end
                                 end
                             end
-                            if bAddCurUnit then table.insert(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim], oUnit) end
+                            if bAddCurUnit then
+                                table.insert(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim], oUnit)
+                                oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+                            end
                         end
                     end
                 end

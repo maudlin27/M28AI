@@ -49,6 +49,7 @@ function OnPlayerDefeated(aiBrain)
             end
             if bHaveTeammates then
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
+                M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
             else
                 --Send end of game message
                 local iRand = math.random(1,3)
@@ -1120,8 +1121,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of shields for this reference') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference') end
                             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEArtiUnits], oConstruction)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
+                            tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGESMDUnit] = oConstruction
                         else M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic')
                         end
                     else M28Utilities.ErrorHandler('Started building a unit for arti template but it isnt in a zone')
@@ -2044,8 +2048,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                 --First handle units that are important enough we have logic for while they are part-constructed
                 if oUnit:GetFractionComplete() >= 0.1 and not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
-                    --Gameender/t3 arti and fixed shields - consider shielding/game ender template usage
-                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                    --Gameender/t3 arti and fixed shields and SMD - consider shielding/game ender template usage
+                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         --Work out if we are already in a special game ender template area
                         if not(oUnit[M28Building.reftArtiTemplateRefs]) then
                             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
@@ -2063,7 +2067,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                 end
                                             end
                                         end
-                                    else --dealing with fixed shield
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then --dealing with fixed shield
                                         if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldLocations]) == false then
                                             for iArtiLoc, tArtiLoc in tSubtable[M28Map.subrefGEShieldLocations] do
                                                 if M28Utilities.GetDistanceBetweenPositions(tArtiLoc, oUnit:GetPosition()) < 1 then
@@ -2073,6 +2077,14 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                 end
                                             end
                                         end
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                                        if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGESMDLocation]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),tSubtable[M28Map.subrefGESMDLocation]) < 1 then
+                                            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                                            oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
+                                            tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGESMDUnit] = oUnit
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Recorded SMD as being in arti template location, SMD Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTemplate='..iTemplate..'; Time='..GetGameTimeSeconds()) end
+                                        end
+                                    else M28Utilities.ErrorHandler('Unrecognised category when checking if constructed unit is in arti template area', true)
                                     end
                                 end
                             end

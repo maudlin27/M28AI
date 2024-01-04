@@ -1121,6 +1121,20 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         end
+    elseif M28Team.iPlayersAtGameStart >= 4 and M28Map.iMapSize >= 512 then
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            if oACU[refiUpgradeCount] >= 1 then
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation'}
+            else
+                oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
+            end
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation'}
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        end
     else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
@@ -1131,7 +1145,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             --FAF upcoming balance patch expected 15th July to introduce nano upgrade for Cybran
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         end
     end
 
@@ -3772,66 +3786,70 @@ function GetACUOrder(aiBrain, oACU)
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU wants to run, Does it want to return to core base='..tostring(DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)) end
                     if not(oACU:IsUnitState('Building')) and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                         ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
-                        if bDebugMessages == true then LOG(sFunctionRef..': ACU more than 10 from core base midpoint so will retreat there, ACU dist to this midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
-                        ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        if not(ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': ACU more than 10 from core base midpoint so will retreat there, ACU dist to this midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
+                            ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        end
                     elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
-                        ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
-                        oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
-                        --Retreat to nearest rally (unless we arent in a land zone in which case head towards core base)
-                        local bConsiderMexesAndReclaim = false
+                        if not(ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)) then
+                            ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
+                            oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
+                            --Retreat to nearest rally (unless we arent in a land zone in which case head towards core base)
+                            local bConsiderMexesAndReclaim = false
 
-                        local tRallyPoint
-                        if iLandOrWaterZone > 0 and iPlateauOrZero > 0 then
-                            --Are we on a different island to our base, and want to move back there?
+                            local tRallyPoint
+                            if iLandOrWaterZone > 0 and iPlateauOrZero > 0 then
+                                --Are we on a different island to our base, and want to move back there?
 
-                            tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true)
-                            --If the rally point takes us further away from the closest friendly base, and is more than 50 from the closest friendly base, then head towards the base (exception if rally point is a core base or is a location with friendly PD and/or factories or significantly friendly combat)
-                            if bDebugMessages == true then LOG(sFunctionRef..': tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())..'; ACU angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
-                            if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 50 then
-                                local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+                                tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true)
+                                --If the rally point takes us further away from the closest friendly base, and is more than 50 from the closest friendly base, then head towards the base (exception if rally point is a core base or is a location with friendly PD and/or factories or significantly friendly combat)
+                                if bDebugMessages == true then LOG(sFunctionRef..': tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())..'; ACU angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+                                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 50 then
+                                    local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
 
-                                if not(tRallyLZTeamData[M28Map.subrefLZbCoreBase]) then
-                                    local iRallyThreat = (tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
-                                    if tRallyLZTeamData == tLZOrWZTeamData then iRallyThreat = iRallyThreat - M28UnitInfo.GetCombatThreatRating({oACU}, false, false, false, false, false, false, false, false) end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Rally point is more than 50 from closest friendly base, checking if threat is too low, iRallyThreat='..iRallyThreat..'; Is rally in a core expansion='..tostring(tRallyLZTeamData[M28Map.subrefLZCoreExpansion])) end
-                                    if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist from rally to closest base='..M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint])..'; Dist from ACU to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())) end
-                                        if M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint]) > M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition()) then
-                                            bConsiderMexesAndReclaim = false
-                                            --Is our closest friendly base in the same plateau?
-                                            local iClosestBasePlateauOrZero, iClosestBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
-                                            if iClosestBasePlateauOrZero == iPlateauOrZero then
-                                                tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Changed rally point to be the closest friendly base') end
+                                    if not(tRallyLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                        local iRallyThreat = (tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                                        if tRallyLZTeamData == tLZOrWZTeamData then iRallyThreat = iRallyThreat - M28UnitInfo.GetCombatThreatRating({oACU}, false, false, false, false, false, false, false, false) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Rally point is more than 50 from closest friendly base, checking if threat is too low, iRallyThreat='..iRallyThreat..'; Is rally in a core expansion='..tostring(tRallyLZTeamData[M28Map.subrefLZCoreExpansion])) end
+                                        if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from rally to closest base='..M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint])..'; Dist from ACU to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())) end
+                                            if M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint]) > M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition()) then
+                                                bConsiderMexesAndReclaim = false
+                                                --Is our closest friendly base in the same plateau?
+                                                local iClosestBasePlateauOrZero, iClosestBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                                                if iClosestBasePlateauOrZero == iPlateauOrZero then
+                                                    tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Changed rally point to be the closest friendly base') end
+                                                end
                                             end
-                                        end
-                                    else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if rally LZ is same as ACU LZ, are they equal='..tostring(tRallyLZData == tLZOrWZData)) end
-                                        if tRallyLZData == tLZOrWZData then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iRallyThreat='..iRallyThreat) end
-                                            if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 and iRallyThreat < 100 then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Want to consider mexes and reclaim') end
-                                                bConsiderMexesAndReclaim= true
+                                        else
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if rally LZ is same as ACU LZ, are they equal='..tostring(tRallyLZData == tLZOrWZData)) end
+                                            if tRallyLZData == tLZOrWZData then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iRallyThreat='..iRallyThreat) end
+                                                if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 and iRallyThreat < 100 then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to consider mexes and reclaim') end
+                                                    bConsiderMexesAndReclaim= true
+                                                end
                                             end
                                         end
                                     end
                                 end
+                                --[[GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
+                                local iTravelDistFromRallyToClosestFriendlyBase
+
+                                 = M28Utilities.GetTravelDist--]]
+
+
+                            else tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
                             end
-                            --[[GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
-                            local iTravelDistFromRallyToClosestFriendlyBase
+                            --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them; otherwise go to nearest friendly base
+                            if not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20))) then
 
-                             = M28Utilities.GetTravelDist--]]
-
-
-                        else tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
-                        end
-                        --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them; otherwise go to nearest friendly base
-                        if not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20))) then
-
-                            M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs')
-                            --M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
-                        elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone')
+                                M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs')
+                                --M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone')
+                            end
                         end
                     else
                         --ACU is being used as an engineer?
@@ -3910,240 +3928,241 @@ function GetACUOrder(aiBrain, oACU)
                                     --Part-built or unbuilt mex in build range of ACU when no enemies in the LZ
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mex if one is almost in build range and no enemy combat threat in this LZ/WZ, threat='..tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bConsiderBuildingNearbyMex='..tostring(bConsiderBuildingNearbyMex)) end
                                     if not(bConsiderBuildingNearbyMex) or not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2)) then
-
-                                        --ACU damaged and we have a T3 shield in the zone - make sure we are underneath shield coverage
-                                        local bHaveMovedToBeUnderShield = false
-                                        if oACU:GetHealthPercent() <= 0.8 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                                            local tFriendlyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield - categories.TECH2 - categories.TECH1, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                            if M28Utilities.IsTableEmpty(tFriendlyShields) == false then
-                                                local iCurShieldHealth, iMaxShieldHealth, iCurShieldDist
-                                                local iClosestShield = 150 --No point trying to move to a shield further away
-                                                local oClosestShield
-                                                for iShield, oShield in tFriendlyShields do
-                                                    if M28UnitInfo.IsUnitValid(oShield) then
-                                                        iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
-                                                        if iCurShieldHealth >= 6000 then
-                                                            iCurShieldDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
-                                                            if iCurShieldDist < iClosestShield then
-                                                                iClosestShield = iCurShieldDist
-                                                                oClosestShield = oShield
+                                        if not(ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)) then
+                                            --ACU damaged and we have a T3 shield in the zone - make sure we are underneath shield coverage
+                                            local bHaveMovedToBeUnderShield = false
+                                            if oACU:GetHealthPercent() <= 0.8 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                local tFriendlyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield - categories.TECH2 - categories.TECH1, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                                if M28Utilities.IsTableEmpty(tFriendlyShields) == false then
+                                                    local iCurShieldHealth, iMaxShieldHealth, iCurShieldDist
+                                                    local iClosestShield = 150 --No point trying to move to a shield further away
+                                                    local oClosestShield
+                                                    for iShield, oShield in tFriendlyShields do
+                                                        if M28UnitInfo.IsUnitValid(oShield) then
+                                                            iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                                            if iCurShieldHealth >= 6000 then
+                                                                iCurShieldDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                                                                if iCurShieldDist < iClosestShield then
+                                                                    iClosestShield = iCurShieldDist
+                                                                    oClosestShield = oShield
+                                                                end
                                                             end
                                                         end
                                                     end
-                                                end
-                                                if oClosestShield and iClosestShield < 4 + oClosestShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 then
-                                                    bHaveMovedToBeUnderShield = true
-                                                    M28Orders.IssueTrackedMove(oACU, oClosestShield:GetPosition(), 4, false, 'ACUUnSh', false)
+                                                    if oClosestShield and iClosestShield < 4 + oClosestShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 then
+                                                        bHaveMovedToBeUnderShield = true
+                                                        M28Orders.IssueTrackedMove(oACU, oClosestShield:GetPosition(), 4, false, 'ACUUnSh', false)
+                                                    end
                                                 end
                                             end
-                                        end
-                                        if not(bHaveMovedToBeUnderShield) then
+                                            if not(bHaveMovedToBeUnderShield) then
 
-                                            --Priority reclaim - if reclaim that is in ACU build radius and have <30% mass stored even if nearby enemies (provided arent in range, unless shot is blocked), if have no upgrade or T2 upgrade
-                                            if bDebugMessages == true then LOG(sFunctionRef..': About to check for priority reclaim, mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 0)..'; Does ACU have adanced engineering='..tostring(oACU:HasEnhancement('AdvancedEngineering'))..'; ACU health %='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
-                                            if aiBrain:GetEconomyStoredRatio('MASS') < 0.3 and ((oACU[refiUpgradeCount] or 0) == 0 or oACU:HasEnhancement('AdvancedEngineering')) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and
-                                                    (oACU[M28UnitInfo.refbLastShotBlocked] or M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, oACU:GetPosition(), (oACU[M28UnitInfo.refiDFRange] or 0), 'Enemy'))) and
-                                                    ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true) then
-                                                --ACU wants to get reclaim
-                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end
-                                            else
-                                                --Consider building power if in core zone with lots of mass
-                                                local bBuildingOrAssistingPower = false
-                                                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 then
-                                                    if aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team) then
-                                                        --Do we have no power of a higher tech level than our ACU in this core zone?
-                                                        local tFriendlyPower = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                                        local oNearestUnderConstructionPower, iCurDist
-                                                        local iNearestUnderConstructionPower = 10000
-                                                        local iHighestTechConstructed = 0
-                                                        if M28Conditions.IsTableOfUnitsStillValid(tFriendlyPower) then
-                                                            for iUnit, oUnit in tFriendlyPower do
-                                                                if oUnit:GetFractionComplete() < 1 then
-                                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
-                                                                    if iCurDist < iNearestUnderConstructionPower then
-                                                                        iNearestUnderConstructionPower = iCurDist
-                                                                        oNearestUnderConstructionPower = oUnit
+                                                --Priority reclaim - if reclaim that is in ACU build radius and have <30% mass stored even if nearby enemies (provided arent in range, unless shot is blocked), if have no upgrade or T2 upgrade
+                                                if bDebugMessages == true then LOG(sFunctionRef..': About to check for priority reclaim, mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 0)..'; Does ACU have adanced engineering='..tostring(oACU:HasEnhancement('AdvancedEngineering'))..'; ACU health %='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
+                                                if aiBrain:GetEconomyStoredRatio('MASS') < 0.3 and ((oACU[refiUpgradeCount] or 0) == 0 or oACU:HasEnhancement('AdvancedEngineering')) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and
+                                                        (oACU[M28UnitInfo.refbLastShotBlocked] or M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, oACU:GetPosition(), (oACU[M28UnitInfo.refiDFRange] or 0), 'Enemy'))) and
+                                                        ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true) then
+                                                    --ACU wants to get reclaim
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end
+                                                else
+                                                    --Consider building power if in core zone with lots of mass
+                                                    local bBuildingOrAssistingPower = false
+                                                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 then
+                                                        if aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team) then
+                                                            --Do we have no power of a higher tech level than our ACU in this core zone?
+                                                            local tFriendlyPower = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                                            local oNearestUnderConstructionPower, iCurDist
+                                                            local iNearestUnderConstructionPower = 10000
+                                                            local iHighestTechConstructed = 0
+                                                            if M28Conditions.IsTableOfUnitsStillValid(tFriendlyPower) then
+                                                                for iUnit, oUnit in tFriendlyPower do
+                                                                    if oUnit:GetFractionComplete() < 1 then
+                                                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
+                                                                        if iCurDist < iNearestUnderConstructionPower then
+                                                                            iNearestUnderConstructionPower = iCurDist
+                                                                            oNearestUnderConstructionPower = oUnit
+                                                                        end
+                                                                    else
+                                                                        if iHighestTechConstructed < 3 then iHighestTechConstructed = math.max(iHighestTechConstructed, M28UnitInfo.GetUnitTechLevel(oUnit)) end
                                                                     end
-                                                                else
-                                                                    if iHighestTechConstructed < 3 then iHighestTechConstructed = math.max(iHighestTechConstructed, M28UnitInfo.GetUnitTechLevel(oUnit)) end
                                                                 end
                                                             end
-                                                        end
-                                                        if oNearestUnderConstructionPower then
-                                                            --Build own power if ACU is far away and it's T1 power
-                                                            bBuildingOrAssistingPower = true
-                                                            if EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oNearestUnderConstructionPower.UnitId) and iNearestUnderConstructionPower >= 30 then
-                                                                ACUActionBuildPower(aiBrain, oACU)
-                                                            else
-                                                                M28Orders.IssueTrackedRepair(oACU, oNearestUnderConstructionPower, false, 'ACUAsPwr')
-                                                            end
-                                                        else
-                                                            --build our own power if we have equal or better tech
-                                                            if iHighestTechConstructed <= 1 then
+                                                            if oNearestUnderConstructionPower then
+                                                                --Build own power if ACU is far away and it's T1 power
                                                                 bBuildingOrAssistingPower = true
-                                                                ACUActionBuildPower(aiBrain, oACU)
+                                                                if EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oNearestUnderConstructionPower.UnitId) and iNearestUnderConstructionPower >= 30 then
+                                                                    ACUActionBuildPower(aiBrain, oACU)
+                                                                else
+                                                                    M28Orders.IssueTrackedRepair(oACU, oNearestUnderConstructionPower, false, 'ACUAsPwr')
+                                                                end
                                                             else
-                                                                local sPowerBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryPower, oACU)
-                                                                if sPowerBlueprintToBuild and M28UnitInfo.GetBlueprintTechLevel(sPowerBlueprintToBuild) >= iHighestTechConstructed then
+                                                                --build our own power if we have equal or better tech
+                                                                if iHighestTechConstructed <= 1 then
                                                                     bBuildingOrAssistingPower = true
                                                                     ACUActionBuildPower(aiBrain, oACU)
-                                                                end
-                                                            end
-                                                        end
-
-                                                    end
-                                                end
-
-                                                --Check if our economy is so good that we want to run next cycle if enemy has T3 land or air to keep our ACU safe
-                                                if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
-                                                    --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
-                                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-                                                        M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
-                                                    end
-                                                end
-
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we want ACU to build power, bBuildingOrAssistingPower='..tostring(bBuildingOrAssistingPower)) end
-
-                                                if not(bBuildingOrAssistingPower) then
-
-                                                    --If have orders for ACU but no land zone then wait until it is in a land zone again
-                                                    if not(iLandOrWaterZone) or (iPlateauOrZero == 0 and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart])) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': ACU isnt in a land zone, if has no orders will tell it to retreat to start position, oACU[M28Orders.refiOrderCount]='..oACU[M28Orders.refiOrderCount]..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
-                                                        if oACU[M28Orders.refiOrderCount] == 0 then
-
-                                                            M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRun')
-                                                        elseif oACU:IsUnitState('Attacking') and M28UnitInfo.IsUnitUnderwater(oACU) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
-                                                            --Came across rare issue where ACU has attack-move order, that doesnt get refreshed, but ACU gets stuck not moving in the water, its unit state when this happened was attacking, and its last order was refiOrderIssueAggressiveMove; the below is a workaround as in some cases want ACU to advance where this is the case, in others want it to retreat
-                                                            local iCurWaterZone = M28Map.GetWaterZoneFromPosition(oACU:GetPosition())
-                                                            if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 or not(iCurWaterZone) then
-
-                                                                M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRn')
-                                                            else
-                                                                --Look for nearest land zone and move here
-                                                                local iPond = M28Map.tiPondByWaterZone[iCurWaterZone]
-                                                                local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iCurWaterZone]
-                                                                local tLZMidpointToMoveTo
-                                                                if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
-                                                                    for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
-                                                                        local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
-                                                                        if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
-                                                                            tLZMidpointToMoveTo = tAltLZ[M28Map.subrefMidpoint]
-                                                                            break
-                                                                        end
-                                                                    end
-                                                                end
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': tLZMidpointToMoveTo after checking if have adjacent land zones that want support='..repru(tLZMidpointToMoveTo)) end
-
-                                                                if not(tLZMidpointToMoveTo) then tLZMidpointToMoveTo = M28Map.GetPlayerStartPosition(oACU:GetAIBrain()) end
-
-                                                                M28Orders.IssueTrackedMove(oACU, tLZMidpointToMoveTo, 5, false, 'ACUWtr')
-
-                                                            end
-                                                        end
-                                                    else
-                                                        --Are there enemies in this LZ? If so then attack them
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-                                                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and iPlateauOrZero > 0 and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                            --(Do nothing further - will ahve given the order)
-                                                        else
-                                                            if oACU[refbDoingInitialBuildOrder] then
-                                                                GetACUEarlyGameOrders(aiBrain, oACU)
-
-                                                                --Have we finished our initial build order? (even if we stil lahve some early game orders)
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have finished initial build order, Economy stored mass='..aiBrain:GetEconomyStored('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-                                                                if not(oACU:IsUnitState('Building')) and aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 15 then
-                                                                    bDoingInitialBuildOrder = false
-                                                                end
-                                                            else
-                                                                --If we are reclaiming or building then dont do anything
-                                                                if bDebugMessages == true then
-                                                                    LOG(sFunctionRef..': Arent doing initial build order and dont want to run, ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Brain mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; If are nearby enemies then will list out, is table of nearby enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; oACU[M28UnitInfo.refiDFRange]='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU position='..repru(oACU:GetPosition())..'; ACU team='..oACU:GetAIBrain().M28Team)
-                                                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                                        LOG(sFunctionRef..': are we close to nearby units='..tostring(M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12))))
-                                                                        for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
-                                                                            LOG(sFunctionRef..': Entry '..iUnit..' is unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' which is '..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())..' with range '..(oUnit[M28UnitInfo.refiDFRange] or 'nil'))
-                                                                        end
-                                                                    end
-                                                                end
-                                                                --No nearby enemies - consider building power if have low level of it and lots of mass
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))) end
-                                                                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
-                                                                    ACUActionBuildPower(aiBrain, oACU)
-                                                                    --Is there an enemy unit nearby that we want to attack?
-                                                                elseif (oACU[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Are close to enemy units so will attack rather than considering upgrades or building mexes etc.') end
                                                                 else
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU unit state not important so we can consider doing other things, ACU state='..M28UnitInfo.GetUnitState(oACU)..'; Mass stored ratio='..aiBrain:GetEconomyStoredRatio('MASS')..'; Is unit state building='..tostring(oACU:IsUnitState('Building'))..'; Is unit state repairing='..tostring(oACU:IsUnitState('Repairing'))..'; Is unit state reclaiming='..tostring(oACU:IsUnitState('Reclaiming'))..'; Is unit state guarding='..tostring(oACU:IsUnitState('Guarding'))) end
-                                                                    if not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing')) then
-                                                                        --Do we want to get an upgrade?
-                                                                        local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
-                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
-                                                                        if sUpgradeToGet then
-                                                                            --Are we safe to get the upgrade here? if not then retreat
-                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
-                                                                            if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
-                                                                                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
-                                                                            else
-                                                                                --Retreat
-                                                                                local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
-                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Not safe to get upgrade so want to retreat until it is. tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())) end
-                                                                                M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4U')
+                                                                    local sPowerBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryPower, oACU)
+                                                                    if sPowerBlueprintToBuild and M28UnitInfo.GetBlueprintTechLevel(sPowerBlueprintToBuild) >= iHighestTechConstructed then
+                                                                        bBuildingOrAssistingPower = true
+                                                                        ACUActionBuildPower(aiBrain, oACU)
+                                                                    end
+                                                                end
+                                                            end
+
+                                                        end
+                                                    end
+
+                                                    --Check if our economy is so good that we want to run next cycle if enemy has T3 land or air to keep our ACU safe
+                                                    if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
+                                                        --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
+                                                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+                                                            M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
+                                                        end
+                                                    end
+
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we want ACU to build power, bBuildingOrAssistingPower='..tostring(bBuildingOrAssistingPower)) end
+
+                                                    if not(bBuildingOrAssistingPower) then
+
+                                                        --If have orders for ACU but no land zone then wait until it is in a land zone again
+                                                        if not(iLandOrWaterZone) or (iPlateauOrZero == 0 and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart])) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': ACU isnt in a land zone, if has no orders will tell it to retreat to start position, oACU[M28Orders.refiOrderCount]='..oACU[M28Orders.refiOrderCount]..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
+                                                            if oACU[M28Orders.refiOrderCount] == 0 then
+
+                                                                M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRun')
+                                                            elseif oACU:IsUnitState('Attacking') and M28UnitInfo.IsUnitUnderwater(oACU) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+                                                                --Came across rare issue where ACU has attack-move order, that doesnt get refreshed, but ACU gets stuck not moving in the water, its unit state when this happened was attacking, and its last order was refiOrderIssueAggressiveMove; the below is a workaround as in some cases want ACU to advance where this is the case, in others want it to retreat
+                                                                local iCurWaterZone = M28Map.GetWaterZoneFromPosition(oACU:GetPosition())
+                                                                if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 or not(iCurWaterZone) then
+
+                                                                    M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRn')
+                                                                else
+                                                                    --Look for nearest land zone and move here
+                                                                    local iPond = M28Map.tiPondByWaterZone[iCurWaterZone]
+                                                                    local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iCurWaterZone]
+                                                                    local tLZMidpointToMoveTo
+                                                                    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                                                                        for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                                                                            local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                                                                            if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+                                                                                tLZMidpointToMoveTo = tAltLZ[M28Map.subrefMidpoint]
+                                                                                break
                                                                             end
-                                                                        else
-                                                                            --We dont want an upgrade, and have no enemies in this LZ, but there might be enemies nearby (e.g. in an adjacent land zone); there might also be mexes to build or reclaim to get in this LZ - decide on what we want to do
-                                                                            --Does the LZ have uncalimed mexes?
-                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider if we want to build a mex if there are any unclaimed') end
-                                                                            if not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU)) then
-                                                                                --Water zone specific - if underwater and is an underwater start position then do nothing
-                                                                                if iPlateauOrZero > 0 or not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+                                                                        end
+                                                                    end
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': tLZMidpointToMoveTo after checking if have adjacent land zones that want support='..repru(tLZMidpointToMoveTo)) end
 
-                                                                                    --Do we want another land factory?
-                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': No mexes to build ni this LZ, seeing if we want another land factory') end
-                                                                                    if not(ConsiderGettingExtraLandFactory(tLZOrWZData, tLZOrWZTeamData, oACU, iPlateauOrZero, iLandOrWaterZone)) then
-                                                                                        --Are there enemies in an adjacent LZ? in which case want to consider attacking them
-                                                                                        if ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true) or (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
-                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try getting reclaim in range or attacking enemy in this zone') end
-                                                                                        else
-                                                                                            --ACU is in a zone with lots of reclaim - consider prioritising this over attacking nearby enemies
-                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if reclaim in this zone valuable enough to focus on it instead of enemies; Cur mass stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Signif Reclaim in zone='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; S value of zone='..tLZOrWZTeamData[M28Map.subrefLZSValue]) end
-                                                                                            --Only consider reclaim if min value of a wreck is 40 - dont want to waste ACU time on harder to get reclaim
-                                                                                            if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and tLZOrWZTeamData[M28Map.subrefLZSValue] <= 200 and aiBrain:GetEconomyStoredRatio('MASS') <= 0.6 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 40) then
-                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim in area so will focus on that') end
+                                                                    if not(tLZMidpointToMoveTo) then tLZMidpointToMoveTo = M28Map.GetPlayerStartPosition(oACU:GetAIBrain()) end
+
+                                                                    M28Orders.IssueTrackedMove(oACU, tLZMidpointToMoveTo, 5, false, 'ACUWtr')
+
+                                                                end
+                                                            end
+                                                        else
+                                                            --Are there enemies in this LZ? If so then attack them
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                                            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and iPlateauOrZero > 0 and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                --(Do nothing further - will ahve given the order)
+                                                            else
+                                                                if oACU[refbDoingInitialBuildOrder] then
+                                                                    GetACUEarlyGameOrders(aiBrain, oACU)
+
+                                                                    --Have we finished our initial build order? (even if we stil lahve some early game orders)
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have finished initial build order, Economy stored mass='..aiBrain:GetEconomyStored('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+                                                                    if not(oACU:IsUnitState('Building')) and aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 15 then
+                                                                        bDoingInitialBuildOrder = false
+                                                                    end
+                                                                else
+                                                                    --If we are reclaiming or building then dont do anything
+                                                                    if bDebugMessages == true then
+                                                                        LOG(sFunctionRef..': Arent doing initial build order and dont want to run, ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Brain mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; If are nearby enemies then will list out, is table of nearby enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; oACU[M28UnitInfo.refiDFRange]='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU position='..repru(oACU:GetPosition())..'; ACU team='..oACU:GetAIBrain().M28Team)
+                                                                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                                            LOG(sFunctionRef..': are we close to nearby units='..tostring(M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12))))
+                                                                            for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                                                LOG(sFunctionRef..': Entry '..iUnit..' is unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' which is '..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())..' with range '..(oUnit[M28UnitInfo.refiDFRange] or 'nil'))
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                    --No nearby enemies - consider building power if have low level of it and lots of mass
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))) end
+                                                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
+                                                                        ACUActionBuildPower(aiBrain, oACU)
+                                                                        --Is there an enemy unit nearby that we want to attack?
+                                                                    elseif (oACU[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Are close to enemy units so will attack rather than considering upgrades or building mexes etc.') end
+                                                                    else
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU unit state not important so we can consider doing other things, ACU state='..M28UnitInfo.GetUnitState(oACU)..'; Mass stored ratio='..aiBrain:GetEconomyStoredRatio('MASS')..'; Is unit state building='..tostring(oACU:IsUnitState('Building'))..'; Is unit state repairing='..tostring(oACU:IsUnitState('Repairing'))..'; Is unit state reclaiming='..tostring(oACU:IsUnitState('Reclaiming'))..'; Is unit state guarding='..tostring(oACU:IsUnitState('Guarding'))) end
+                                                                        if not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing')) then
+                                                                            --Do we want to get an upgrade?
+                                                                            local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
+                                                                            if sUpgradeToGet then
+                                                                                --Are we safe to get the upgrade here? if not then retreat
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
+                                                                                if M28Conditions.SafeToUpgradeUnit(oACU) then
+                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
+                                                                                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
+                                                                                else
+                                                                                    --Retreat
+                                                                                    local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
+                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Not safe to get upgrade so want to retreat until it is. tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())) end
+                                                                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4U')
+                                                                                end
+                                                                            else
+                                                                                --We dont want an upgrade, and have no enemies in this LZ, but there might be enemies nearby (e.g. in an adjacent land zone); there might also be mexes to build or reclaim to get in this LZ - decide on what we want to do
+                                                                                --Does the LZ have uncalimed mexes?
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider if we want to build a mex if there are any unclaimed') end
+                                                                                if not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                    --Water zone specific - if underwater and is an underwater start position then do nothing
+                                                                                    if iPlateauOrZero > 0 or not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+
+                                                                                        --Do we want another land factory?
+                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': No mexes to build ni this LZ, seeing if we want another land factory') end
+                                                                                        if not(ConsiderGettingExtraLandFactory(tLZOrWZData, tLZOrWZTeamData, oACU, iPlateauOrZero, iLandOrWaterZone)) then
+                                                                                            --Are there enemies in an adjacent LZ? in which case want to consider attacking them
+                                                                                            if ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true) or (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try getting reclaim in range or attacking enemy in this zone') end
                                                                                             else
-                                                                                                if AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Attacking enemies in adjacent zone') end
+                                                                                                --ACU is in a zone with lots of reclaim - consider prioritising this over attacking nearby enemies
+                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if reclaim in this zone valuable enough to focus on it instead of enemies; Cur mass stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Signif Reclaim in zone='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; S value of zone='..tLZOrWZTeamData[M28Map.subrefLZSValue]) end
+                                                                                                --Only consider reclaim if min value of a wreck is 40 - dont want to waste ACU time on harder to get reclaim
+                                                                                                if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and tLZOrWZTeamData[M28Map.subrefLZSValue] <= 200 and aiBrain:GetEconomyStoredRatio('MASS') <= 0.6 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 40) then
+                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim in area so will focus on that') end
                                                                                                 else
-                                                                                                    local bOnlyConsiderInBuildRange = false
-                                                                                                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true end
-                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build mex, will cehck if want to get reclaim, bOnlyConsiderInBuildRange='..tostring(bOnlyConsiderInBuildRange)) end
-                                                                                                    if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, bOnlyConsiderInBuildRange)) then
-                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get reclaim, will see if want to attack adjacent enemies; are there adjacent enemies='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) end
-                                                                                                        if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                                                            --Do nothing - will have given the order
-                                                                                                        else
-                                                                                                            --Is a friendly ACU getting an upgrade in this or an adjacent zone? If so then assist it
-                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to assist a friendly nearby upgrading ACU if there is one') end
-                                                                                                            if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
-                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
-                                                                                                                if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
-                                                                                                                    --Do we have any reclaim nearby?
-                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
-                                                                                                                    if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
-                                                                                                                        --Assist any upgrading mex or under construction storage if we have power but low mass
+                                                                                                    if AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking enemies in adjacent zone') end
+                                                                                                    else
+                                                                                                        local bOnlyConsiderInBuildRange = false
+                                                                                                        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true end
+                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build mex, will cehck if want to get reclaim, bOnlyConsiderInBuildRange='..tostring(bOnlyConsiderInBuildRange)) end
+                                                                                                        if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, bOnlyConsiderInBuildRange)) then
+                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get reclaim, will see if want to attack adjacent enemies; are there adjacent enemies='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) end
+                                                                                                            if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                                --Do nothing - will have given the order
+                                                                                                            else
+                                                                                                                --Is a friendly ACU getting an upgrade in this or an adjacent zone? If so then assist it
+                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to assist a friendly nearby upgrading ACU if there is one') end
+                                                                                                                if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
+                                                                                                                    if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
+                                                                                                                        --Do we have any reclaim nearby?
+                                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
+                                                                                                                        if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
+                                                                                                                            --Assist any upgrading mex or under construction storage if we have power but low mass
 
-                                                                                                                        if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
-                                                                                                                            --Backup - assist nearest factory
-                                                                                                                        else
-                                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-                                                                                                                            if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-                                                                                                                                local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-                                                                                                                                if M28Utilities.IsTableEmpty(tAllFactories) == false then
-                                                                                                                                    local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
-                                                                                                                                    if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                                                                                                                                        M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
+                                                                                                                                --Backup - assist nearest factory
+                                                                                                                            else
+                                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                                                                                                                                if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+                                                                                                                                    local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                                                                                                                                    if M28Utilities.IsTableEmpty(tAllFactories) == false then
+                                                                                                                                        local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
+                                                                                                                                        if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                                                                                                                                            M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                                        end
                                                                                                                                     end
                                                                                                                                 end
                                                                                                                             end
@@ -4633,5 +4652,68 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
             end
         end
     end
+    return false
+end
+
+function ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)
+    local sFunctionRef = 'ConsiderRunningToGETemplate'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTeam = oACU:GetAIBrain().M28Team
+    --Do we want to run to GE template? only consider if enemy has multiple land exp, large air to ground threat, or we have built lots of experimentals
+
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code for ACU owned by brain '..oACU:GetAIBrain().Nickname..', is it dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Defend vs arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Our constructed exp count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Enemy Air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Time='..GetGameTimeSeconds()) end
+    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and ((M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 1)) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000) then
+
+        local iClosestShield = 1000 --(i.e. ignoring distance check for shields in this zone itself)
+        local oClosestShield, iCurDist
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+
+            for iTemplate, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if tSubtable[M28Map.subrefGEbActiveShieldMonitor] and M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) == false then
+                    for iShield, oShield in tSubtable[M28Map.subrefGEShieldUnits] do
+                        if M28UnitInfo.IsUnitValid(oShield) and oShield:GetFractionComplete() == 1 then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                            if iCurDist < iClosestShield then
+                                iClosestShield = iCurDist
+                                oClosestShield = oShield
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if not(oClosestShield) then
+            --Do we have any active GE templates nearby?
+            if bDebugMessages == true then LOG(sFunctionRef..': dont have shield in GE template for this zone, is table of potentially active GE templates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))) end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
+                iClosestShield = math.min(iClosestShield, 300) --dont want to consider travelling further away than this
+                local iPlateauWanted = iPlateauOrZero
+                if iPlateauOrZero == 0 then iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) end
+                for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Active shield monitor='..tostring(tTemplateTable[M28Map.subrefGEbActiveShieldMonitor])..'; Is table of shield units empty='..tostring(M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]))) end
+                    if tTemplateTable[M28Map.subrefGEbActiveShieldMonitor] and M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]) == false then
+                        if tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] == iPlateauOrZero and M28UnitInfo.IsUnitValid(tTemplateTable[M28Map.subrefGEShieldUnits][1]) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tTemplateTable[M28Map.subrefGEShieldUnits][1]:GetPosition(), oACU:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': dist to shield '..tTemplateTable[M28Map.subrefGEShieldUnits][1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tTemplateTable[M28Map.subrefGEShieldUnits][1])..'='..iCurDist) end
+                            if iCurDist < iClosestShield then
+                                oClosestShield = tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]
+                                iClosestShield = iCurDist
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield to run to in GE template, oClosestShield='..(oClosestShield.Unitid or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')) end
+        if oClosestShield then
+            M28Orders.IssueTrackedMove(oACU, oClosestShield:GetPosition(), 4, false, 'RunToGESh')
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end

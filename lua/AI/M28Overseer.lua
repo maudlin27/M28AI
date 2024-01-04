@@ -2113,7 +2113,6 @@ function RemoveUnitsFromPlatoon(oPlatoon, tUnits, bReturnToBase, oPlatoonToAddTo
         end
         if not(oPlatoonToAddTo == oPlatoon) then
             local oArmyPool = aiBrain:GetPlatoonUniquelyNamed('ArmyPool')
-            --if not(oPlatoon==oArmyPool) then if oPlatoon:GetPlan() == 'M27ACUMain' then bDebugMessages = true end end
             local sName
             if oPlatoonToAddTo == nil then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will add units to army pool') end
@@ -2235,7 +2234,7 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
 
     if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
         for iUnit, oUnit in tUnits do
-            if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())..'; Time='..GetGameTimeSeconds()) end
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
         end
     end
