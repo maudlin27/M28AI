@@ -3865,7 +3865,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
         local iSecondsBetweenShieldCycles = 1 --will change
         local M28Config = import('/mods/M28AI/lua/M28Config.lua')
         local bUpdateName = M28Config.M28ShowUnitNames
-        local iCurShieldRadius
+        local iCurShieldRadius, iShieldWithHealth
 
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) do
             --Get the highest and lowest health active shields
@@ -3875,6 +3875,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
             oHighestHealthActiveShield = nil
             iCompletedShieldCount = 0
             iLongestRechargeTime = 10
+            iShieldWithHealth = 0
             for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
 
                 if oShield:GetFractionComplete() == 1 then
@@ -3912,6 +3913,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)) end
                         if iCurHealth > 0 then
+                            iShieldWithHealth = iShieldWithHealth + 1
                             if iCurHealth < iLowestHealth then
                                 iLowestHealth = iCurHealth
                                 oLowestHealthActiveShield = oShield
@@ -3938,8 +3940,8 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
                 end
             end
             if iCompletedShieldCount == 0 then break end
-
-            if not(oLowestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield then
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding how long to wait and whether to discharge a shield, iShieldWithHealth='..iShieldWithHealth..'; iCompletedShieldCount='..iCompletedShieldCount) end
+            if not(oLowestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield or iShieldWithHealth <= 1 then
                 --We only have 1 shield active, so dont want to reset it
                 iSecondsBetweenShieldCycles = 0.1 --review position next tick
                 if bDebugMessages == true then LOG(sFunctionRef..': we either have no or 1 active shield so wont discharge but will check again in 1 tick') end

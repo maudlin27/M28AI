@@ -824,7 +824,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 local iMexInLandZone = 0
                                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to build more mexes, iMexInLandZone='..iMexInLandZone..'; Mex count for LZ='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iResourceMod='..iResourceMod..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Mex count by tech='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; iCurLandFactories='..iCurLandFactories..'; iCurAirFactories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
-                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 or aiBrain:GetEconomyStored('MASS') < 100) and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                                if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(5, iMexInLandZone) * 0.2 * iResourceMod and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 or aiBrain:GetEconomyStored('MASS') < 100) and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                     ACUActionBuildMex(aiBrain, oACU)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                                     --Third factory if overflowing mass or have quite a bit stored
@@ -864,8 +864,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                         else
-                            --Have the power and factories that we want; if there are mexes in the zone then build them; if not then finish initial build order
-                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < tLZOrWZData[M28Map.subrefLZMexCount] and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                            --Have the power and factories that we want; if there are mexes in the zone and we have built fewer than 5 then build them; if not then finish initial build order
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < math.min(5, tLZOrWZData[M28Map.subrefLZMexCount]) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                 ACUActionBuildMex(aiBrain, oACU)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Low factory BO Will try building more mexes') end
                             else
@@ -2358,6 +2358,8 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
     local sFunctionRef = 'ConsiderNearbyReclaimForACUOrEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if EntityCategoryContains(categories.RECLAIM, oEngineer.UnitId) then
 
         local iTotalReclaimWanted
@@ -2402,10 +2404,11 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
 
         if (bGetEnergy and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= iTotalReclaimWanted) or (not(bGetEnergy) and tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= iIndividualReclaimThreshold or iIndividualReclaimThreshold <= M28Map.iSignificantMassThreshold * 0.7) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= (iMassStoredThresholdOverride or 0.6)) then
             --If any reclaim of iIndividualReclaimThreshold+ value then get ACU to reclaim
-            M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, 1, tLZTeamData, iPlateau, iLandZone, bGetEnergy, (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold)
+                                          --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
+            local bGivenOrder = M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, 1,                    tLZTeamData, iPlateau,          iLandZone,      bGetEnergy,         (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': ACU last order after checking for reclaim in area='..reprs(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]])) end
             local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
-            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
+            if bGivenOrder and tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU has a reclaim order so will stop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
@@ -3965,9 +3968,9 @@ function GetACUOrder(aiBrain, oACU)
                                                     --ACU wants to get reclaim
                                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end
                                                 else
-                                                    --Consider building power if in core zone with lots of mass
+                                                    --Consider building power if in core zone with lots of mass, and either we lack gun upgrade, or it is late game with no adjacent enemies
                                                     local bBuildingOrAssistingPower = false
-                                                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 then
+                                                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 and (oACU[refiUpgradeCount] == 0 or (oACU[M28UnitInfo.refiDFRange] or 0) < 26 or oACU[refiBuildTech] >= 2 or (GetGameTimeSeconds() >= 720 and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
                                                         if aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team) then
                                                             --Do we have no power of a higher tech level than our ACU in this core zone?
                                                             local tFriendlyPower = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -4113,7 +4116,18 @@ function GetACUOrder(aiBrain, oACU)
                                                                                 --We dont want an upgrade, and have no enemies in this LZ, but there might be enemies nearby (e.g. in an adjacent land zone); there might also be mexes to build or reclaim to get in this LZ - decide on what we want to do
                                                                                 --Does the LZ have uncalimed mexes?
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider if we want to build a mex if there are any unclaimed') end
-                                                                                if not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                local iMaxSearchRange = 40
+                                                                                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and GetGameTimeSeconds() >= 900 then iMaxSearchRange = 50
+                                                                                elseif oACU[refiUpgradeCount] > 0 then iMaxSearchRange = 30
+                                                                                end
+                                                                                if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMaxSearchRange = iMaxSearchRange - 15 end
+                                                                                if iMaxSearchRange >= 5 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and oACU[refiUpgradeCount] > 0 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                                                                                    if M28Conditions.HaveEngineersOrFactoriesInZone(tLZOrWZTeamData) then
+                                                                                        iMaxSearchRange = 5
+                                                                                    end
+                                                                                end
+
+                                                                                if not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iMaxSearchRange)) then
                                                                                     --Water zone specific - if underwater and is an underwater start position then do nothing
                                                                                     if iPlateauOrZero > 0 or not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
 
@@ -4134,8 +4148,11 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Attacking enemies in adjacent zone') end
                                                                                                     else
                                                                                                         local bOnlyConsiderInBuildRange = false
-                                                                                                        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true end
-                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build mex, will cehck if want to get reclaim, bOnlyConsiderInBuildRange='..tostring(bOnlyConsiderInBuildRange)) end
+                                                                                                        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true
+                                                                                                        elseif oACU[refiUpgradeCount] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= 2 and not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.55 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 then
+                                                                                                            bOnlyConsiderInBuildRange = true
+                                                                                                        end
+                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build mex, will cehck if want to get reclaim, bOnlyConsiderInBuildRange='..tostring(bOnlyConsiderInBuildRange)..'; Mod dist='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]) end
                                                                                                         if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, bOnlyConsiderInBuildRange)) then
                                                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get reclaim, will see if want to attack adjacent enemies; are there adjacent enemies='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) end
                                                                                                             if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
@@ -4144,24 +4161,28 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                                 --Is a friendly ACU getting an upgrade in this or an adjacent zone? If so then assist it
                                                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to assist a friendly nearby upgrading ACU if there is one') end
                                                                                                                 if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)) then
-                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
-                                                                                                                    if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
-                                                                                                                        --Do we have any reclaim nearby?
-                                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
-                                                                                                                        if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
-                                                                                                                            --Assist any upgrading mex or under construction storage if we have power but low mass
+                                                                                                                    --Search for any mexes nearby
+                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will search for unbuilt mexes in the zone with no search radius') end
+                                                                                                                    if M28Conditions.HaveEngineersOrFactoriesInZone(tLZOrWZTeamData) or not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU)) then
+                                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving to another land zone as nothing to do in this one') end
+                                                                                                                        if not(MoveToOtherLandZone(iPlateauOrZero, tLZOrWZData, iLandOrWaterZone, oACU)) then
+                                                                                                                            --Do we have any reclaim nearby?
+                                                                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Very low priority and threshold reclaim checker about to be checked') end
+                                                                                                                            if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, 0.1, 0.1, 0.8)) then
+                                                                                                                                --Assist any upgrading mex or under construction storage if we have power but low mass
 
-                                                                                                                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
-                                                                                                                                --Backup - assist nearest factory
-                                                                                                                            else
-                                                                                                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-                                                                                                                                if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-                                                                                                                                    local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-                                                                                                                                    if M28Utilities.IsTableEmpty(tAllFactories) == false then
-                                                                                                                                        local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
-                                                                                                                                        if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                                                                                                                                            M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                                if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Are assisting am ex upgrade or storage construction') end
+                                                                                                                                    --Backup - assist nearest factory
+                                                                                                                                else
+                                                                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                                                                                                                                    if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+                                                                                                                                        local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                                                                                                                                        if M28Utilities.IsTableEmpty(tAllFactories) == false then
+                                                                                                                                            local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
+                                                                                                                                            if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                                                                                                                                                M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                                                                                            end
                                                                                                                                         end
                                                                                                                                     end
                                                                                                                                 end

@@ -1888,7 +1888,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Dawn (FA Mission 2) - add redundancy so upgraidng facotires doesnt break the objective - solved via callback appraoch instead
             --[[elseif M28Utilities.IsTableEmpty(ScenarioInfo.M1P1Units) == false and not(ScenarioInfo.M1P2.Active) and ScenarioInfo.M1P1.Active then
                 --Monitor the M1P1 units and remove any that become obsolete
-                bDebugMessages = true
                 LOG(sFunctionRef..': Want to monitor ScenarioInfo.M1P1Units units, will list out each unit, is table empty='..tostring(ScenarioInfo.M1P1Units))
                 for iUnit, oUnit in ScenarioInfo.M1P1Units do
                     LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))

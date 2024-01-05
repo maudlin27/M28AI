@@ -2691,3 +2691,17 @@ function AreAnyOfTableOfUnitsInAdjacentLandZone(tUnits, iPlateau, iLandZone, tLZ
     end
     return false
 end
+
+function HaveEngineersOrFactoriesInZone(tLZOrWZTeamData)
+    local bHaveEngiOrFactory = false
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData) == false then
+        for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end

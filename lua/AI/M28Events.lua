@@ -1135,7 +1135,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 --Decide if want to shield this construction and update buildable location, or (in the case of experimentals) if we want to cancel the construction
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
-                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) and not(oEngineer[M28Building.reftArtiTemplateRefs]) then
                         local iTeam = oEngineer:GetAIBrain().M28Team
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.6)) then
                             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
@@ -2064,6 +2064,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                                     oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
                                                     table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEArtiUnits], oUnit)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added arti unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone) end
                                                 end
                                             end
                                         end
@@ -2074,6 +2075,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                                     oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
                                                     table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEShieldUnits], oUnit)
+                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEArtiUnits], oUnit)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added shiled unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone) end
                                                 end
                                             end
                                         end

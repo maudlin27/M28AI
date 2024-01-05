@@ -2102,7 +2102,6 @@ local function AssignRemainingSegmentsToLandZones()
         iBasePositionZ = - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[2]
         for iBaseSegmentZ = 1, iMaxLandSegmentZ do
             iBasePositionZ = iBasePositionZ + iLandZoneSegmentSize
-            --if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through all segments, just about to check iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]='..(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ] or 'nil')) end
             --CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSearchCycle, iCopyZoneThreshold, bTryHardToFindExistingZone)
             CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSegmentSearchDistance, iMaxSegmentZoneCopyThreshold, true)
@@ -6511,7 +6510,6 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                 end
                             end
                             if math.abs(iAltTravelDistance -  iLandTravelDistance) >= math.max(30, iAltTravelDistance * 0.25) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use the more accurate iAltTravelDistance='..iAltTravelDistance..' instead of iLandTravelDistance='..iLandTravelDistance) end
                                 iLandTravelDistance = iAltTravelDistance
                             end
@@ -8262,7 +8260,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
         tBaseTable[subrefiLargeArtiMaxSize] = 10
         tBaseTable[subrefiLargeShieldLocationCount] = 7
         --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
-        tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+        tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]-5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
         tBaseTable[subreftLargeShieldLocations] = {
             --NOTE: If changing these then review use of tbShieldEntiresNotToConsider
             [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
