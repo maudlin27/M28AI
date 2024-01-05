@@ -4393,7 +4393,7 @@ function MonitorEngineerForBlacklistLocation(oEngineer)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
+function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
     --Gets engineer to find the nearest unassigned reclaim segment in the land zone that has mass/energy, to move to the middle of it, and reclaim it
     --Factors in how much mass is in the segment and how many engineers have been assigned already and adjusts the chosen segment accordingly
     --bOnlyConsiderReclaimInRangeOfEngineer - if true then will use oEngineer position instead of the midpoint of the reclaim segment that want to target
@@ -4403,6 +4403,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
 
 
 
+    local bGivenOrder = false
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData
     if bIsWaterZone then tLZOrWZData = M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
@@ -4416,7 +4417,6 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         local iCurModDist
         local sTotalReclaimValueRef
         local iReclaimValuePerEngi
-        local bGivenOrder = false
         local oNearestReclaim
         local iEngiPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition())
 
@@ -4635,6 +4635,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bGivenOrder and bOptionalReturnTrueIfGivenOrder then return true end
 end
 
 function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted)
@@ -9620,6 +9621,53 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         iBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass)
         if iBPWanted > 0 then
             HaveActionToAssign(refActionBuildTML, 2, iBPWanted)
+        end
+    end
+
+    --High priority radar if we have fatboy
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmni]) then
+        --We have built at least 1 exp, and lack omni coverage, and have enough powe that we could probably support an omni
+        local bHaveFatboyOrSnipers = false
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy) > 0 then
+                bHaveFatboyOrSnipers = true
+                break
+            elseif oBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot) >= 3 then
+                bHaveFatboyOrSnipers = true
+                break
+            end
+        end
+        if bHaveFatboyOrSnipers then
+            --T2 radar
+            local bBuildingT2 = false
+            iCurPriority = iCurPriority + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering if want T2 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+            if tLZTeamData[M28Map.refiRadarCoverage] <= 130 then
+                --Check we dont already have t2 radar in the land zone
+                if not(tLZTeamData[M28Map.refbBaseInSafePosition]) or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+                    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+                        iBPWanted = 20
+                        if not(bHaveLowMass) then iBPWanted = 60 end
+                        HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                        bBuildingT2 = true
+                    end
+                end
+            end
+
+            --T3 radar
+            iCurPriority = iCurPriority + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+            if not(bSaveMassForMML) and tLZTeamData[M28Map.refiRadarCoverage] <= 300 then
+                --Require T3 mexes before building T3 radar
+                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) then
+                    iBPWanted = 30
+                    if not(bHaveLowMass) then iBPWanted = 100 end
+                    if bBuildingT2 then iBPWanted = 5 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+                    HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
+                end
+            end
         end
     end
 
