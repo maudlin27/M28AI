@@ -2102,7 +2102,6 @@ local function AssignRemainingSegmentsToLandZones()
         iBasePositionZ = - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[2]
         for iBaseSegmentZ = 1, iMaxLandSegmentZ do
             iBasePositionZ = iBasePositionZ + iLandZoneSegmentSize
-            --if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through all segments, just about to check iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]='..(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ] or 'nil')) end
             --CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSearchCycle, iCopyZoneThreshold, bTryHardToFindExistingZone)
             CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSegmentSearchDistance, iMaxSegmentZoneCopyThreshold, true)
@@ -6511,7 +6510,6 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                 end
                             end
                             if math.abs(iAltTravelDistance -  iLandTravelDistance) >= math.max(30, iAltTravelDistance * 0.25) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use the more accurate iAltTravelDistance='..iAltTravelDistance..' instead of iLandTravelDistance='..iLandTravelDistance) end
                                 iLandTravelDistance = iAltTravelDistance
                             end
