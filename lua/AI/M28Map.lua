@@ -8262,7 +8262,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
         tBaseTable[subrefiLargeArtiMaxSize] = 10
         tBaseTable[subrefiLargeShieldLocationCount] = 7
         --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
-        tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]+5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
+        tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]-5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
         tBaseTable[subreftLargeShieldLocations] = {
             --NOTE: If changing these then review use of tbShieldEntiresNotToConsider
             [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
