@@ -57,7 +57,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitToUpgrade.UnitId) then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname) end
 
@@ -904,6 +904,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
                 iT2PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
             end
             if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
+                if iT2PowerEquivalent >= 2 then M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] = false end --If game is late enough that we have built multiple t2 pgens then should start ecoing
                 if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
@@ -911,6 +912,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
             end
         end
     elseif iPowerTechLevel == 3 then
+        M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] = false --redundancy (wouldnt expect to get to this point anyway with t1 spam active)
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             local iT3PowerEquivalent = 0
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -2495,56 +2497,59 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     WaitSeconds(iTimeToWait)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oMex) then
-        --Only do this if there are 3+ mexes in the zone, or it's a plateau
         local iTeam = oMex:GetAIBrain().M28Team
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; safe to upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oMex))..'; Time='..GetGameTimeSeconds()) end
-        if M28Conditions.SafeToUpgradeUnit(oMex) then
-            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oMex:GetPosition())
-            local tLZOrWZData, tLZOrWZTeamData
-            if iPlateauOrZero == 0 then
-                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-            else
-                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-            end
+        if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
+            --Only do this if there are 3+ mexes in the zone, or it's a plateau
 
-            --Are there enough mexes that we want to consider upgrading?
-            if bDebugMessages == true then LOG(sFunctionRef..': Safe to upgrade, will proceed if enoguh mexes in this zone to support an upgrade, or dealing with a 2 mex plateau, tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Plateau mex count='..M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount]) end
-            if tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZMexCount] >= math.max(2, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] * 0.5)) then
-                --Do we have any active mex upgrades?
-                if bDebugMessages == true then LOG(sFunctionRef..': active mex upgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is team table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))..'; Gross mass for brain='..oMex:GetAIBrain()[refiGrossMassBaseIncome])
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
-                        LOG(sFunctionRef..': Number of mexes upgrading on team='..table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))
-                    end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; safe to upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oMex))..'; Time='..GetGameTimeSeconds()) end
+            if M28Conditions.SafeToUpgradeUnit(oMex) then
+                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oMex:GetPosition())
+                local tLZOrWZData, tLZOrWZTeamData
+                if iPlateauOrZero == 0 then
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                else
+                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                 end
-                local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oMex)
-                if (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
-                    (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or
-                    M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or
-                    (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and oMex:GetAIBrain()[refiGrossMassBaseIncome] >= 3.5 * iMexTechLevel and (iMexTechLevel == 1 or  table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) or
-                    ((tLZOrWZData[M28Map.subrefLZMexCount] >= 4 or tLZOrWZData[M28Map.subrefLZbCoreBase]) and M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])
-                    ) then
-                    --Do we have any mexes lower than this tech level? if so then dont upgrade
 
-                    if iMexTechLevel > 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
-                        ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
+                --Are there enough mexes that we want to consider upgrading?
+                if bDebugMessages == true then LOG(sFunctionRef..': Safe to upgrade, will proceed if enoguh mexes in this zone to support an upgrade, or dealing with a 2 mex plateau, tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Plateau mex count='..M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount]) end
+                if tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZMexCount] >= math.max(2, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] * 0.5)) then
+                    --Do we have any active mex upgrades?
+                    if bDebugMessages == true then LOG(sFunctionRef..': active mex upgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is team table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))..'; Gross mass for brain='..oMex:GetAIBrain()[refiGrossMassBaseIncome])
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                            LOG(sFunctionRef..': Number of mexes upgrading on team='..table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))
+                        end
+                    end
+                    local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oMex)
+                    if (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
+                            (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or
+                                    M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or
+                                    (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and oMex:GetAIBrain()[refiGrossMassBaseIncome] >= 3.5 * iMexTechLevel and (iMexTechLevel == 1 or  table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) or
+                                    ((tLZOrWZData[M28Map.subrefLZMexCount] >= 4 or tLZOrWZData[M28Map.subrefLZbCoreBase]) and M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])
+                            ) then
+                        --Do we have any mexes lower than this tech level? if so then dont upgrade
+
+                        if iMexTechLevel > 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
+                            ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
+                        else
+                            --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as it has been active a while') end
+                            UpgradeUnit(oMex, true)
+                        end
                     else
-                        --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as it has been active a while') end
-                        UpgradeUnit(oMex, true)
+                        --Check in a bit as we already have a mex upgrading or we are stalling resources
+                        ForkThread(ConsiderFutureMexUpgrade, oMex, 20)
                     end
                 else
-                    --Check in a bit as we already have a mex upgrading or we are stalling resources
-                    ForkThread(ConsiderFutureMexUpgrade, oMex, 20)
+                    --Dont want to consider so will just rely on default logic
                 end
-            else
-                --Dont want to consider so will just rely on default logic
-            end
 
-        else
-            --Not safe to upgrade, consider in a while
-            ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
+            else
+                --Not safe to upgrade, consider in a while
+                ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

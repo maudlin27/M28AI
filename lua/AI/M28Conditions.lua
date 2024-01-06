@@ -1114,6 +1114,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                     bWantMoreFactories = true
                 elseif iAverageCurAirAndLandFactories >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 and ( M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.05 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': We have constructed at least 1 experimental and arent about to overflow mass so wont get any more factories') end
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 250 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': In t1 spam mode with at least 250 mass stored so want more factories') end
+                    bWantMoreFactories = true
                 elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -120) >= 120 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -120) >= 120 and (GetGameTimeSeconds() >= 300 or GetGameTimeSeconds() >= 300 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]))
                         or ((iCurIsland == iEnemyIsland or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or iAverageCurAirAndLandFactories <= (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0))
                         and     (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05 or
@@ -1601,8 +1604,11 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             end
                                         end
                                         local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end
-                                        if iAirFactoriesWanted > iAirFactoriesHave then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave..'; In t1 spam mode='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
+                                        if iAirFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to focus on t1 spam so want more land facs') end
+                                            return false
+                                        elseif iAirFactoriesWanted > iAirFactoriesHave then
                                             --If we have 1 air fac, and want to save mass for mmls, then get land fac instead
                                             if iAirFactoriesHave > 0 and iLandFactoriesHave > 0 and iLandFactoriesHave < 7 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, TeamHasLowMass(iTeam)) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Want MMLs so will try and get more land facs instead of air') end
