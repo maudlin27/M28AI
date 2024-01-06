@@ -64,6 +64,7 @@ refbBuildingExperimental = 'M28EngBuildingExperimental' --True if engineer is bu
 refiAssignedActionPriority = 'M28EngPriority' --Priority of the currently assigned action
 reftUnitBlacklistSegmentXZ = 'M28UnitBlacklist' --table, ordered 1, 2...', returns {SegmentX, SegmentZ} - contains blacklist details for a unit, used for under construciton experimentals so when construction completes the blacklist status can be cleared
 refiGETemplateTimeTryingToBuild = 'M28UnitTimBldGE' --If an engineer on gameender template duty is trying to construct somethign, this tracks how man ycycles it has been trying to construct before being given a reset order
+refiPlateauAndZoneTravelingBeforeTempReclaimOrder = 'M28EngTrZT' --If engineer was moving to a land zone but was then temporarily given a reclaim order, then this shoudl record the zone itw as traveling to prior to the reclaim order and then give it a new travel order to this zone even if another engi is also going there
 
 --Shield related variables against a unit
 refiFailedShieldBuildDistance = 'M28EngFailedShieldBuildDist' --against a building wanting shielding - records the distance of the closest location that we can build (so can decide if the unit can even be shielded)
@@ -3536,18 +3537,50 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
 
             --Finished checking for enemies; now check more generally if engineer is busy
+            if bDebugMessages == true then LOG(sFunctionRef..': Is engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' unavailable='..tostring(bEngiIsUnavailable)) end
             if not(bEngiIsUnavailable) then
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
-                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)) end
-                if bCheckForReclaim then
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)..'; oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] ='..repru(oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] )) end
+                if oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] and not(oEngineer[refiAssignedAction] == refActionMoveToLandZone) and not(oEngineer:IsUnitState('Reclaiming')) then
+                    local iTargetPlateau = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][1]
+                    local iTargetZone = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][2]
+
+                    oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = nil
+
+                    local tTargetZoneData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
+
+                    if bDebugMessages == true then
+                        if not(tTargetZoneData[M28Map.subrefMidpoint]) then LOG(sFunctionRef..': Dont have valid midpoint data for target P='..iTargetPlateau..';Z='..iTargetZone)
+                        else
+                            LOG(sFunctionRef..': Considering if engi is closer to the target sone P'..iTargetPlateau..'Z'..iTargetZone..' zone it used to be traveling to than this midpoint, dist from engi to prev zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition())..'; Dist from this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]))
+                        end
+                    end
+                    if tTargetZoneData and M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition()) <= M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) then
+
+                        M28Orders.IssueTrackedMove(oEngineer, tTargetZoneData[M28Map.subrefMidpoint], 3, false, 'ResumeeMTP'..iTargetPlateau..'Z'..iTargetZone)
+                        TrackEngineerAction(oEngineer, refActionMoveToLandZone, false, 1, { iTargetPlateau, iTargetZone })
+                        bEngiIsUnavailable = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': will send engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to this zone, oEngineer[M28Land.reftiPlateauAndLZToMoveTo]='..repru(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])) end
+                    end
+                elseif bCheckForReclaim then
                     if not(bEngiIsUnavailable) then
                         if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 20) then
                             bEngiIsUnavailable = true
                         end
                     elseif oEngineer:IsUnitState('Moving') and oEngineer[refiAssignedAction] == refActionMoveToLandZone then
                         --Engineer is already busy; exception if engineer is traveling to another zone where want to reissue its old order after issuing a reclaim order
+                        local iTargetPlateau = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]
+                        local iTargetZone = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]
+
                         if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 50) then
-                            bEngiIsUnavailable = true
+                            if iTargetPlateau and iTargetZone then
+
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording plateau and LZ that engi was going to move to but has been diverted from, iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')) end
+                                bEngiIsUnavailable = true
+                                oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = {iTargetPlateau, iTargetZone}
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; had an action to move to a land zone but didnt have a target plateau or zone recorded (maybe it ran from enemy units?), so it wont resume its orders later')
+                            end
                         end
                     end
                 end
@@ -4131,6 +4164,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     if tOptionalPlatAndLandToMoveTo then
         oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = {tOptionalPlatAndLandToMoveTo[1], tOptionalPlatAndLandToMoveTo[2]}
         tTargetLZTeamData = M28Map.tAllPlateaus[tOptionalPlatAndLandToMoveTo[1]][M28Map.subrefPlateauLandZones][tOptionalPlatAndLandToMoveTo[2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+        if bDebugMessages == true then LOG(sFunctionRef..': Recorded engi as having a plateau to move to, oEngineer[M28Land.reftiPlateauAndLZToMoveTo]='..repru(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])) end
     end
     if vOptionalOtherVariable then
         if iActionToAssign == refActionReclaimArea then
@@ -6445,7 +6479,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionBuildEmergencyArti and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFixedT2Arti) >= 2 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) bDebugMessages = false end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -9509,10 +9543,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     else
                         tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                     end
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Getting T2 arti to deal with enemy navy') end
                     HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
-                    bDebugMessages = false
                 end
             end
         end
@@ -14512,7 +14544,6 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFixedT2Arti) >= 2 then bDebugMessages = true end
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Time='..GetGameTimeSeconds()) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
@@ -14635,7 +14666,13 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
                 end
                 local iThreatWanted = math.max(iEnemyLongRangeThreat * 1.5, iHighestIndividiualLongRangeThreat * 0.75, iLongRangeFurtherAwayThreat) + iNearbyEnemyFixedShieldThreat * 5 - iCurDFThreat * 0.75 - iCurIFThreat
-                if iNearbyEnemyFixedShieldThreat > 0 and iEnemyLongRangeThreat > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then iThreatWanted = math.max(10000, iThreatWanted) end
+                if iNearbyEnemyFixedShieldThreat > 0 and iEnemyLongRangeThreat > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    if iThreatWanted >= 4000 or (not(bHaveLowMass) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) >= math.min(4, tLZData[M28Map.subrefLZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                        iThreatWanted = math.max(10000, iThreatWanted)
+                    elseif iNearbyEnemyFixedShieldThreat >= 1000 or iEnemyLongRangeThreat >= 1000 then
+                        iThreatWanted = math.max(4000, iThreatWanted)
+                    end
+                end
 
 
                 if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
@@ -14715,9 +14752,19 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if bAreBuildingShield then iBPWanted = iBPWanted * 0.25 end
 
                         local oFactoryToAssistInstead
-                        if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 then
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
-                                --At high mass levels want to build t2 arti anyway
+                        local bEnemyHasFatboyOrMegalith = false
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                            local tFatboyOrMegalith = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])
+                            if M28Utilities.IsTableEmpty(tFatboyOrMegalith) == false then
+                                for iFatboy, oFatboy in tFatboyOrMegalith do
+                                    if M28UnitInfo.IsUnitValid(oFatboy) and oFatboy:GetFractionComplete() >= 0.75 then
+                                        bEnemyHasFatboyOrMegalith = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bEnemyHasFatboyOrMegalith) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2) then
+                                --At high mass levels want to build t2 arti anyway instead of assisting a factory
                                 if bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 16 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) == 0)) then
                                     local tLandHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if M28Utilities.IsTableEmpty(tLandHQs) == false then
@@ -14731,7 +14778,19 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                                 end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to assist land factory for MML, or get T2 arti,oFactoryToAssistInstead='..(oFactoryToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssistInstead) or 'nil')) end
+                        if not(oFactoryToAssistInstead) and not(bEnemyHasFatboyOrMegalith) and iBestEnemyRange <= 80 then
+                            --If we have t3 factory nearby then assist that
+                            local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                                for iFactory, oFactory in tLandFactories do
+                                    if oFactory[M28Factory.refiTotalBuildCount] <= 20 then
+                                        oFactoryToAssistInstead = oFactory
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to assist land factory for MML, or get T2 arti, bEnemyHasFatboyOrMegalith='..tostring(bEnemyHasFatboyOrMegalith)..'; oFactoryToAssistInstead='..(oFactoryToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssistInstead) or 'nil')) end
                         if oFactoryToAssistInstead then
                             HaveActionToAssign(refActionAssistLandFactory, 1, iBPWanted, oFactoryToAssistInstead)
                         else
@@ -14745,10 +14804,8 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             else
                                 tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                             end
-                            bDebugMessages = true
                             HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
-                            bDebugMessages = false
                         end
 
                     end

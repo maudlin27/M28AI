@@ -1691,7 +1691,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                     end
                 elseif bDebugMessages == true then
                     LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has already been considered (considered='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..')')
-                    --M28Utilities.ErrorHandler('Audit trail', true, true)
                 end
 
 
@@ -4087,7 +4086,6 @@ function MonitorLeavingT1SpamMode(iTeam)
             end
 
         end
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Exiting t1 spam mode now for team '..iTeam..', time='..GetGameTimeSeconds()) end
         tTeamData[iTeam][refbFocusOnT1Spam] = false
         tTeamData[iTeam][refbActiveT1SpamMonitor] = false
