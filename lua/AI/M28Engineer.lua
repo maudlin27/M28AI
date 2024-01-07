@@ -6047,9 +6047,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
             iTicksToWait = iTicksToWait - 10
         end
         if M28Overseer.refiCurGETemplateGlobalCount == 1 then iTicksToWait = math.min(iTicksToWait, 4) end
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Count='..M28Overseer.refiCurGETemplateGlobalCount..'; iTicksToWait='..iTicksToWait..'; iCurTick='..iCurTick..'; Time='..GetGameTimeSeconds()) end
-        bDebugMessages = false
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(iTicksToWait)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
