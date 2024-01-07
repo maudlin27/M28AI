@@ -2284,8 +2284,10 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
 
     if tPriorityEnemyTargets then
         for iEnemyUnit, oEnemyUnit in tPriorityEnemyTargets do
-            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
-            ConsiderAttackingUnit(oEnemyUnit, iThreatWanted)
+            if M28UnitInfo.IsUnitValid(oEnemyUnit) then --redundancy due to lua message that saw once
+                iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
+                ConsiderAttackingUnit(oEnemyUnit, iThreatWanted)
+            end
         end
     end
 
