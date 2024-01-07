@@ -3551,10 +3551,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bAttackWithOutrangedDFUnits = false
                 local iAngleThresholdForRally --i.e. what angle dif need between us and nearest enemy to just retreat in opposite direction instead of going to rally
                 local iSkirmisherDistToNearestEnemy
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether to attack with outranged units, is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; are there dangerous enemies in this LZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Our mobile DF threat='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; Enemy combat total for this zone='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Enemy threat in adj zones='..GetEnemyCombatThreatInAdjacentZones()) end
                 if tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are in core base so want to attack with outranged units if enemy is in this zone, subrefbDangerousEnemiesInThisLZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) end
                     bAttackWithOutrangedDFUnits = true
-                elseif tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 1.3 * math.max(20, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.1 then
+                elseif (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 1.3 * math.max(20, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.1) then
                     bAttackWithOutrangedDFUnits = true
 
                     --Change to false if we are likeyl to have outranged DF units and enemy has significant nearby threat
@@ -3627,6 +3628,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after factoring in nearby zones='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits)..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange) end
                 end
+
 
                 local bUpdateNearestUnit = false
                 local bCheckIfNearestUnitVisible = false
@@ -4041,6 +4043,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 if M28Utilities.IsTableEmpty(tOutrangedCombatUnits) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have outranged combat units, bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits or false)) end
+                    --Consider still attacking if we have a large threat for our outranged combat units
+                    if not(bAttackWithOutrangedDFUnits) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.3 then
+                        local iOutrangedThreat = M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)
+                        local iLRThreat = iAvailableCombatUnitThreat - iOutrangedThreat
+                        if iOutrangedThreat > 4 * GetEnemyCombatThreatInAdjacentZones() or (iOutrangedThreat > 2 * iLRThreat and iOutrangedThreat > GetEnemyCombatThreatInAdjacentZones() * 1.15 and iOutrangedThreat >= math.min(2000, iLRThreat * 3.5))  then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have enough short range threat to attack with it') end
+                            bAttackWithOutrangedDFUnits = true
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Revisited decision on whether to attack depending on threat of outranged combat units vs overall threat, iOutrangedThreat='..iOutrangedThreat..'; iLRThreat='..iLRThreat..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits or false)) end
+                    end
                     if bAttackWithOutrangedDFUnits then
                         for iUnit, oUnit in tOutrangedCombatUnits do
                             if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end

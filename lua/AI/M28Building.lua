@@ -1391,14 +1391,22 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     --Track mexes by team
 
     local iTeam
+    local oOwnerBrain
     for iBrain, oBrain in ArmyBrains do
         if iBrain == iOwnerArmyIndex then
+            oOwnerBrain = oBrain
             iTeam = oBrain.M28Team
             break
         end
     end
-    local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
-    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+    if iTeam then
+        local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
+        M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+    else
+        if not(oOwnerBrain) or not(M28Conditions.IsCivilianBrain(oOwnerBrain)) then
+            M28Utilities.ErrorHandler('Mex death for a brain that doesnt have a team, oOwnerBrain='..(oOwnerBrain.Nickname or 'nil'))
+        end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1438,7 +1446,7 @@ function OnMexConstructionStarted(oUnit)
         tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
+    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; on team '..(oUnit:GetAIBrain().M28Team or 'nil')) end
     local bFoundMexLocation = false
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
         --Find the closest mex location in the zone
@@ -1566,8 +1574,15 @@ function OnMexConstructionStarted(oUnit)
 
     --Track mexes by team
     local iTeam = oUnit:GetAIBrain().M28Team
-    local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
-    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
+    if iTeam then
+        local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
+        if not(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech]) then
+            M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech] = {}
+        end
+        M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
+    elseif not(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain())) then
+        M28Utilities.ErrorHandler('No brain for mex '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' owned by brain '..(oUnit:GetAIBrain().Nickname or 'nil')..' so wont record for that brain team')
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

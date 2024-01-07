@@ -1848,7 +1848,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         return false
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' on team '..iTeam..'; Dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Air to ground threat='..tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Team air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
-    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))) then
+    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -3968,10 +3968,10 @@ function GetACUOrder(aiBrain, oACU)
                                                     --ACU wants to get reclaim
                                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end
                                                 else
-                                                    --Consider building power if in core zone with lots of mass, and either we lack gun upgrade, or it is late game with no adjacent enemies
+                                                    --Consider building power if in core zone with lots of mass, and either we lack gun upgrade, or it is late game with no adjacent enemies; however require our stored actual energy to be less then 4k (since we may have just built energy storage)
                                                     local bBuildingOrAssistingPower = false
                                                     if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 and (oACU[refiUpgradeCount] == 0 or (oACU[M28UnitInfo.refiDFRange] or 0) < 26 or oACU[refiBuildTech] >= 2 or (GetGameTimeSeconds() >= 720 and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
-                                                        if aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team) then
+                                                        if (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team)) and (not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) or (aiBrain:GetEconomyStored('ENERGY') < 3500 and (aiBrain[M28Economy.refiNetEnergyBaseIncome] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0))) then
                                                             --Do we have no power of a higher tech level than our ACU in this core zone?
                                                             local tFriendlyPower = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                             local oNearestUnderConstructionPower, iCurDist
@@ -4234,11 +4234,14 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
         if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
             bStillBeAggressive = false
         else
-            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+            --If we are going all-in on T1 spam then want to be aggressive with ACU if it has a gun
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
+            if oACU[refiUpgradeCount] > 0 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.7 and GetGameTimeSeconds() <= 1000 and tLZOrWZTeamData[M28Map.refiModDistancePercent] < 0.6 then
+                --Will remain aggressive
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
                 bStillBeAggressive = true --redundancy
             else
                 --If significant time elapsed then remove this flag
-                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
                 if GetGameTimeSeconds() >= 900 then
                     bStillBeAggressive = false
                 else
@@ -4329,10 +4332,11 @@ function ManageACU(aiBrain, oACUOverride)
         M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
 
         --Make sure we have recorded this zone as a core zone
-        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-        if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
-
-        end
+        --[[local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+        local tLZTeamData
+        if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 and GetGameTimeSeconds() <= 10 then
+            tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][oACU:GetAIBrain().M28Team]
+        end--]]
 
         oACU[refiUpgradeCount] = 0
         oACU[refbUseACUAggressively] = true

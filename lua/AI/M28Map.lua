@@ -1192,7 +1192,6 @@ function RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateau, iLandZone)
         LOG('ERROR - RecordSegmentLandZoneTempLog: iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones]))
         M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1, 200, 3)
     else
-        --if iSegmentX == 219 and iSegmentZ == 69 then LOG('ReordsegmentLandZone: Recording for iPlateau='..iPlateau..' and iLandZone='..iLandZone) M28Utilities.ErrorHandler('Audit trail', true, true) M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) end
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments], {iSegmentX, iSegmentZ})
         tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] + 1
     end

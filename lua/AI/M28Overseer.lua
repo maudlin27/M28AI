@@ -59,8 +59,10 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 
-
+--Global other variables
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
+refiCurGETemplateGlobalCount = 0 --Used to spread out calculations for gameender templates
+
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -354,7 +356,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
         else
-            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
         end
     end
     if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
@@ -773,6 +775,7 @@ function Initialisation(aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
     ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
     ForkThread(DelayedCheckOfUnitsAtStartOfGame)
+    ForkThread(DecideOnGeneralMapStrategy, aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2239,4 +2242,52 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DecideOnGeneralMapStrategy(aiBrain)
+    --Decide if we want to consider ignoring T2 mex upgrading and going all in on T1 spam
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DecideOnGeneralMapStrategy'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --5-10km 1v1 but not winter duel, and can path to enemy by land
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..aiBrain.Nickname..'; Map size='..M28Map.iMapSize..'; Players at start='.. M28Team.iPlayersAtGameStart..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) end
+    if M28Map.iMapSize >= 225 and M28Map.iMapSize <= 512 and M28Team.iPlayersAtGameStart <= 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+        --Dont stay at t1 if we have a high AiX modifier or no mexes on map, or a campaign map
+        if bDebugMessages == true then LOG(sFunctionRef..': Is low mex map='..tostring(M28Map.bIsLowMexMap)..'; Resource mult='..(aiBrain[M28Economy.refiBrainResourceMultiplier] or 1)..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)) end
+        if not(M28Map.bIsLowMexMap) and (aiBrain[M28Economy.refiBrainResourceMultiplier] or 1) <= 1.7 and not(M28Map.bIsCampaignMap) then
+            --Are there lots of mexes outside the core bases to fight over, and most are in the core base plateau?
+            local iMexesOnMap = table.getn(M28Map.tMassPoints)
+            if bDebugMessages == true then LOG(sFunctionRef..': iMexesOnMap='..iMexesOnMap) end
+            if iMexesOnMap < 80 then
+                local iMexesInStartZones = 0
+                local iStartPlateau, iStartZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPlayerStartPosition(aiBrain))
+                if iStartPlateau and iStartZone and M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauTotalMexCount] >= 0.8 * iMexesOnMap then
+                    local tiStartZones = {}
+                    for iBrain, oBrain in tAllAIBrainsByArmyIndex do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to include brain start posiiton, oBrain='..oBrain.Nickname..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))) end
+                        if not(M28Conditions.IsCivilianBrain(oBrain)) then
+                            local iPlateau, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPlayerStartPosition(aiBrain))
+                            if iPlateau == iStartPlateau then tiStartZones[iZone] = true end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tiStartZones) == false then
+                        for iZone, bInclude in tiStartZones do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will include mexes in zone '..iZone..'; Mex count for this zone='..(M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZMexCount] or 0)) end
+                            iMexesInStartZones = iMexesInStartZones + (M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZMexCount] or 0)
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iMexesInStartZones='..iMexesInStartZones..'; iMexesOnMap='..iMexesOnMap) end
+                if iMexesInStartZones < 0.45 * iMexesOnMap then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refbFocusOnT1Spam] = true
+                    ForkThread(M28Team.MonitorLeavingT1SpamMode, aiBrain.M28Team)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to avoid getting T2 mex upgrade') end
+                end
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end
