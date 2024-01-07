@@ -72,6 +72,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
     refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
     refiMexCountByTech = 'M28TeamMexByTech' --for all brains, not just M28 brains, treats a 1% complete mex as being completed for these purposes (to simplify code)
+    refbBuiltParagon = 'M28TeamBltPa' --true if someone on the team has a paragon
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -4046,7 +4047,7 @@ end
 
 function MonitorLeavingT1SpamMode(iTeam)
     local sFunctionRef = 'MonitorLeavingT1SpamMode'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Will start monitoring whether we want to cancel our t1 spam flag for iTeam='..iTeam..'; Start of code, time='..GetGameTimeSeconds()) end
     if not(tTeamData[iTeam][refbActiveT1SpamMonitor]) and tTeamData[iTeam][refbFocusOnT1Spam] then

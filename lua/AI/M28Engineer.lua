@@ -578,7 +578,7 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) <= 10 then
                 if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) <= 30 then
                     local iSegmentsToConsider = 4
-                    if tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] < tLZOrWZData[M28Map.subrefLZTotalSegmentCount] then iSegmentsToConsider = 15 end
+                    if (tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) < (tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 0) then iSegmentsToConsider = 15 end
                     SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider)
                 end
             end
@@ -5517,7 +5517,9 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         aiBrain = oFirstSeraphim:GetAIBrain()
         iFactionRef = M28UnitInfo.refFactionSeraphim
         oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
-        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+        if oEngineerToBuild then
+            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+        end
 
     end
     if not(sShieldToBuild) then
@@ -5525,27 +5527,35 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             aiBrain = oFirstUEF:GetAIBrain()
             iFactionRef = M28UnitInfo.refFactionUEF
             oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
-            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+            if oEngineerToBuild then
+                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+            end
         end
         if not(sShieldToBuild) then
             if oFirstAeon then
                 aiBrain = oFirstAeon:GetAIBrain()
                 iFactionRef = M28UnitInfo.refFactionAeon
                 oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
-                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                if oEngineerToBuild then
+                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                end
             end
             if not(sShieldToBuild) then
                 if oFirstCybran then
                     aiBrain = oFirstCybran:GetAIBrain()
                     iFactionRef = M28UnitInfo.refFactionCybran
                     oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
-                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                    if oEngineerToBuild then
+                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                    end
                 end
                 if not(sShieldToBuild) then
                     if oFirstEngineer then
                         aiBrain = oFirstEngineer:GetAIBrain()
                         oEngineerToBuild = oFirstEngineer
-                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                        if oEngineerToBuild then
+                            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oEngineerToBuild)
+                        end
                     end
                 end
             end
@@ -6062,12 +6072,14 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
                     for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
                         table.insert(tAvailableEngineers, oEngineer)
-                        if not(oFirstUEF) and EntityCategoryContains(categories.UEF * categories.TECH3, oEngineer.UnitId) then oFirstUEF = oEngineer end
-                        if not(oFirstAeon) and EntityCategoryContains(categories.AEON * categories.TECH3, oEngineer.UnitId) then oFirstAeon = oEngineer end
-                        if not(oFirstCybran) and EntityCategoryContains(categories.CYBRAN * categories.TECH3, oEngineer.UnitId) then oFirstCybran = oEngineer end
-                        if not(oFirstSeraphim) and EntityCategoryContains(categories.SERAPHIM * categories.TECH3, oEngineer.UnitId) then oFirstSeraphim = oEngineer end
-                        if not(oFirstEngineer) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3 + categories.SUBCOMMANDER * categories.TECH3, oEngineer.UnitId) then oFirstEngineer = oEngineer end
-                        if not(oEngineer[M28Building.reftArtiTemplateRefs]) then oEngineer[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef} end --redundancy
+                        if EntityCategoryContains(categories.ENGINEER * categories.TECH3, oEngineer.UnitId) then
+                            if not(oFirstUEF) and EntityCategoryContains(categories.UEF * categories.TECH3, oEngineer.UnitId) then oFirstUEF = oEngineer end
+                            if not(oFirstAeon) and EntityCategoryContains(categories.AEON * categories.TECH3, oEngineer.UnitId) then oFirstAeon = oEngineer end
+                            if not(oFirstCybran) and EntityCategoryContains(categories.CYBRAN * categories.TECH3, oEngineer.UnitId) then oFirstCybran = oEngineer end
+                            if not(oFirstSeraphim) and EntityCategoryContains(categories.SERAPHIM * categories.TECH3, oEngineer.UnitId) then oFirstSeraphim = oEngineer end
+                            if not(oFirstEngineer) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3 + categories.SUBCOMMANDER * categories.TECH3, oEngineer.UnitId) then oFirstEngineer = oEngineer end
+                            if not(oEngineer[M28Building.reftArtiTemplateRefs]) then oEngineer[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef} end --redundancy
+                        end
                     end
 
                     tAvailableT3EngineersByFaction = {}

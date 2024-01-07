@@ -27,6 +27,7 @@ refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
 refiBrainResourceMultiplier = 'M28ResourceMod' --Against aiBrain, e.g. 1.5 if AiX 1.5
 refiBrainBuildRateMultiplier = 'M28BuildMod' --against aiBrain
+refbBuiltParagon = 'M28EcBltPa' --true if we have an active paragon
 
 refiMaxMassStorage = 'M28MaxMassStorage' --against aiBrain
 refiMaxEnergyStorage = 'M28MaxEnergyStorage' --against aiBrain
@@ -589,7 +590,28 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                 if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) then
                     iMassGen = 10000 * 0.1
                     iEnergyGen = 1000000 * 0.1
-                    if bDebugMessages == true then LOG(sFunctionRef..': We have a paragon, setting mass gen and energy gen accordingly, iMassGen='..iMassGen) end
+                    local iTeam = oUnit:GetAIBrain().M28Team
+                    if bDestroyed then
+                        local bRemainingParagon = false
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                            local tParagon = oBrain:GetListOfUnits(M28UnitInfo.refCategoryParagon, false, true)
+                            if M28Utilities.IsTableEmpty(tParagon) == false then
+                                for iParagon, oParagon in tParagon do
+                                    if oParagon:GetFractionComplete() == 1 then
+                                        bRemainingParagon = true
+                                        break
+                                    end
+                                end
+                            end
+                            if bRemainingParagon then break end
+                        end
+                        oUnit:GetAIBrain()[refbBuiltParagon] = bRemainingParagon
+                        M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] = bRemainingParagon
+                    else
+                        oUnit:GetAIBrain()[refbBuiltParagon] = true
+                        M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] = true
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have a paragon that has been built or killed, setting mass gen and energy gen accordingly, iMassGen='..iMassGen) end
                 else
                     local oBP = oUnit:GetBlueprint()
                     iMassGen = math.max(oBP.Economy.ProductionPerSecondMass or 0) * 0.1

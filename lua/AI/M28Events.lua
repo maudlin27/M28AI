@@ -1126,7 +1126,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
                             tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGESMDUnit] = oConstruction
-                        else M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic')
+                        else
+                            M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic, Unit='..(oConstruction.UnitId or 'nil')..'; Engineer action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Engineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil'))
+                            oConstruction[M28Building.reftArtiTemplateRefs] = nil
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFactory + categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) then oEngineer[M28Building.reftArtiTemplateRefs] = nil end
                         end
                     else M28Utilities.ErrorHandler('Started building a unit for arti template but it isnt in a zone')
                     end
@@ -2049,7 +2052,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 --First handle units that are important enough we have logic for while they are part-constructed
                 if oUnit:GetFractionComplete() >= 0.1 and not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
                     --Gameender/t3 arti and fixed shields and SMD - consider shielding/game ender template usage
-                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                    if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategorySMD - categories.FACTORY - categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
                         --Work out if we are already in a special game ender template area
                         if not(oUnit[M28Building.reftArtiTemplateRefs]) then
                             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
