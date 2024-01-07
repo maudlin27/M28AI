@@ -1695,7 +1695,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                 end
 
 
-                if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
+                if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE + categories.BENIGN, oUnit.UnitId) then
                     --Do nothing
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..(oUnit:GetBlueprint().Economy.BuildCostMass or 'nil')) end
                     --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead

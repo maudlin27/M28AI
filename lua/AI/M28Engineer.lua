@@ -6038,6 +6038,21 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
         if bDebugMessages == true then LOG(sFunctionRef..': iTemplateRef='..(iTemplateRef or 'nil')..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
         tTableRef[M28Map.subrefGEbActiveMonitor] = true
+        M28Overseer.refiCurGETemplateGlobalCount = M28Overseer.refiCurGETemplateGlobalCount + 1
+
+        local iCurTick = (GetGameTimeSeconds() - math.floor(GetGameTimeSeconds())) * 10
+        local iTicksToWait = M28Overseer.refiCurGETemplateGlobalCount - iCurTick - 1
+        if iTicksToWait < 0 then iTicksToWait = iTicksToWait + 10 end
+        while iTicksToWait >= 10 do
+            iTicksToWait = iTicksToWait - 10
+        end
+        if M28Overseer.refiCurGETemplateGlobalCount == 1 then iTicksToWait = math.min(iTicksToWait, 4) end
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Count='..M28Overseer.refiCurGETemplateGlobalCount..'; iTicksToWait='..iTicksToWait..'; iCurTick='..iCurTick..'; Time='..GetGameTimeSeconds()) end
+        bDebugMessages = false
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(iTicksToWait)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local iShieldLocations = table.getn(tTableRef[M28Map.subrefGEShieldLocations])
         local iArtiLocations = table.getn(tTableRef[M28Map.subrefGEArtiLocations])
         tTableRef[M28Map.subrefGEbDontNeedEngineers] = false

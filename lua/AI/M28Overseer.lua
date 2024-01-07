@@ -59,8 +59,10 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 
-
+--Global other variables
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
+refiCurGETemplateGlobalCount = 0 --Used to spread out calculations for gameender templates
+
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
