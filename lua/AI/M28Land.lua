@@ -3545,7 +3545,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and iFirebaseThreatAdjust == 0 and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0))) then
                     bAttackWithSameRange = false
                 end
-                if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.EXPERIMENTAL, tAvailableCombatUnits)) == false then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, so we either outrange enemy, or we have significantly more threat at their best range - i.e. equal range, bAttackWithSameRange='..tostring(bAttackWithSameRange)) end
                 local tOutrangedCombatUnits = {}
                 local tUnitsToSupport = {}
