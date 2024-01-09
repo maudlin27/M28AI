@@ -844,6 +844,7 @@ function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
                                 end
                             end
                             if bAddCurUnit then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to reclaim for iTeam='..iTeam..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 table.insert(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim], oUnit)
                                 oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction] = true
                             end

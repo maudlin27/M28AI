@@ -1886,7 +1886,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         end
 
         --Return to base if enemy has signiifcant air to ground threat and we lack air control
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.iPlayersAtGameStart * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat])) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and (oACU[refiUpgradeCount] < 3 or not(oACU:GetHealth() >= 20000 or (oACU.MyShield and oACU.MyShield:GetHealth()) >= 8000)) then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 20000 or (oACU.MyShield and oACU.MyShield:GetHealth()) >= 8000)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
@@ -4299,13 +4299,13 @@ function ManageACU(aiBrain, oACUOverride)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if iWaitCount >= 360 then --No ACU after 6m, see if we have any SACU we could use instead
             iACUSearchCategory = iACUSearchCategory + categories.SUBCOMMANDER
-            if iWaitCount >= 480 then
-                iACUSearchCategory = iACUSearchCategory + M28UnitInfo.refCategoryEngineer
+           -- if iWaitCount >= 480 then
+                --iACUSearchCategory = iACUSearchCategory + M28UnitInfo.refCategoryEngineer
                 if iWaitCount >= 600 then
-                    M28Utilities.ErrorHandler('No ACU, SACU or engineer after '..iWaitCount..' ticks so will abort')
+                    M28Utilities.ErrorHandler('No ACU or SACU after '..iWaitCount..' ticks so will abort')
                     break
                 end
-            end
+            --end
         end
     end
 

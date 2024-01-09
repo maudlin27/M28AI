@@ -698,7 +698,7 @@ function TeamHasLowMass(iTeam)
 
     local bHaveLowMass = false
     if not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] then --i.e. we dont ahve a paragon or crazy amount of SACUs
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) * (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 1) then --i.e. we dont ahve a paragon or crazy amount of SACUs
             local iMassStoredRatio = M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]
 
             if (iMassStoredRatio <= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -727,7 +727,7 @@ function HaveLowPower(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade])..'; Min energy per tech='..M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) end
     local bHaveLowPower = false
 
-    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]))) or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5) then --Paragon gives 1000000 per sec I think
+    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) * (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] or 1) and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]))) or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5) then --Paragon gives 1000000 per sec I think
         if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
             if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.95) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] then
                 bHaveLowPower = true
@@ -2414,6 +2414,7 @@ function ApplyM28ToOtherAI(aiBrain)
     local refiAllies = 2
     local refiEnemies = 3
     local refiAlliesAndEnemies = 4
+    local bIsEnemyOfSomeone = false
     if not(iCampaignAISetting == refiNone) then
         --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check if theyve not yet been set as being a M28AI brain
         if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") then
@@ -2434,17 +2435,29 @@ function ApplyM28ToOtherAI(aiBrain)
                 end
             end
 
-            if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then bEnemyOfPlayer = true end
+            if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                bEnemyOfPlayer = true
+                bIsEnemyOfSomeone = true
+            end
             if IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                 --Check there is a brain this is an enemy of
                 for iBrain, oBrain in ArmyBrains do
                     if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                        bIsEnemyOfSomeone = true
                         bAllyOfPlayerWithEnemy = true
                         break
                     end
                 end
             end
-
+            if not(bIsEnemyOfSomeone) then
+                for iBrain, oBrain in ArmyBrains do
+                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                        bIsEnemyOfSomeone = true
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)) end
             local bUseM28AI = false
             if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
@@ -2453,9 +2466,16 @@ function ApplyM28ToOtherAI(aiBrain)
                 bUseM28AI = true
             end
 
-            --override for brackman on FA M5 so we dont control the megalith:
-            if bUseM28AI and aiBrain.Nickname == 'Brackman' and ScenarioInfo.Brackman and ScenarioInfo.Fletcher and ScenarioInfo.Hex5 then
-                bUseM28AI = false
+
+            if bUseM28AI then
+                --override for brackman on FA M5 so we dont control the megalith:
+                if aiBrain.Nickname == 'Brackman' and ScenarioInfo.Brackman and ScenarioInfo.Fletcher and ScenarioInfo.Hex5 then
+                    bUseM28AI = false
+                end
+                if aiBrain.Nickname == 'Dostya' and ScenarioInfo.Wreckage_Holding and ScenarioInfo.FauxUEF and ScenarioInfo.Symbiont and ScenarioInfo.Aeon then
+                    --override for Dostya on SC Cybran M1 sine she starts with an ACU but isn't hostile to UEF or Aeon:
+                    bUseM28AI = false
+                end
             end
 
             --[[for iBrain, oBrain in ArmyBrains do

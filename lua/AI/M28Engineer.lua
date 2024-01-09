@@ -8208,8 +8208,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iApproachingACUThreat, oNearestEnemyACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
     local tNearestEnemyACU
     if oNearestEnemyACU then tNearestEnemyACU = oNearestEnemyACU:GetPosition() end
+    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat) end
-    if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and (((iApproachingACUThreat > 0 or (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2)) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU]) or (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) then
+    if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and (((iApproachingACUThreat > 0 or (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2)) and (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4))) or (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) then
         --We have T2 (or only need T1 due to enemy not having gun), so want to build PD
         local iRangeThreshold = 35 --Range of Aeon guncom
         local iCurPDThreat = 0
@@ -8256,6 +8257,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+    bDebugMessages = false
 
     --Start of game or low power - build hydro if one nearby, otherwise build pgen
     iCurPriority = iCurPriority + 1

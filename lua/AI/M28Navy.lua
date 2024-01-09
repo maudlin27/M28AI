@@ -1236,8 +1236,8 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                             local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                             iBestEnemyDFRange = math.max(iBestEnemyDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
-                            iEnemyCombatThreat = iEnemyCombatThreat + tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
-                            iOurCombatThreat = iOurCombatThreat + tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]
+                            iEnemyCombatThreat = iEnemyCombatThreat + (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                            iOurCombatThreat = iOurCombatThreat + (tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; iEnemyCombatThreat cumulative='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat) end
                         end
                     end
