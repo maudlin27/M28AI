@@ -3913,7 +3913,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     else
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                        if oUnit[M28UnitInfo.refiDFRange] > 0 and ((oUnit[M28UnitInfo.refiIndirectRange] or 0) <= (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                             --We dont outrange the enemy, but we do have other units that do
 
                             --Skirmishers - Still retreat if are in range of enemy, even if we dont outraneg them, as may e.g. be other units that we do outrange
@@ -4690,6 +4690,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'ExpMA', false)
                                         end
                                     else
+                                        local tTargetToMoveTowards
+
                                         if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tNearbyEnemyExperimentals)) == false then
                                             local oNearestEnemyExp
                                             local iClosestEnemyExpDist = 100000
@@ -4704,13 +4706,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             if iClosestEnemyExpDist > oUnit[M28UnitInfo.refiDFRange] - 3 then
                                                 bMoveTowardsExperimental = true
                                             end
+                                            tTargetToMoveTowards = oNearestEnemyExp:GetPosition()
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will advance towards closest experimental='..(oNearestEnemyExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyExp) or 'nil')..'; iClosestEnemyExpDist='..iClosestEnemyExpDist..'; tTargetToMoveTowards='..repru(tTargetToMoveTowards)) end
                                         end
+                                        if not(tTargetToMoveTowards) then tTargetToMoveTowards = {oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][1], oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][2], oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][3]} end
+
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to advance to enemy experimental, bMoveTowardsExperimental='..tostring(bMoveTowardsExperimental)) end
                                         if bMoveTowardsExperimental then
-                                            M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpM'..iLandZone)
+                                            M28Orders.IssueTrackedMove(oUnit, tTargetToMoveTowards, 6, false, 'ExpM'..iLandZone)
                                         else
                                             --Attackmove towards the experimental
-                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, tTargetToMoveTowards, 6, false, 'ExpA'..iLandZone)
                                         end
                                     end
                                 else

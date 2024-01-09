@@ -2599,7 +2599,7 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
                         if not(tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim]) then tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim] = {} end
                         table.insert(tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim], oUnit)
                         oUnit[M28UnitInfo.refbIsReclaimTarget] = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units to reclaim in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; oFirstM28Brain='..oFirstM28Brain.Nickname..'; Is tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim] empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim]))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units to reclaim for team '..iTeam..' in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; oFirstM28Brain='..oFirstM28Brain.Nickname..'; Is tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim] empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoUnitsToReclaim]))) end
                     end
                 end
             end

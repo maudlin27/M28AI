@@ -411,7 +411,7 @@ function M28BrainCreated(aiBrain)
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; bInitialSetup='..tostring(bInitialSetup or false)..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; bInitialSetup='..tostring(bInitialSetup or false)..'; Is campaign AI='..tostring(aiBrain.CampaignAI or false)..'; Cheat enabled='..tostring(aiBrain.CheatEnabled or false)..'; Time='..GetGameTimeSeconds()) end
 
     aiBrain.M28AI = true
     table.insert(tAllActiveM28Brains, aiBrain)
@@ -420,6 +420,9 @@ function M28BrainCreated(aiBrain)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
+    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAiX == 1 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AiX modifiers to brain '..aiBrain.Nickname) end
+        SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end
 
     if not(bInitialSetup) then
@@ -1231,6 +1234,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
                 iWaitCount = iWaitCount + 1
+                if GetGameTimeSeconds() >= 120 and (not(ScenarioInfo.OpEnded) or GetGameTimeSeconds() >= 240) then break end
                 for iBrain, oBrain in tHumanBrains do
                     local tPotentialStructures = oBrain:GetListOfUnits(iCategoriesOfInterest, false, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of potential units empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tPotentialStructures))) end
@@ -1264,7 +1268,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                     local iHumanBrainCount = 0
                     local iM28BrainCount = 0
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                        if oBrain.M28AI then iM28BrainCount = iM28BrainCount + 1
+                        if oBrain.M28AI and not(oBrain.CampaignAI) then iM28BrainCount = iM28BrainCount + 1
                         elseif oBrain.BrainType == 'Human' then
                             iHumanBrainCount = iHumanBrainCount + 1
                         end
@@ -1334,10 +1338,12 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier)
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo)
     --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AiX
-    ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
-    ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
+    if not(bDontChangeScenarioInfo) then
+        ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
+        ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
+    end
     local FAFBuffs = import('/lua/sim/Buff.lua')
     Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
     Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
@@ -1652,6 +1658,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                                     for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
                                         if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                            if not(tbHasPlateauAndZoneBeenRecorded[0]) then tbHasPlateauAndZoneBeenRecorded[0] = {} end
                                             tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
                                             if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {} end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding WZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
@@ -1667,6 +1674,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                                     for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjZoneRef='..iAdjZoneRef..' in iPlateuOrZero='..iPlateauOrZero) end
                                         if not(tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef]) then
+                                            if not(tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero]) then tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero] = {} end
                                             tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef] = true
                                             if not(tiAdjacentZonesByPlateau[iPlateauOrZero]) then tiAdjacentZonesByPlateau[iPlateauOrZero] = {} end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding LZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
@@ -1680,6 +1688,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                                     for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentWaterZones] do
                                         local iAdjZoneRef = tSubtable[M28Map.subrefAWZRef]
                                         if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                            if not(tbHasPlateauAndZoneBeenRecorded[0]) then tbHasPlateauAndZoneBeenRecorded[0] = {} end
                                             tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
                                             if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {} end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding WZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
@@ -2088,7 +2097,10 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         aiBrain.M28AI = true
         M28Utilities.bM28AIInGame = true
-        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false))
+        if ScenarioInfo.Options.CmApplyAiX == 1 then
+            aiBrain.CheatEnabled = true
+        end
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAiX='..(ScenarioInfo.Options.CmApplyAiX or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end

@@ -52,8 +52,8 @@ AIOpts = {
     },
     {
         default = 1,
-        label = "Use M28 for campaign AI (WIP)",
-        help = "Apply M28 to non-player AIs in campaign missions. WARNING: this can break the mission",
+        label = "M28 Coop: Use M28 AI?",
+        help = "Apply M28 to non-player AIs in campaign missions (you may also want to enable cheats to allow the option of killing objective units stuck off-map)",
         key = 'CampAI', --refer to this with ScenarioInfo.Options.CampAI, which will return the key value below
         value_text = "",
         value_help = "Which AI to apply M28 to",
@@ -82,7 +82,7 @@ AIOpts = {
     },
     {
         default = 9,
-        label = "M28 hostile campaign AI combat delay",
+        label = "M28 Coop: Hostile combat delay",
         help = "If M28 is being used for enemy campaign AI, this delays when M28 will try to attack",
         key = 'CmpAIDelay', --refer to this with ScenarioInfo.Options.CmpAIDelay, which will return the key value below; relevant for brains where aiBrain.HostileCampaignAI is true
         value_text = "%s",
@@ -91,6 +91,26 @@ AIOpts = {
             '0','30','60','90','120',
             '150', '180', '240', '300', '360', '420', '480', '540', '600',
             '720', '900', '1080', '1200', '1800', '2400', '3000', '3600',
+        },
+    },
+    {
+        default = 1,
+        label = "M28 Coop: Use AiX modifiers?",
+        help = "If M28 is being applied to hostile and/or allied campaign AI, this gives them the AiX build rate and resource rate modifiers specified in game options",
+        key = 'CmApplyAiX',
+        value_text = "",
+        value_help = "Apply AiX Resource and build rate to campaign AI?",
+        values = {
+            {
+                text = 'Yes',
+                help = 'Apply AiX modifiers',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Dont apply AiX modifiers',
+                key = 2,
+            },
         },
     },
 }

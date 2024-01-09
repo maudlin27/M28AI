@@ -1700,17 +1700,18 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..(oUnit:GetBlueprint().Economy.BuildCostMass or 'nil')) end
                     --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead
                     if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and (oUnit:GetBlueprint().Economy.BuildCostMass or 0) >= 25 then
-
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
-                        local bIncluded = false
-                        if not(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) then tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] = {}
-                        else
-                            for iReclaimUnit, oReclaimUnit in tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] do
-                                if oReclaimUnit == oUnit then bIncluded = true break end
+                        if not(M28Map.bIsCampaignMap) or not(tTeamData[aiBrain.M28Team][rebTeamOnlyHasCampaignAI]) then
+                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                            local bIncluded = false
+                            if not(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) then tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] = {}
+                            else
+                                for iReclaimUnit, oReclaimUnit in tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                                    if oReclaimUnit == oUnit then bIncluded = true break end
+                                end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in table of units to reclaim for team '..aiBrain.M28Team) end
+                            if not(bIncluded) then table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit) end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit in table of units to reclaim for team '..aiBrain.M28Team) end
-                        if not(bIncluded) then table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit) end
                     end
                 else
 
