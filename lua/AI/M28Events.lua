@@ -408,7 +408,7 @@ function OnUnitDeath(oUnit)
                                 --[[if oUnit[M28Building.reftoUnitsCoveredByShield] then
                                     --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now --]]
                                 --else
-                                    M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
+                                M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
                                 --end
                             end
 
@@ -490,6 +490,23 @@ function OnUnitDeath(oUnit)
                                             table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
                                             break
                                         end
+                                    end
+                                end
+                            end
+                        else
+                            --Specific logic to apply only if the unit is not owned by M28
+                            if oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                local sTeamDataRef
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                    sTeamDataRef = M28Map.refiNonM28TeammateFactoryCount
+                                else
+                                    sTeamDataRef = M28Map.refiNonM28TeammateMexCount
+                                end
+
+                                for _, iTeam in oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] do
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if tLZOrWZTeamData then
+                                        tLZOrWZTeamData[sTeamDataRef] = math.max(0, (tLZOrWZTeamData[sTeamDataRef] or 0) - 1)
                                     end
                                 end
                             end

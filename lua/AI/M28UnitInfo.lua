@@ -65,6 +65,7 @@ refbObjectiveUnit = 'M28ObjU' --true if unit is being used for an objective
 refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded against the unit (may not be an objective unit, but will want to avoid e.g. ctrl-King if M28 owns it)
 refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
 refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
+reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro

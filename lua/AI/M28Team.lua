@@ -1625,6 +1625,19 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         table.insert(tTeamData[aiBrain.M28Team][reftoCampaignNeutralUnitsNotRecorded], oUnit)
                                     end
                                 end
+                                --Track non-M28 teammate units
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if tLZOrWZTeamData then
+                                        if not(oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally]) then oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] = {} end
+                                        table.insert(oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally], aiBrain.M28Team)
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                            tLZOrWZTeamData[M28Map.refiNonM28TeammateFactoryCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) + 1
+                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                            tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) + 1
+                                        end
+                                    end
+                                end
                             else
                                 --M28 ally specific
 
@@ -3238,6 +3251,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyTMD] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyPotentialTMLTargets] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiAvailableMobileShieldThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateFactoryCount] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateMexCount] = 0
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
