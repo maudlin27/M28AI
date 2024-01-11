@@ -182,7 +182,7 @@ refCategoryUpgraded = refCategoryT2Radar + refCategoryT3Radar + refCategoryT2Son
 
 --Land units
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
-refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS
+refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMonkeylord = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE - categories.SNIPER
 refCategoryMegalith = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE * categories.SNIPER
@@ -276,7 +276,7 @@ refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refC
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
-refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS
+refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD + refCategoryNavalSurface * categories.BATTLESHIP --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
