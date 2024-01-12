@@ -577,6 +577,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         ACUActionBuildPower(aiBrain, oACU)
                         --High resource mods where we are going to be getting T2 on our ACU as our first upgrade - go to T2
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 and oACU[refiUpgradeCount] == 0 and aiBrain[M28Economy.refiNetMassBaseIncome] >= 1 and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 25 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData) == 'AdvancedEngineering' and M28Conditions.SafeToUpgradeUnit(oACU) then
+                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Early T2 upgrade for high resourcem odifier games') end
                         M28Orders.IssueTrackedEnhancement(oACU, 'AdvancedEngineering', false, 'ACUT2')
                         --We have T2+ and want power
@@ -1145,7 +1146,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             --FAF upcoming balance patch expected 15th July to introduce nano upgrade for Cybran
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
         end
     end
 

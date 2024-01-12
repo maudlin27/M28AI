@@ -1101,7 +1101,6 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
-
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
 
