@@ -4456,7 +4456,6 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     local bGivenOrder = false
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData
@@ -7180,11 +7179,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                 elseif iActionToAssign == refActionReclaimArea then
-                    local bWantEnergyNotMass = vOptionalVariable
+                    local bWantEnergyNotMass = vOptionalVariable[1]
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                         if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim nearby, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                         --GetEngineerToReclaimNearbyArea(oEngineer,                       iPriorityOverride,   tLZOrWZTeamData, iPlateauOrPondOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
-                        GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], iCurPriority, tLZOrWZTeamData, iPlateauOrPond,           iLandOrWaterZone,      bWantEnergyNotMass, false, nil, bIsWaterZone)
+                        GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], iCurPriority, tLZOrWZTeamData, iPlateauOrPond,           iLandOrWaterZone,      bWantEnergyNotMass, false, vOptionalVariable[2], bIsWaterZone)
                         UpdateBPTracking()
                     end
                 elseif iActionToAssign == refActionReclaimFriendlyUnit or iActionToAssign == refActionReclaimEnemyUnit then
@@ -8447,7 +8446,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Low mass and significant relcaim with no enemies - assign 1 engineer as very high priority (so we can fund other high priority actions)
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
+    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.15 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.3 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority mass reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]..'; Signif mass='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
         iBPWanted = 5
         if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
@@ -8457,7 +8456,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
             end
         end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+        --Have 1 engi search for high value wrecks
+        HaveActionToAssign(refActionReclaimArea, 1, 5, { false, 50 })
+        --Then have 1-2 engis search for reclaim generally
+        iCurPriority = iCurPriority + 1
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
+
+
+    else
+        iCurPriority = iCurPriority + 1
     end
 
     --Have 1 engi start on an experimental if we have all T3 mexes and very high mass % stored
@@ -9097,7 +9104,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Early game tree reclaim: bHaveLowPower='..tostring(bHaveLowPower)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Want to relcaim energy nt mass='..tostring(M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone))) end
     if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 12 and M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
-        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+        HaveActionToAssign(refActionReclaimArea, 1, 5, {true, nil})
     end
 
     --Send engineers to adjacent zones wnating engineers hwich already have some engineers in them
@@ -9194,9 +9201,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we will want to reclaim mass in LZ, bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefTotalMassReclaim]='..tLZData[M28Map.subrefTotalMassReclaim]) end
     if bHaveLowMass and tLZData[M28Map.subrefTotalMassReclaim] >= 50 and tLZData[M28Map.subrefTotalSignificantMassReclaim] > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
-        HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefTotalMassReclaim] / 50)), false)
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefTotalMassReclaim] / 50)), {false, nil})
     elseif M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
-        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+        HaveActionToAssign(refActionReclaimArea, 1, 5, {true, nil})
     end
 
     --TMD (including vs mobile ACUs with TML upgrade)
@@ -10115,6 +10122,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --AA including SAMs
     iCurPriority = iCurPriority + 1
+    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Do we want more airaa? iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
     if iNearbyEnemyAirToGroundThreat > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA], 800) then
         if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) or M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] >= 200 or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] == 0 then
@@ -10128,7 +10136,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.6 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.225
                 if M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000 then iGroundAAThreatWanted = iGroundAAThreatWanted + math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.1, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]) end
             end
-            iGroundAAThreatWanted = math.max(iNearbyEnemyAirToGroundThreat * 2, iNearbyEnemyAirToGroundThreat + iGroundAAThreatWanted)
+            if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) or iNearbyEnemyAirToGroundThreat >= 800 then
+                iGroundAAThreatWanted = math.max(iNearbyEnemyAirToGroundThreat * 2, iNearbyEnemyAirToGroundThreat + iGroundAAThreatWanted)
+            end
             --Cap Ground AA at equiv of 3 T2 flak if no enemy air to ground threat in this zone, and we arent at T3
             if iGroundAAThreatWanted >= 2400 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
@@ -10149,6 +10159,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': GroundAA='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; iGroundAAThreatWanted='..iGroundAAThreatWanted..'; Friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
             --= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]
             if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAThreatWanted or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 1600 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 1200 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 120)) then
                 --Do we already have fixed AA in this LZ?
@@ -10174,6 +10185,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+    bDebugMessages = false
 
     --Reclaim specific units
     iCurPriority = iCurPriority + 1
@@ -10399,7 +10411,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         else
             iBPWanted = math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2, tLZData[M28Map.subrefTotalSignificantMassReclaim] / 20)
         end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
     end
 
     --Radar (not high priority)
@@ -10895,7 +10907,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if iHighestTechEngiAvailable > 0 then
             if tLZData[M28Map.subrefTotalMassReclaim] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 then
                 local bWantEnergy = false
-                HaveActionToAssign(refActionReclaimArea, 1, 500, bWantEnergy, true, nil, nil, nil, true)
+                HaveActionToAssign(refActionReclaimArea, 1, 500, {bWantEnergy, nil}, true, nil, nil, nil, true)
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
             end
         end
@@ -11440,7 +11452,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --High reclaim zone when ahve low mass - want to be reclaiming ahead of building mexes
     iCurPriority = iCurPriority + 1
-    if bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 then
+    if (bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.15) then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
         iBPWanted = 5
 
@@ -11451,7 +11463,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
             end
         end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+        --Have 1 engi search for high value wrecks
+        HaveActionToAssign(refActionReclaimArea, 1, 5, { false, 50 })
+        --Then have 1-2 engis search for reclaim generally
+        iCurPriority = iCurPriority + 1
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
+
+    else
+        iCurPriority = iCurPriority + 1
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
@@ -11706,10 +11725,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iBPWanted = math.max(5, iBPWanted * 0.6) end
         if bDebugMessages == true then LOG(sFunctionRef..': Higher priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried assigning action to reclaim area') end
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
-        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+        HaveActionToAssign(refActionReclaimArea, 1, 5, {true, nil})
     end
 
 
@@ -12129,7 +12148,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iBPWanted = math.max(5, iBPWanted * 0.6) end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]..'; iBPWanted='..iBPWanted) end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
     end
 
     --SAMs for minor zones
@@ -12515,7 +12534,7 @@ end--]]
         if iHighestTechEngiAvailable > 0 then
             if tLZData[M28Map.subrefTotalMassReclaim] >= 5 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]..'; will request at least 100 BP, but wont request more than we already have') end
-                HaveActionToAssign(refActionReclaimArea, 1, 100, false, true)
+                HaveActionToAssign(refActionReclaimArea, 1, 100, {false, nil}, true)
             end
         end
     end
@@ -12674,7 +12693,7 @@ end--]]
                 if bDebugMessages == true then LOG(sFunctionRef..': Spare engi action - reclaim area if any mass or energy in it, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Mass='..(tLZData[M28Map.subrefTotalMassReclaim] or 0)..'; Energy='..(tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0)) end
                 if iHighestTechEngiAvailable > 0 then
                     if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 then
-                        HaveActionToAssign(refActionReclaimArea, 1, 90, (tLZData[M28Map.subrefTotalMassReclaim] or 0) == 0, true, true, nil, nil, false)
+                        HaveActionToAssign(refActionReclaimArea, 1, 90, {(tLZData[M28Map.subrefTotalMassReclaim] or 0) == 0, nil}, true, true, nil, nil, false)
                         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                     end
 
@@ -13023,7 +13042,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Lower priority reclaim, Total mass in Pond ' .. iPond .. ' WZ ' .. iWaterZone .. '=' .. tWZData[M28Map.subrefTotalMassReclaim])
         end
-        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), false, false)
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), {false, nil}, false)
     end
 
     --Unclaimed hydro
@@ -13638,7 +13657,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Will tell engineer to get lower priority reclaim, Total mass in pond ' .. iPond .. ' WZ ' .. iWaterZone .. '=' .. tWZData[M28Map.subrefTotalMassReclaim])
                     end
-                    HaveActionToAssign(refActionReclaimArea, 1, 100, false, true, nil, nil, nil, true)
+                    HaveActionToAssign(refActionReclaimArea, 1, 100, {false, nil}, true, nil, nil, nil, true)
                 end
             end
         end
