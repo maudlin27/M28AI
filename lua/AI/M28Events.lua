@@ -408,7 +408,7 @@ function OnUnitDeath(oUnit)
                                 --[[if oUnit[M28Building.reftoUnitsCoveredByShield] then
                                     --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now --]]
                                 --else
-                                    M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
+                                M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
                                 --end
                             end
 
@@ -490,6 +490,23 @@ function OnUnitDeath(oUnit)
                                             table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
                                             break
                                         end
+                                    end
+                                end
+                            end
+                        else
+                            --Specific logic to apply only if the unit is not owned by M28
+                            if oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                local sTeamDataRef
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                    sTeamDataRef = M28Map.refiNonM28TeammateFactoryCount
+                                else
+                                    sTeamDataRef = M28Map.refiNonM28TeammateMexCount
+                                end
+
+                                for _, iTeam in oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] do
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if tLZOrWZTeamData then
+                                        tLZOrWZTeamData[sTeamDataRef] = math.max(0, (tLZOrWZTeamData[sTeamDataRef] or 0) - 1)
                                     end
                                 end
                             end
@@ -1084,7 +1101,6 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
-
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
 
@@ -1121,7 +1137,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)) end
                             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEArtiUnits], oConstruction)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
@@ -2073,12 +2089,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                         end
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then --dealing with fixed shield
                                         if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldLocations]) == false then
-                                            for iArtiLoc, tArtiLoc in tSubtable[M28Map.subrefGEShieldLocations] do
-                                                if M28Utilities.GetDistanceBetweenPositions(tArtiLoc, oUnit:GetPosition()) < 1 then
+                                            for iShieldLoc, tShieldLoc in tSubtable[M28Map.subrefGEShieldLocations] do
+                                                if M28Utilities.GetDistanceBetweenPositions(tShieldLoc, oUnit:GetPosition()) < 1 then
                                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                                     oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
                                                     table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEShieldUnits], oUnit)
-                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEArtiUnits], oUnit)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Added shiled unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone) end
                                                 end
                                             end

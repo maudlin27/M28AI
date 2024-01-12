@@ -94,7 +94,7 @@ AIOpts = {
         },
     },
     {
-        default = 1,
+        default = 2,
         label = "M28 Coop: Use AiX modifiers?",
         help = "If M28 is being applied to hostile and/or allied campaign AI, this gives them the AiX build rate and resource rate modifiers specified in game options",
         key = 'CmApplyAiX',

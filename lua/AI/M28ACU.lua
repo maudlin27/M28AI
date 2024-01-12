@@ -1145,7 +1145,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             --FAF upcoming balance patch expected 15th July to introduce nano upgrade for Cybran
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
         end
     end
 
@@ -3668,10 +3668,34 @@ function GetACUOrder(aiBrain, oACU)
                     if bHaveNoFactory then
                         bProceedWithLogic = false
                         GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
-                    elseif AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 45) then
-                        bProceedWithLogic = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have enemies fairly close in this zone and have land fac so will attack') end
-                    elseif bDebugMessages == true then LOG(sFunctionRef..': Have a facotry, but nearby enemies arent close enough to attack with ACU using 45 distane threshold, will proceed with non-early game logic temporarily')
+                    else
+                        local bCompleteCurrentConstruction = false
+                        if oACU:IsUnitState('Building') or oACU:IsUnitState('Repairing') then
+                            local oFocusUnit = oACU:GetFocusUnit()
+                            if oFocusUnit and oACU:GetWorkProgress() >= 0.8 then
+                                bCompleteCurrentConstruction = true
+                                bProceedWithLogic = false
+                                if oACU:GetWorkProgress() >= 0.95 then
+                                    --Complete construction
+                                elseif AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, (oACU[M28UnitInfo.refiDFRange] or 0) + 3) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy almost in our range so will attack even though almost complete') end
+                                else
+                                    --Complete construction
+                                end
+                            end
+                        end
+                        if not(bCompleteCurrentConstruction) then
+                            if AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 35) then
+                                bProceedWithLogic = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enemies fairly close in this zone and have land fac so will attack') end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry, but nearby enemies arent close enough to attack with ACU using 45 distane threshold, will proceed with non-early game logic temporarily unless we are building') end
+                                if oACU:IsUnitState('Building') or oACU:IsUnitState('Repairing') then
+                                    bProceedWithLogic = false
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bCompleteCurrentConstruction (true if enemy in our range and we are attacking as well)='..tostring(bCompleteCurrentConstruction)..'; bProceedWithLogic='..tostring(bProceedWithLogic)) end
                     end
                 elseif AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 45) then
                     bProceedWithLogic = false

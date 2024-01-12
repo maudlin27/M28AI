@@ -1618,17 +1618,17 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
         local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
         if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
         elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-
             bSML = true
             if not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                 bCheckForSMD = true --default
                 --If we have lots more nukes than enemy has SMD then consider overwhelming the SMD with nukes
                 local iNukeCount = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
+                    iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL - M28UnitInfo.refCategoryBattleship) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
                 end
                 --Only consider overwhelming if we have 6 nukes
                 local iEnemySMD = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to check for SMD when deciding on targets for a non experimental nuke launcher, iNukeCount='..iNukeCount) end
                 if iNukeCount >= 4 then
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
                         for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
@@ -1637,6 +1637,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemySMD='..iEnemySMD) end
                     if iNukeCount >= iEnemySMD * 1.5 then
                         --Have enough nukes to overwhelm enemy
                         bCheckForSMD = false
@@ -1850,6 +1851,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets..'; tTarget='..repru((tTarget or {'nil'}))..'; Is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))) end
 
                 else --SML - work out which location would deal the most damage - consider all high value structures and the enemy start position
+                    --Reduce AOE by 0.5 if >10 to be more reliable (since height differences mean we might incorrectly think we will hit a high value target?)
+                    if iAOE > 10 then iAOE = math.max(10, iAOE - 0.5) end
                     iBestTargetValue = 0
                     --Shortlist of locations we have recently nuked
                     local tRecentlyNuked = {}
@@ -2299,6 +2302,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         if tTarget then
                             if bDebugMessages == true then
                                 M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Giving order to fire nuke at tTarget='..repru(tTarget)..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; Is SMD blocking target='..tostring(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0))) end
                             end
                             M28Orders.IssueTrackedNukeMissileLaunch(oLauncher, tTarget, 2, false, 'Nuke', false)
                             --[[M28Orders.IssueTrackedClearCommands(oLauncher)
@@ -2318,7 +2322,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                             --Send a voice taunt if havent in last 10m and we expect to do significant damage
                             if iBestTargetValue >= 25000 then
-                                ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                if bCheckForSMD or not(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0)) then
+                                    ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                end
                             end
                         end
                     end
