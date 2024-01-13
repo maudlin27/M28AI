@@ -20,7 +20,7 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
-refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving
+refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving; also used by GE Template logic for when an engi is getting in range of building something via move order (due to rare issue wehre it is given move+buidl order and doesnt move or build)
 reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when last did the stuck check
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)

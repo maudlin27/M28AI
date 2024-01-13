@@ -1091,6 +1091,8 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
+            --Stuff to update every time construction starts
+            if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0 end
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 

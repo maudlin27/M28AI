@@ -5438,9 +5438,10 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             end
 
             local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationToBuild, sArtiToBuild, 0, false)
-            if tMoveLocation then
+            if tMoveLocation and (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) <= 10 then
                 if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sArtiToBuild..' at location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
                 M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, tMoveLocation, 1, false, 'GEMBArtT'..iTableRef)
+                if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sArtiToBuild..' at build location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
                 ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
@@ -5708,9 +5709,10 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                 end
             end
             local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationsToBuild[1], sShieldToBuild, 0, false)
-            if tMoveLocation then
+            if tMoveLocation and (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) <= 10 then
                 if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sShieldToBuild..' at location '..repru(tLocationsToBuild[1])) end
                 M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationsToBuild[1], sShieldToBuild, tMoveLocation, 1, false, 'GEMBShT'..iTemplateRef)
+                if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': GE S Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sShieldToBuild..' at build location '..repru(tLocationsToBuild[1])..'; oEngineerToBuild[refiGETemplateTimeTryingToBuild]='..(oEngineerToBuild[refiGETemplateTimeTryingToBuild] or 'nil')) end
 
@@ -5734,9 +5736,10 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                     if iCurLoopCount > iMaxCount then M28Utilities.ErrorHandler('Infinite loop protection') break end
 
                     tMoveLocation = GetLocationToMoveForConstruction(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, 0, false)
-                    if tMoveLocation then
+                    if tMoveLocation and (tEngisOfDesiredFaction[iLastEngi][M28Conditions.refiEngineerStuckCheckCount] or 0) <= 10 then
                         if bDebugMessages == true then LOG(sFunctionRef..': GE Extra Telling engineer '..tEngisOfDesiredFaction[iLastEngi].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngisOfDesiredFaction[iLastEngi])..' to move to '..repru(tMoveLocation)..' and then build '..sShieldToBuild..' at location '..repru(tLocationsToBuild[iLastLocation])) end
                         M28Orders.IssueTrackedMoveAndBuild(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, tMoveLocation, 1, false, 'GEMEBShT'..iTemplateRef)
+                        if M28Utilities.GetDistanceBetweenPositions(tEngisOfDesiredFaction[iLastEngi]:GetPosition(), tMoveLocation) <= 2 then tEngisOfDesiredFaction[iLastEngi][M28Conditions.refiEngineerStuckCheckCount] = (tEngisOfDesiredFaction[iLastEngi][M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': GE Extra Telling engineer '..tEngisOfDesiredFaction[iLastEngi].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngisOfDesiredFaction[iLastEngi])..' to build '..sShieldToBuild..' at build location '..repru(tLocationsToBuild[iLastLocation])) end
                         ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
@@ -5976,9 +5979,10 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                         end
 
                         local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tBuildLocation, sBPToBuild, 0, false)
-                        if tMoveLocation then
+                        if tMoveLocation and (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) <= 10 then
                             if bDebugMessages == true then LOG(sFunctionRef..': GE SMD Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sBPToBuild..' at location '..repru(tBuildLocation)) end
                             M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tBuildLocation, sBPToBuild, tMoveLocation, 1, false, 'GESMDMB')
+                            if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': GE SMD Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sBPToBuild..' at build location '..repru(tBuildLocation)..'; oEngineerToBuild[refiGETemplateTimeTryingToBuild]='..(oEngineerToBuild[refiGETemplateTimeTryingToBuild] or 'nil')) end
                             M28Orders.IssueTrackedBuild(oEngineerToBuild, tBuildLocation, sBPToBuild, false, 'GESMDB')
@@ -6479,10 +6483,10 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 end
 
 
-
+                bDebugMessages = true
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
-                    LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; tPotentialSMDLocation='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation])..'; bHaveLargeShields='..tostring(bHaveLargeShields or false)..'; Shield locations='..repru(tShieldLocations)..'; Template size='..tBaseTable[M28Map.subrefiSize])
+                    LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; tPotentialSMDLocation='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation])..'; bHaveLargeShields='..tostring(bHaveLargeShields or false)..'; Shield locations='..repru(tShieldLocations)..'; Template size='..tBaseTable[M28Map.subrefiSize]..'; Midpoint='..repru(tBaseTable[M28Map.subrefGEMidpoint])..'; Playable area='..repru(M28Map.rMapPlayableArea))
                 end
 
 
@@ -6505,7 +6509,9 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
         local iFurtherstDistToEnemyBase = 0
 
         --First check if we currently have any locations in the zone still available, in which case we dont need to reclaim anything and can just use this (picking hte largest size locaiton, that is furthest from the enemy base)
+        local iPlayableSizeRadius
         for _, iCurSize in tiSizesToConsider do
+            iPlayableSizeRadius = iCurSize * 0.5 + 0.5
             if bDebugMessages == true then LOG(sFunctionRef..': Is table for size '..iCurSize..' empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationsBySizeAndSegment][iCurSize]))) end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationsBySizeAndSegment][iCurSize]) == false then
                 sCurBP = tsBlueprintsBySize[iCurSize]
@@ -6517,10 +6523,16 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                         if iCurDistToEnemyBase > iFurtherstDistToEnemyBase then
                             --Check we can actually build here, taking into account resource deposits
                             if not(IsBuildLocationBlockedByResources(tLZData, iCurRadius, M28Map.GetPositionFromPathingSegments(iSegX, iSegZ), true)) then
-                                iFurtherstDistToEnemyBase = iCurDistToEnemyBase
-                                iPreferredSize = iCurSize
-                                iPreferredSegX = iSegX
-                                iPreferredSegZ = iSegZ
+                                --Check we are in the payable area
+                                if tCurMidpoint[1] - iPlayableSizeRadius >= M28Map.rMapPlayableArea[1] and  tCurMidpoint[3] - iPlayableSizeRadius >= M28Map.rMapPlayableArea[2] and tCurMidpoint[1] + iPlayableSizeRadius <= M28Map.rMapPlayableArea[3] and tCurMidpoint[3] + iPlayableSizeRadius <= M28Map.rMapPlayableArea[4] then
+                                    iFurtherstDistToEnemyBase = iCurDistToEnemyBase
+                                    iPreferredSize = iCurSize
+                                    iPreferredSegX = iSegX
+                                    iPreferredSegZ = iSegZ
+                                else
+                                    bDebugMessages = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': had thought we had a valid build location but it is outside the playable area, tCurMidpoint='..repru(tCurMidpoint)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; iCurSize='..iCurSize) end
+                                end
                             elseif bDebugMessages == true then LOG(sFunctionRef..': Segment X'..iSegX..'Z'..iSegZ..' is blocked by resources so will ignore')
                             end
                         end

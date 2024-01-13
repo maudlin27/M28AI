@@ -261,7 +261,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
     --Called whenever a player dies; send end of game message if this means the game is over, or the last M28 has died
 
     local sFunctionRef = 'ConsiderEndOfGameMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
