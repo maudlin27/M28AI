@@ -57,7 +57,7 @@ function OnPlayerDefeated(aiBrain)
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
-        ForkThread(ConsiderEndOfGameMessage, aiBrain)
+        ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
     end
 end
 

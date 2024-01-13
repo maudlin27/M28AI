@@ -260,6 +260,12 @@ end
 function ConsiderEndOfGameMessage(oBrainDefeated)
     --Called whenever a player dies; send end of game message if this means the game is over, or the last M28 has died
 
+    local sFunctionRef = 'ConsiderEndOfGameMessage'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
 
     local bHaveTeammates = false
     local bLastM28OnTeamToDie = false
@@ -438,11 +444,12 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')..'; tsPotentialMessages='..repru(tsPotentialMessages)) end
         if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
             local iRand = math.random(1, table.getn(tsPotentialMessages))
             local sEndOfGameMessage = tsPotentialMessages[iRand]
             SendMessage(oBrainToSendMessage, 'End of game', sEndOfGameMessage, 3, 60)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
