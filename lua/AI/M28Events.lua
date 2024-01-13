@@ -51,22 +51,13 @@ function OnPlayerDefeated(aiBrain)
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
                 M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
             else
-                --Send end of game message
-                local iRand = math.random(1,3)
-                local sEndOfGameMessage
-                if iRand == 1 then
-                    sEndOfGameMessage = 'gg'
-                elseif iRand == 2 then
-                    sEndOfGameMessage = 'You may have defeated me, but my older brother M27 will crush you like an insect'
-                elseif iRand == 3 then
-                    sEndOfGameMessage = ':( Time for me to go back to fighting other bots'
-                end
-                M28Chat.SendMessage(aiBrain, 'Our ACU Died', sEndOfGameMessage, 3, 60)
+                --Message on death - Will cover as part of M28Chat function
             end
         end
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+        ForkThread(ConsiderEndOfGameMessage, aiBrain)
     end
 end
 

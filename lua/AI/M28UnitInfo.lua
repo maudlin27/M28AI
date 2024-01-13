@@ -24,6 +24,7 @@ refFactionCybran = 3
 refFactionSeraphim = 4
 refFactionNomads = 5
 refFactionUnrecognised = 6
+tFactionsByName = {[refFactionUEF] = 'UEF', [refFactionAeon] = 'Aeon', [refFactionCybran] = 'Cybran', [refFactionSeraphim] = 'Seraphim', [refFactionNomads] = 'Nomads'}
 
 --Transport clamp types
 refClampSmall = 1

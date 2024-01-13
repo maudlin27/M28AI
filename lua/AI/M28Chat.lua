@@ -3,6 +3,8 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 
 local SUtils = import('/lua/AI/sorianutilities.lua')
 
@@ -253,4 +255,194 @@ function ConsiderPlayerSpecificMessages(aiBrain)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderEndOfGameMessage(oBrainDefeated)
+    --Called whenever a player dies; send end of game message if this means the game is over, or the last M28 has died
+
+
+    local bHaveTeammates = false
+    local bLastM28OnTeamToDie = false
+    local bTeamHadM28AI = false
+    if oBrainDefeated.M28AI then bLastM28OnTeamToDie = true end
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
+            if oBrain.M28AI then bTeamHadM28AI = true end
+            if not(oBrain == oBrainDefeated) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                bHaveTeammates = true
+                if oBrain.M28AI then bLastM28OnTeamToDie = false end
+            end
+        end
+    end
+    if not(bHaveTeammates) or bLastM28OnTeamToDie then
+        --Last player on a team has died, or the lastM28 on team has died
+        local tsPotentialMessages = {}
+        local oBrainToSendMessage
+
+        if bLastM28OnTeamToDie then
+            oBrainToSendMessage = oBrainDefeated
+
+            table.insert(tsPotentialMessages, 'Recall damnit, recall!')
+            table.insert(tsPotentialMessages, '/89')
+            table.insert(tsPotentialMessages, '/90')
+            table.insert(tsPotentialMessages, 'Thats not how the simulation went!')
+
+            if not(oBrainDefeated.CheatEnabled) or oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1 then
+                table.insert(tsPotentialMessages, 'Bet you couldnt beat an AiX version of me!')
+                table.insert(tsPotentialMessages, 'Make me an AiX and Ill show you what I can really do!')
+            elseif oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
+                table.insert(tsPotentialMessages, 'Bet you couldnt beat me if I was a 1.5 AiX!')
+            else
+                table.insert(tsPotentialMessages, 'Damn, I thought Id be unbeatable with this high a modifier')
+                table.insert(tsPotentialMessages, 'Impressive')
+            end
+            --Is this the last brain on the team?
+            if not(bHaveTeammates) then
+                --Were there human players against us?
+                local bHadEnemyHuman = false
+                for iBrain, oBrain in ArmyBrains do
+                    if oBrain.BrainType == 'Human' and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) then
+                        bHadEnemyHuman = true
+                        break
+                    end
+                end
+                if bHadEnemyHuman then
+                    table.insert('Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                    table.insert('Time for me to go back to fighting other bots :(')
+                    if oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 then
+                        table.insert(tsPotentialMessages, 'I hope M27 doesnt see my humiliation this day')
+                        table.insert(tsPotentialMessages, 'My father would be interested in a replay to see how I was defeated')
+                    end
+                    --Did we only have 1 M28AI? If so then ask for more
+                    local bHadFriendlyM28AI = false
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.M28AI and not(oBrain == oBrainDefeated) and oBrain.M28Team == oBrainDefeated.M28Team then
+                            bHadFriendlyM28AI = true
+                        end
+                    end
+                    if not(bHadFriendlyM28AI) then
+                        table.insert(tsPotentialMessages, 'You mightve beaten me, but I bet two M28AI would prove too much!')
+                    end
+                end
+                table.insert(tsPotentialMessages, 'I let you win this time')
+                if ScenarioInfo.Options.Victory == 'demoralization' then table.insert(tsPotentialMessages, 'So this is the way it ends, not with a whimper, but with a bang') end
+                table.insert(tsPotentialMessages, 'gg')
+                table.insert(tsPotentialMessages, 'gg wp')
+                table.insert(tsPotentialMessages, 'Rematch?')
+
+            else
+                table.insert(':( There I was thinking my team would save me')
+            end
+            if M28Map.bIsCampaignMap then
+                table.insert(tsPotentialMessages,'You were meant to protect me!')
+                table.insert(tsPotentialMessages,'Shall we give it another go?')
+                table.insert(tsPotentialMessages, ':(')
+                if not(bHaveTeammates) then
+                    table.insert(tsPotentialMessages, 'So ends the last hope of humanity')
+                end
+            end
+        else
+            if not(bHaveTeammates) then --redundancy
+                --This wasn't an M28 that died, but it was the last player on the team, so send a message if M28 is alive on enemy team (M28 won) or there were M28 previously on this team
+                local oEnemyM28AIBrain
+                if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) then
+                            oEnemyM28AIBrain = oBrain
+                            break
+                        end
+                    end
+                end
+                --Do we still ahve M28AI in the game? If so they should send a message as the winner; otherwise then if we had M28AI on this team they should send message as the loser; otherwise (i.e. enemy team had M28AI but they have since been defeated) just dont say anything
+                if oEnemyM28AIBrain then
+                    oBrainToSendMessage = oEnemyM28AIBrain
+                    --M28 won
+                    local bHadAIX = false
+                    if oEnemyM28AIBrain.CheatEnabled and oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] > 1 then
+                        bHadAIX = true
+                    end
+
+                    --Are there any alive nonM28 on this brains team?
+                    local bHaveNonM28Teammates = false
+                    for iBrain, oBrain in M28Overseer.tAllAIBrainsByArmyIndex do
+                        if oBrain.M28Team == oEnemyM28AIBrain.M28Team and not(oBrain.M28AI) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                            bHaveNonM28Teammates = true
+                            break
+                        end
+                    end
+
+                    if bHadAIX then
+                        table.insert(tsPotentialMessages, 'Maybe you should lower the AiX modifier next time!')
+                        table.insert(tsPotentialMessages, 'gg, even if I had bonus resources to help')
+                        if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
+                            table.insert(tsPotentialMessages, 'I thought you were being overconfident challenging me when I had this big a resource bonus')
+                        end
+                    else
+                        table.insert(tsPotentialMessages, -'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
+                        if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] == 1 then table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time') end
+                        table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
+                    end
+                    if bHaveNonM28Teammates then
+                        table.insert(tsPotentialMessages, 'gj team')
+                    else
+                        table.insert(tsPotentialMessages, 'Better luck next time scrub')
+                        table.insert(tsPotentialMessages, 'Want to try again?')
+                    end
+                    table.insert(tsPotentialMessages, 'All your mex are belong to us')
+                    --Faction specific taunt
+                    if not(oBrainDefeated:GetFactionIndex() == oBrainToSendMessage:GetFactionIndex()) then
+                        local sFaction = M28UnitInfo.tFactionsByName[oBrainDefeated:GetFactionIndex()]
+                        if sFaction then
+                            --Check we didnt have this faction on our team
+                            local bHadFactionOnOurTeam = false
+                            for iBrain, oBrain in ArmyBrains do
+                                if oBrain.M28Team == oBrainToSendMessage.M28Team then
+                                    if oBrain:GetFactionIndex() == oBrainDefeated:GetFactionIndex() then
+                                        bHadFactionOnOurTeam = true
+                                        break
+                                    end
+
+                                end
+                            end
+                            if not(bHadFactionOnOurTeam) then
+                                table.insert(tsPotentialMessages, 'Die, '..sFaction..' scum!')
+                            end
+                        end
+                    end
+
+                elseif bTeamHadM28AI then
+                    --M28s team lost (but M28 died a while ago) - get an M28AI player on our team
+                    for iCurBrain, oBrain in ArmyBrains do
+                        if oBrain.M28AI and oBrain.M28Team == oBrainDefeated.M28Team then
+                            oBrainToSendMessage = oBrain
+                            break
+                        end
+                    end
+                    if oBrainToSendMessage then
+                        if oBrainDefeated.Nickname then
+                            table.insert(tsPotentialMessages, 'There I was hoping '..oBrainDefeated.Nickname..' would carry our team...')
+                            table.insert(tsPotentialMessages, 'You cost us the game '..oBrainDefeated.Nickname)
+                            table.insert(tsPotentialMessages, 'Ah well, you tried your best '..oBrainDefeated.Nickname)
+                        end
+                        table.insert(tsPotentialMessages, 'Never had a chance with these teams')
+                        table.insert(tsPotentialMessages, ':( wp')
+                        table.insert(tsPotentialMessages, 'We let you win this one...')
+                    end
+                end
+                if oBrainToSendMessage then --End of game, we either won or lost, so include messages that work either way
+                    --Add in generic messages
+                    table.insert(tsPotentialMessages, 'gg')
+                    table.insert(tsPotentialMessages, 'gg wp')
+                    table.insert(tsPotentialMessages, 'Rematch?')
+                end
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
+            local iRand = math.random(1, table.getn(tsPotentialMessages))
+            local sEndOfGameMessage = tsPotentialMessages[iRand]
+            SendMessage(oBrainToSendMessage, 'End of game', sEndOfGameMessage, 3, 60)
+        end
+    end
 end

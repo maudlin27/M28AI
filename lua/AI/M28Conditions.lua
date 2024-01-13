@@ -2425,7 +2425,7 @@ function ApplyM28ToOtherAI(aiBrain)
             --FAF requires a humna player to be in the player 1 slot; therefore look for a human player and if cant find one then pick the brain with a braintype (since looks like this can be nil for some campaign missions for the built in AI)
             local oFirstPlayer
             for iBrain, oBrain in ArmyBrains do
-                if oBrain.BrainType == 'Humna' then oFirstPlayer = oBrain break end
+                if oBrain.BrainType == 'Human' then oFirstPlayer = oBrain break end
             end
             if not(oFirstPlayer) then
                 for iBrain, oBrain in ArmyBrains do
