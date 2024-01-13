@@ -6483,7 +6483,6 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 end
 
 
-                bDebugMessages = true
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
                     LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; tPotentialSMDLocation='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation])..'; bHaveLargeShields='..tostring(bHaveLargeShields or false)..'; Shield locations='..repru(tShieldLocations)..'; Template size='..tBaseTable[M28Map.subrefiSize]..'; Midpoint='..repru(tBaseTable[M28Map.subrefGEMidpoint])..'; Playable area='..repru(M28Map.rMapPlayableArea))
@@ -6530,7 +6529,6 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                                     iPreferredSegX = iSegX
                                     iPreferredSegZ = iSegZ
                                 else
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': had thought we had a valid build location but it is outside the playable area, tCurMidpoint='..repru(tCurMidpoint)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; iCurSize='..iCurSize) end
                                 end
                             elseif bDebugMessages == true then LOG(sFunctionRef..': Segment X'..iSegX..'Z'..iSegZ..' is blocked by resources so will ignore')
