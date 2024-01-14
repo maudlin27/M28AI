@@ -3365,6 +3365,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Time='..GetGameTimeSeconds()) end
         local bIgnoreIfEnemyUnderwater = false
+        local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
             bWantEngiToRun = false
@@ -3381,6 +3382,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                     oNearestReclaimableDangerousEnemy = nil
                     oNearestReclaimableEnemy = nil
                     oNearestEnemy = nil
+                    bConsiderReclaimableEnemiesInBuildRangeOnly = false
 
                     --If engi is building emergency PD or Arti or torp launcher then dont run
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall or oEngineer[refiAssignedAction] == refActionBuildT1TorpLauncher or oEngineer[refiAssignedAction] == refActionBuildTorpLauncher) then
@@ -3543,6 +3545,47 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     end
                                 end
                             end
+                        else
+                            if not(bReclaimingDangerousEnemy) then
+                                bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                            end
+                        end
+                    else
+                        --Check we arent reclaiming dangerous enemy
+                        if oEngineer:IsUnitState('Reclaiming') then
+                            local oReclaimTarget = oEngineer:GetFocusUnit()
+                            if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
+                                bReclaimingDangerousEnemy = true
+                            end
+                        end
+                        if not(bReclaimingDangerousEnemy) then
+                            bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                        end
+                    end
+                end
+                if bConsiderReclaimableEnemiesInBuildRangeOnly then
+                    --We are doing a high priority action, so only consider reclaimable enemies that are in our build range
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer doing high priority action so will only consider enemies in build range unless close to completion, work progress='..oEngineer:GetWorkProgress()..'; Is primary builder='..tostring(oEngineer[refbPrimaryBuilder])) end
+                    if not(oEngineer:GetWorkProgress() >= 0.9) and (not(oEngineer[refbPrimaryBuilder]) or oEngineer:GetWorkProgress() <= 0.6) then
+                        local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
+                        local tReclaimableEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine, oEngineer:GetPosition(), iEngiBuildDistance, 'Enemy')
+                        local oEnemyCombatOrReclaimer
+                        local oOtherEnemy
+                        if M28Utilities.IsTableEmpty(tReclaimableEnemies) == false then
+                            for iEnemy, oEnemy in tReclaimableEnemies do
+                                if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oEnemy.UnitId) then
+                                    oEnemyCombatOrReclaimer = oEnemy
+                                    break
+                                elseif not(oOtherEnemy) then oOtherEnemy = oEnemy
+                                end
+                            end
+                        end
+                        local oReclaimTarget = oEnemyCombatOrReclaimer or oOtherEnemy
+                        if oReclaimTarget then
+                            TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
+                            M28Orders.IssueTrackedReclaim(oEngineer, oReclaimTarget, false, 'RecPE')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy that is in its range, enemy='..oReclaimTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oReclaimTarget)) end
+                            bEngiIsUnavailable = true
                         end
                     end
                 end

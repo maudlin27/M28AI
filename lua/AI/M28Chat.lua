@@ -385,7 +385,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                             table.insert(tsPotentialMessages, 'I thought you were being overconfident challenging me when I had this big a resource bonus')
                         end
                     else
-                        table.insert(tsPotentialMessages, -'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
+                        table.insert(tsPotentialMessages, 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
                         if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] == 1 then table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time') end
                         table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
                     end
