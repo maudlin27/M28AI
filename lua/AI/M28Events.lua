@@ -527,7 +527,11 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
             if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+            local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade then
+                M28Overseer.bLikelyGunUpgrade = true
+            end
 
             --Mobile TML logic (e.g. ACU and SACU, and billy nuke) - note some manual ranges are e.g. for overcharge
             if (oUnit[M28UnitInfo.refiManualRange] or 0) > 50 then

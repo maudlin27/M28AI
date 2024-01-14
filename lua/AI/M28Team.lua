@@ -2926,80 +2926,83 @@ function ConsiderNormalUpgrades(iM28Team)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]) end
     if not(bWantMassForProduction) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.3 or tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] <= 1 then
+        --T1 spam mode - be much less likely to get upgrades early game
+        if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or (M28Overseer.bLikelyGunUpgrade and (M28Map.iMapSize > 256 or GetGameTimeSeconds() >= 480)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryFactory) >= 10 or (M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 6 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.75 and (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.95 or GetGameTimeSeconds() >= 300 / math.max(tTeamData[iM28Team][refiHighestBrainResourceMultiplier], tTeamData[iM28Team][refiHighestBrainBuildMultiplier]))) then
 
-        while HaveEcoToSupportUpgrades(iM28Team) do
-            iCycleCount = iCycleCount + 1
-            iMassUpgradesAtLoopStart = tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] --so we can check we actually upgraded something
-            if bDebugMessages == true then LOG(sFunctionRef..': We think we have enough eco to support another upgrade, will decide if we want a mex or a factoroy, iCycleCOunt='..iCycleCount) end
+            while HaveEcoToSupportUpgrades(iM28Team) do
+                iCycleCount = iCycleCount + 1
+                iMassUpgradesAtLoopStart = tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] --so we can check we actually upgraded something
+                if bDebugMessages == true then LOG(sFunctionRef..': We think we have enough eco to support another upgrade, will decide if we want a mex or a factoroy, iCycleCOunt='..iCycleCount) end
 
-            bLookForMexNotHQ = not(tTeamData[iM28Team][refbFocusOnT1Spam])
+                bLookForMexNotHQ = not(tTeamData[iM28Team][refbFocusOnT1Spam])
 
-            --Get preferred upgrade type - ideally are always improving mass income (if have safe mexes to upgrade)
-            if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
-                --Already have mexes upgrading - do we want to also upgrade an HQ instead of a mex?
-                if (tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1) or (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1))) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8) then
-                    --Do we already ahve a factory HQ upgrading? If so then consider income based on player count
-                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
-                        bLookForMexNotHQ = false
-                    else
-                        if (tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1.5, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1)) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1.5, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 8) then
+                --Get preferred upgrade type - ideally are always improving mass income (if have safe mexes to upgrade)
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+                    --Already have mexes upgrading - do we want to also upgrade an HQ instead of a mex?
+                    if (tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1) or (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1))) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8) then
+                        --Do we already ahve a factory HQ upgrading? If so then consider income based on player count
+                        if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                             bLookForMexNotHQ = false
+                        else
+                            if (tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1.5, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1)) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1.5, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 8) then
+                                bLookForMexNotHQ = false
+                            end
                         end
                     end
-                end
-            else
-                --No mex ugprading, but might want factory if we dont have access to T2/T3 yet and have high mass income
-                if bDebugMessages == true then LOG(sFunctionRef..': Dont have a mex upgrading, will see if want a factory instead of a mex, tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech='..tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiTeamGrossMass]='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Player count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
-                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then --since no mex upgrading, dont want to upgrade more than 1 factory at once
-                    if tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 then
-                        if tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.7) * 4 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 * math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.75) then
-                            bLookForMexNotHQ = false
-                        end
-                    elseif tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 2 then
-                        if tTeamData[iM28Team][subrefiTeamGrossMass] > 8 * math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.7) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 100 then
-                            bLookForMexNotHQ = false
+                else
+                    --No mex ugprading, but might want factory if we dont have access to T2/T3 yet and have high mass income
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have a mex upgrading, will see if want a factory instead of a mex, tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech='..tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiTeamGrossMass]='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Player count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
+                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then --since no mex upgrading, dont want to upgrade more than 1 factory at once
+                        if tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 then
+                            if tTeamData[iM28Team][subrefiTeamGrossMass] >= math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.7) * 4 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 * math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.75) then
+                                bLookForMexNotHQ = false
+                            end
+                        elseif tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 2 then
+                            if tTeamData[iM28Team][subrefiTeamGrossMass] > 8 * math.max(1, tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.7) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 100 then
+                                bLookForMexNotHQ = false
+                            end
                         end
                     end
-                end
 
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; bLookForMexNotHQ='..tostring(bLookForMexNotHQ)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; Team gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Lowest land fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; Lowest air fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech]) end
-            if bLookForMexNotHQ then
-                GetSafeMexToUpgrade(iM28Team)
-                --Backup - if didnt find anything then get a HQ upgrade if we dont already ahve a HQ upgrade active
-                if bDebugMessages == true then LOG(sFunctionRef..': Tried to get a mex upgrade, tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; iMassUpgradesAtLoopStart='..iMassUpgradesAtLoopStart) end
-                if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
-                    if tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Trying backup HQ upgrade as no mexes could be found') end
-                        GetSafeHQUpgrade(iM28Team)
-                    end
                 end
-            else
-                GetSafeHQUpgrade(iM28Team)
-                if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart and (not(tTeamData[iM28Team][refbFocusOnT1Spam]) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.8) then
+                if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; bLookForMexNotHQ='..tostring(bLookForMexNotHQ)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; Team gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Lowest land fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; Lowest air fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech]) end
+                if bLookForMexNotHQ then
                     GetSafeMexToUpgrade(iM28Team)
+                    --Backup - if didnt find anything then get a HQ upgrade if we dont already ahve a HQ upgrade active
+                    if bDebugMessages == true then LOG(sFunctionRef..': Tried to get a mex upgrade, tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; iMassUpgradesAtLoopStart='..iMassUpgradesAtLoopStart) end
+                    if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
+                        if tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Trying backup HQ upgrade as no mexes could be found') end
+                            GetSafeHQUpgrade(iM28Team)
+                        end
+                    end
+                else
+                    GetSafeHQUpgrade(iM28Team)
+                    if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart and (not(tTeamData[iM28Team][refbFocusOnT1Spam]) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.8) then
+                        GetSafeMexToUpgrade(iM28Team)
+                    end
                 end
-            end
-            --If failed to find a mex or HQ upgrade from above:
-            if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
-                --Only consider upgrading if have lots of mass
-                if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and (tTeamData[iM28Team][subrefiTeamMassStored] >= 7000 or (tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 and tTeamData[iM28Team][subrefiTeamNetMass] > -1) or tTeamData[iM28Team][subrefiTeamNetMass] > 0.5) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass, tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
-                    GetAnyMexOrFactoryToUpgrade(iM28Team)
+                --If failed to find a mex or HQ upgrade from above:
+                if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
+                    --Only consider upgrading if have lots of mass
+                    if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and (tTeamData[iM28Team][subrefiTeamMassStored] >= 7000 or (tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 and tTeamData[iM28Team][subrefiTeamNetMass] > -1) or tTeamData[iM28Team][subrefiTeamNetMass] > 0.5) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass, tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
+                        GetAnyMexOrFactoryToUpgrade(iM28Team)
+                    end
                 end
-            end
 
-            --Keep searching for upgrades (if we have the eco to support) if we have just found something to upgrade
-            if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] > iMassUpgradesAtLoopStart then
-                if iCycleCount >= 50 then
-                    M28Utilities.ErrorHandler('Likely infinite loop')
+                --Keep searching for upgrades (if we have the eco to support) if we have just found something to upgrade
+                if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] > iMassUpgradesAtLoopStart then
+                    if iCycleCount >= 50 then
+                        M28Utilities.ErrorHandler('Likely infinite loop')
+                        break
+                    end
+                else
+                    --Failed ot upgrade anything so abort to avoid risk of infinite loop
                     break
                 end
-            else
-                --Failed ot upgrade anything so abort to avoid risk of infinite loop
-                break
+                if bWantMassForProduction then break end
             end
-            if bWantMassForProduction then break end
         end
     end
 

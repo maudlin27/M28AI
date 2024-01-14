@@ -62,6 +62,7 @@ reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 --Global other variables
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
 refiCurGETemplateGlobalCount = 0 --Used to spread out calculations for gameender templates
+bLikelyGunUpgrade = false --true if anyone has a gun upgrade
 
 
 function GetNearestEnemyBrain(aiBrain)

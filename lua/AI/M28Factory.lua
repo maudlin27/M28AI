@@ -427,7 +427,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'zrb950113' then bDebugMessages = true end
+
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -636,7 +636,7 @@ end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -2206,7 +2206,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         iNearbyDFThreat = iNearbyDFThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
                         iNearbyIFThreat = iNearbyIFThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
                         iNearbyGroundAAThreat = iNearbyGroundAAThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
-                        if not(bAdjZoneWantsScout) and tAdjLZTeamData[M28Map.refbWantsLandScout] then bAdjZoneWantsScout = true end
+                        if not(bAdjZoneWantsScout) and tAdjLZTeamData[M28Map.refbWantLandScout] then bAdjZoneWantsScout = true end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Threat after factoring in adjacent land zones: iNearbyDFThreat='..iNearbyDFThreat..'; iNearbyIFThreat='..iNearbyIFThreat..'; iNearbyGroundAAThreat='..iNearbyGroundAAThreat) end
