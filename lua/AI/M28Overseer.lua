@@ -62,6 +62,7 @@ reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 --Global other variables
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
 refiCurGETemplateGlobalCount = 0 --Used to spread out calculations for gameender templates
+bLikelyGunUpgrade = false --true if anyone has a gun upgrade
 
 
 function GetNearestEnemyBrain(aiBrain)
@@ -498,13 +499,13 @@ end
 
 
 function TestCustom(aiBrain)
-
+    local sFunctionRef = 'TestCustom'
 
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
     --[[local iXAdjust = -8
     local iZAdjust = -8
     for iMex, tMex in M28Map.tMassPoints do
-        LOG('TestCustom for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
+        LOG(sFunctionRef..': for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
     end--]]
 
     --brian size profiling:
@@ -531,8 +532,8 @@ function TestCustom(aiBrain)
     end--]]
     --local NavUtils = import("/lua/sim/navutils.lua")
     --local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
-    --LOG('TestCustom iLandTravelDistance='..iLandTravelDistance)
-    --LOG('TestCustom: All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
+    --LOG(sFunctionRef..': iLandTravelDistance='..iLandTravelDistance)
+    --LOG(sFunctionRef..': All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
     --M28Map.DrawLandZones()
     --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
     --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
@@ -558,7 +559,7 @@ function TestCustom(aiBrain)
     --[[
     M28Map.DrawSpecificLandZone(88, 34, 5)--]]
     --local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
-    --LOG('TestCustom: is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
+    --LOG(sFunctionRef..': is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
     --[[local iCurColour = 0
     for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
         iCurColour = iCurColour + 1
@@ -575,7 +576,7 @@ function TestCustom(aiBrain)
     local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
     for iLocation, tLocation in tLocations do
         M28Utilities.DrawLocation(tLocation, iLocation)
-        LOG('TestCustom: Hover label for position '..iLocation..'='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tLocation) or 'nil')..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocation) or 'nil'))
+        LOG(sFunctionRef..': Hover label for position '..iLocation..'='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tLocation) or 'nil')..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocation) or 'nil'))
     end--]]
 
 
@@ -601,7 +602,7 @@ function TestCustom(aiBrain)
         if GetGameTimeSeconds() >= 240 then
             local tLZData = M28Map.tAllPlateaus[218][M28Map.subrefPlateauLandZones][3]
             M28Engineer.DrawBuildableLocations(tLZData, 1)
-            LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
+            LOG(sFunctionRef..': about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
     end--]]
 

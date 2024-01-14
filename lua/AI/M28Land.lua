@@ -813,7 +813,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds()) end
@@ -1012,6 +1012,11 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
         if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
             --First assign any available scouts to adjacent land zones wanting scouts
+            --Early game - prioritise zones with combat threat if we only have one scout available
+            local bPrioritiseLandZonesWithFriendlyCombat = false
+            local tFirstPlateauOrLZIfWantCombat
+            if GetGameTimeSeconds() <= 360 and table.getn(tAvailableScouts) == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bPrioritiseLandZonesWithFriendlyCombat = true end
+
             if bDebugMessages == true then LOG(sFunctionRef..': Will first allocate scouts to any adjacent land zones that want a scout. Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
                 local bDontCheckInPlayableArea = not(M28Map.bIsCampaignMap)
@@ -1021,15 +1026,26 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     if tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] and (bDontCheckInPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent land zone '..iAdjLZ..' in plateau '..iPlateau) end
                         if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
+                            if not(bPrioritiseLandZonesWithFriendlyCombat) or M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedCombatUnits]) == false then
 
-                            GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefTScoutsTravelingHere)
-                            tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
-                            table.remove(tAvailableScouts, 1)
-                            if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                                GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefTScoutsTravelingHere)
+                                tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                                table.remove(tAvailableScouts, 1)
+                                if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                            else
+                                --We want to prioritise an adjacent zone wanting scouts
+                                if not(tFirstPlateauOrLZIfWantCombat) then
+                                    tFirstPlateauOrLZIfWantCombat = {iPlateau, iAdjLZ}
+                                end
+                            end
                         end
                     end
                 end
-
+                if bPrioritiseLandZonesWithFriendlyCombat and M28Utilities.IsTableEmpty(tAvailableScouts) == false and tFirstPlateauOrLZIfWantCombat then
+                    GetUnitToTravelToLandZone(tAvailableScouts[1], tFirstPlateauOrLZIfWantCombat[1], tFirstPlateauOrLZIfWantCombat[2], M28Map.subrefTScoutsTravelingHere)
+                    M28Map.tAllPlateaus[tFirstPlateauOrLZIfWantCombat[1]][M28Map.subrefPlateauLandZones][tFirstPlateauOrLZIfWantCombat[2]][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                    table.remove(tAvailableScouts, 1)
+                end
             end
             --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
             if M28Utilities.IsTableEmpty(tAvailableScouts) == false then

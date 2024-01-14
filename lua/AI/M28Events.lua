@@ -32,7 +32,13 @@ refbAlreadyRunUnitKilled = 'M28EventsOnKilledRun'
 
 
 function OnPlayerDefeated(aiBrain)
+
     if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnPlayerDefeated'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)) end
         aiBrain.M28IsDefeated = true
 
         --Was it an M28AI?
@@ -51,23 +57,16 @@ function OnPlayerDefeated(aiBrain)
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
                 M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
             else
-                --Send end of game message
-                local iRand = math.random(1,3)
-                local sEndOfGameMessage
-                if iRand == 1 then
-                    sEndOfGameMessage = 'gg'
-                elseif iRand == 2 then
-                    sEndOfGameMessage = 'You may have defeated me, but my older brother M27 will crush you like an insect'
-                elseif iRand == 3 then
-                    sEndOfGameMessage = ':( Time for me to go back to fighting other bots'
-                end
-                M28Chat.SendMessage(aiBrain, 'Our ACU Died', sEndOfGameMessage, 3, 60)
+                --Message on death - Will cover as part of M28Chat function
             end
         end
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+        ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+
 end
 
 function OnACUKilled(oUnit)
@@ -536,7 +535,11 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
             if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+            local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade then
+                M28Overseer.bLikelyGunUpgrade = true
+            end
 
             --Mobile TML logic (e.g. ACU and SACU, and billy nuke) - note some manual ranges are e.g. for overcharge
             if (oUnit[M28UnitInfo.refiManualRange] or 0) > 50 then
@@ -1100,6 +1103,8 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
+            --Stuff to update every time construction starts
+            if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0 end
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 

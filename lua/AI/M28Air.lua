@@ -2184,7 +2184,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
         --If want a rough indication of proximity but it isnt as important as speed
         return math.max(math.abs(tPosition1[1] - tPosition2[1]), math.abs(tPosition1[3] - tPosition2[3]))
     end
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    --local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap) --Can have issues with air units not receiving orders which might be caused by air units going outside the playable area
 
 
 
@@ -2222,59 +2222,61 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
             end
             if bDebugMessages == true then
                 local iEnemyPlateauOrZero, iEnemyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestUnit:GetPosition())
-                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
+                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..' tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
             end
-            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tBasePosition) then
-                --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
-                if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
-                    SuicideASFIntoStrat(oEnemyUnit, oClosestUnit, true)
-                elseif (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
-                    M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'AAAA', false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
-                else
-                    M28Orders.IssueTrackedMove(oClosestUnit, tBasePosition, 3, false, 'AAAM', false)
-                end
-
-            else
-                --If the air unit has a target that is in the playable area then target that
-                --local bInterceptTargetFound = false
-                --Navigator is too unreliable in campaign, so will just ignore and target enemy air unit (moving towards it if it is off-map)
-                --[[if oEnemyUnit.GetNavigator then
-                local oNavigator = oEnemyUnit:GetNavigator()
-                if oNavigator.GetCurrentTargetPos then
-                    local tCurTarget = oNavigator:GetCurrentTargetPos()
-                    --Only consider the navigator target if it is in a similar angle, and in the playable area
-                    if bDebugMessages == true then LOG(sFunctionRef..': Navigator cur target='..repru(tCurTarget)..'; Angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition()))..'; Angle to nav target='..M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget)..'; Angle to enemy unit='..M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())) end
-                    --Note - testing on UEF Mission 2, the navigatyor getcurrentargetpos is our base despite the actual location being completely different, hence the fairly low angle threshold
-                    if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())) >= 35 then
-                        tCurTarget = oEnemyUnit:GetPosition()
-                        if bDebugMessages == true then LOG(sFunctionRef..': Navigator target seems in such a different direction that will just target enemy unit') end
-                    end
-                    if M28Conditions.IsLocationInPlayableArea(tCurTarget) then
-                        M28Orders.IssueTrackedMove(oClosestUnit, tCurTarget, 3, false, 'AAPAM', false)
-                        bInterceptTargetFound = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': Navigator tCurTarget='..repru(tCurTarget)..'; Enemy unit position='..repru(oEnemyUnit:GetPosition())..'; friendly unit position='..oClosestUnit:GetPosition()) end
+            if not(oClosestUnit.Dead) then --redundancy
+                if M28Conditions.IsLocationInPlayableArea(tBasePosition) then
+                    --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
+                    if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
+                        SuicideASFIntoStrat(oEnemyUnit, oClosestUnit, true)
+                    elseif (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))) and ((M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit)) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+                        M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'AAAA', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
                     else
-                        --Move towards the intercepting air unit's target
-                        local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget)
-                        local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
-                        if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': tViaPoint='..repru(tViaPoint)..'; iAngleToTarget='..iAngleToTarget..'; oClosestUnit:GetPosition()='..repru(oClosestUnit:GetPosition())..'; tCurTarget='..repru(tCurTarget)) end
-                            M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
+                        M28Orders.IssueTrackedMove(oClosestUnit, tBasePosition, 3, false, 'AAAM', false)
+                    end
+
+                else
+                    --If the air unit has a target that is in the playable area then target that
+                    --local bInterceptTargetFound = false
+                    --Navigator is too unreliable in campaign, so will just ignore and target enemy air unit (moving towards it if it is off-map)
+                    --[[if oEnemyUnit.GetNavigator then
+                    local oNavigator = oEnemyUnit:GetNavigator()
+                    if oNavigator.GetCurrentTargetPos then
+                        local tCurTarget = oNavigator:GetCurrentTargetPos()
+                        --Only consider the navigator target if it is in a similar angle, and in the playable area
+                        if bDebugMessages == true then LOG(sFunctionRef..': Navigator cur target='..repru(tCurTarget)..'; Angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition()))..'; Angle to nav target='..M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget)..'; Angle to enemy unit='..M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())) end
+                        --Note - testing on UEF Mission 2, the navigatyor getcurrentargetpos is our base despite the actual location being completely different, hence the fairly low angle threshold
+                        if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())) >= 35 then
+                            tCurTarget = oEnemyUnit:GetPosition()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Navigator target seems in such a different direction that will just target enemy unit') end
+                        end
+                        if M28Conditions.IsLocationInPlayableArea(tCurTarget) then
+                            M28Orders.IssueTrackedMove(oClosestUnit, tCurTarget, 3, false, 'AAPAM', false)
                             bInterceptTargetFound = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Navigator tCurTarget='..repru(tCurTarget)..'; Enemy unit position='..repru(oEnemyUnit:GetPosition())..'; friendly unit position='..oClosestUnit:GetPosition()) end
+                        else
+                            --Move towards the intercepting air unit's target
+                            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tCurTarget)
+                            local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
+                            if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': tViaPoint='..repru(tViaPoint)..'; iAngleToTarget='..iAngleToTarget..'; oClosestUnit:GetPosition()='..repru(oClosestUnit:GetPosition())..'; tCurTarget='..repru(tCurTarget)) end
+                                M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
+                                bInterceptTargetFound = true
+                            end
                         end
                     end
+                end--]]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wanted to target unit at position '..repru(oEnemyUnit:GetPosition())) end
+                    --if not(bInterceptTargetFound) then
+                    local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())
+                    local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
+                    if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
+                        M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found a via point that is in the playable area='..repru(tViaPoint)) end
+                    end
+                    --end
                 end
-            end--]]
-                if bDebugMessages == true then LOG(sFunctionRef..': Wanted to target unit at position '..repru(oEnemyUnit:GetPosition())) end
-                --if not(bInterceptTargetFound) then
-                local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())
-                local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
-                if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
-                    M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Found a via point that is in the playable area='..repru(tViaPoint)) end
-                end
-                --end
             end
             iCurValueAssigned = iCurValueAssigned + M28UnitInfo.GetAirThreatLevel({ oClosestUnit }, false, true, false, true, true, true)
             table.remove(tAvailableAirAA, iClosestAARef)
@@ -3087,26 +3089,28 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             end
                             for iUnit, oUnit in tAvailableAirAA do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)) end
-                                if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
-                                    bConsiderCtrlK = false
-                                    local bMoveUnitToRally = false
-                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
-                                        local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                                        if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
-                                    end
-                                    if bMoveUnitToRally or oUnit[M28UnitInfo.refbCampaignTriggerAdded] then
-                                        M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
+                                if not(oUnit.IsDead) then --redundancy
+                                    if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                                        bConsiderCtrlK = false
+                                        local bMoveUnitToRally = false
+                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
+                                            local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                            if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
+                                        end
+                                        if bMoveUnitToRally or oUnit[M28UnitInfo.refbCampaignTriggerAdded] then
+                                            M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
+                                        else
+                                            M28Orders.IssueTrackedKillUnit(oUnit)
+                                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                        end
+                                    elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                        if M28UnitInfo.IsUnitValid(oUnit) then
+                                            table.insert(tAirForRefueling, oUnit)
+                                        end
                                     else
-                                        M28Orders.IssueTrackedKillUnit(oUnit)
-                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                                     end
-                                elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                    if M28UnitInfo.IsUnitValid(oUnit) then
-                                        table.insert(tAirForRefueling, oUnit)
-                                    end
-                                else
-                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                                 end
                             end
                         end
