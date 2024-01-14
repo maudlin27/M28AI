@@ -261,7 +261,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
     --Called whenever a player dies; send end of game message if this means the game is over, or the last M28 has died
 
     local sFunctionRef = 'ConsiderEndOfGameMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -314,8 +314,8 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     end
                 end
                 if bHadEnemyHuman then
-                    table.insert('Ive told the server not to give you any ranking points for this game, so I didnt really lose')
-                    table.insert('Time for me to go back to fighting other bots :(')
+                    table.insert(tsPotentialMessages, 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                    table.insert(tsPotentialMessages, 'Time for me to go back to fighting other bots :(')
                     if oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 then
                         table.insert(tsPotentialMessages, 'I hope M27 doesnt see my humiliation this day')
                         table.insert(tsPotentialMessages, 'My father would be interested in a replay to see how I was defeated')
@@ -336,9 +336,13 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                 table.insert(tsPotentialMessages, 'gg')
                 table.insert(tsPotentialMessages, 'gg wp')
                 table.insert(tsPotentialMessages, 'Rematch?')
+                if M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.refiConstructedExperimentalCount] >= 4 and GetGameTimeSeconds() >= 45 * 60 then
+                    table.insert(tsPotentialMessages, 'That was an epic game!')
+                    table.insert(tsPotentialMessages, 'Ah well, I feel I at least put up a fight this time')
+                end
 
             else
-                table.insert(':( There I was thinking my team would save me')
+                table.insert(tsPotentialMessages, ':( There I was thinking my team would save me')
             end
             if M28Map.bIsCampaignMap then
                 table.insert(tsPotentialMessages,'You were meant to protect me!')
@@ -396,6 +400,11 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         table.insert(tsPotentialMessages, 'Want to try again?')
                     end
                     table.insert(tsPotentialMessages, 'All your mex are belong to us')
+
+                    if (M28Team.tTeamData[oEnemyM28AIBrain.M28Team][M28Team.refiConstructedExperimentalCount] or 0) >= 4 and GetGameTimeSeconds() >= 45 * 60 then
+                        table.insert(tsPotentialMessages, 'Phew, that took me longer than I expected')
+                    end
+
                     --Faction specific taunt
                     if not(oBrainDefeated:GetFactionIndex() == oBrainToSendMessage:GetFactionIndex()) then
                         local sFaction = M28UnitInfo.tFactionsByName[oBrainDefeated:GetFactionIndex()]

@@ -32,7 +32,13 @@ refbAlreadyRunUnitKilled = 'M28EventsOnKilledRun'
 
 
 function OnPlayerDefeated(aiBrain)
+
     if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnPlayerDefeated'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)) end
         aiBrain.M28IsDefeated = true
 
         --Was it an M28AI?
@@ -58,7 +64,9 @@ function OnPlayerDefeated(aiBrain)
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
         ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+
 end
 
 function OnACUKilled(oUnit)

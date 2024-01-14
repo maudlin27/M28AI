@@ -2184,7 +2184,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
         --If want a rough indication of proximity but it isnt as important as speed
         return math.max(math.abs(tPosition1[1] - tPosition2[1]), math.abs(tPosition1[3] - tPosition2[3]))
     end
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    --local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap) --Can have issues with air units not receiving orders which might be caused by air units going outside the playable area
 
 
 
@@ -2222,10 +2222,10 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam)
             end
             if bDebugMessages == true then
                 local iEnemyPlateauOrZero, iEnemyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestUnit:GetPosition())
-                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
+                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..' tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit))..'; enemy unit pos='..repru(oEnemyUnit:GetPosition())..'; terrain height='..GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3])..'; currentlayer='..oEnemyUnit:GetCurrentLayer())
             end
             if not(oClosestUnit.Dead) then --redundancy
-                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tBasePosition) then
+                if M28Conditions.IsLocationInPlayableArea(tBasePosition) then
                     --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
                     if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
                         SuicideASFIntoStrat(oEnemyUnit, oClosestUnit, true)

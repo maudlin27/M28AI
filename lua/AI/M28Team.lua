@@ -3489,8 +3489,33 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
 
     for iArmyIndex, oBrain in M28Overseer.tAllAIBrainsByArmyIndex do
         if oDefeatedBrain == oBrain then
-            M28Overseer.tAllAIBrainsByArmyIndex[iArmyIndex] = nil
-            M28Overseer.tAllActiveM28Brains[iArmyIndex] = nil --Should only have had a value for m28 brains anyway but this is a redundancy
+            if M28Overseer.tAllAIBrainsByArmyIndex[iArmyIndex] == oDefeatedBrain then
+                M28Overseer.tAllAIBrainsByArmyIndex[iArmyIndex] = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': Removed brain '..oBrain.Nickname..' from table of all AI Brains') end
+            else --redundancy (due to issues having with ActiveM28Brains table)
+                if bDebugMessages == true then LOG(sFunctionRef..': Activated redundancy for removing brain '..oBrain.Nickname..' from table of all AI Brains') end
+                for iRecordedBrain, oRecordedBrain in M28Overseer.tAllAIBrainsByArmyIndex do
+                    if oRecordedBrain == oDefeatedBrain then
+                        M28Overseer.tAllAIBrainsByArmyIndex[iRecordedBrain] = nil
+                        break
+                    end
+                end
+            end
+            if oBrain.M28AI then
+                if M28Overseer.tAllActiveM28Brains[iArmyIndex] == oDefeatedBrain then
+                    M28Overseer.tAllActiveM28Brains[iArmyIndex] = nil
+                    if bDebugMessages == true then LOG(sFunctionRef..': Removed brain '..oBrain.Nickname..' from table of active M28 Brains') end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Activated redundancy for removing brain '..oBrain.Nickname..' from table of active M28 brains') end
+                    for iM28BrainEntry, oM28Brain in M28Overseer.tAllActiveM28Brains do
+                        if oM28Brain == oDefeatedBrain then
+                            M28Overseer.tAllActiveM28Brains[iM28BrainEntry] = nil
+                            break
+                        end
+                    end
+                end
+            end
+            break
         end
     end
 
