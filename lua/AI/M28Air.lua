@@ -5050,7 +5050,11 @@ function ManageGunships(iTeam, iAirSubteam)
 end
 
 function UpdateScoutingShortlist(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateScoutingShortlist'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.subrefiTimeOfScoutingShortlistUpdate] or 0) >= 0.89 then
+
         --Decide how often we want to scout
         local tiTimeByPriority = {[M28Map.subrefiScoutingHighPriority] = 60, [M28Map.subrefiScoutingMediumPriority] = 120, [M28Map.subrefiScoutingLowPriority] = 360}
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 12 then
@@ -5059,7 +5063,7 @@ function UpdateScoutingShortlist(iTeam)
             end
         end
         local iRadarFactor = 4 --If have radar coverage then dont want to scout as often
-
+        local iLongestOverdueScoutingTarget = 0
         --Create shortlist
         M28Team.tTeamData[iTeam][M28Team.subrefiTimeOfScoutingShortlistUpdate] = GetGameTimeSeconds()
         M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist] = {}
@@ -5071,7 +5075,10 @@ function UpdateScoutingShortlist(iTeam)
                 local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
                 if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
+                if iPlateau == 2 and iLandZone == 2 and GetGameTimeSeconds() >= 3000 then bDebugMessages = true else bDebugMessages = false end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]='..tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]..'; tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]='..tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]..'; Time last had visual='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Do we expect to be adding this to shortlist='..tostring(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted)) end
                 if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
+                    iLongestOverdueScoutingTarget = math.max(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted, iLongestOverdueScoutingTarget)
                     table.insert(tShortlist, {iPlateau, iLandZone})
                 end
             end
@@ -5088,7 +5095,16 @@ function UpdateScoutingShortlist(iTeam)
                 end
             end
         end
+        if GetGameTimeSeconds() >= 3000 and GetGameTimeSeconds() <= 3010 then bDebugMessages = true end
+        if bDebugMessages == true then
+            if M28Utilities.IsTableEmpty(tShortlist) == false then
+                LOG(sFunctionRef..': end of code, size of tShortlist='..table.getn(tShortlist)..'; tShortlist='..repru(tShortlist)..'; iLongestOverdueScoutingTarget='..iLongestOverdueScoutingTarget)
+            else
+                LOG(sFunctionRef..': End of code, tShortlist='..repru(tShortlist)..'; iLongestOverdueScoutingTarget='..iLongestOverdueScoutingTarget)
+            end
+        end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageAirScouts(iTeam, iAirSubteam)

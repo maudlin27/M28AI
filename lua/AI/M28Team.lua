@@ -835,7 +835,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0309314' then bDebugMessages = true end
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then
         M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit, UnitId='..oUnit.UnitId)
@@ -1475,7 +1475,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0309314' then bDebugMessages = true end
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable

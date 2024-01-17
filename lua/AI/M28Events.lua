@@ -1132,7 +1132,23 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started fixed shield so will add to table of shields for this reference') end
                             local tTemplateRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]]
-                            table.insert(tTemplateRef[M28Map.subrefGEShieldUnits], oConstruction)
+                            --Check shield isn't already recorded
+                            local bAlreadyRecorded = false
+                            if M28Utilities.IsTableEmpty(tTemplateRef[M28Map.subrefGEShieldUnits]) == false then
+                                for iRecordedShield, oRecordedShield in tTemplateRef[M28Map.subrefGEShieldUnits] do
+                                    if oRecordedShield == oConstruction then
+                                        bAlreadyRecorded = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bAlreadyRecorded) then
+                                table.insert(tTemplateRef[M28Map.subrefGEShieldUnits], oConstruction)
+                            else
+                                bDebugMessages= true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Wont record shield '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' against arti template as it was already recorded') end
+                            end
+
                             --Check if we no longer need special faction engineers
                             if M28Utilities.IsTableEmpty(tTemplateRef[M28Map.subrefGEArtiUnits]) == false and table.getn(tTemplateRef[M28Map.subrefGEShieldUnits]) >= math.min(7, table.getn(tTemplateRef[M28Map.subrefGEShieldLocations])) then
                                 for iArti, oArti in tTemplateRef[M28Map.subrefGEArtiUnits] do
@@ -1142,8 +1158,20 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)) end
-                            table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEArtiUnits], oConstruction)
+                            local tTemplateRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]]
+                            local bAlreadyRecorded = false
+                            if M28Utilities.IsTableEmpty(tTemplateRef[M28Map.subrefGEArtiUnits]) == false then
+                                for iRecordedArti, oRecordedArti in tTemplateRef[M28Map.subrefGEArtiUnits] do
+                                    if oRecordedArti == oConstruction then
+                                        bAlreadyRecorded = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bAlreadyRecorded) then
+                                table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
                             tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGESMDUnit] = oConstruction
@@ -2087,8 +2115,20 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                 if M28Utilities.GetDistanceBetweenPositions(tArtiLoc, oUnit:GetPosition()) < 2.5 then
                                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                                     oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
-                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEArtiUnits], oUnit)
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added arti unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone) end
+                                                    --Check not already in the table
+                                                    local bAlreadyRecorded = false
+                                                    if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEArtiUnits]) == false then
+                                                        for iRecordedArti, oRecordedArti in tSubtable[M28Map.subrefGEArtiUnits] do
+                                                            if oRecordedArti == oUnit then
+                                                                bAlreadyRecorded = true
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if not(bAlreadyRecorded) then
+                                                        table.insert(tSubtable[M28Map.subrefGEArtiUnits], oUnit)
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added arti unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
                                                 end
                                             end
                                         end
@@ -2098,8 +2138,23 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                 if M28Utilities.GetDistanceBetweenPositions(tShieldLoc, oUnit:GetPosition()) < 1 then
                                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                                     oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
-                                                    table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEShieldUnits], oUnit)
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added shiled unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone) end
+                                                    --Check not already in the table (redundancy)
+                                                    local bAlreadyRecorded = false
+                                                    if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) == false then
+                                                        for iRecordedShield, oRecordedShield in tSubtable[M28Map.subrefGEShieldUnits] do
+                                                            if oRecordedShield == oUnit then
+                                                                bAlreadyRecorded = true
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if not(bAlreadyRecorded) then
+                                                        table.insert(tSubtable[M28Map.subrefGEShieldUnits], oUnit)
+                                                    else
+                                                        bDebugMessages = true
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont add shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against GE template as it was already recorded') end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added shiled unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone..' unless already recorded, bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
                                                 end
                                             end
                                         end
