@@ -2365,8 +2365,9 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             local iMinCombatIfSignifDanger = 0
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                 --If there are enemies in an adjacent LZ, then be more cautious with where to send MAA
-
-                if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0 then
+                    bSignificantAdjacentDanger = true
+                elseif tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                     local iEnemyThreat = math.max(0, (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
