@@ -1145,7 +1145,6 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             if not(bAlreadyRecorded) then
                                 table.insert(tTemplateRef[M28Map.subrefGEShieldUnits], oConstruction)
                             else
-                                bDebugMessages= true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Wont record shield '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' against arti template as it was already recorded') end
                             end
 
@@ -2151,7 +2150,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                     if not(bAlreadyRecorded) then
                                                         table.insert(tSubtable[M28Map.subrefGEShieldUnits], oUnit)
                                                     else
-                                                        bDebugMessages = true
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Wont add shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against GE template as it was already recorded') end
                                                     end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Added shiled unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to template ref='..iTemplate..'; in iLandZone='..iLandZone..' unless already recorded, bAlreadyRecorded='..tostring(bAlreadyRecorded)) end

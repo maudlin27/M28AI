@@ -3088,8 +3088,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 end
                             end
                             for iUnit, oUnit in tAvailableAirAA do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)) end
-                                if not(oUnit.IsDead) then --redundancy
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
+                                if not(oUnit.Dead) then --redundancy
                                     if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
                                         bConsiderCtrlK = false
                                         local bMoveUnitToRally = false
@@ -3111,6 +3111,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     else
                                         M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                                     end
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
                                 end
                             end
                         end
@@ -5053,6 +5054,8 @@ function UpdateScoutingShortlist(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateScoutingShortlist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.subrefiTimeOfScoutingShortlistUpdate] or 0) >= 0.89 then
 
         --Decide how often we want to scout
@@ -5070,19 +5073,30 @@ function UpdateScoutingShortlist(iTeam)
         local tShortlist = M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]
 
         local iIntervalWanted
+        local iLongestOverdueRequirement = 0
+        if M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 360 then --we have some locations we haven't scouted for at least 6 minutes after we wanted to
+            iLongestOverdueRequirement = M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] * 0.5
+        end
+        local iMinSegmentsWantedForMexFreeZones = 200 / M28Map.iLandZoneSegmentSize
+        if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each plateau and land zone, M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]='..M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]..'; iLongestOverdueRequirement='..iLongestOverdueRequirement) end
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
-                if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
-                if iPlateau == 2 and iLandZone == 2 and GetGameTimeSeconds() >= 3000 then bDebugMessages = true else bDebugMessages = false end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]='..tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]..'; tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]='..tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]..'; Time last had visual='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Do we expect to be adding this to shortlist='..tostring(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted)) end
-                if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
-                    iLongestOverdueScoutingTarget = math.max(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted, iLongestOverdueScoutingTarget)
-                    table.insert(tShortlist, {iPlateau, iLandZone})
+                if tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] >= iMinSegmentsWantedForMexFreeZones then
+                    local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
+                    if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]='..tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]..'; tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]='..tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]..'; Time last had visual='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Do we expect to be adding this to shortlist='..tostring(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted)) end
+                    if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
+                        iLongestOverdueScoutingTarget = math.max(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted, iLongestOverdueScoutingTarget)
+                        if iLongestOverdueScoutingTarget >= iLongestOverdueRequirement then
+                            table.insert(tShortlist, {iPlateau, iLandZone})
+                        end
+                    end
                 end
             end
         end
+        M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] = iLongestOverdueScoutingTarget
 
         --Same for water zones with mexes
         for iPond, tPondSubtable in M28Map.tPondDetails do
@@ -5091,11 +5105,14 @@ function UpdateScoutingShortlist(iTeam)
                 iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
                 if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 50 then iIntervalWanted = iIntervalWanted * iRadarFactor end
                 if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
-                    table.insert(tShortlist, {0, iWaterZone})
+                    iLongestOverdueScoutingTarget = math.max(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted, iLongestOverdueScoutingTarget)
+                    if iLongestOverdueScoutingTarget >= iLongestOverdueRequirement then
+                        table.insert(tShortlist, {0, iWaterZone})
+                    end
                 end
             end
         end
-        if GetGameTimeSeconds() >= 3000 and GetGameTimeSeconds() <= 3010 then bDebugMessages = true end
+
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tShortlist) == false then
                 LOG(sFunctionRef..': end of code, size of tShortlist='..table.getn(tShortlist)..'; tShortlist='..repru(tShortlist)..'; iLongestOverdueScoutingTarget='..iLongestOverdueScoutingTarget)

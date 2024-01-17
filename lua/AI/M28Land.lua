@@ -2228,7 +2228,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 36 * 60 and iLandZone == 35 then bDebugMessages = true end
+
 
     local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
     local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)

@@ -106,6 +106,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
     subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
+    subrefiLongestOverdueScoutingTarget = 'M28TmLngSct' --Longest overdue scouting target in seconds
     subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
     iEnemyT3MAAActiveCount = 'M28EnT3MAACn' --Number of enemy T3 MAA (approximate measure)
 
@@ -594,6 +595,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][toActiveSnipeTargets] = {}
     tTeamData[iTotalTeamCount][reftM28ACUs] = {}
     tTeamData[iTotalTeamCount][tPotentiallyActiveGETemplates] = {}
+    tTeamData[iTotalTeamCount][subrefiLongestOverdueScoutingTarget] = 0
 
 
     local bHaveCampaignM28AI = false
@@ -835,7 +837,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0309314' then bDebugMessages = true end
+
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then
         M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit, UnitId='..oUnit.UnitId)
@@ -1475,7 +1477,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0309314' then bDebugMessages = true end
+
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable

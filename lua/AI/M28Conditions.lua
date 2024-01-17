@@ -195,7 +195,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 3000 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)

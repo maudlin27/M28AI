@@ -2604,7 +2604,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 9000 or aiBrain[M28Economy.refbBuiltParagon] then bDebugMessages = true end
+
 
     local iFactionRequired
     local iCategoryWanted
@@ -3395,7 +3395,6 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         local bIgnoreIfEnemyUnderwater = false
         local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
-            if GetGameTimeSeconds() >= 3000 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
             bWantEngiToRun = false
             bEngiIsUnavailable = false
@@ -4003,7 +4002,7 @@ function ClearEngineerTracking(oEngineer)
     local sFunctionRef = 'ClearEngineerTracking'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2500 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true end
+
 
     --Unpause unit if it was paused (redundancy)
     if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
@@ -4227,7 +4226,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     local sFunctionRef = 'TrackEngineerAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2500 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true end
+
 
     --Special logic (done in a genric way in case end up with more scenarios like this) - if action to assign currnetly is special shield logic and we have a different action to assign then clear engineer tracking (as we have an override that prevents it being cleared via orders)
     if oEngineer[refiAssignedAction] and not(oEngineer[refiAssignedAction] == iActionToAssign) then ClearEngineerTracking(oEngineer) end
@@ -5622,7 +5621,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
     local sFunctionRef = 'GETemplateStartBuildingShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 1 and iTemplateRef == 2 then bDebugMessages = true end
+
 
     local sShieldToBuild = nil
     local aiBrain
@@ -6202,7 +6201,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
     local sFunctionRef = 'GameEnderTemplateManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 1 and iTemplateRef == 2 then bDebugMessages = true end
+
 
     local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
@@ -6254,7 +6253,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
                 if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
                     for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
-                        if GetGameTimeSeconds() >= 3000 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true end
+
                         table.insert(tAvailableEngineers, oEngineer)
                         if EntityCategoryContains(categories.ENGINEER * categories.TECH3, oEngineer.UnitId) then
                             if not(oFirstUEF) and EntityCategoryContains(categories.UEF * categories.TECH3, oEngineer.UnitId) then oFirstUEF = oEngineer end
@@ -6515,7 +6514,7 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
     local sFunctionRef = 'AssignEngineerToGameEnderTemplate'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2500 and (oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual030984' or  oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'ual0309326') then bDebugMessages = true else bDebugMessages = false end
+
     --Will find a gameender tempalte for oEngineer to join, or create a new one if there's no active one
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to assign engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to gameendertemplate for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Engi team='..oEngineer:GetAIBrain().M28Team) end
