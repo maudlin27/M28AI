@@ -2228,7 +2228,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 36 * 60 and iLandZone == 35 then bDebugMessages = true end
 
     local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
     local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
@@ -2361,47 +2361,71 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             --Enemy doesnt have any air units, so consider if there are other land zones we want to support with MAA
             local tLZToReinforceModDistance = {}
             local iCurModDist
+            local bSignificantAdjacentDanger = false
+            local iMinCombatIfSignifDanger = 0
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all other adjacent land zones to iLandZone '..iLandZone..', reprs of tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones])) end
+                --If there are enemies in an adjacent LZ, then be more cautious with where to send MAA
+
+                if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                    local iEnemyThreat = math.max(0, (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            iEnemyThreat = iEnemyThreat + math.max(0, (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tAdjLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreat (i.e. net adjacent combat threat)='..iEnemyThreat..'; This zone ally MAA='..tLZTeamData[M28Map.subrefLZThreatAllyMAA]) end
+                    if iEnemyThreat > math.min(800, (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0) * 0.04) then
+                        bSignificantAdjacentDanger = true
+                        iMinCombatIfSignifDanger = math.min(iEnemyThreat * 0.2, (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0) * 0.1, 800)
+                    end
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all other adjacent land zones to iLandZone '..iLandZone..', reprs of tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones])..'; Size of tMAAToAdvance='..table.getn(tMAAToAdvance)..'; bSignificantAdjacentDanger='..tostring(bSignificantAdjacentDanger)..'; iMinCombatIfSignifDanger='..iMinCombatIfSignifDanger) end
                 for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                     local tAltTeamLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to send MAA to assist alt LZ '..tPathDetails[M28Map.subrefLZNumber]..'; tAltTeamLZData[M28Map.subrefLZMAAThreatWanted]='..tAltTeamLZData[M28Map.subrefLZMAAThreatWanted]..'; tAltTeamLZData[M28Map.subrefLZThreatAllyGroundAA]='..tAltTeamLZData[M28Map.subrefLZThreatAllyGroundAA]..'; Air to ground threat in this alt LZ='..tAltTeamLZData[M28Map.refiEnemyAirToGroundThreat]) end
                     if tAltTeamLZData[M28Map.subrefLZMAAThreatWanted] > tAltTeamLZData[M28Map.subrefLZThreatAllyGroundAA] then
-                        iCurModDist = tPathDetails[M28Map.subrefLZTravelDist]
-                        if tAltTeamLZData[M28Map.refiEnemyAirToGroundThreat] > 0 then
-                            iCurModDist = iCurModDist - 200
-                            if tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] > 0 then iCurModDist = iCurModDist - 35 end
-                        elseif (tAltTeamLZData[M28Map.refiEnemyAirOtherThreat] + tLZTeamData[M28Map.refiEnemyAirAAThreat]) > 45 then iCurModDist = iCurModDist - 100
-                        end
-                        if M28Utilities.IsTableEmpty(tAltTeamLZData[M28Map.subreftoLZOrWZAlliedUnits]) then iCurModDist = iCurModDist + 100 end
-                        if tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > 6 then
-                            iCurModDist = iCurModDist + 50
-                            if tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] == 0 then
-                                iCurModDist = iCurModDist + 150
-                            elseif tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] then
-                                iCurModDist = iCurModDist + 75
+                        if not(bSignificantAdjacentDanger) or (tLZTeamData[M28Map.subrefLZSValue] > 30 or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > math.min(iMinCombatIfSignifDanger, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal])) then
+                            iCurModDist = tPathDetails[M28Map.subrefLZTravelDist]
+                            if tAltTeamLZData[M28Map.refiEnemyAirToGroundThreat] > 0 then
+                                iCurModDist = iCurModDist - 200
+                                if tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] > 0 then iCurModDist = iCurModDist - 35 end
+                            elseif (tAltTeamLZData[M28Map.refiEnemyAirOtherThreat] + tLZTeamData[M28Map.refiEnemyAirAAThreat]) > 45 then iCurModDist = iCurModDist - 100
                             end
-                            --tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > subrefLZTThreatAllyCombatTotal
+                            if M28Utilities.IsTableEmpty(tAltTeamLZData[M28Map.subreftoLZOrWZAlliedUnits]) then iCurModDist = iCurModDist + 100 end
+                            if tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > 6 then
+                                iCurModDist = iCurModDist + 50
+                                if tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] == 0 then
+                                    iCurModDist = iCurModDist + 150
+                                elseif tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] then
+                                    iCurModDist = iCurModDist + 75
+                                end
+                                --tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > subrefLZTThreatAllyCombatTotal
+                            end
+                            tLZToReinforceModDistance[tPathDetails[M28Map.subrefLZNumber]] = iCurModDist
                         end
-                        tLZToReinforceModDistance[tPathDetails[M28Map.subrefLZNumber]] = iCurModDist
                     end
                 end
-                for iLZ, iModDist in M28Utilities.SortTableByValue(tLZToReinforceModDistance, false) do
-                    SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZ)
-                    if M28Utilities.IsTableEmpty(tMAAToAdvance) then
-                        break
+                if M28Utilities.IsTableEmpty(tLZToReinforceModDistance) == false then
+                    for iLZ, iModDist in M28Utilities.SortTableByValue(tLZToReinforceModDistance, false) do
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to send MAA to support zone '..iLZ..'; iModDist='..iModDist..'; size of tMAAToAdvance='..table.getn(tMAAToAdvance)) end
+                        SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZ)
+                        if M28Utilities.IsTableEmpty(tMAAToAdvance) then
+                            break
+                        end
                     end
                 end
 
                 if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
-                    if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-                            for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                                local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
-                                if not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false and tAltLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < tAltLZTeamData[M28Map.subrefLZTValue] * 0.1 then
-                                    SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tPathDetails[M28Map.subrefLZNumber])
-                                    if M28Utilities.IsTableEmpty(tMAAToAdvance) then break end
-                                end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Still ahve MAA left over, will consider ot her zones to advance to') end
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                        for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                            local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+                            if not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false and tAltLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < tAltLZTeamData[M28Map.subrefLZTValue] * 0.1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': sending MAA to support other LZ='..tPathDetails[M28Map.subrefLZNumber]..'; Size of MAA to advance before sending='..table.getn(tMAAToAdvance)) end
+                                SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tPathDetails[M28Map.subrefLZNumber])
+                                if M28Utilities.IsTableEmpty(tMAAToAdvance) then break end
                             end
                         end
                     end
@@ -2465,6 +2489,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                             M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
                             if M28Utilities.IsTableEmpty(tHoverMAA) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local iZoneMAAWanted
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering sending MAA to further away islands') end
                                 for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                     local tAltLZOrWZData, tAltLZOrWZTeamData
                                     if tSubtable[M28Map.subrefbIsWaterZone] then
@@ -2524,9 +2549,10 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then --Go back through each LZ assigning 3 times what it would normally want in MAA
                         local iFactorAdjust
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                            if iMinCombatIfSignifDanger == 0 then iMinCombatIfSignifDanger = 10 end
                             for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                                 local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
-                                if (not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 10 or tAltLZTeamData[M28Map.subrefLZSValue] > 10) then
+                                if (not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > iMinCombatIfSignifDanger or tAltLZTeamData[M28Map.subrefLZSValue] > 10) then
                                     iFactorAdjust = 2
                                     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then iFactorAdjust = 3 end
                                     SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tPathDetails[M28Map.subrefLZNumber], iFactorAdjust)
