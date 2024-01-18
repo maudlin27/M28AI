@@ -177,7 +177,7 @@ function GetNearestEnemyBrain(aiBrain)
 end
 
 function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
-    --One once at start of the game if an M28 brain is present
+    --Run once (i.e. no matter how many M28 brains are present will run max of one time) at start of the game if an M28 brain is present
     local sFunctionRef = 'GameSettingWarningsChecksAndInitialChatMessages'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
@@ -389,7 +389,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 end
             end
         else
-            local iRand = math.random(1,3)
+            local iRand = math.random(1,5)
             if iRand == 1 then sStartMessage = 'gl hf'
             elseif iRand == 2 then sStartMessage = 'gl'
             elseif iRand == 3 then
@@ -397,6 +397,16 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                     sStartMessage = 'Time to separate the wheat from the chaff'
                 else
                     sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
+                end
+            elseif iRand == 4 then
+                sStartMessage = '/83' --QAI: All calculations indicate that your demise is near
+            elseif iRand >= 5 then
+                if iHumans >= 1 and math.random(1,2)==1 then
+                    M28Chat.SendAudioMessage('X02_QAI_T01_04554', 'X02_VO', 40)
+                    sStartMessage = LOC('<LOC X02_T01_180_010>: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.')
+                else
+                    M28Chat.SendAudioMessage('X05_QAI_T01_04424', 'X05_VO', 40)
+                    sStartMessage = LOC('<LOC X05_T01_100_010>: On this day, I will teach you the true power of the Quantum Realm.')
                 end
             end
         end
@@ -499,7 +509,18 @@ end
 
 
 function TestCustom(aiBrain)
+    WaitSeconds(10)
     local sFunctionRef = 'TestCustom'
+    local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+    local OpStrings = import('/maps/scca_coop_e01.v0022/SCCA_Coop_E01_strings.lua')
+    --ScenarioFramework.Dialogue(OpStrings.E01_M07_090, false, true)
+
+    local SyncVoice = import("/lua/simsyncutils.lua").SyncVoice
+    --SyncVoice({Cue = 'X05_QAI_T01_04424', Bank = 'X05_VO'})
+    --SyncVoice({Cue = 'E01_Leopard11_M07_0029', Bank = 'E01_VO'})
+    --{text = '<LOC X05_T01_100_010>[{i QAI}]: On this day, I will teach you the true power of the Quantum Realm.', vid = 'X05_QAI_T01_04424.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04424', faction = 'Cybran'},
+    --SyncVoice({Cue = 'XGG_Brackman_MP1_04613', Bank = 'XGG'})
+
 
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
     --[[local iXAdjust = -8

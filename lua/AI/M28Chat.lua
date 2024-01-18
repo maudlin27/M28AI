@@ -494,3 +494,13 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function SendForkedAudioMessage(sCue, sBank, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    local SyncVoice = import("/lua/simsyncutils.lua").SyncVoice
+    SyncVoice({Cue = sCue, Bank = sBank})
+end
+
+function SendAudioMessage(sCue, sBank, iDelayInSeconds)
+    ForkThread(SendForkedAudioMessage, sCue, sBank, iDelayInSeconds)
+end
