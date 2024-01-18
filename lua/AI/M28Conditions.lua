@@ -380,7 +380,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
-                            --Redundancy if assisting engineer with no action (shouldnt be needed)
+                                --Redundancy if assisting engineer with no action (shouldnt be needed)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]].UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We are assisting an engineer, engineer action we are assisting='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction] or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) end
                                 if not(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction]) then
@@ -2210,7 +2210,7 @@ function GetEnemyOmniCoverageOfZone(iPlateauOrZero, iLandOrWaterZone, iTeam)
     return iEnemyOmniCoverage
 end
 
-function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bApplyFractionComplete, iOptionalMinFractionComplete)
+function GetEnemyT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bApplyFractionComplete, iOptionalMinFractionComplete)
     local iT3ArtiEquivalent = 0
     local iBaseValue
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then

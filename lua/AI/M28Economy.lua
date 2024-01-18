@@ -27,7 +27,7 @@ refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
 refiBrainResourceMultiplier = 'M28ResourceMod' --Against aiBrain, e.g. 1.5 if AiX 1.5
 refiBrainBuildRateMultiplier = 'M28BuildMod' --against aiBrain
-refbBuiltParagon = 'M28EcBltPa' --true if we have an active paragon
+refbBuiltParagon = 'M28EcBltPa' --against aibrain, true if we have an active paragon
 
 refiMaxMassStorage = 'M28MaxMassStorage' --against aiBrain
 refiMaxEnergyStorage = 'M28MaxEnergyStorage' --against aiBrain
