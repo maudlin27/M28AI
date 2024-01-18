@@ -2428,7 +2428,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete
@@ -2489,6 +2489,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
                 if M28UnitInfo.IsUnitValid(oUnit) then
                     if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..'; Unit is an ally, health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
                         if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
                             table.insert(tUnitsToRepair, oUnit)
                         else
@@ -2595,10 +2596,25 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     end
                 end
             elseif bOnlyHaveAllies then
-                if bDebugMessages == true then LOG(sFunctionRef..': Only have allies so setting priority air defence target') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Only have allies so setting priority air defence target and will make sure we arent going to try and reclaim them') end
                 for iUnit, oUnit in Target.Units do
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         M28Air.AddPriorityAirDefenceTarget(oUnit)
+                        oUnit[M28UnitInfo.refbIsReclaimTarget] = false
+                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget]) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We had recorded this as a reclaim target for the following teams - will now remove.'..repru(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget])) end
+                            for _, iRecordedTeam in oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] do
+                                local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iRecordedTeam)
+                                if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                                    for iRecordedUnit, oRecordedUnit in tUnitLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                                        if oRecordedUnit == oUnit then
+                                            table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iRecordedUnit)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end
