@@ -3063,7 +3063,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering aeon specific experimental, iCurAirExperimentals='..iCurAirExperimentals..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Land exp='..iTeamLandExperimentals..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iOur bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; iLifetimeAirExpCount='..iLifetimeAirExpCount..'; iLifetimeGroundExpCount='..iLifetimeGroundExpCount..'; bHaveLargeBuildAreaAvailable='..tostring(bHaveLargeBuildAreaAvailable)) end
                         if bHaveLargeBuildAreaAvailable and iLifetimeGroundExpCount >= 4 and iLifetimeAirExpCount < iLifetimeGroundExpCount / 5 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 4 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have built lots of exp but havent tried many czars so will get some even if we lack air control') end
-                            iCategoryWanted = M28UnitInfo.M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL
+                            iCategoryWanted = M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 and (iCurAirExperimentals + iTeamLandExperimentals > (iFriendlyGameEnderUnderConstruction + iCurT3ArtiCount) or iCurAirExperimentals + iTeamLandExperimentals > 0 and iEnemyT3ArtiEquivalent > 0) then
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to get salvation due to high mass') end
@@ -5364,30 +5364,31 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     if oFirstAeon then
         aiBrain = oFirstAeon:GetAIBrain()
         oEngineerToBuild = oFirstAeon
-        sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstAeon)
+                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                    oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+        sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstAeon,    nil,        nil,        nil,            nil,                                nil,                    10)
     end
     if not(sArtiToBuild) then
         if oFirstSeraphim then
             aiBrain = oFirstSeraphim:GetAIBrain()
-            sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstSeraphim)
+            sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstSeraphim,    nil,        nil,        nil,            nil,                                nil,                    10)
             oEngineerToBuild = oFirstSeraphim
         end
         if not(sArtiToBuild) then
             if oFirstUEF then
                 aiBrain = oFirstUEF:GetAIBrain()
-                sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstUEF)
+                sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstUEF,    nil,        nil,        nil,            nil,                                nil,                    10)
                 oEngineerToBuild = oFirstUEF
             end
             if not(sArtiToBuild) then
                 if oFirstCybran then
                     aiBrain = oFirstCybran:GetAIBrain()
-                    sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstCybran)
+                    sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstCybran,    nil,        nil,        nil,            nil,                                nil,                    10)
                     oEngineerToBuild = oFirstCybran
                 end
                 if not(sArtiToBuild) then
                     if oFirstEngineer then
                         aiBrain = oFirstEngineer:GetAIBrain()
-                        sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer)
+                        sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer,    nil,        nil,        nil,            nil,                                nil,                    10)
                         oEngineerToBuild = oFirstEngineer
                     end
                 end
@@ -6495,12 +6496,14 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
     if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
         for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
             if bDebugMessages == true then LOG(sFunctionRef..': Redundancy for clearing engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
-            M28Orders.IssueTrackedClearCommands(oEngineer)
-            --Make sure RAS SACUs have their assigned template cleared
-            if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
-                oEngineer[M28Building.reftArtiTemplateRefs] = nil
-            else
-                ClearEngineerTracking(oEngineer)
+            if M28UnitInfo.IsUnitValid(oEngineer) then
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+                --Make sure RAS SACUs have their assigned template cleared
+                if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
+                    oEngineer[M28Building.reftArtiTemplateRefs] = nil
+                else
+                    ClearEngineerTracking(oEngineer)
+                end
             end
         end
     end

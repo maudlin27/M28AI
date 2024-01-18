@@ -5077,7 +5077,7 @@ function UpdateScoutingShortlist(iTeam)
         if M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 360 then --we have some locations we haven't scouted for at least 6 minutes after we wanted to
             iLongestOverdueRequirement = M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] * 0.5
         end
-        local iMinSegmentsWantedForMexFreeZones = 200 / M28Map.iLandZoneSegmentSize
+        local iMinSegmentsWantedForMexFreeZones = 400 / M28Map.iLandZoneSegmentSize
         if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each plateau and land zone, M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]='..M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]..'; iLongestOverdueRequirement='..iLongestOverdueRequirement) end
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do

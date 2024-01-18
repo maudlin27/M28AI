@@ -54,7 +54,8 @@ refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'clo
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
-refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
+refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit; false if it mustnt be reclaimed (e.g. campaign objective to defend); nil otherwise
+refiTeamsWithThisAsReclaimTarget = 'M28UnitTmsReclT' --[x] = 1,2,3...x; returns the M28Team ref (for any team that has this as a reclaim target via the normal 'on unit detected/add to zone' logic)
 refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
 reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
 refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt

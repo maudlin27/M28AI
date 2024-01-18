@@ -46,7 +46,7 @@ refiTMLShotsFired = 'M28BuildTMLShtFird'
 refoLastTMLTarget = 'M28BuildTMLLstTrg'
 refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is recorded against that unit, so if we have 2 TML they shouldn't target the same unit at the same time
 refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
-refiTimeLastFiredMissile = 'M28BuildTMLTmLstFir' --Gametimeseconds that the TML last fired a missile at something
+refiTimeLastFiredMissile = 'M28BuildTMLTmLstFir' --Gametimeseconds that the nuke last was given an order to fire a missile at something
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
 reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
@@ -1594,8 +1594,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
     if M28UnitInfo.IsUnitValid(oLauncher) then
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())) end
         --oLauncher[refbActiveMissileChecker] = true
@@ -2348,7 +2346,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                 end
             end
             --Already have an else error handler above so dont need below
-        --else M28Utilities.ErrorHandler('Unrecognised launcher type, UnitID='..(oLauncher.UnitId or 'nil')..'; wont consider launching a missile')
+            --else M28Utilities.ErrorHandler('Unrecognised launcher type, UnitID='..(oLauncher.UnitId or 'nil')..'; wont consider launching a missile')
         end
         --oLauncher[refbActiveMissileChecker] = false
     end
@@ -3404,9 +3402,16 @@ function DetermineBuildingExpectedValues()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStillLoaded)
+function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStillLoaded, bOnlyConsiderIfNotFiredRecently)
     --Call via forkthread
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DetermineBuildingExpectedValues'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(iSecondsToWait)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28UnitInfo.IsUnitValid(oLauncher) then
         local bProceed = true
         if bCheckIfStillLoaded then
@@ -3416,10 +3421,16 @@ function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStil
             if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
             if iMissiles > 0 then bProceed = true end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; bProceed='..tostring(bProceed)..'; Time='..GetGameTimeSeconds()) end
         if bProceed then
-            ConsiderLaunchingMissile(oLauncher)
+            if bDebugMessages == true then LOG(sFunctionRef..': Time since last weapon event='..(GetGameTimeSeconds() - oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100)..'; iSecondsToWait='..iSecondsToWait..'; bOnlyConsiderIfNotFiredRecently='..tostring(bOnlyConsiderIfNotFiredRecently or false)) end
+            if not(bOnlyConsiderIfNotFiredRecently) or (GetGameTimeSeconds() - oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100) > iSecondsToWait then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider launching a missile') end
+                ConsiderLaunchingMissile(oLauncher)
+            end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AreUnitsAdjacent(oFirstUnit, oSecondUnit)

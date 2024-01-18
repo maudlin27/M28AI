@@ -63,7 +63,7 @@ function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
     return sMostExpensiveBlueprint
 end
 
-function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
     --returns nil if cant find any blueprints that can build
     --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -143,42 +143,45 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                 end
 
                 if bCanBuildRequiredCategory then
-                    --if EntityCategoryContains(iCategoryCondition, sBlueprint) then --tBlueprints is already filtered to just those that meet the categories
-                    iValidBlueprints = iValidBlueprints + 1
-                    tValidBlueprints[iValidBlueprints] = sBlueprint
-                    if bIgnoreTechDifferences then iCurrentTech = 1
-                    else
-                        if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, sBlueprint) then iCurrentTech = 3
-                        elseif EntityCategoryContains(categories.TECH2, sBlueprint) then iCurrentTech = 2
-                        else iCurrentTech = 1
+                    --Check is valid size
+                    if not(iOptionalMaxSkirtSize) or M28UnitInfo.GetBuildingSize(sBlueprint) <= iOptionalMaxSkirtSize then
+                        --if EntityCategoryContains(iCategoryCondition, sBlueprint) then --tBlueprints is already filtered to just those that meet the categories
+                        iValidBlueprints = iValidBlueprints + 1
+                        tValidBlueprints[iValidBlueprints] = sBlueprint
+                        if bIgnoreTechDifferences then iCurrentTech = 1
+                        else
+                            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, sBlueprint) then iCurrentTech = 3
+                            elseif EntityCategoryContains(categories.TECH2, sBlueprint) then iCurrentTech = 2
+                            else iCurrentTech = 1
+                            end
                         end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': '..sBlueprint..': iCurrentTech='..iCurrentTech..'; iHighestTech='..iHighestTech) end
-                    if iCurrentTech > iHighestTech then
-                        iHighestTech = iCurrentTech
-                        iHighestPriority = 0
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))) end
-                    if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a priority specified='..aiBrain[reftBlueprintPriorityOverride][sBlueprint]..'; iHighestPriority='..iHighestPriority) end
-                        iHighestPriority = math.max(aiBrain[reftBlueprintPriorityOverride][sBlueprint], iHighestPriority)
-                    end
-                    if bGetSlowest == true or bGetFastest == true then
-                        oCurBlueprint = tAllBlueprints[sBlueprint]
-                        iCurSpeed = oCurBlueprint.Physics.MaxSpeed
-                        if bDebugMessages == true then LOG(sFunctionRef..': '..sBlueprint..': iCurSpeed='..iCurSpeed) end
-                        if bGetSlowest == true then
-                            if iCurSpeed < tiLowestSpeedByTech[iCurrentTech] then tiLowestSpeedByTech[iCurrentTech] = iCurSpeed end
-                        elseif bGetFastest == true then
-                            if iCurSpeed > tiHighestSpeedByTech[iCurrentTech] then tiHighestSpeedByTech[iCurrentTech] = iCurSpeed end
+                        if bDebugMessages == true then LOG(sFunctionRef..': '..sBlueprint..': iCurrentTech='..iCurrentTech..'; iHighestTech='..iHighestTech) end
+                        if iCurrentTech > iHighestTech then
+                            iHighestTech = iCurrentTech
+                            iHighestPriority = 0
                         end
-                    elseif bGetCheapest then
-                        oCurBlueprint = tAllBlueprints[sBlueprint]
-                        iCurMass = oCurBlueprint.Economy.BuildCostMass
-                        if iCurMass < tiLowestMassByTech[iCurrentTech] then tiLowestMassByTech[iCurrentTech] = iCurMass end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))) end
+                        if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a priority specified='..aiBrain[reftBlueprintPriorityOverride][sBlueprint]..'; iHighestPriority='..iHighestPriority) end
+                            iHighestPriority = math.max(aiBrain[reftBlueprintPriorityOverride][sBlueprint], iHighestPriority)
+                        end
+                        if bGetSlowest == true or bGetFastest == true then
+                            oCurBlueprint = tAllBlueprints[sBlueprint]
+                            iCurSpeed = oCurBlueprint.Physics.MaxSpeed
+                            if bDebugMessages == true then LOG(sFunctionRef..': '..sBlueprint..': iCurSpeed='..iCurSpeed) end
+                            if bGetSlowest == true then
+                                if iCurSpeed < tiLowestSpeedByTech[iCurrentTech] then tiLowestSpeedByTech[iCurrentTech] = iCurSpeed end
+                            elseif bGetFastest == true then
+                                if iCurSpeed > tiHighestSpeedByTech[iCurrentTech] then tiHighestSpeedByTech[iCurrentTech] = iCurSpeed end
+                            end
+                        elseif bGetCheapest then
+                            oCurBlueprint = tAllBlueprints[sBlueprint]
+                            iCurMass = oCurBlueprint.Economy.BuildCostMass
+                            if iCurMass < tiLowestMassByTech[iCurrentTech] then tiLowestMassByTech[iCurrentTech] = iCurMass end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]) end
+                        end
+                        --end
                     end
-                    --end
                 end
             end
         end
