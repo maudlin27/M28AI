@@ -1112,9 +1112,9 @@ function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissue
     end
 
     local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
-
+    --LOG('Dealing with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Last order='..reprs(tLastOrder)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to last order position='..M28Utilities.GetDistanceBetweenPositions(tOrderPosition, (tLastOrder[subreftOrderPosition] or {0,0,0})))
     if not(oUnit:IsUnitState('Busy')) or (not(tLastOrder[subrefiOrderType] == refiOrderIssueNukeMissile and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
-        --LOG('About to issue nuke launch for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Time='..GetGameTimeSeconds())
+        --LOG('About to issue nuke launch for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; bAddToExistingQueue='..tostring(bAddToExistingQueue)..'; Time='..GetGameTimeSeconds())
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
     end
     --Apply below in all cases to ensure we actually launch a missile (it ought to just result in orders being queued if we already had such an order)
@@ -1123,6 +1123,8 @@ function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissue
     table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueNukeMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
 
     IssueNuke({oUnit}, tOrderPosition)
+    oUnit[M28Building.refiTimeLastFiredMissile] = GetGameTimeSeconds()
+    ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 10, true, true)
 
     oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
     --Unpause incase we paused previously

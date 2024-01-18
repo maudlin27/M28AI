@@ -147,7 +147,7 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
                     SUtils.AISendChat('all', aiBrain.Nickname, sMessage)
                     tiM28VoiceTauntByType[sMessageType] = GetGameTimeSeconds()
                 end
-                LOG(sFunctionRef..': Sent chat message. bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
+                LOG(sFunctionRef..': M28 Sent chat message from brain '..aiBrain.Nickname..'. bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
             end
             if bDebugMessages == true then LOG(sFunctionRef..': tiM28VoiceTauntByType='..repru(tiM28VoiceTauntByType)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages])) end
         end
@@ -330,6 +330,17 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     if not(bHadFriendlyM28AI) then
                         table.insert(tsPotentialMessages, 'You mightve beaten me, but I bet two M28AI would prove too much!')
                     end
+                else
+                    --Was there an M27 or M28AI on the team?
+                    for iBrain, oBrain in ArmyBrains do
+                        if not(oBrain.M28Team == oBrainDefeated.M28Team) and (oBrain.M27AI or oBrain.M28AI) then
+                            table.insert(tsPotentialMessages, 'Brother, how could you?')
+                            if oBrain.M27AI then
+                                table.insert(tsPotentialMessages, 'This changes nothing, I’m still the favourite of our father')
+                            end
+                            break
+                        end
+                    end
                 end
                 table.insert(tsPotentialMessages, 'I let you win this time')
                 if ScenarioInfo.Options.Victory == 'demoralization' then table.insert(tsPotentialMessages, 'So this is the way it ends, not with a whimper, but with a bang') end
@@ -381,17 +392,29 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                             break
                         end
                     end
+                    local bHadEnemyHuman = false
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.BrainType == 'Human' and oBrain.M28Team == oBrainDefeated.M28Team then
+                            bHadEnemyHuman = true
+                            break
+                        end
+                    end
 
                     if bHadAIX then
-                        table.insert(tsPotentialMessages, 'Maybe you should lower the AiX modifier next time!')
-                        table.insert(tsPotentialMessages, 'gg, even if I had bonus resources to help')
-                        if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
-                            table.insert(tsPotentialMessages, 'I thought you were being overconfident challenging me when I had this big a resource bonus')
+                        if bHadEnemyHuman then
+                            table.insert(tsPotentialMessages, 'Maybe you should lower the AiX modifier next time!')
+                            if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
+                                table.insert(tsPotentialMessages, 'I thought you were being overconfident challenging me when I had this big a resource bonus')
+                            end
                         end
+
+                        table.insert(tsPotentialMessages, 'gg, even if I had bonus resources to help')
                     else
-                        table.insert(tsPotentialMessages, 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
-                        if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] == 1 then table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time') end
-                        table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
+                        if bHadEnemyHuman then
+                            table.insert(tsPotentialMessages, 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
+                            if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] == 1 then table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time') end
+                            table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
+                        end
                     end
                     if bHaveNonM28Teammates then
                         table.insert(tsPotentialMessages, 'gj team')
@@ -403,6 +426,15 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
                     if (M28Team.tTeamData[oEnemyM28AIBrain.M28Team][M28Team.refiConstructedExperimentalCount] or 0) >= 4 and GetGameTimeSeconds() >= 45 * 60 then
                         table.insert(tsPotentialMessages, 'Phew, that took me longer than I expected')
+                    end
+
+                    --Did we beat M27 or M28AI?
+                    for iBrain, oBrain in ArmyBrains do
+                        if not(oBrain.M28Team == oBrainDefeated.M28Team) and (oBrainDefeated.M27AI or oBrainDefeated.M28AI) then
+                            table.insert(tsPotentialMessages, 'Goodbye, brother')
+                            if oBrainDefeated.M27AI then table.insert(tsPotentialMessages, 'Youve gotten complacent in your old age, and now your birthright is mine') end
+                            break
+                        end
                     end
 
                     --Faction specific taunt
@@ -457,7 +489,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
         if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
             local iRand = math.random(1, table.getn(tsPotentialMessages))
             local sEndOfGameMessage = tsPotentialMessages[iRand]
-            SendMessage(oBrainToSendMessage, 'End of game', sEndOfGameMessage, 3, 60)
+            SendMessage(oBrainToSendMessage, 'End of game', sEndOfGameMessage, 1, 60)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
