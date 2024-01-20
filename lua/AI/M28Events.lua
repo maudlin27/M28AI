@@ -179,8 +179,15 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                                 end
                             end
+                            if not(oUnitKilled:GetAIBrain().M28AI) or EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnitKilled.UnitId) then
+                                M28Chat.JustKilledEnemyValuableUnit(oUnitKilled, oKillerBrain)
+                            end
                         end
                     end
+                end
+                --Consider message if this was a significant unit
+                if oUnitKilled:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
+                    M28Chat.JustLostValuableUnit(oUnitKilled)
                 end
             elseif bDebugMessages == true then LOG(sFunctionRef..': Unit killed doesnt have a brain')
             end
@@ -266,6 +273,7 @@ function OnUnitDeath(oUnit)
                     if not(oUnit['M28Dead']) then
                         oUnit['M28Dead'] = true
                         M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
+
                         --Adjust T3 MAA count
                         if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false then
                             for iRecordedTeam, bRecorded in oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] do
@@ -722,6 +730,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
+                    end
+                    if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
+                        ForkThread(M28Chat.PartCompleteExperimentalDamaged, self, oUnitCausingDamage)
                     end
                 end
 

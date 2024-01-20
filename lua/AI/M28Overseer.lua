@@ -365,7 +365,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
 
     if not(bDontPlayWithM27) then
-
+        ForkThread(M28Chat.SendStartOfGameMessage, aiBrain)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
