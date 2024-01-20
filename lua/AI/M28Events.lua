@@ -2302,12 +2302,10 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
             LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))
         else
             --Logic to run just for M28AI
-            LOG('OnCreateBrain hook for ai with personality '..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality)
-
             if aiBrain.M28AI then
                 --Redundancy - if have M27 brain then change this back to false
                 if aiBrain.M27AI then aiBrain.M28AI = false end
-                LOG('M28 brain created')
+                if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created') end
 
                 --Copy of parts of aiBrain OnCreateAI that still want to retain
                 aiBrain:CreateBrainShared(planName)
@@ -2325,6 +2323,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                 --M28AIBrainClass.OnCreateAI(aiBrain, planName)
                 ForkThread(M28Overseer.M28BrainCreated, aiBrain)
             else
+                LOG('OnCreateBrain hook for Non-M28 ai with personality '..(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality or 'nil'))
                 --Reundancy - check M27 isn't being treated as M28AI
                 ForkThread(M28Overseer.DelayedM27M28BrainCheck, aiBrain)
             end

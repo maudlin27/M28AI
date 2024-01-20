@@ -365,53 +365,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
 
     if not(bDontPlayWithM27) then
-        local sStartMessage
 
-        if M28Map.bIsCampaignMap then
-            local iRand = math.random(1,8)
-            if iRand == 1 then sStartMessage = 'Lets do this!'
-            elseif iRand == 2 then sStartMessage = 'Time to foil their plans'
-            elseif iRand == 3 then sStartMessage = 'I didnt ask for this...'
-            elseif iRand == 4 then sStartMessage = 'Its time to end this'
-            elseif iRand == 5 then sStartMessage = 'I hope youve got my back commander'
-            elseif iRand == 6 then sStartMessage = 'So...I just need to eco right?'
-            elseif iRand == 7 then sStartMessage = 'This doesnt look as easy as the simulation...'
-            else
-                --Faction specific message
-                if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
-                    sStartMessage = 'They will not stop the UEF'
-                elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
-                    sStartMessage = 'For the Aeon!'
-                elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
-                    sStartMessage = 'Their defeat can be the only outcome'
-                else
-                    sStartMessage = 'They will perish at my hand'
-                end
-            end
-        else
-            local iRand = math.random(1,5)
-            if iRand == 1 then sStartMessage = 'gl hf'
-            elseif iRand == 2 then sStartMessage = 'gl'
-            elseif iRand == 3 then
-                if iHumans > 1 and math.random(1,2) == 1 then
-                    sStartMessage = 'Time to separate the wheat from the chaff'
-                else
-                    sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
-                end
-            elseif iRand == 4 then
-                sStartMessage = '/83' --QAI: All calculations indicate that your demise is near
-            elseif iRand >= 5 then
-                if iHumans >= 1 and math.random(1,2)==1 then
-                    M28Chat.SendAudioMessage('X02_QAI_T01_04554', 'X02_VO', 40)
-                    sStartMessage = LOC('<LOC X02_T01_180_010>: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.')
-                else
-                    M28Chat.SendAudioMessage('X05_QAI_T01_04424', 'X05_VO', 40)
-                    sStartMessage = LOC('<LOC X05_T01_100_010>: On this day, I will teach you the true power of the Quantum Realm.')
-                end
-            end
-        end
-        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
-        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60,                                false,          M28Map.bIsCampaignMap)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -435,6 +389,9 @@ function M28BrainCreated(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Will apply AiX modifiers to brain '..aiBrain.Nickname) end
         SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end
+
+    --Setup AI personality for this
+    M28Chat.AssignAIPersonality(aiBrain)
 
     if not(bInitialSetup) then
         bInitialSetup = true
@@ -518,7 +475,7 @@ function TestCustom(aiBrain)
     local SyncVoice = import("/lua/simsyncutils.lua").SyncVoice
     --SyncVoice({Cue = 'X05_QAI_T01_04424', Bank = 'X05_VO'})
     --SyncVoice({Cue = 'E01_Leopard11_M07_0029', Bank = 'E01_VO'})
-    --{text = '<LOC X05_T01_100_010>[{i QAI}]: On this day, I will teach you the true power of the Quantum Realm.', vid = 'X05_QAI_T01_04424.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04424', faction = 'Cybran'},
+    --{LOC('<LOC X05_T01_100_010>[{i QAI}]: On this day, I will teach you the true power of the Quantum Realm.', vid = 'X05_QAI_T01_04424.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04424', faction = 'Cybran'},
     --SyncVoice({Cue = 'XGG_Brackman_MP1_04613', Bank = 'XGG'})
 
 

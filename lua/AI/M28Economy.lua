@@ -1710,6 +1710,7 @@ function ManageEnergyStalls(iTeam)
             if bChangeRequired then
                 --Consider if we want to hold off pausing a T1 land fac upgrading to T2 if enemy has T2 arti threat (since we need MMLs)
                 local bDontPauseUpgradingT1LandOrT2Land = false
+                local bStopPausingIfGotToFactoriesAndHaveSomeEnergy = false
                 if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                         if M28UnitInfo.IsUnitValid(oFactory) then
@@ -1727,6 +1728,7 @@ function ManageEnergyStalls(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Change is required and we want to pause units, time='..GetGameTimeSeconds()) end
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = true
                     if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
+                    if M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.25 then bStopPausingIfGotToFactoriesAndHaveSomeEnergy = true end
                 end --redundancy
                 M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds() --Have even if unpausing, since we may only unpause some of the units
                 --Decide on order to pause/unpause
@@ -1954,8 +1956,12 @@ function ManageEnergyStalls(iTeam)
                                                     end
                                                 end
                                             end
-                                            if bApplyActionToUnit and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) then
-                                                bApplyActionToUnit = false
+                                            if bApplyActionToUnit then
+                                                if oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) then
+                                                    bApplyActionToUnit = false
+                                                elseif bStopPausingIfGotToFactoriesAndHaveSomeEnergy and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and not(oUnit:IsUnitState('Upgrading')) then
+                                                    bApplyActionToUnit = false
+                                                end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to pause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur blueprint building='..(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')..'; bConsideringHQ='..tostring(bConsideringHQ)..'; bApplyActionToUnit='..tostring(bApplyActionToUnit)..'; Time='..GetGameTimeSeconds()) end
                                         elseif not (bPauseNotUnpause) then
