@@ -180,7 +180,10 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                             end
                             if not(oUnitKilled:GetAIBrain().M28AI) or EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnitKilled.UnitId) then
-                                M28Chat.JustKilledEnemyValuableUnit(oUnitKilled, oKillerBrain)
+                                --Dont trigger if killed via nuke
+                                if oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
+                                    M28Chat.JustKilledEnemyValuableUnit(oUnitKilled, oKillerBrain)
+                                end
                             end
                         end
                     end

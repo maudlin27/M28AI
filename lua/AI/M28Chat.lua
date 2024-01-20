@@ -19,7 +19,7 @@ refiHall = 2
 refiCelene = 3
 refiRhiza = 4
 refiVendetta = 5
-refiAmalia = 6
+--refiAmalia = 6 --Only 1 voice message so want to be very low likelihood
 refiKael = 7
 refiGari = 8
 refiDostya = 9
@@ -28,7 +28,7 @@ refiBrackman = 11
 refiQAI = 12
 refiThelUuthow = 13
 refiOumEoshi = 14 --will also use SethIavow
-tiPersonalitiesByFaction = {[M28UnitInfo.refFactionUEF] = {refiFletcher, refiHall}, [M28UnitInfo.refFactionAeon] = {refiCelene, refiRhiza, refiVendetta, refiAmalia, refiKael, refiGari}, [M28UnitInfo.refFactionCybran] = {refiDostya, refiHex5, refiBrackman, refiQAI}, [M28UnitInfo.refFactionSeraphim] = {refiThelUuthow, refiOumEoshi}}
+tiPersonalitiesByFaction = {[M28UnitInfo.refFactionUEF] = {refiFletcher, refiHall}, [M28UnitInfo.refFactionAeon] = {refiCelene, refiRhiza, refiVendetta, refiKael, refiGari}, [M28UnitInfo.refFactionCybran] = {refiDostya, refiHex5, refiBrackman, refiQAI}, [M28UnitInfo.refFactionSeraphim] = {refiThelUuthow, refiOumEoshi}}
 
 --Against specific unit
 refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific message involving this (used e.g. for ondamaged trigger for an experimental)
@@ -434,7 +434,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                 if iPlayersOnTeam >= 2 then
                     AddPotentialMessage(LOC('<LOC X03_M02_170_010>[{i Princess}]: They\'re ... they\'re dead ... I shall forever mourn their loss.'),'X03_Princess_M02_03334', 'X03_VO')
                 end
-                if oBrainDefeated.M28AI and (oBrainDefeated[refiAssignedPersonality] == refiFletcher or oBrainDefeated[refiAssignedPersonality] == refiHall or oBrainDefeated[refiAssignedPersonality] == refiRhiza or oBrainDefeated[refiAssignedPersonality] == refiBrackman or oBrainDefeated[refiAssignedPersonality] == refiDostya or oBrainDefeated[refiAssignedPersonality] == refiAmalya) then
+                if oBrainDefeated.M28AI and (oBrainDefeated[refiAssignedPersonality] == refiFletcher or oBrainDefeated[refiAssignedPersonality] == refiHall or oBrainDefeated[refiAssignedPersonality] == refiRhiza or oBrainDefeated[refiAssignedPersonality] == refiBrackman or oBrainDefeated[refiAssignedPersonality] == refiDostya or oBrainDefeated[refiAssignedPersonality] == refiAmalia) then
                     AddPotentialMessage(LOC('<LOC X05_DB01_030_010>[{i HQ}]: The operation has ended in failure. All is lost.'), 'X05_HQ_DB01_04956', 'Briefings')
                     AddPotentialMessage(LOC('<LOC X06_M01_130_010>[{i HQ}]: Looks like the Commander just ate it. Poor bastard.'), 'X06_HQ_M01_04960', 'X06_VO')
                     AddPotentialMessage(LOC('<LOC X06_M01_140_010>[{i HQ}]: Commander, you read me? Commander? Ah hell...'),'X06_HQ_M01_04961', 'X06_VO')
@@ -688,7 +688,14 @@ function AssignAIPersonality(aiBrain)
                 end
             end
         end
-        if M28Utilities.IsTableEmpty(tiPotentialPersonalities) then table.insert(tiPotentialPersonalities, refiQAI) end
+        if M28Utilities.IsTableEmpty(tiPotentialPersonalities) then
+            --Aeon - consider amalia if all others are taken
+            if iFactionIndex == M28UnitInfo.refFactionAeon and not(tbAssignedPersonalities[refiAmalia]) then
+                table.insert(tiPotentialPersonalities, refiAmalia)
+            else
+                table.insert(tiPotentialPersonalities, refiQAI)
+            end
+        end
         local iRand = math.random(1, table.getn(tiPotentialPersonalities))
         aiBrain[refiAssignedPersonality] = tiPotentialPersonalities[iRand]
         tbAssignedPersonalities[aiBrain[refiAssignedPersonality]] = true
@@ -907,6 +914,7 @@ function SendStartOfGameMessage(aiBrain)
             AddPotentialMessage(LOC('<LOC XGG_MP1_250_010>[{i Kael}]: The Order will not be defeated!'), 'XGG_Kael_MP1_04590', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_270_010>[{i Kael}]: There will be nothing left of you when I am done.'), 'XGG_Kael_MP1_04592', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_300_010>[{i Kael}]: Run while you can.'), 'XGG_Kael_MP1_04595', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_260_010>[{i Kael}]: If you grovel, I may let you live.'), 'XGG_Kael_MP1_04591', 'XGG')
             --QAI - see above
         elseif aiBrain[refiAssignedPersonality] == refiDostya then
             AddPotentialMessage(LOC('<LOC XGG_MP1_330_010>[{i Dostya}]: I have little to fear from the likes of you.'), 'XGG_Dostya_MP1_04598', 'XGG')
@@ -971,47 +979,92 @@ function JustLostValuableUnit(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if oUnit:GetFractionComplete() == 1 then
-        local tsPotentialMessages = {}
-        local tsCueByMessageIndex = {}
-        local tsBankBymessageIndex = {}
-        local oBrainToSendMessage = oM28DamagerBrain
+        local aiBrain = oUnit:GetAIBrain()
+        if aiBrain.M28AI and not(aiBrain.M28IsDefeated) and not(oUnit:IsDefeated()) then
+            local tsPotentialMessages = {}
+            local tsCueByMessageIndex = {}
+            local tsBankBymessageIndex = {}
+            local oBrainToSendMessage = oM28DamagerBrain
 
-        local tsPotentialTeamMessages = {}
-        local tsTeamCueIndex = {}
-        local tsTeamBankIndex = {}
+            local tsPotentialTeamMessages = {}
+            local tsTeamCueIndex = {}
+            local tsTeamBankIndex = {}
 
-        function AddPotentialMessage(sMessage, sOptionalCue, sOptionalBank, bIsTeamMessage)
-            if bIsTeamMessage then
-                table.insert(tsPotentialTeamMessages, sMessage)
-                if sOptionalCue and sOptionalBank then
-                    local iRef = table.getn(tsPotentialTeamMessages)
-                    tsTeamCueIndex[iRef] = sOptionalCue
-                    tsTeamBankIndex[iRef] = sOptionalBank
-                end
+            function AddPotentialMessage(sMessage, sOptionalCue, sOptionalBank, bIsTeamMessage)
+                if bIsTeamMessage then
+                    table.insert(tsPotentialTeamMessages, sMessage)
+                    if sOptionalCue and sOptionalBank then
+                        local iRef = table.getn(tsPotentialTeamMessages)
+                        tsTeamCueIndex[iRef] = sOptionalCue
+                        tsTeamBankIndex[iRef] = sOptionalBank
+                    end
 
-            else
-                table.insert(tsPotentialMessages, sMessage)
-                if sOptionalCue and sOptionalBank then
-                    local iRef = table.getn(tsPotentialMessages)
-                    tsCueByMessageIndex[iRef] = sOptionalCue
-                    tsBankBymessageIndex[iRef] = sOptionalBank
+                else
+                    table.insert(tsPotentialMessages, sMessage)
+                    if sOptionalCue and sOptionalBank then
+                        local iRef = table.getn(tsPotentialMessages)
+                        tsCueByMessageIndex[iRef] = sOptionalCue
+                        tsBankBymessageIndex[iRef] = sOptionalBank
+                    end
                 end
             end
-        end
 
 
 
+            --UEF
+            --{LOC('<LOC X01_M02_037_010>[{i Graham}]: We\'re getting hit from all directions! Oh god, please help us...', vid = 'X01_Graham_M02_04244.sfd', bank = 'X01_VO', cue = 'X01_Graham_M02_04244', faction = 'UEF'},
+            --{LOC('<LOC X01_M03_100_010>[{i Fletcher}]: Where are my reinforcements?', vid = 'X01_Fletcher_M03_03695.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03695', faction = 'UEF'},
+            --{LOC('<LOC X01_T01_230_010>[{i Fletcher}]: I\'m in a lot of trouble!', vid = 'X01_Fletcher_T01_04534.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_T01_04534', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_300_010>[{i Fletcher}]: I\'m getting hit pretty hard! Get over here and help me! Fletcher out.', vid = 'X05_Fletcher_M02_05108.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_05108', faction = 'UEF'},
+            --{text = '<LOC X01_T01_220_010>[{i Fletcher}]: Commander, I could use a hand over here. I\'m getting hit pretty hard.', vid = 'X01_Fletcher_T01_04533.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_T01_04533', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_310_010>[{i Fletcher}]: Colonel, I\'d really appreciate it if you could help me out. The enemy is pounding me pretty hard. Fletcher out.', vid = 'X05_Fletcher_M02_05109.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_05109', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_320_010>[{i Fletcher}]: Get it in gear, Cybran! The enemy is kicking the tar out of me and I need your help. Fletcher out.', vid = 'X05_Fletcher_M02_05110.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_05110', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_330_010>[{i Fletcher}]: My base is being destroyed. I need help! I can\'t hold them off!', vid = 'X05_Fletcher_M02_05111.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_05111', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_340_010>[{i Fletcher}]: Enemy units are hitting my base pretty hard. I need you to reinforce my position. Fletcher out.', vid = 'X05_Fletcher_M02_05112.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_05112', faction = 'UEF'},
+            --{LOC('<LOC X05_M02_170_010>[{i Amalia}]: My ACU is seriously damaged, Commander!', vid = 'X05_Amalia_M02_03850.sfd', bank = 'X05_VO', cue = 'X05_Amalia_M02_03850', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_690_010>[{i Fletcher}]: You\'re a coward.', vid = 'X06_Fletcher_T01_03030.sfd', bank = 'X06_VO', cue = 'X06_Fletcher_T01_03030', faction = 'UEF'},
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
-        if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
-            local iRand = math.random(1, table.getn(tsPotentialMessages))
-            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-            SendMessage(oBrainToSendMessage, 'LostUnit', tsPotentialMessages[iRand], 0, 1200, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
-        end
-        if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
-            local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
-            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-            SendMessage(oBrainToSendMessage, oBrainToSendMessage.M28Team..'LostUnit', tsPotentialTeamMessages[iRand], 3, 1200, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
+            --Aeon
+            --{LOC('<LOC X02_M02_176_010>[{i Celene}]: I can still make things right.', vid = 'X02_Celene_M02_04287.sfd', bank = 'X02_VO', cue = 'X02_Celene_M02_04287', faction = 'Aeon'},
+            --{LOC('<LOC X06_M03_060_020>[{i Kael}]: Do something!', vid = 'X06_Kael_M03_04499.sfd', bank = 'X06_VO', cue = 'X06_Kael_M03_04499', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_570_010>[{i Vendetta}]: I am not defeated yet!', vid = 'X06_Vedetta_T01_03019.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03019', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_883_010>[{i Rhiza}]: It does not matter, I will continue to attack!', vid = 'X06_Rhiza_T01_04506.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04506', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!', vid = 'X06_Rhiza_T01_04508.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04508', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_886_010>[{i Rhiza}]: I will rebuild twice as strong!', vid = 'X06_Rhiza_T01_04509.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04509', faction = 'Aeon'},
+            --{LOC('<LOC X06_T01_887_010>[{i Rhiza}]: You mistake me if you think I will be cowed!', vid = 'X06_Rhiza_T01_04510.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04510', faction = 'Aeon'},
+            --AddPotentialMessage(LOC('<LOC XGG_MP1_210_010>[{i Rhiza}]: I will hunt you to the ends of the galaxy!', bank = 'XGG', cue = 'XGG_Rhiza_MP1_04586'},
+            --AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04508'},
+            --AddPotentialMessage(LOC('<LOC X06_T01_920_010>[{i Rhiza}]: Soon you will know my wrath!', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03052'},
+            --AddPotentialMessage(LOC('<LOC XGG_MP1_250_010>[{i Kael}]: The Order will not be defeated!', bank = 'XGG', cue = 'XGG_Kael_MP1_04590'},
+
+
+            --Cybran
+            --{LOC('<LOC X05_M03_016_010>[{i Brackman}]: I am under attack, my child. Under attack. Please defend me.', vid = 'X05_Brackman_M03_04953.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_04953', faction = 'Cybran'},
+            --{LOC('<LOC X05_M03_070_010>[{i Brackman}]: Hull integrity is dropping. Please help me, Commander.', vid = 'X05_Brackman_M03_03864.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_03864', faction = 'Cybran'},
+            --AddPotentialMessage(LOC('<LOC XGG_MP1_440_010>[{i Brackman}]: Are you sure you want to do that?', bank = 'XGG', cue = 'XGG_Brackman_MP1_04609'},
+            --{LOC('<LOC X05_T01_140_010>[{i Hex5}]: The Master will punish you for that.', vid = 'X05_Hex5_T01_04428.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04428', faction = 'Cybran'},
+            --{LOC('<LOC X05_T01_220_010>[{i Hex5}]: Even if you destroy me, the Master lives on.', vid = 'X05_Hex5_T01_04436.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04436', faction = 'Cybran'},
+            --{text = '<LOC X05_M03_325_040>[{i QAI}]: Your efforts will be for -- what are you doing? That is not possible.', vid = 'X05_QAI_M03_04450.sfd', bank = 'X05_VO', cue = 'X05_QAI_M03_04450', faction = 'Cybran'},
+            --{text = '<LOC X05_T01_050_010>[{i QAI}]: That building means nothing to me.', vid = 'X05_QAI_T01_04419.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04419', faction = 'Cybran'},
+            --{text = '<LOC X05_T01_040_010>[{i QAI}]: Those bases are of no consequence.', vid = 'X05_QAI_T01_04418.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04418', faction = 'Cybran'},
+            --AddPotentialMessage(LOC('<LOC XGG_MP1_520_010>[{i QAI}]: Your strategies are without merit.', bank = 'XGG', cue = 'XGG_QAI_MP1_04617'},
+
+            --Seraphim
+            --{LOC('<LOC X06_T01_010_010>[{i ThelUuthow}]: You have accomplished nothing. You will never defeat us.', vid = 'X06_Thel-Uuthow_T01_04462.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04462', faction = 'Seraphim'},
+            --{LOC('<LOC X06_T01_250_010>[{i ThelUuthow}]: Perhaps you are a greater threat than I thought?', vid = 'X06_Thel-Uuthow_T01_02977.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_02977', faction = 'Seraphim'},
+
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+            if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
+                local iRand = math.random(1, table.getn(tsPotentialMessages))
+                --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+                SendMessage(oBrainToSendMessage, 'LostUnit', tsPotentialMessages[iRand], 0, 1200, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+            end
+            if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
+                local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
+                --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+                SendMessage(oBrainToSendMessage, oBrainToSendMessage.M28Team..'LostUnit', tsPotentialTeamMessages[iRand], 3, 1200, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
+            end
         end
 
     end
@@ -1068,6 +1121,17 @@ function JustKilledEnemyValuableUnit(oUnit, oKillerBrain)
                     AddPotentialMessage(LOC('<LOC X05_M02_140_010>[{i Fletcher}]: He\'s got almost nothing left! Take him out!'), 'X05_Fletcher_M02_03847', 'X05_VO')
                 end
             end
+            AddPotentialMessage(LOC('<LOC XGG_MP1_100_010>[{i Fletcher}]: You\'re not puttin\' up much of a fight.'), 'XGG_Fletcher_MP1_04575', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_110_010>[{i Fletcher}]: Do you have any idea of what you\'re doing?'), 'XGG_Fletcher_MP1_04576', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_120_010>[{i Fletcher}]: Not much on tactics, are ya?'), 'XGG_Fletcher_MP1_04577', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_140_010>[{i Fletcher}]: You ain\'t too good at this, are you?'), 'XGG_Fletcher_MP1_04579', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_150_010>[{i Fletcher}]: Guess I got time to smack you around.'), 'XGG_Fletcher_MP1_04580', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_160_010>[{i Fletcher}]: I feel a bit bad, beatin\' up on you like this.'), 'XGG_Fletcher_MP1_04581', 'XGG')
+        elseif oM28DamagerBrain[refiAssignedPersonality] == refiHall then
+            AddPotentialMessage(LOC('<LOC XGG_MP1_030_010>[{i Hall}]: You\'re not going to stop me.'), 'XGG_Hall__04568', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_040_010>[{i Hall}]: The gloves are coming off.'), 'XGG_Hall__04569', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_050_010>[{i Hall}]: You\'re in my way.'), 'XGG_Hall__04570', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_080_010>[{i Hall}]: You\'ve got no chance against me!'), 'XGG_Hall__04573', 'XGG')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiGari then
             AddPotentialMessage(LOC('<LOC X01_M02_161_010>[{i Gari}]: Ha-ha-ha!'), 'X01_Gari_M02_04245', 'X01_VO')
             AddPotentialMessage(LOC('<LOC X01_T01_040_010>[{i Gari}]: Your tenacity is admirable, but the outcome of this battle was determined long ago.'), 'X01_Gari_T01_04514', 'X01_VO')
@@ -1098,46 +1162,106 @@ function JustKilledEnemyValuableUnit(oUnit, oKillerBrain)
             AddPotentialMessage(LOC('<LOC X06_T01_910_010>[{i Rhiza}]: It is unwise to ignore me.'), 'X06_Rhiza_T01_03051', 'X06_VO')
             AddPotentialMessage(LOC('<LOC X06_T01_920_010>[{i Rhiza}]: Soon you will know my wrath!'), 'X06_Rhiza_T01_03052', 'X06_VO')
             AddPotentialMessage(LOC('<LOC X06_T01_930_010>[{i Rhiza}]: The will of the Princess will not be denied!'), 'X06_Rhiza_T01_03053', 'X06_VO')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_170_010>[{i Rhiza}]: Glory to the Princess!'), 'XGG_Rhiza_MP1_04582', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_180_010>[{i Rhiza}]: Glorious!'), 'XGG_Rhiza_MP1_04583', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_190_010>[{i Rhiza}]: I will not be stopped!'), 'XGG_Rhiza_MP1_04584', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_220_010>[{i Rhiza}]: For the Aeon!'), 'XGG_Rhiza_MP1_04587', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_240_010>[{i Rhiza}]: Behold the power of the Illuminate!'), 'XGG_Rhiza_MP1_04589', 'XGG')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiKael then
             AddPotentialMessage(LOC('<LOC X03_M02_115_020>[{i Kael}]: Ha-ha-ha!'), 'X03_Kael_M02_04368', 'X03_VO')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_280_010>[{i Kael}]: You\'re beginning to bore me.'), 'XGG_Kael_MP1_04593', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_290_010>[{i Kael}]: My time is wasted on you.'), 'XGG_Kael_MP1_04594', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_310_010>[{i Kael}]: It must be frustrating to be so completely overmatched.'), 'XGG_Kael_MP1_04596', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_320_010>[{i Kael}]: Beg for mercy.'), 'XGG_Kael_MP1_04597', 'XGG')
+
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiCelene then
+            if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                AddPotentialMessage(LOC('<LOC X02_T01_001_010>[{i Celene}]: No, you may not have that experimental.'), 'X02_Celene_T01_04782', 'X02_VO')
+            end
+            AddPotentialMessage(LOC('<LOC X02_T01_090_010>[{i Celene}]: Nothing can save you now!'), 'X02_Celene_T01_04544', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_095_010>[{i Celene}]: Beg me for mercy! Beg!'), 'X02_Celene_T01_04545', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_070_010>[{i Celene}]: Every day you grow weaker. Your end is drawing near.'), 'X02_Celene_T01_04542', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_090_010>[{i Celene}]: Nothing can save you now!'), 'X02_Celene_T01_04544', 'X02_VO')
+
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiVendetta then
+            local bHaveTeammates = false
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28Team == oBrainToSendMessage.M28Team and not(oBrain==oBrainToSendMessage) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                    bHaveTeammates = true
+                    break
+                end
+            end
+            if bHaveTeammates then
+                AddPotentialMessage(LOC('<LOC X06_T01_500_010>[{i Vendetta}]: Why are you still fighting us?'), 'X06_Vedetta_T01_03012', 'X06_VO')
+            end
+            if oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                AddPotentialMessage(LOC('<LOC X06_T01_520_010>[{i Vendetta}]: You are an abomination.'), 'X06_Vedetta_T01_03014', 'X06_VO')
+            end
+            if oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                AddPotentialMessage(LOC('<LOC X06_T01_540_010>[{i Vendetta}]: You will die by my hand, traitor.'), 'X06_Vedetta_T01_03016', 'X06_VO')
+            end
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiDostya then
+            AddPotentialMessage(LOC('<LOC XGG_MP1_340_010>[{i Dostya}]: Observe. You may learn something.'), 'XGG_Dostya_MP1_04599', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_370_010>[{i Dostya}]: You are not worth my time.'), 'XGG_Dostya_MP1_04602', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_380_010>[{i Dostya}]: Your defeat is without question.'), 'XGG_Dostya_MP1_04603', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_390_010>[{i Dostya}]: You seem to have courage. Intelligence seems to be lacking.'), 'XGG_Dostya_MP1_04604', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_400_010>[{i Dostya}]: I will destroy you.'), 'XGG_Dostya_MP1_04605', 'XGG')
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiBrackman then
+            AddPotentialMessage(LOC('<LOC XGG_MP1_410_010>[{i Brackman}]: I\'m afraid there is no hope for you, oh yes.'), 'XGG_Brackman_MP1_04606', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_420_010>[{i Brackman}]: Well, at least you provided me with some amusement.'), 'XGG_Brackman_MP1_04607', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_430_010>[{i Brackman}]: Perhaps some remedial training is in order?'), 'XGG_Brackman_MP1_04608', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_450_010>[{i Brackman}]: They do not call me a genius for nothing, you know.'), 'XGG_Brackman_MP1_04610', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_460_010>[{i Brackman}]: Defeating you is hardly worth the effort, oh yes.'), 'XGG_Brackman_MP1_04611', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_470_010>[{i Brackman}]: There is nothing you can do.'), 'XGG_Brackman_MP1_04612', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_480_010>[{i Brackman}]: At least you will not suffer long.'), 'XGG_Brackman_MP1_04613', 'XGG')
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiHex5 then
+            AddPotentialMessage(LOC('<LOC X05_T01_150_010>[{i Hex5}]: You are weak and soft, frightened by what you don\'t understand.'), 'X05_Hex5_T01_04429', 'X05_VO')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_580_010>[{i Hex5}]: I do make it look easy.'), 'XGG_Hex5_MP1_04623', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_610_010>[{i Hex5}]: So, I guess failure runs in your family?'), 'XGG_Hex5_MP1_04626', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_620_010>[{i Hex5}]: Man, I\'m good at this!'), 'XGG_Hex5_MP1_04627', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_640_010>[{i Hex5}]: Don\'t worry, it\'ll be over soon.'), 'XGG_Hex5_MP1_04629', 'XGG')
+
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiQAI then
+            AddPotentialMessage(LOC('<LOC X02_T01_210_010>[{i QAI}]: My influence is much more vast than you can imagine.'), 'X02_QAI_T01_04557', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_220_010>[{i QAI}]: All calculations indicate that your demise is near.'), 'X02_QAI_T01_04558', 'X02_VO')
+            if not(oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionSeraphim) then
+                AddPotentialMessage(LOC('<LOC X02_T01_180_010>[{i QAI}]: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.'), 'X02_QAI_T01_04554', 'X02_VO')
+            end
+            AddPotentialMessage(LOC('<LOC XGG_MP1_550_010>[{i QAI}]: Your efforts are futile.'), 'XGG_QAI_MP1_04620', 'XGG')
+
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiOumEoshi then
+            AddPotentialMessage(LOC('<LOC X04_M03_055_010>[{i OumEoshi}]: Only now do you realize the futility of your situation. We know what you know, we see what you see. There is no stopping us.'), 'X04_Oum-Eoshi_M03_04402', 'X04_VO')
+            AddPotentialMessage(LOC('<LOC X04_T01_030_010>[{i OumEoshi}]: Do not fret. Dying by my hand is the supreme honor.'), 'X04_Oum-Eoshi_T01_04385', 'X04_VO')
+            --If against non-Seraphim
+            if not(oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionSeraphim) then
+                AddPotentialMessage(LOC('<LOC X04_M03_057_010>[{i OumEoshi}]: Humanity\'s time is at an end. You will be rendered extinct.'), 'X04_Oum-Eoshi_M03_04404', 'X04_VO')
+            end
+            if oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                AddPotentialMessage(LOC('<LOC X04_M03_090_010>[{i OumEoshi}]: You will share the fate of Riley and Clarke. Goodbye, Colonel.'), 'X04_Oum-Eoshi_M03_03767', 'X04_VO')
+            end
+            AddPotentialMessage(LOC('<LOC X01_T01_250_010>[{i ShunUllevash}]: (Laughter)'), 'X01_seraphim_T01_05123', 'X01_VO')
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiThelUuthow then
+            AddPotentialMessage(LOC('<LOC X06_T01_240_010>[{i ThelUuthow}]: Bow down before our might, and we may spare you.'), 'X06_Thel-Uuthow_T01_02976', 'X06_VO')
+            if not(oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionSeraphim) then
+                AddPotentialMessage(LOC('<LOC X06_T01_190_010>[{i ThelUuthow}]: Your kind began this war. We are merely finishing it.'), 'X06_Thel-Uuthow_T01_02971', 'X06_VO')
+            end
+            if oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                AddPotentialMessage(LOC('<LOC X06_T01_210_010>[{i ThelUuthow}]: You Cybrans die as easily as any other human.'), 'X06_Thel-Uuthow_T01_02973', 'X06_VO')
+            end
+            AddPotentialMessage(LOC('<LOC X06_T01_260_010>[{i ThelUuthow}]: You will perish at my hand.'), 'X06_Thel-Uuthow_T01_02978', 'X06_VO')
         end
-        --By Aeon
-
-
-        --[[AddPotentialMessage(LOC('<LOC X02_T01_001_010>[{i Celene}]: No, you may not have that experimental.', vid = 'X02_Celene_T01_04782.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04782', faction = 'Aeon'},
-        AddPotentialMessage(LOC('<LOC X02_T01_090_010>[{i Celene}]: Nothing can save you now!', vid = 'X02_Celene_T01_04544.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04544', faction = 'Aeon'},
-        AddPotentialMessage(LOC('<LOC X02_T01_095_010>[{i Celene}]: Beg me for mercy! Beg!', vid = 'X02_Celene_T01_04545.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04545', faction = 'Aeon'},
-        AddPotentialMessage(LOC('<LOC X06_T01_500_010>[{i Vendetta}]: Why are you still fighting us?', vid = 'X06_Vedetta_T01_03012.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03012', faction = 'Aeon'},
-        AddPotentialMessage(LOC('<LOC X06_T01_520_010>[{i Vendetta}]: You are an abomination.', vid = 'X06_Vedetta_T01_03014.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03014', faction = 'Aeon'},
-        AddPotentialMessage(LOC('<LOC X06_T01_540_010>[{i Vendetta}]: You will die by my hand, traitor.', vid = 'X06_Vedetta_T01_03016.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03016', faction = 'Aeon'},
-
-        --By Cybran
-        AddPotentialMessage(LOC('<LOC X05_T01_150_010>[{i Hex5}]: You are weak and soft, frightened by what you don\'t understand.', vid = 'X05_Hex5_T01_04429.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04429', faction = 'Cybran'},
-        --{text = '<LOC X02_T01_210_010>[{i QAI}]: My influence is much more vast than you can imagine.', vid = 'X02_QAI_T01_04557.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04557', faction = 'Cybran'},
-        --{text = '<LOC X02_T01_220_010>[{i QAI}]: All calculations indicate that your demise is near.', vid = 'X02_QAI_T01_04558.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04558', faction = 'Cybran'},
-        --{text = '<LOC X02_T01_180_010>[{i QAI}]: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.', vid = 'X02_QAI_T01_04554.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04554', faction = 'Cybran'},
-
-        --By Seraphim
-        AddPotentialMessage(LOC('<LOC X01_T01_250_010>[{i ShunUllevash}]: (Laughter)', vid = 'X01_Seraphim_T01_05123.sfd', bank = 'X01_VO', cue = 'X01_seraphim_T01_05123', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X04_M03_055_010>[{i OumEoshi}]: Only now do you realize the futility of your situation. We know what you know, we see what you see. There is no stopping us.', vid = 'X04_Oum-Eoshi_M03_04402.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_M03_04402', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X04_M03_057_010>[{i OumEoshi}]: Humanity\'s time is at an end. You will be rendered extinct.', vid = 'X04_Oum-Eoshi_M03_04404.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_M03_04404', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X04_M03_090_010>[{i OumEoshi}]: You will share the fate of Riley and Clarke. Goodbye, Colonel.', vid = 'X04_Oum-Eoshi_M03_03767.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_M03_03767', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X04_T01_030_010>[{i OumEoshi}]: Do not fret. Dying by my hand is the supreme honor.', vid = 'X04_Oum-Eoshi_T01_04385.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04385', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X06_T01_190_010>[{i ThelUuthow}]: Your kind began this war. We are merely finishing it.', vid = 'X06_Thel-Uuthow_T01_02971.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_02971', faction = 'Seraphim'},
-        AddPotentialMessage(LOC('<LOC X06_T01_240_010>[{i ThelUuthow}]: Bow down before our might, and we may spare you.', vid = 'X06_Thel-Uuthow_T01_02976.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_02976', faction = 'Seraphim'},
-        --]]
 
         if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
         if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
-            local iRand = math.random(1, table.getn(tsPotentialMessages))
-            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-            SendMessage(oBrainToSendMessage, 'KilledUnit', tsPotentialMessages[iRand], 0, 1200, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
-        end
-        if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
-            local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
-            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-            SendMessage(oBrainToSendMessage, oBrainToSendMessage.M28Team..'KilledUnit', tsPotentialTeamMessages[iRand], 3, 1200, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
-        end
+        local iRand = math.random(1, table.getn(tsPotentialMessages))
+        --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+        SendMessage(oBrainToSendMessage, 'KilledUnit', tsPotentialMessages[iRand], 0, 1200, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+            end
+            if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
+        local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
+        --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+        SendMessage(oBrainToSendMessage, oBrainToSendMessage.M28Team..'KilledUnit', tsPotentialTeamMessages[iRand], 3, 1200, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
+            end
 
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1183,6 +1307,7 @@ function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
             if oM28DamagerBrain[refiAssignedPersonality] == refiFletcher then
                 AddPotentialMessage(LOC('<LOC X06_T01_585_010>[{i Fletcher}]: I won\'t let you use that experimental!'),'X06_Fletcher_T01_04803', 'X06_VO')
                 AddPotentialMessage(LOC('<LOC X06_T01_587_010>[{i Fletcher}]: You can\'t stop me with that experimental! I\'ll destroy it first!'), 'X06_Fletcher_T01_04805', 'X06_VO')
+
             elseif oM28DamagerBrain[refiAssignedPersonality] == refiGari then
                 AddPotentialMessage(LOC('<LOC X01_T01_001_010>[{i Gari}]: I will not allow you to build that experimental.'), 'X01_Gari_T01_04779', 'X01_VO')
                 AddPotentialMessage(LOC('<LOC X01_T01_002_010>[{i Gari}]: No, you will not complete that experimental.'), 'X01_Gari_T01_04780', 'X01_VO')
@@ -1220,7 +1345,7 @@ function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
             end
             if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
                 local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
-                --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
                 SendMessage(oBrainToSendMessage, oBrainToSendMessage.M28Team..'ExpDam', tsPotentialTeamMessages[iRand], 3, 600, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
             end
         end
@@ -1294,16 +1419,22 @@ end
         --{LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!', vid = 'X06_Rhiza_T01_04508.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04508', faction = 'Aeon'},
         --{LOC('<LOC X06_T01_886_010>[{i Rhiza}]: I will rebuild twice as strong!', vid = 'X06_Rhiza_T01_04509.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04509', faction = 'Aeon'},
         --{LOC('<LOC X06_T01_887_010>[{i Rhiza}]: You mistake me if you think I will be cowed!', vid = 'X06_Rhiza_T01_04510.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04510', faction = 'Aeon'},
+        --AddPotentialMessage(LOC('<LOC XGG_MP1_210_010>[{i Rhiza}]: I will hunt you to the ends of the galaxy!', bank = 'XGG', cue = 'XGG_Rhiza_MP1_04586'},
+        --AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!', bank = 'X06_VO', cue = 'X06_Rhiza_T01_04508'},
+        --AddPotentialMessage(LOC('<LOC X06_T01_920_010>[{i Rhiza}]: Soon you will know my wrath!', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03052'},
+        --AddPotentialMessage(LOC('<LOC XGG_MP1_250_010>[{i Kael}]: The Order will not be defeated!', bank = 'XGG', cue = 'XGG_Kael_MP1_04590'},
 
 
     --Cybran
         --{LOC('<LOC X05_M03_016_010>[{i Brackman}]: I am under attack, my child. Under attack. Please defend me.', vid = 'X05_Brackman_M03_04953.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_04953', faction = 'Cybran'},
         --{LOC('<LOC X05_M03_070_010>[{i Brackman}]: Hull integrity is dropping. Please help me, Commander.', vid = 'X05_Brackman_M03_03864.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_03864', faction = 'Cybran'},
+        --AddPotentialMessage(LOC('<LOC XGG_MP1_440_010>[{i Brackman}]: Are you sure you want to do that?', bank = 'XGG', cue = 'XGG_Brackman_MP1_04609'},
         --{LOC('<LOC X05_T01_140_010>[{i Hex5}]: The Master will punish you for that.', vid = 'X05_Hex5_T01_04428.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04428', faction = 'Cybran'},
         --{LOC('<LOC X05_T01_220_010>[{i Hex5}]: Even if you destroy me, the Master lives on.', vid = 'X05_Hex5_T01_04436.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04436', faction = 'Cybran'},
         --{text = '<LOC X05_M03_325_040>[{i QAI}]: Your efforts will be for -- what are you doing? That is not possible.', vid = 'X05_QAI_M03_04450.sfd', bank = 'X05_VO', cue = 'X05_QAI_M03_04450', faction = 'Cybran'},
         --{text = '<LOC X05_T01_050_010>[{i QAI}]: That building means nothing to me.', vid = 'X05_QAI_T01_04419.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04419', faction = 'Cybran'},
         --{text = '<LOC X05_T01_040_010>[{i QAI}]: Those bases are of no consequence.', vid = 'X05_QAI_T01_04418.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04418', faction = 'Cybran'},
+        --AddPotentialMessage(LOC('<LOC XGG_MP1_520_010>[{i QAI}]: Your strategies are without merit.', bank = 'XGG', cue = 'XGG_QAI_MP1_04617'},
 
     --Seraphim
         --{LOC('<LOC X06_T01_010_010>[{i ThelUuthow}]: You have accomplished nothing. You will never defeat us.', vid = 'X06_Thel-Uuthow_T01_04462.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04462', faction = 'Seraphim'},
@@ -1331,6 +1462,7 @@ end
         --{LOC('<LOC X04_M03_016_010>[{i Dostya}]: Getting hit from all sides ... too many of them ... too many ...', vid = 'X04_Dostya_M03_03755.sfd', bank = 'X04_VO', cue = 'X04_Dostya_M03_03755', faction = 'Cybran'},
         --{LOC('<LOC X05_DB01_030_010>[{i HQ}]: The operation has ended in failure. All is lost.', vid = 'X05_HQ_DB01_04956.sfd', bank = 'Briefings', cue = 'X05_HQ_DB01_04956', faction = 'NONE'},
         --{LOC('<LOC X05_M02_200_009>[{i Hex5}]: Wait! Master!', vid = 'X05_Hex5_T01_04437.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04437', faction = 'Cybran'},
+        --AddPotentialMessage(LOC('<LOC XGG_MP1_630_010>[{i Hex5}]: Goodbye!', bank = 'XGG', cue = 'XGG_Hex5_MP1_04628'},
         --{LOC('<LOC X05_M03_135_010>[{i Brackman}]: At last I shall have peace.', vid = 'X05_Brackman_M03_04444.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_04444', faction = 'Cybran'},
         --{LOC('<LOC X05_M03_327_010>[{i Brackman}]: Goodbye.', vid = 'X05_Brackman_M03_04452.sfd', bank = 'X05_VO', cue = 'X05_Brackman_M03_04452', faction = 'Cybran'},
 
