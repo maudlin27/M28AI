@@ -393,6 +393,9 @@ function M28BrainCreated(aiBrain)
     --Setup AI personality for this
     M28Chat.AssignAIPersonality(aiBrain)
 
+    --Assign rating
+    
+
     if not(bInitialSetup) then
         bInitialSetup = true
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main

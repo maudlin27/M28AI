@@ -18,6 +18,7 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -35,7 +36,7 @@ refiLastPlateauAndZoneToMoveTo = 'M28ACULastZoneToMove' --PlateauOrZero and Land
 refiTimeLastToldToAttackUnitInOtherZone = 'M28ACUTimeLastAttackUnit'
 refiLastPlateauAndZoneToAttackUnitIn = 'M28ACULastZoneToAttack' --PlateauOrZero and Land/Water zone ref if given move to zone order in order to attack a unit
 reftiTimeLastRanFromZoneByPlateau = 'M28ACUTimeLastRanByZone' --[x] is plateau or zero, [y] is the zone (currently only have logic for LZs though), returns gametimeseconds that last ran when in that zone
-refbUseACUAggressively = true
+refbUseACUAggressively = 'M28ACUUseAggress' --Against ACU
 reftSpecialObjectiveMoveLocation = 'M28ACUObjMoveLoc' --If has a value, ACU will move here
 refbACUHasTeleport = 'M28ACUHasTel' --true if ACU has teleport (will assume it also has good gun upgrade) - used to impact on telesnipe logic
 refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on getting teleport upgrade on the ACU
@@ -4466,6 +4467,11 @@ function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tL
             tLZOrWZTeamData[M28Map.subrefLZTValue] = math.max((tLZOrWZTeamData[M28Map.subrefLZTValue] or 0), iACUValueIncrease)
             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that ACU is in trouble, tLZTeamData[M28Map.subrefLZTValue]='..(tLZOrWZTeamData[M28Map.subrefLZTValue] or 'nil')) end
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then M28Utilities.ErrorHandler('ACU in trouble but not recorded against this LZ') end
+            --Consider chat message if ACU health <75% and are in the first 20m
+            if GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 then
+                ForkThread(M28Chat.ConsiderMessageForACUInTrouble, oACU, oACU:GetAIBrain())
+            end
+
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

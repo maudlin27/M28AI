@@ -179,10 +179,21 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                                 end
                             end
-                            if not(oUnitKilled:GetAIBrain().M28AI) or EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnitKilled.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                                 --Dont trigger if killed via nuke
                                 if oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
-                                    M28Chat.JustKilledEnemyValuableUnit(oUnitKilled, oKillerBrain)
+                                    --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
+                                    local bConsiderMessage = true
+                                    if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
+                                        bConsiderMessage = false
+                                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
+                                        if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
+                                            bConsiderMessage = true
+                                        end
+                                    end
+                                    bDebugMessages = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
                                 end
                             end
                         end
@@ -190,7 +201,13 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                 end
                 --Consider message if this was a significant unit
                 if oUnitKilled:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
-                    M28Chat.JustLostValuableUnit(oUnitKilled)
+                    if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
+                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
+                        --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
+                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 then
+                            ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
+                        end
+                    end
                 end
             elseif bDebugMessages == true then LOG(sFunctionRef..': Unit killed doesnt have a brain')
             end
