@@ -364,10 +364,6 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
     end
 
-    if not(bDontPlayWithM27) then
-        ForkThread(M28Chat.SendStartOfGameMessage, aiBrain)
-    end
-
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -391,10 +387,8 @@ function M28BrainCreated(aiBrain)
     end
 
     --Setup AI personality for this
-    M28Chat.AssignAIPersonality(aiBrain)
+    M28Chat.AssignAIPersonalityAndRating(aiBrain)
 
-    --Assign rating
-    
 
     if not(bInitialSetup) then
         bInitialSetup = true
@@ -761,6 +755,7 @@ function Initialisation(aiBrain)
     ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
     ForkThread(DelayedCheckOfUnitsAtStartOfGame)
     ForkThread(DecideOnGeneralMapStrategy, aiBrain)
+    ForkThread(M28Chat.ConsiderPerTeamStartMessage, aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

@@ -30,6 +30,7 @@ refiQAI = 12
 refiThelUuthow = 13
 refiOumEoshi = 14 --will also use SethIavow
 tiPersonalitiesByFaction = {[M28UnitInfo.refFactionUEF] = {refiFletcher, refiHall}, [M28UnitInfo.refFactionAeon] = {refiCelene, refiRhiza, refiVendetta, refiKael, refiGari}, [M28UnitInfo.refFactionCybran] = {refiDostya, refiHex5, refiBrackman, refiQAI}, [M28UnitInfo.refFactionSeraphim] = {refiThelUuthow, refiOumEoshi}}
+tsPersonalityNames = {[refiFletcher] = 'Fletcher', [refiHall] = 'Hall', [refiCelene] = 'Celene', [refiRhiza] = 'Rhiza', [refiVendetta] = 'Vendetta', [refiAmalia] = 'Amalisa', [refiKael] = 'Kael', [refiGari] = 'Gari', [refiDostya] = 'Dostya', [refiHex5]='Hex5', [refiBrackman] = 'Brackman', [refiQAI]='QAI', [refiThelUuthow]='ThelUuthow', [refiOumEoshi]='OumEoshi'}
 
 --Against specific unit
 refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific message involving this (used e.g. for ondamaged trigger for an experimental)
@@ -115,12 +116,11 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
     --if bOnlySendToTeam is true then will both only consider if message has been sent to teammates before (not all AI), and will send via team chat
     --bWaitUntilHaveACU - if true then will wait until aiBrain has an ACU (e.g. use for start of game messages in campaign)
     local sFunctionRef = 'SendForkedMessage'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code, aiBrain='..aiBrain.Nickname..'; sMessage='..sMessage..'; iOptionalDelayBeforeSending='..(iOptionalDelayBeforeSending or 'nil')..'; iOptionalTimeBetweenMessageType='..(iOptionalTimeBetweenMessageType or 'nil')..'; bOnlySendToTeam='..tostring(bOnlySendToTeam or false)..'; sOptionalSoundCue='..(sOptionalSoundCue or 'nil')..'; Time='..GetGameTimeSeconds()) end
     --Do we have allies?
     if not(bOnlySendToTeam) or table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
-
 
         if (iOptionalDelayBeforeSending or 0) > 0 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -168,6 +168,7 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
                 if not(bCancelAsAudioLikelyPlaying) then
                     if bOnlySendToTeam then
                         SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
+                        if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages] = {} end
                         M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] = GetGameTimeSeconds()
                         if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message') end
                     else
@@ -646,7 +647,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                 AddPotentialMessage('gg')
                 AddPotentialMessage(':(')
                 AddPotentialMessage('Recall damnit, recall!')
-                if oBrainDefeated:GetArmyFaction() == M28UnitInfo.refFactionAeon then
+                if oBrainDefeated.GetArmyFaction and oBrainDefeated:GetArmyFaction() == M28UnitInfo.refFactionAeon then
                     AddPotentialMessage('You may have defeated me, but my spirit lives on in the way!')
                 end
                 local bHaveNonM28Teammates = false
@@ -695,14 +696,31 @@ function SendAudioMessage(sCue, sBank, iDelayInSeconds, iOptionalTeamArmyIndex)
     ForkThread(SendForkedAudioMessage, sCue, sBank, iDelayInSeconds, iOptionalTeamArmyIndex)
 end
 
-function AssignAIPersonality(aiBrain)
+function AssignAIPersonalityAndRating(aiBrain)
+    local sFunctionRef = 'AssignAIPersonalityAndRating'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain.M28AI and not(M28Map.bIsCampaignMap) then
         local tiPotentialPersonalities = {}
         local iFactionIndex = aiBrain:GetFactionIndex()
+        local bAlreadyHaveNickname = false
         if M28Utilities.IsTableEmpty(tiPersonalitiesByFaction[iFactionIndex]) == false then
-            for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
-                if not(tbAssignedPersonalities[iPersonality]) then
-                    table.insert(tiPotentialPersonalities, iPersonality)
+            if aiBrain.Nickname then
+                for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if brain '..aiBrain.Nickname..' is a match to iPersonality='..iPersonality..'; tsPersonalityNames[iPersonality]='..tsPersonalityNames[iPersonality]..'; is string.find reversed nil='..tostring(string.find(tsPersonalityNames[iPersonality], aiBrain.Nickname) == nil)..'; string.find result is nil?='..tostring(string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) == nil)) end
+                    if string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) then
+                        bAlreadyHaveNickname = true
+                        table.insert(tiPotentialPersonalities, iPersonality)
+                        break
+                    end
+                end
+            end
+            if not(bAlreadyHaveNickname) then
+                LOG('Dont already have nickname for .nickname='..aiBrain.Nickname)
+                for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
+                    if not(tbAssignedPersonalities[iPersonality]) then
+                        table.insert(tiPotentialPersonalities, iPersonality)
+                    end
                 end
             end
         end
@@ -718,11 +736,49 @@ function AssignAIPersonality(aiBrain)
         aiBrain[refiAssignedPersonality] = tiPotentialPersonalities[iRand]
         tbAssignedPersonalities[aiBrain[refiAssignedPersonality]] = true
     end
+    if aiBrain.M28AI then
+        if (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AiX gets stuff in priority to AI
+            local iBaseRating = 750
+            local iApproxRating
+            local bIsCheatingAI = aiBrain.CheatEnabled
+            local iOmniCheat = 50
+            local iResourceBaseMod = 1700 --i.e. if had AiX 1.5, then its rank shoudl be increased by 50% * this
+            local iBuildRateBaseMod = 1300 --i.e. if had AiX 1.5, then its rank shoudl be increased by 50% * this
+            local iHigherThreshold = 2000 --The point at which the AI rating will be increased at a much lower rate to avoid absurd ratings
+            local iGeneralRatingFactor = 0.9 --The expected rating should be multiplied by this - e.g. can use to be a bit conservative with the AI expected rating (since it impacts on which player gets units in fullshare)
+
+            --Does the AI in question have rating options specified? If not then revert to default (rating of 0)
+            if iBaseRating then
+                if bIsCheatingAI then
+                    local iResourceMultiplier = tonumber(ScenarioInfo.Options.CheatMult)
+                    local iBuildMultiplier = tonumber(ScenarioInfo.Options.BuildMult)
+                    iApproxRating = math.max(iBaseRating + iOmniCheat + (iResourceMultiplier - 1) * iResourceBaseMod + (iBuildMultiplier - 1) * iBuildRateBaseMod, 0)
+                    if iApproxRating > iHigherThreshold then
+                        iApproxRating = iHigherThreshold + (iApproxRating - iHigherThreshold) * 0.2
+                    end
+                else
+                    iApproxRating = iBaseRating
+                end
+                iApproxRating = iApproxRating * iGeneralRatingFactor
+                --Round to the nearest 25:
+                iApproxRating = math.round(iApproxRating / 25) * 25
+                ScenarioInfo.Options.Ratings[aiBrain.Nickname] = iApproxRating --only affects things like full share since scoreboards likely use the value at start of game before AI have been created
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendStartOfGameMessage(aiBrain)
+function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
     local sFunctionRef = 'SendStartOfGameMessage'
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(20)
+    if iOptionalExtraDelayInSeconds then
+        WaitSeconds(iOptionalExtraDelayInSeconds)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tsPotentialMessages = {}
@@ -969,7 +1025,7 @@ function SendStartOfGameMessage(aiBrain)
             if tbEnemyFactions[M28UnitInfo.refFactionAeon] or tbEnemyFactions[M28UnitInfo.refFactionSeraphim] then
                 AddPotentialMessage(LOC('<LOC X06_T01_220_010>[{i ThelUuthow}]: Your faith in technology will be your undoing.'), 'X06_Thel-Uuthow_T01_02974', 'X06_VO')
             end
-            AddPotentialMessages(LOC('<LOC X06_T01_260_010>[{i ThelUuthow}]: You will perish at my hand.'), 'X06_Thel-Uuthow_T01_02978', 'X06_VO')
+            AddPotentialMessage(LOC('<LOC X06_T01_260_010>[{i ThelUuthow}]: You will perish at my hand.'), 'X06_Thel-Uuthow_T01_02978', 'X06_VO')
         end
         if M28Utilities.IsTableEmpty(tsPotentialMessages) or table.getn(tsPotentialMessages) <= 3 or math.random(1,2) == 1 then
             AddPotentialMessage('gl hf')
@@ -978,19 +1034,23 @@ function SendStartOfGameMessage(aiBrain)
     end
     local oBrainToSendMessage = aiBrain
     if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+    --Have already waited 20s before getting to this point
     if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
         local iRand = math.random(1, table.getn(tsPotentialMessages))
         --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-        SendMessage(oBrainToSendMessage, 'Start', tsPotentialMessages[iRand], 40, 60, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+        SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Start', tsPotentialMessages[iRand], 20, 60, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
     end
     if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
         local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
         --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-        SendMessage(oBrainToSendMessage, 'Team'..aiBrain.M28Team..'Start', tsPotentialTeamMessages[iRand], 20, 60, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
-
+        SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Team'..(aiBrain.M28Team or 1)..'Start', tsPotentialTeamMessages[iRand], 0, 60, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderPerTeamStartMessage(aiBrain)
+    ForkThread(SendStartOfGameMessage, aiBrain, (aiBrain.M28Team - 1) * 8, aiBrain.M28Team)
 end
 
 function ConsiderMessageForACUInTrouble(oACU, aiBrain)

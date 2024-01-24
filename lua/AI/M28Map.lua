@@ -4120,7 +4120,6 @@ local function SetupLandZones()
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end--]]
     ForkThread(RecordBackupGameEnderLocation)
-    bDebugMessages = true
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
