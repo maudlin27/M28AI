@@ -463,17 +463,7 @@ end
 
 
 function TestCustom(aiBrain)
-    WaitSeconds(10)
-    local sFunctionRef = 'TestCustom'
-    local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-    local OpStrings = import('/maps/scca_coop_e01.v0022/SCCA_Coop_E01_strings.lua')
-    --ScenarioFramework.Dialogue(OpStrings.E01_M07_090, false, true)
-
-    local SyncVoice = import("/lua/simsyncutils.lua").SyncVoice
-    --SyncVoice({Cue = 'X05_QAI_T01_04424', Bank = 'X05_VO'})
-    --SyncVoice({Cue = 'E01_Leopard11_M07_0029', Bank = 'E01_VO'})
-    --{LOC('<LOC X05_T01_100_010>[{i QAI}]: On this day, I will teach you the true power of the Quantum Realm.', vid = 'X05_QAI_T01_04424.sfd', bank = 'X05_VO', cue = 'X05_QAI_T01_04424', faction = 'Cybran'},
-    --SyncVoice({Cue = 'XGG_Brackman_MP1_04613', Bank = 'XGG'})
+    M28Map.DrawLandZones()
 
 
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
@@ -1153,7 +1143,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 0 and GetGameTimeSeconds() <= 10000 then TestCustom(aiBrain) end
+        if GetGameTimeSeconds() >= 90 and GetGameTimeSeconds() <= 91 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

@@ -47,7 +47,7 @@ refbACUHasBeenGivenABuildOrderRecently = 'M28ACUBuildR' --true if ACU has been g
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Do we have a nearby unit of the type we want to build under construction?
@@ -128,7 +128,7 @@ end
 
 function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, iFactoryCategoryOverride, iEngineerActionOverride)
     local sFunctionRef = 'ACUActionBuildFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMaxAreaToSearch = 35
@@ -163,7 +163,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
         end --Issue on Aeon mission 1 where ACU doesnt build because it hasnt searched through enough of the segments
     end
     --Start of game - first factory - massively increase search segments
-    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryFactory) == 0 and GetGameTimeSeconds() <= 10 then
+    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryFactory) == 0 then
         local iSegmentRef
         if iPlateauOrZero == 0 then
             iSegmentRef = M28Map.subrefWZSegments
@@ -171,9 +171,12 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
             iSegmentRef = M28Map.subrefLZSegments
         end
         local iTotalSegments = table.getn(tLZData[iSegmentRef])
-        local iSegmentStart = (tLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
-        if iSegmentStart < iTotalSegments * 0.75 then
-            iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
+        if (GetGameTimeSeconds() <= 10 or (tLZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) < iTotalSegments * 0.75) then
+
+            local iSegmentStart = (tLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
+            if iSegmentStart < iTotalSegments * 0.75 then
+                iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
+            end
         end
     end
     iSearchSegments = math.floor(iSearchSegments)
@@ -468,7 +471,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -557,7 +560,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                 else
                     if iCurLandFactories == 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build a land factory') end
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                         --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
                     elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, math.min(8, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5)) then
@@ -3533,7 +3536,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
@@ -3612,7 +3615,7 @@ function GetACUOrder(aiBrain, oACU)
         oACU[refbACUHasBeenGivenABuildOrderRecently] = false
         local bProceedWithLogic = true
         if oACU[refbDoingInitialBuildOrder] then
-            if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+            if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(M28Map.bIsCampaignMap) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) > 0) then
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                 ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                 bProceedWithLogic = false

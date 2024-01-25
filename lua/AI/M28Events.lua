@@ -1568,6 +1568,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                             --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
                             if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
                             M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                                --Make first land factory built be a core base if it isnt already
+                                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just built our first land factory with our ACU, is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
+                                if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                    tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                                end
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then

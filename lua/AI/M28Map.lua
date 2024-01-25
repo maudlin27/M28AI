@@ -2181,7 +2181,7 @@ end
 local function AssignMexesALandZone()
     --Cycles through every mex and assigns it to a new land zone, unless it is near another mex in which case they should both use the same land zone
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignMexesALandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2285,6 +2285,7 @@ local function AssignMexesALandZone()
         if not(M28Conditions.IsCivilianBrain(oBrain)) then
             local iStartPositionX, iStartPositionZ = GetPlayerStartPosition(oBrain, true)
             if iStartPositionX and iStartPositionZ then
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording the start position for brain '..oBrain.Nickname..'; X='..iStartPositionX..'Z='..iStartPositionZ) end
                 tRelevantStartPointsByIndex[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
             end
         end
@@ -2303,6 +2304,7 @@ local function AssignMexesALandZone()
         --Are we close to an existing start position such that we should use the same LZ for both positions?
         if M28Utilities.IsTableEmpty(tiStartIndexPlateauAndLZ) == false then
             for iExistingIndex, tExistingPlateauAndLZ in tiStartIndexPlateauAndLZ do
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist between start position and iExistingIndex='..iExistingIndex..'='..M28Utilities.GetDistanceBetweenPositions(tStartPosition, tRelevantStartPointsByIndex[iExistingIndex])) end
                 if tExistingPlateauAndLZ[1] == iCurPlateau and M28Utilities.GetDistanceBetweenPositions(tStartPosition, tRelevantStartPointsByIndex[iExistingIndex]) <= 40 then
                     iLZToUse = tExistingPlateauAndLZ[2]
                     break
@@ -2327,7 +2329,7 @@ local function AssignMexesALandZone()
             if bDebugMessages == true then LOG(sFunctionRef..': Have just recorded iLZToUse='..iLZToUse..' for iCurPlateau='..iCurPlateau..'; iCurSegmentX-Z='..iCurSegmentX..'-'..iCurSegmentZ..'; Start position='..repru(tStartPosition)..'; Brain index='..iIndex) end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone by each start position, tiStartIndexPlateauAndLZ='..repru(tiStartIndexPlateauAndLZ)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone by each start position, tiStartIndexPlateauAndLZ='..repru(tiStartIndexPlateauAndLZ)..'; tRelevantStartPointsByIndex='..repru(tRelevantStartPointsByIndex)) end
 
     --Now find any mexes within the desired travel distance and assign them to the nearest start position - first exclude based on distance, and if they meet the straight line distance check then consider travel distance
     local iCurDistStraightLine
@@ -2341,18 +2343,20 @@ local function AssignMexesALandZone()
     local iHydroStraightLineThreshold = iStraightLineThreshold + 5
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
     local iHydroTravelDistThreshold = iTravelDistThreshold + 5
+
     if bIsCampaignMap then
-        iStraightLineThreshold = 40
-        iTravelDistThreshold = 45
+        iStraightLineThreshold = 45 --40 caused issue on fort claeke assault
+        iTravelDistThreshold = 50
     end
     local iClosestStraightLineDist
     local iClosestStraightLineIndex
     local iClosestStraightLineTravelDist
     
     local tbStartingMexesRecordedByPlateau = {} --Tracks if we have already recorded a mex as near a brain start so we dont try and re-record it
-    for iPlateau, tPlateauSubtable in tAllPlateaus do        
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
             tbStartingMexesRecordedByPlateau[iPlateau] = {}
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all mexes on plateau '..iPlateau..' and assign them to the nearest start position on taht plateau, if there is one') end
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 --Only consider if mex isnt underwater
                 if tMex[2] >= iMapWaterHeight then
