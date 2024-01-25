@@ -2181,7 +2181,7 @@ end
 local function AssignMexesALandZone()
     --Cycles through every mex and assigns it to a new land zone, unless it is near another mex in which case they should both use the same land zone
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignMexesALandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2343,15 +2343,19 @@ local function AssignMexesALandZone()
     local iHydroStraightLineThreshold = iStraightLineThreshold + 5
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
     local iHydroTravelDistThreshold = iTravelDistThreshold + 5
+    local tiSlightlyNearMexDistByPlateauMexAndBrain = {}
+    local tPotentialNearMexesByBrain = {}
+    local tiMexesAssignedByBrain = {} --used in campaign maps if a brain location lacks a mex
+
+    local iCampaignSlightlyNearThreshold = iStraightLineThreshold
 
     if bIsCampaignMap then
-        iStraightLineThreshold = 45 --40 caused issue on fort claeke assault
-        iTravelDistThreshold = 50
+        iStraightLineThreshold = 40 --40 caused issue on fort claeke assault (prior to the slightlynear logic)
     end
     local iClosestStraightLineDist
     local iClosestStraightLineIndex
     local iClosestStraightLineTravelDist
-    
+
     local tbStartingMexesRecordedByPlateau = {} --Tracks if we have already recorded a mex as near a brain start so we dont try and re-record it
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
@@ -2371,7 +2375,7 @@ local function AssignMexesALandZone()
                     for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
                         if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
                             iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist..'; iCampaignSlightlyNearThreshold='..iCampaignSlightlyNearThreshold) end
                             if iCurDistStraightLine <= iStraightLineThreshold then
                                 table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
                                 if iCurDistStraightLine < iClosestStraightLineTravelDist then
@@ -2385,6 +2389,13 @@ local function AssignMexesALandZone()
                                     iClosestDistTravel = iCurDistTravel
                                     iClosestBrainIndex = iBrainIndex
                                 end--]]
+                            elseif iCurDistStraightLine <= iCampaignSlightlyNearThreshold and bIsCampaignMap then
+                                if not(tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex]) then
+                                    if not(tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau]) then tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau] = {} end
+                                    tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] = {}
+                                end
+                                tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex][iBrainIndex] = iCurDistStraightLine
+                                if bDebugMessages == true then LOG(sFunctionRef..': Added mex to slightly near mex by dist, iMex='..iMex..'; iBrain='..iBrainIndex) end
                             end
                         end
                     end
@@ -2404,13 +2415,51 @@ local function AssignMexesALandZone()
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')..'; Is tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] nil='..tostring(tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex]==nil)) end
                     if iClosestBrainIndex then
+                        if bIsCampaignMap and tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] then tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] = nil end
                         if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
                         table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
                         tbStartingMexesRecordedByPlateau[iPlateau][iMex] = true
                         AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                        tiMexesAssignedByBrain[iClosestBrainIndex] = (tiMexesAssignedByBrain[iClosestBrainIndex] or 0) + 1
                         if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                    elseif bIsCampaignMap and tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] then
+                        --Add to the cloesest brain index
+                        --Get the closest entry
+                        iClosestStraightLineTravelDist = 10000
+                        for iBrain, iDist in tiSlightlyNearMexDistByPlateauMexAndBrain[iPlateau][iMex] do
+                            if iDist < iClosestStraightLineTravelDist then
+                                iClosestStraightLineTravelDist = iDist
+                                iClosestBrainIndex = iBrain
+                            end
+                        end
+                        if not(tPotentialNearMexesByBrain[iClosestBrainIndex]) then tPotentialNearMexesByBrain[iClosestBrainIndex] = {} end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy, iClosestBrainIndex='..iClosestBrainIndex..'; iPlateau='..iPlateau..'; iMax='..iMex) end
+                        table.insert(tPotentialNearMexesByBrain[iClosestBrainIndex], {iPlateau, iMex})
+
+                    end
+                end
+            end
+        end
+    end
+    --Consider further away mexes in campaign if the brain start position doesnt have any nearby
+    if bIsCampaignMap then
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if any brainsl ack an assigned mex, tiMexesAssignedByBrain='..repru(tiMexesAssignedByBrain)) end
+        for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+            if (tiMexesAssignedByBrain[iBrainIndex] or 0) == 0 then
+                if M28Utilities.IsTableEmpty(tPotentialNearMexesByBrain[iBrainIndex]) == false then
+                    for iEntry, tPlateauAndMexIndex in tPotentialNearMexesByBrain[iBrainIndex] do
+                        local iPlateau = tPlateauAndMexIndex[1]
+                        local iMex = tPlateauAndMexIndex[2]
+                        local tMex = tAllPlateaus[iPlateau][subrefPlateauMexes][iMex]
+                        if not(tiStartResourcesByBrainIndex[iBrainIndex]) then tiStartResourcesByBrainIndex[iBrainIndex] = {} end
+                        table.insert(tiStartResourcesByBrainIndex[iBrainIndex], tMex)
+                        tbStartingMexesRecordedByPlateau[iPlateau][iMex] = true
+                        AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                        tiMexesAssignedByBrain[iBrainIndex] = (tiMexesAssignedByBrain[iBrainIndex] or 0) + 1
+                        if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy for mex free start points, iBrainIndex='..iBrainIndex..'; iMex='..iMex..'; tMex='..repru(tMex)) end
                     end
                 end
             end
@@ -2584,7 +2633,7 @@ local function AssignMexesALandZone()
                         if iClosestBrainIndex then
                             if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
                             table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
-                            
+
                             AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
                             if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
                         end

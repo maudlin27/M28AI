@@ -116,7 +116,7 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
     --if bOnlySendToTeam is true then will both only consider if message has been sent to teammates before (not all AI), and will send via team chat
     --bWaitUntilHaveACU - if true then will wait until aiBrain has an ACU (e.g. use for start of game messages in campaign)
     local sFunctionRef = 'SendForkedMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, aiBrain='..aiBrain.Nickname..'; sMessage='..sMessage..'; iOptionalDelayBeforeSending='..(iOptionalDelayBeforeSending or 'nil')..'; iOptionalTimeBetweenMessageType='..(iOptionalTimeBetweenMessageType or 'nil')..'; bOnlySendToTeam='..tostring(bOnlySendToTeam or false)..'; sOptionalSoundCue='..(sOptionalSoundCue or 'nil')..'; Time='..GetGameTimeSeconds()) end
     --Do we have allies?
@@ -299,7 +299,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
     --Called whenever a player dies; send end of game message if this means the game is over, or the last M28 has died
 
     local sFunctionRef = 'ConsiderEndOfGameMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -698,7 +698,7 @@ end
 
 function AssignAIPersonalityAndRating(aiBrain)
     local sFunctionRef = 'AssignAIPersonalityAndRating'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain.M28AI and not(M28Map.bIsCampaignMap) then
         local tiPotentialPersonalities = {}
@@ -771,7 +771,7 @@ end
 
 function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
     local sFunctionRef = 'SendStartOfGameMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1056,7 +1056,7 @@ end
 function ConsiderMessageForACUInTrouble(oACU, aiBrain)
     --Will have been through some conditions just to get here
     local sFunctionRef = 'ConsiderMessageForACUInTrouble'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1189,7 +1189,7 @@ end
 
 function JustLostValuableUnit(oUnitID, oKilledUnitBrain)
     local sFunctionRef = 'JustLostValuableUnit'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1287,7 +1287,7 @@ end
 
 function JustKilledEnemyValuableUnit(oUnitID, oKilledUnitBrain, oKillerBrain)
     local sFunctionRef = 'JustKilledEnemyValuableUnit'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if oKillerBrain.M28AI and oKillerBrain[refiAssignedPersonality] and (not(oKillerBrain[refiAssignedPersonality] == refiQAI) or oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran) then
@@ -1487,7 +1487,7 @@ end
 
 function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
     local sFunctionRef = 'PartCompleteExperimentalDamaged'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oUnitDamaged[refbGivenUnitRelatedMessage]) then

@@ -47,7 +47,7 @@ refbACUHasBeenGivenABuildOrderRecently = 'M28ACUBuildR' --true if ACU has been g
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Do we have a nearby unit of the type we want to build under construction?
@@ -128,7 +128,7 @@ end
 
 function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, iFactoryCategoryOverride, iEngineerActionOverride)
     local sFunctionRef = 'ACUActionBuildFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMaxAreaToSearch = 35
@@ -471,7 +471,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -3536,7 +3536,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
@@ -3597,6 +3597,9 @@ function GetACUOrder(aiBrain, oACU)
     elseif oACU:IsUnitState('Teleporting') then
         --Do nothing
         if bDebugMessages == true then LOG(sFunctionRef..': ACU is teleporting') end
+    elseif M28Map.bIsCampaignMap and (oACU:IsUnitState('TransportLoading') or oACU:IsUnitState('Attached')) then
+        --Liekly campaign wants to do something special with ACU
+        if bDebugMessages == true then LOG(sFunctionRef..': campaign and ACU is loading or attached') end
     elseif GiveOverchargeOrderIfRelevant(tLZOrWZData, tLZOrWZTeamData, oACU, iPlateauOrZero, iLandOrWaterZone) then
         --when an overcharge shot is fired it triggers this code to run again so no need to queue things up afterwards
         if bDebugMessages == true then LOG(sFunctionRef..': Have just givne overcharge order') end
