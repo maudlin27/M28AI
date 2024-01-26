@@ -3424,7 +3424,7 @@ function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStil
         if bDebugMessages == true then LOG(sFunctionRef..': Dealing with oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; bProceed='..tostring(bProceed)..'; Time='..GetGameTimeSeconds()) end
         if bProceed then
             if bDebugMessages == true then LOG(sFunctionRef..': Time since last weapon event='..(GetGameTimeSeconds() - oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100)..'; iSecondsToWait='..iSecondsToWait..'; bOnlyConsiderIfNotFiredRecently='..tostring(bOnlyConsiderIfNotFiredRecently or false)) end
-            if not(bOnlyConsiderIfNotFiredRecently) or (GetGameTimeSeconds() - oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100) > iSecondsToWait then
+            if not(bOnlyConsiderIfNotFiredRecently) or GetGameTimeSeconds() - (oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100) > iSecondsToWait then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider launching a missile') end
                 ConsiderLaunchingMissile(oLauncher)
             end
