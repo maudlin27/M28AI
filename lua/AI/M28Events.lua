@@ -179,6 +179,32 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                                 end
                             end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
+                                --Dont trigger if killed via nuke
+                                if oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
+                                    --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
+                                    local bConsiderMessage = true
+                                    if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
+                                        bConsiderMessage = false
+                                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
+                                        if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
+                                            bConsiderMessage = true
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                end
+                            end
+                        end
+                    end
+                end
+                --Consider message if this was a significant unit
+                if oUnitKilled:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
+                    if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
+                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
+                        --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
+                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 then
+                            ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
                         end
                     end
                 end
@@ -266,6 +292,7 @@ function OnUnitDeath(oUnit)
                     if not(oUnit['M28Dead']) then
                         oUnit['M28Dead'] = true
                         M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
+
                         --Adjust T3 MAA count
                         if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false then
                             for iRecordedTeam, bRecorded in oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] do
@@ -722,6 +749,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
+                    end
+                    if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
+                        ForkThread(M28Chat.PartCompleteExperimentalDamaged, self, oUnitCausingDamage)
                     end
                 end
 
@@ -1538,6 +1568,14 @@ function OnConstructed(oEngineer, oJustBuilt)
                             --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
                             if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
                             M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                                --Make first land factory built be a core base if it isnt already
+                                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just built our first land factory with our ACU, is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
+                                if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                    tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                                end
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
@@ -2302,12 +2340,10 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
             LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))
         else
             --Logic to run just for M28AI
-            LOG('OnCreateBrain hook for ai with personality '..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality)
-
             if aiBrain.M28AI then
                 --Redundancy - if have M27 brain then change this back to false
                 if aiBrain.M27AI then aiBrain.M28AI = false end
-                LOG('M28 brain created')
+                if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created') end
 
                 --Copy of parts of aiBrain OnCreateAI that still want to retain
                 aiBrain:CreateBrainShared(planName)
@@ -2325,6 +2361,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                 --M28AIBrainClass.OnCreateAI(aiBrain, planName)
                 ForkThread(M28Overseer.M28BrainCreated, aiBrain)
             else
+                LOG('OnCreateBrain hook for Non-M28 ai with personality '..(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality or 'nil'))
                 --Reundancy - check M27 isn't being treated as M28AI
                 ForkThread(M28Overseer.DelayedM27M28BrainCheck, aiBrain)
             end

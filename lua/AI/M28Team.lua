@@ -3169,7 +3169,7 @@ function CheckEnemyACUStatus(iTeam)
         end
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
             for iACU, oACU in  tTeamData[iTeam][reftEnemyACUs] do
-                if M28UnitInfo.IsUnitValid(oACU) and (M28UnitInfo.CanSeeUnit(aiBrain, oACU) or GetGameTimeSeconds() >= 600) then --after 10m of gametime a human would assume enemy will have gun anyway
+                if M28UnitInfo.IsUnitValid(oACU) and (GetGameTimeSeconds() >= 600 or (aiBrain.GetArmyIndex and M28UnitInfo.CanSeeUnit(aiBrain, oACU))) then --after 10m of gametime a human would assume enemy will have gun anyway
                     if oACU:IsUnitState('Upgrading') or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
                         tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
                     end

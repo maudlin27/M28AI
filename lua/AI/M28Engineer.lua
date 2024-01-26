@@ -1113,7 +1113,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
     --Get the blueprint to build
-                                                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest,             iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest,             iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,          false,      bBuildCheapestStructure, iOptionalCategoryForStructureToBuild)
 
 
@@ -8591,9 +8591,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             iBPWanted = 10
             if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                 iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
-                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
+            end
+            if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then
+                iBPWanted = iBPWanted * 1.5
+                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.075 then
+                    iBPWanted = iBPWanted * 1.5
+                end
             end
         end
+
         --Have 1 engi search for high value wrecks
         HaveActionToAssign(refActionReclaimArea, 1, 5, { false, 50 })
         --Then have 1-2 engis search for reclaim generally
@@ -11601,7 +11607,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             iBPWanted = 10
             if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                 iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
-                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then iBPWanted = iBPWanted * 1.5 end
+            end
+            if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then
+                iBPWanted = iBPWanted * 1.5
+                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.075 then
+                    iBPWanted = iBPWanted * 1.5
+                end
             end
         end
         --Have 1 engi search for high value wrecks

@@ -18,6 +18,7 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -35,7 +36,7 @@ refiLastPlateauAndZoneToMoveTo = 'M28ACULastZoneToMove' --PlateauOrZero and Land
 refiTimeLastToldToAttackUnitInOtherZone = 'M28ACUTimeLastAttackUnit'
 refiLastPlateauAndZoneToAttackUnitIn = 'M28ACULastZoneToAttack' --PlateauOrZero and Land/Water zone ref if given move to zone order in order to attack a unit
 reftiTimeLastRanFromZoneByPlateau = 'M28ACUTimeLastRanByZone' --[x] is plateau or zero, [y] is the zone (currently only have logic for LZs though), returns gametimeseconds that last ran when in that zone
-refbUseACUAggressively = true
+refbUseACUAggressively = 'M28ACUUseAggress' --Against ACU
 reftSpecialObjectiveMoveLocation = 'M28ACUObjMoveLoc' --If has a value, ACU will move here
 refbACUHasTeleport = 'M28ACUHasTel' --true if ACU has teleport (will assume it also has good gun upgrade) - used to impact on telesnipe logic
 refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on getting teleport upgrade on the ACU
@@ -162,7 +163,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
         end --Issue on Aeon mission 1 where ACU doesnt build because it hasnt searched through enough of the segments
     end
     --Start of game - first factory - massively increase search segments
-    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryFactory) == 0 and GetGameTimeSeconds() <= 10 then
+    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryFactory) == 0 then
         local iSegmentRef
         if iPlateauOrZero == 0 then
             iSegmentRef = M28Map.subrefWZSegments
@@ -170,9 +171,12 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
             iSegmentRef = M28Map.subrefLZSegments
         end
         local iTotalSegments = table.getn(tLZData[iSegmentRef])
-        local iSegmentStart = (tLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
-        if iSegmentStart < iTotalSegments * 0.75 then
-            iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
+        if (GetGameTimeSeconds() <= 10 or (tLZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) < iTotalSegments * 0.75) then
+
+            local iSegmentStart = (tLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
+            if iSegmentStart < iTotalSegments * 0.75 then
+                iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
+            end
         end
     end
     iSearchSegments = math.floor(iSearchSegments)
@@ -556,7 +560,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                 else
                     if iCurLandFactories == 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build a land factory') end
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                         --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
                     elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, math.min(8, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5)) then
@@ -3593,6 +3597,9 @@ function GetACUOrder(aiBrain, oACU)
     elseif oACU:IsUnitState('Teleporting') then
         --Do nothing
         if bDebugMessages == true then LOG(sFunctionRef..': ACU is teleporting') end
+    elseif M28Map.bIsCampaignMap and (oACU:IsUnitState('TransportLoading') or oACU:IsUnitState('Attached')) then
+        --Liekly campaign wants to do something special with ACU
+        if bDebugMessages == true then LOG(sFunctionRef..': campaign and ACU is loading or attached') end
     elseif GiveOverchargeOrderIfRelevant(tLZOrWZData, tLZOrWZTeamData, oACU, iPlateauOrZero, iLandOrWaterZone) then
         --when an overcharge shot is fired it triggers this code to run again so no need to queue things up afterwards
         if bDebugMessages == true then LOG(sFunctionRef..': Have just givne overcharge order') end
@@ -3611,7 +3618,7 @@ function GetACUOrder(aiBrain, oACU)
         oACU[refbACUHasBeenGivenABuildOrderRecently] = false
         local bProceedWithLogic = true
         if oACU[refbDoingInitialBuildOrder] then
-            if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+            if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(M28Map.bIsCampaignMap) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) > 0) then
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                 ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                 bProceedWithLogic = false
@@ -4466,6 +4473,11 @@ function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tL
             tLZOrWZTeamData[M28Map.subrefLZTValue] = math.max((tLZOrWZTeamData[M28Map.subrefLZTValue] or 0), iACUValueIncrease)
             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that ACU is in trouble, tLZTeamData[M28Map.subrefLZTValue]='..(tLZOrWZTeamData[M28Map.subrefLZTValue] or 'nil')) end
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then M28Utilities.ErrorHandler('ACU in trouble but not recorded against this LZ') end
+            --Consider chat message if ACU health <75% and are in the first 20m
+            if GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 then
+                ForkThread(M28Chat.ConsiderMessageForACUInTrouble, oACU, oACU:GetAIBrain())
+            end
+
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
