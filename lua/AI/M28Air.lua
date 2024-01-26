@@ -5088,10 +5088,18 @@ function UpdateScoutingShortlist(iTeam)
 
         local iIntervalWanted
         local iLongestOverdueRequirement = 0
+        local bConsiderOverdueLimit = false
         if M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 360 then --we have some locations we haven't scouted for at least 6 minutes after we wanted to
-            iLongestOverdueRequirement = M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] * 0.5
+            iLongestOverdueRequirement = M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] * 0.25
+            bConsiderOverdueLimit = true
         end
+        local tiEntriesBelowOverdueRequirement = {}
+        local iEntriesAboveOverdueRequirement = 0
         local iMinSegmentsWantedForMexFreeZones = 400 / M28Map.iLandZoneSegmentSize
+        local iAmountOverIntervalWanted
+        local iShortlistEntry = 0
+        local iLowPriorityShortlistEntryCount = 0
+
         if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each plateau and land zone, M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]='..M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]..'; iLongestOverdueRequirement='..iLongestOverdueRequirement) end
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
@@ -5099,17 +5107,38 @@ function UpdateScoutingShortlist(iTeam)
                     local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
                     if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]='..tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]..'; tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]='..tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]..'; Time last had visual='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Do we expect to be adding this to shortlist='..tostring(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted)) end
-                    if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
-                        iLongestOverdueScoutingTarget = math.max(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted, iLongestOverdueScoutingTarget)
-                        if iLongestOverdueScoutingTarget >= iLongestOverdueRequirement then
-                            table.insert(tShortlist, {iPlateau, iLandZone})
+                    iAmountOverIntervalWanted = GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]='..tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]]..'; tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]='..tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts]..'; Time last had visual='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Do we expect to be adding this to shortlist='..tostring(GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted)..'; iAmountOverIntervalWanted='..iAmountOverIntervalWanted) end
+                    if iAmountOverIntervalWanted > 0 then
+                        table.insert(tShortlist, {iPlateau, iLandZone})
+                        if bConsiderOverdueLimit then
+                            iShortlistEntry = iShortlistEntry + 1
+                            if iAmountOverIntervalWanted >= iLongestOverdueRequirement then
+                                iEntriesAboveOverdueRequirement = iEntriesAboveOverdueRequirement + 1
+                            else
+                                table.insert(tiEntriesBelowOverdueRequirement, iShortlistEntry)
+                                iLowPriorityShortlistEntryCount = iLowPriorityShortlistEntryCount + 1
+                            end
                         end
                     end
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iEntriesAboveOverdueRequirement='..(iEntriesAboveOverdueRequirement or 'nil')..'; iLowPriorityShortlistEntryCount='..(iLowPriorityShortlistEntryCount or 'nil')..'; bConsiderOverdueLimit='..tostring(bConsiderOverdueLimit)) end
+
+        if bConsiderOverdueLimit and M28Utilities.IsTableEmpty(tiEntriesBelowOverdueRequirement) == false and iEntriesAboveOverdueRequirement >= 5 and iLowPriorityShortlistEntryCount >= 5 then
+            --Consider removing the entries we have scouted most recently based on how many spyp planes we have
+            local iAirScouts = M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryAirScout, iTeam)
+            if iAirScouts < iEntriesAboveOverdueRequirement then
+                for iEntryToRemove = iLowPriorityShortlistEntryCount, 1 do
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are removing a shortlist entry as we have so many') end
+                    table.remove(tShortlist, tiEntriesBelowOverdueRequirement[iEntryToRemove])
+                end
+            end
+
+        end
+
         M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] = iLongestOverdueScoutingTarget
 
         --Same for water zones with mexes
