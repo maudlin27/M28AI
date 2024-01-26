@@ -4474,7 +4474,6 @@ function ManageGunships(iTeam, iAirSubteam)
         if oFrontGunship and M28Utilities.IsTableEmpty(tiRecentExpBomberTargets) == false then
             for iTarget, tTarget in tiRecentExpBomberTargets do
                 if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget) <= 40 then
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to retreat from ahwassa target, tTarget='..repru(tTarget)..'; Dist to front gunship='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget)) end
                     bRetreatFromAhwassa = true
                     break
@@ -5131,7 +5130,6 @@ function UpdateScoutingShortlist(iTeam)
             local iAirScouts = M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryAirScout, iTeam)
             if iAirScouts < iEntriesAboveOverdueRequirement then
                 for iEntryToRemove = iLowPriorityShortlistEntryCount, 1 do
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Are removing a shortlist entry as we have so many') end
                     table.remove(tShortlist, tiEntriesBelowOverdueRequirement[iEntryToRemove])
                 end
@@ -6799,7 +6797,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 return 1.5
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and ScenarioInfo.Options.Victory == "demoralization" then
                 return 3
-            elseif  EntityCategoryContains(categories.VOLATILE * categories.STRUCTURE + categories.VOLATILE * categories.LAND, oUnit.UnitId) then
+            elseif EntityCategoryContains(categories.VOLATILE * categories.STRUCTURE + categories.VOLATILE * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
                 return 2
                 --Adjustments for certain categories to just bring them above iBestTargetValue starting threshold
             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
