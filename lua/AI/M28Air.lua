@@ -6730,7 +6730,6 @@ function GetNovaxTarget(aiBrain, oNovax)
 
                 if M28Utilities.IsTableEmpty(tNearbyACUs) == false then
                     local iShortestTimeToKillTarget = 60 --Wont consider ACUs where will take more than this time to kill them
-                    local oACUForShortestTime
                     local iTimeToKillTarget
                     local iCurDPSMod = 0
                     for iACU, oACU in tNearbyACUs do
@@ -6743,8 +6742,6 @@ function GetNovaxTarget(aiBrain, oNovax)
                                 iTimeToKillTarget = iACUHealth / (iDPS + iCurDPSMod)
                                 if iTimeToKillTarget > 0 and  iTimeToKillTarget < iShortestTimeToKillTarget then
                                     --Are there nearby shields?
-                                    local iDistToTravel = (oACU:GetBlueprint().Physics.MaxSpeed or 1.7) * iTimeToKillTarget
-                                    local bHaveCloseShields = false
                                     if not(DoShieldsCoverUnit(oACU, nil, true)) then
                                         iShortestTimeToKillTarget = iTimeToKillTarget
                                         oTarget = oACU
@@ -6812,7 +6809,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         --Add current target to enemy units to be considered if it's still valid (wont worry about duplication); originally was essential when doing the 'include adjacent zone units' approach, but now is more of a redundancy for if the novax moves just too far away while circling a target
         if M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]) then table.insert(tEnemyUnits, oNovax[refoNovaxLastTarget]) end
 
-
+        local iFractionComplete
         for iUnit, oUnit in tEnemyUnits do
             --Ignore units that are mobile and attached, or underwater
             if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
@@ -6823,6 +6820,12 @@ function GetNovaxTarget(aiBrain, oNovax)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
                     iCurValue = oUnitBP.Economy.BuildCostMass * iMassFactor
+                    iFractionComplete = oUnit:GetFractionComplete()
+                    if iFractionComplete < 0.9 then
+                        if iFractionComplete < 0.2 or not(EntityCategoryContains(categories.SHIELD + categories.PERSONALSHIELD, oUnit.UnitId)) then
+                            iCurValue = iCurValue * iFractionComplete
+                        end
+                    end
                     if oUnitBP.Defense.Shield and M28UnitInfo.IsUnitShieldEnabled(oUnit) then
                         if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0 then
                             iCurDPSMod = oUnitBP.Defense.Shield.ShieldRegenRate

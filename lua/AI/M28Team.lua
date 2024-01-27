@@ -400,13 +400,21 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             table.remove(tTeamData[iTeam][sUpgradeTableRef], iTableRefOfUnit)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local iWaterZone, iPond
-            local tLZOrWZTeamData
+            local tBackupLZData, tLZOrWZTeamData
             if (iLandZone or 0) > 0 then tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
             else
                 iWaterZone = M28Map.GetWaterZoneFromPosition(oUnitDoingUpgrade:GetPosition())
                 iPond = M28Map.tiPondByWaterZone[iWaterZone]
                 if iWaterZone > 0 and iPond > 0 then
                     tLZOrWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                end
+            end
+            if not(tLZOrWZTeamData) then
+                tBackupLZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitDoingUpgrade:GetPosition(), true, iTeam)
+                if bDebugMessages == true then LOG(sFunctionRef..': Activated backup logic for locating zone, is tLZOrWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData))) end
+                if not(tLZOrWZTeamData) then
+                    M28Utilities.ErrorHandler('Unable to find a land zone for unit doing upgrade='..(oUnitDoingUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade) or 'nil'))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Error further details: reftAssignedPlateauAndLandZoneByTeam='..repru(oUnitDoingUpgrade[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])) end
                 end
             end
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subreftoActiveUpgrades]) == false then
@@ -433,7 +441,11 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
                 end
             end
-            tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
+            if tLZOrWZTeamData then
+                tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Failed ot have valid team data so wont update number of active mex upgrades') end
+            end
             if M28Map.bIsCampaignMap then
                 --Trigger on death callback if relevant
 

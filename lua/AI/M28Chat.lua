@@ -1387,7 +1387,7 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
             AddPotentialMessage(LOC('<LOC X01_T01_230_010>[{i Fletcher}]: I\'m in a lot of trouble!'), 'X01_Fletcher_T01_04534', 'X01_VO')
             if bHaveTeammates then
                 AddPotentialMessage(LOC('<LOC X05_M02_300_010>[{i Fletcher}]: I\'m getting hit pretty hard! Get over here and help me! Fletcher out.'), 'X05_Fletcher_M02_05108', 'X05_VO', true)
-                AddPotentialMessage(LOC('<LOC X01_T01_220_010>[{i Fletcher}]: Commander, I could use a hand over here. I\'m getting hit pretty hard.'), 'X01_Fletcher_T01_04533', 'X01_VO')
+                AddPotentialMessage(LOC('<LOC X01_T01_220_010>[{i Fletcher}]: Commander, I could use a hand over here. I\'m getting hit pretty hard.'), 'X01_Fletcher_T01_04533', 'X01_VO', true)
                 local bHaveUEFTeammate = false
                 local bHaveCybranTeammate = false
                 for iBrain, oBrain in ArmyBrains do
@@ -1398,10 +1398,10 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
                     end
                 end
                 if bHaveUEFTeammate then
-                    AddPotentialMessage(LOC('<LOC X05_M02_310_010>[{i Fletcher}]: Colonel, I\'d really appreciate it if you could help me out. The enemy is pounding me pretty hard. Fletcher out.'), 'X05_Fletcher_M02_05109', 'X05_VO')
+                    AddPotentialMessage(LOC('<LOC X05_M02_310_010>[{i Fletcher}]: Colonel, I\'d really appreciate it if you could help me out. The enemy is pounding me pretty hard. Fletcher out.'), 'X05_Fletcher_M02_05109', 'X05_VO', true)
                 end
                 if bHaveCybranTeammate then
-                    AddPotentialMessage(LOC('<LOC X05_M02_320_010>[{i Fletcher}]: Get it in gear, Cybran! The enemy is kicking the tar out of me and I need your help. Fletcher out.'), 'X05_Fletcher_M02_05110', 'X05_VO')
+                    AddPotentialMessage(LOC('<LOC X05_M02_320_010>[{i Fletcher}]: Get it in gear, Cybran! The enemy is kicking the tar out of me and I need your help. Fletcher out.'), 'X05_Fletcher_M02_05110', 'X05_VO', true)
                 end
             end
             --is the enemy likely to kill us with air?
@@ -1441,10 +1441,10 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
 
         --General messages
         if bHaveTeammates and M28Utilities.IsTableEmpty(tsPotentialTeamMessages) and M28Utilities.IsTableEmpty(tsPotentialMessages) then
-            AddPotentialMessage('I could use a hand here!')
-            AddPotentialMessage('Uh-oh, I think I\'m in trouble here')
-            AddPotentialMessage('I don\'t think I\'m going to survive this one...')
-            AddPotentialMessage('I fear I have failed us, please accept my apologies if I die')
+            AddPotentialMessage('I could use a hand here!', nil, nil, true)
+            AddPotentialMessage('Uh-oh, I think I\'m in trouble here', nil, nil, true)
+            AddPotentialMessage('I don\'t think I\'m going to survive this one...', nil, nil, true)
+            AddPotentialMessage('I fear I have failed us, please accept my apologies if I die', nil, nil, true)
             --Does the enemy have more nearby land than us?
             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, aiBrain.M28Team)
             if tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.35 and tUnitLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 1000 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyGroundTech] <= 2 then
@@ -1861,6 +1861,24 @@ function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SendUnitCapMessage(oBrainToSendMessage)
+    local sFunctionRef = 'SendUnitCapMessage'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tsPotentialMessages = {
+        'If only the unit cap was higher...',
+        ':( I hate having to kill my own units due to the unit cap',
+        'If I lose this I\'m blaming the unit cap!',
+        'I hope the unit cap is hurting you as much as it\'s hurting me',
+        'Can your CPU not handle a higher unit cap?'
+    }
+    local iRand = math.random(1, table.getn(tsPotentialMessages))
+    if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    SendMessage(oBrainToSendMessage, 'UnitCap', tsPotentialMessages[iRand], 0, 1000000, false)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

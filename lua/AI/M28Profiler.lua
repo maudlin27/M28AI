@@ -364,3 +364,14 @@ function SpawnSetUnitsForBrain(aiBrain)
         CreateUnit(sUnit, aiBrain:GetArmyIndex(), tSpawnLocationBase[1], tSpawnLocationBase[2], tSpawnLocationBase[3], 0, 0, 0, 0, 'Air')
     end
 end
+
+function SimpleProfiler(iInterval)
+    local iTimeOfLastCycle
+    local iTimeAfter10s
+    while true do
+        iTimeOfLastCycle = GetSystemTimeSecondsOnlyForProfileUse()
+        WaitSeconds(iInterval)
+        if not(iTimeAfter10s) then iTimeAfter10s = GetSystemTimeSecondsOnlyForProfileUse() end
+        LOG('SimpleProfiler: Time='..math.floor(GetGameTimeSeconds()*10)..'; Time taken cumulative='..GetSystemTimeSecondsOnlyForProfileUse()..'; Time since last update='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeOfLastCycle)..'; Time excl first 10s='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeAfter10s))
+    end
+end

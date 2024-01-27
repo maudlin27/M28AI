@@ -2953,3 +2953,9 @@ function OnTeleportComplete(self, teleporter, location, orientation)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+function OnGameStart()
+    --Called vai hook of simInit
+    if import('/mods/M28AI/lua/M28Config.lua').M28RunSimpleProfiling then
+        ForkThread(M28Profiler.SimpleProfiler, 10)
+    end
+end
