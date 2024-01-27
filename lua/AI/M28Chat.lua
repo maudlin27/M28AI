@@ -1864,6 +1864,18 @@ function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function SendUnitCapMessage(oBrainToSendMessage)
+    local tsPotentialMessages = {
+        'If only the unit cap was higher...',
+        ':( I hate having to kill my own units due to the unit cap',
+        'If I lose this I\'m blaming the unit cap!',
+        'I hope the unit cap is hurting you as much as it\'s hurting me',
+        'Can your CPU not handle a higher unit cap?'
+    }
+    local iRand = math.rand(1, table.getn(tsPotentialMessages))
+    SendMessage(oBrainToSendMessage, 'UnitCap', tsPotentialMessages[iRand], 0, 1000000, false)
+end
+
 --List of potential voice messages
 --intro:
     --By UEF

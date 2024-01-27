@@ -874,7 +874,12 @@ function CheckUnitCap(aiBrain)
                                 end
                                 M28Orders.IssueTrackedKillUnit(oUnit)
 
-                                if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                                if iCurUnitsDestroyed >= iMaxToDestroy then
+                                    if iAdjustmentLevel <= 2 then
+                                        M28Chat.SendUnitCapMessage(aiBrain)
+                                    end
+                                    break
+                                end
                             end
                         end
                     end
