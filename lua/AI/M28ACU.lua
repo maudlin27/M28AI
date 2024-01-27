@@ -1879,6 +1879,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                         --Do nothing
                         if bDebugMessages == true then LOG(sFunctionRef..': Etiher core xpansion or closest DF unit is within 50 of us so we dont want to run as it may be better to attack instead') end
                     else
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
 
@@ -1906,6 +1907,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                 --Assume a player would have a reasonable sense of if very far ahead on eco, so will use a much higher eco threshold as a rough proxy of just 'we are ahead on eco
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyEco='..iEnemyEco..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
                 if iEnemyEco * 1.35 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 end
             end
