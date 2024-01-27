@@ -367,9 +367,11 @@ end
 
 function SimpleProfiler(iInterval)
     local iTimeOfLastCycle
+    local iTimeAfter10s
     while true do
         iTimeOfLastCycle = GetSystemTimeSecondsOnlyForProfileUse()
-        WaitSeconds(10)
-        LOG('SimpleProfiler: Time='..math.floor(GetGameTimeSeconds()*10)..'; Time taken cumulative='..GetSystemTimeSecondsOnlyForProfileUse()..'; Time since last update='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeOfLastCycle))
+        WaitSeconds(iInterval)
+        if not(iTimeAfter10s) then iTimeAfter10s = GetSystemTimeSecondsOnlyForProfileUse() end
+        LOG('SimpleProfiler: Time='..math.floor(GetGameTimeSeconds()*10)..'; Time taken cumulative='..GetSystemTimeSecondsOnlyForProfileUse()..'; Time since last update='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeOfLastCycle)..'; Time excl first 10s='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeAfter10s))
     end
 end
