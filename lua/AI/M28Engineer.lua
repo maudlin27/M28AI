@@ -6339,7 +6339,22 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                             local iOrigAvailableEngis = table.getn(tAvailableEngineers)
                             local bExcludeExpShields
-                            if iExpShieldCount >= 2 or (iExpShieldCount >= 1 and iShieldLocations - iCompletedShields - iUnderConstructionShields >= 5) then bExcludeExpShields = true end
+                            if iExpShieldCount > 0 then
+                                if iExpShieldCount >= 2 or (iExpShieldCount >= 1 and iShieldLocations - iCompletedShields - iUnderConstructionShields >= 5) then bExcludeExpShields = true
+                                else
+                                    --We have 1 exp shield - dont get a second if we dont have a gameender
+                                    bExcludeExpShields = true
+                                    if iUnderConstructionArti + iCompletedArti > 0 then
+                                        for iArti, oArti in tTableRef[M28Map.subrefGEArtiUnits] do
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oArti.UnitId) then
+                                                bExcludExpShields = false
+                                                break
+                                            end
+                                        end
+
+                                    end
+                                end
+                            end
                             --If have lots of engineers then spread out since the biggest delay may be starting construction of a shield
                             if (iUnderConstructionShields == 0 and (iCompletedShields == 0 or iCompletedShields < math.min(6, iHighestCompletionArti * 8))) or (iOrigAvailableEngis >= 5 and iUnderConstructionShields > 0 and iCompletedShields + iUnderConstructionShields < iShieldLocations and iUnderConstructionShields < 4) then
                                 --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
