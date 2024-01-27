@@ -1865,6 +1865,10 @@ function PartCompleteExperimentalDamaged(oUnitDamaged, oUnitCausingDamage)
 end
 
 function SendUnitCapMessage(oBrainToSendMessage)
+    local sFunctionRef = 'SendUnitCapMessage'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tsPotentialMessages = {
         'If only the unit cap was higher...',
         ':( I hate having to kill my own units due to the unit cap',
@@ -1872,8 +1876,10 @@ function SendUnitCapMessage(oBrainToSendMessage)
         'I hope the unit cap is hurting you as much as it\'s hurting me',
         'Can your CPU not handle a higher unit cap?'
     }
-    local iRand = math.rand(1, table.getn(tsPotentialMessages))
+    local iRand = math.random(1, table.getn(tsPotentialMessages))
+    if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     SendMessage(oBrainToSendMessage, 'UnitCap', tsPotentialMessages[iRand], 0, 1000000, false)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 --List of potential voice messages

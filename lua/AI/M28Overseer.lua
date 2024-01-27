@@ -53,6 +53,8 @@ refbInitialised = 'M28OvInt' --true if brain has started the main initialisation
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
+refiLastUnitCapTimeCheck = 'M28UnitCapChk' --Gametimeseconds that the brain last did a unit cap check
+refbWillDoDelayedUnitCapCheck = 'M28UnitCapD' --true if we are already doing a delayed unit cap check
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
@@ -754,164 +756,171 @@ function CheckUnitCap(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
-    --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
-    --Use below method in case a mod has changed this
-    local oArmy = aiBrain:GetArmyIndex()
-    local iUnitCap = GetArmyUnitCap(oArmy)
-    --local armies = ListArmies()
-    --for i, army in armies do
-    --end
-    local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
-    local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
-    local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
-    local iCurUnitsDestroyed = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
-    if iCurUnits > (iUnitCap - iThreshold * 5) then
-        aiBrain[refbCloseToUnitCap] = true
-        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
-        local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))
-        if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
-        local tUnitsToDestroy
-        local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
-            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT,
-            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - categories.INSIGNIFICANTUNIT,
-            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout - categories.INSIGNIFICANTUNIT,
-        }
-        --Adjust these categories for special cases
-        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
-            --exclude T1 land from category 4
-            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 - categories.INSIGNIFICANTUNIT
-        end
-        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or ((M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0) then
-            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
-                tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer
-            else
-                tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer * categories.TECH2
+    if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
+        aiBrain[refiLastUnitCapTimeCheck] = GetGameTimeSeconds()
+        --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+        --Use below method in case a mod has changed this
+        local oArmy = aiBrain:GetArmyIndex()
+        local iUnitCap = GetArmyUnitCap(oArmy)
+        --local armies = ListArmies()
+        --for i, army in armies do
+        --end
+        local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
+        local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
+        local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
+        local iCurUnitsDestroyed = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
+        if iCurUnits > (iUnitCap - iThreshold * 5) then
+            aiBrain[refbCloseToUnitCap] = true
+            M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
+            local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))
+            if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
+            local tUnitsToDestroy
+            local tiCategoryToDestroy = {
+                [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
+                [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+                [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT,
+                [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - categories.INSIGNIFICANTUNIT,
+                [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout - categories.INSIGNIFICANTUNIT,
+            }
+            --Adjust these categories for special cases
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
+                --exclude T1 land from category 4
+                tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 - categories.INSIGNIFICANTUNIT
             end
-        end
-        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-            --Exclude MML from category 2
-            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
-        end
-        --If have no T2+ power, then dont include T1 power in units to ctrlK
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
-            tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
-        end
-
-        --If have no asfs then exclude inties from cat 2
-        if bDebugMessages == true then LOG(sFunctionRef..': Cur T2+ power='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1)..'; Cur ASFs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3)) end
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) == 0 then
-            tiCategoryToDestroy[2] = tiCategoryToDestroy[2] - M28UnitInfo.refCategoryAirAA
-            tiCategoryToDestroy[1] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
-            if bDebugMessages == true then LOG(sFunctionRef..': Excluding inties from being ctrlkd from category 1 and 2') end
-            if iUnitCap >= 500 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA) <= 50 then
-                tiCategoryToDestroy[0] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
-            end
-        end
-
-        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 2 then
-            --If have no t3 gunships then keep t2 in cat 0
-            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
-                tiCategoryToDestroy[0] = tiCategoryToDestroy[0] - M28UnitInfo.refCategoryGunship
-            end
-            --Dont exclude T2 tanks if we have no t3 tanks
-            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.TECH3) == 0 then
-                tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND
-                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) > 0 then
-                    tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
-                end
-            else
-                --exclude t2 maa if we have t3 maa
-                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) > 0 then
-                    tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or ((M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0) then
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
+                    tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer
+                else
+                    tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer * categories.TECH2
                 end
             end
-        end
-
-        --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
-        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
-            tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER
-        end
-
-
-
-        if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
-        local iCumulativeCategory = tiCategoryToDestroy[4]
-        for iAdjustmentLevel = 4, 0, -1 do
-            if iAdjustmentLevel < 4 then
-                iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                --Exclude MML from category 2
+                tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
-            if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
-                tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
-                if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
-                    local bKillUnit
-                    for iUnit, oUnit in tUnitsToDestroy do
-                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
-                            --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
-                            bKillUnit = true
-                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                                if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
-                                    bKillUnit = false
-                                elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
-                                    bKillUnit = false
-                                end
-                            end
-                            if bKillUnit then
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
-                                if not(oUnit[M28UnitInfo.refbTriedToKill]) then
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-                                        iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-                                    else
-                                        iCurUnitsDestroyed = iCurUnitsDestroyed + 1
-                                    end
-                                end
-                                M28Orders.IssueTrackedKillUnit(oUnit)
+            --If have no T2+ power, then dont include T1 power in units to ctrlK
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
+                tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+            end
 
-                                if iCurUnitsDestroyed >= iMaxToDestroy then
-                                    if iAdjustmentLevel <= 2 then
-                                        M28Chat.SendUnitCapMessage(aiBrain)
+            --If have no asfs then exclude inties from cat 2
+            if bDebugMessages == true then LOG(sFunctionRef..': Cur T2+ power='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1)..'; Cur ASFs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3)) end
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) == 0 then
+                tiCategoryToDestroy[2] = tiCategoryToDestroy[2] - M28UnitInfo.refCategoryAirAA
+                tiCategoryToDestroy[1] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+                if bDebugMessages == true then LOG(sFunctionRef..': Excluding inties from being ctrlkd from category 1 and 2') end
+                if iUnitCap >= 500 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA) <= 50 then
+                    tiCategoryToDestroy[0] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+                end
+            end
+
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 2 then
+                --If have no t3 gunships then keep t2 in cat 0
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
+                    tiCategoryToDestroy[0] = tiCategoryToDestroy[0] - M28UnitInfo.refCategoryGunship
+                end
+                --Dont exclude T2 tanks if we have no t3 tanks
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.TECH3) == 0 then
+                    tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) > 0 then
+                        tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
+                    end
+                else
+                    --exclude t2 maa if we have t3 maa
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) > 0 then
+                        tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
+                    end
+                end
+            end
+
+            --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
+                tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER
+            end
+
+
+
+            if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
+            local iCumulativeCategory = tiCategoryToDestroy[4]
+            for iAdjustmentLevel = 4, 0, -1 do
+                if iAdjustmentLevel < 4 then
+                    iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
+                if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                    tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+                    if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+                        local bKillUnit
+                        for iUnit, oUnit in tUnitsToDestroy do
+                            if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
+                                --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
+                                bKillUnit = true
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                    if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
+                                        bKillUnit = false
+                                    elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
+                                        bKillUnit = false
                                     end
-                                    break
+                                end
+                                if bKillUnit then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                                    if not(oUnit[M28UnitInfo.refbTriedToKill]) then
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                            iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                                        else
+                                            iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                                        end
+                                    end
+                                    M28Orders.IssueTrackedKillUnit(oUnit)
+
+                                    if iCurUnitsDestroyed >= iMaxToDestroy then
+                                        if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
+                                            M28Chat.SendUnitCapMessage(aiBrain)
+                                        end
+                                        break
+                                    end
                                 end
                             end
                         end
                     end
+                    if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                else
+                    break
                 end
-                if iCurUnitsDestroyed >= iMaxToDestroy then break end
-            else
-                break
+            end
+            aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
+            if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+        else
+            --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
+            if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
+                --Only reset cap if we have a bit of leeway
+                if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
+                    aiBrain[refbCloseToUnitCap] = false
+                end
             end
         end
-        aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
-        if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+        aiBrain[refiExpectedRemainingCap] = iUnitCap - iCurUnits + iCurUnitsDestroyed
+        if aiBrain[refbCloseToUnitCap] and aiBrain[refiExpectedRemainingCap] <= 25 then
+            --Recheck in 30s
+            ForkThread(DelayedUnitCapCheck, aiBrain)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, expected remaining cap='..aiBrain[refiExpectedRemainingCap]) end
     else
-        --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
-        if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
-            --Only reset cap if we have a bit of leeway
-            if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
-                aiBrain[refbCloseToUnitCap] = false
-            end
-        end
-    end
-    aiBrain[refiExpectedRemainingCap] = iUnitCap - iCurUnits + iCurUnitsDestroyed
-    if aiBrain[refbCloseToUnitCap] and aiBrain[refiExpectedRemainingCap] <= 25 then
-        --Recheck in 30s
         ForkThread(DelayedUnitCapCheck, aiBrain)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, expected remaining cap='..aiBrain[refiExpectedRemainingCap]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedUnitCapCheck(aiBrain)
-    WaitSeconds(30)
-    CheckUnitCap(aiBrain)
+    if not(aiBrain[refbWillDoDelayedUnitCapCheck]) then
+        aiBrain[refbWillDoDelayedUnitCapCheck] = true
+        WaitSeconds(30)
+        aiBrain[refbWillDoDelayedUnitCapCheck] = false
+        CheckUnitCap(aiBrain)
+    end
 end
 
 function ResetCivilianAllianceForBrain(iOurIndex, iCivilianIndex, sRealState, oCivilianBrain)
