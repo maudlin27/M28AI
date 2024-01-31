@@ -203,7 +203,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
                         local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
                         --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
-                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 then
+                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitKilled.UnitId))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
                             ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
                         end
                     end
