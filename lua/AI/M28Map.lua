@@ -257,6 +257,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyStructureIndirect = 'ASITotal'
             subrefLZThreatEnemyShield = 'EShTot' --Fixed and mobile shields
             subrefLZThreatEnemyGroundAA = 'EAATotal'
+            subrefiT3FixedShieldConstructedCount = 'FSCCn' --number of allied M28 shields that have been constructed less number that have been killed
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure, wz uses same ref deinition ('MAATotal')
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
@@ -8156,6 +8157,13 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                     --Clear core zone flag from old zone
                                     tCurStartLZTeamData[subrefLZbCoreBase] = nil
                                     tCurStartLZTeamData[subrefbCoreBaseOverride] = nil
+                                    if (iStartPlateauOrZero or 0) > 0 and iStartLandZone then
+                                        if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then
+                                            if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                                            M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = {}
+                                        end
+                                        M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero][iStartLandZone] = nil
+                                    end
                                 end
                             end
                         end

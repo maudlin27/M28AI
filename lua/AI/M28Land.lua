@@ -6100,6 +6100,11 @@ function AssignValuesToLandZones(iTeam)
                         if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLZTeamData[M28Map.subrefbCoreBaseOverride] then
                             tLZTeamData[M28Map.subrefLZbCoreBase] = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZTeamData[M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
+                            if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) then
+                                if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                                M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau] = {}
+                            end
+                            M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau][iLandZone] = true
                             --adjacent zones iwth lots of mexes in them and high mex count - consider treating as a core base
                         elseif tLandZoneData[M28Map.subrefLZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
@@ -6116,6 +6121,11 @@ function AssignValuesToLandZones(iTeam)
                                 if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to a core factory, and have iBaseCategory units in this zone, iLandZone='..iLandZone..'; iPlateau='..iPlateau) end
                                     tLZTeamData[M28Map.subrefLZbCoreBase] = true
+                                    if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) then
+                                        if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                                        M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau] = {}
+                                    end
+                                    M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau][iLandZone] = true
                                 end
                             end
 

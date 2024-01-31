@@ -36,6 +36,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
+    subrefiOrigM28BrainCount = 'OrigM28Count' --number of M28 brains on the team (ignoring any that have died)
     subreftoFriendlyHumanAndAIBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyHumanAndAIBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
     rebTeamOnlyHasCampaignAI = 'M28TeamOnlyCampAI' --True if team only has campaign AI on it (so can e.g. disable the 'check playable area' tests in some scenarios
@@ -213,6 +214,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     toActiveSnipeTargets = 'M28ActSnT' --E.g. if want to go all-out on attacking enemy ACU then the ACU would be added here
     refiTimeOfLastM28PlayerDefeat = 'M28TLstDth' --Gametimeseconds of the last M28 player defat (used to check if shield cycling should be paused)
     tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
+    reftiCoreZonesByPlateau = 'M28CZBPl' --[x] = plateau ref, [y] = LZ ref, returns true
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -3295,6 +3297,14 @@ function TeamInitialisation(iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
         M28Air.AirTeamInitialisation(iM28Team)
+        local iM28Count = 0
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            iM28Count = iM28Count + 1
+        end
+        tTeamData[iM28Team][subrefiOrigM28BrainCount] = iM28Count
+
+    else
+        tTeamData[iM28Team][subrefiOrigM28BrainCount] = 0
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
