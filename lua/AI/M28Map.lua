@@ -347,6 +347,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoLZUnitWantingFixedShield = 'UFixSh' --table of untis in the LZ taht want a fixed shield
             reftPriorityShieldsToAssist = 'FShAss' --Table of fixed shields that want to assist
             refiTimeOfLastShieldPriorityRefresh = 'FSTimC' --Time that we last updated the list of priority shields to be assisted
+            refiFixedShieldT2EngiFailureCount = 'FST2Ec' --number of times a t2 engi has failed to get something to build when trying to build a fixed shield (used to decide to switch to t3 only)
             refbLZWantsMobileStealth = 'MobSt' --true if LZ wants mobile stealth
             reftoLZUnitsWantingMobileStealth = 'UMobSt' --table of units in the LZ that want mobile stealth
             reftUnitsWantingTMD = 'TMDW' --table of units in the LZ that want TMD coverage
