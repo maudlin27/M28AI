@@ -203,7 +203,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
                         local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
                         --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
-                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 then
+                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitKilled.UnitId))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
                             ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
                         end
                     end
@@ -360,6 +361,15 @@ function OnUnitDeath(oUnit)
                             else
                                 M28Building.TMLDied(oUnit)
                             end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                            if oUnit:GetFractionComplete() == 1 then
+                                --Go through each team other team with M28 in it, and if they have nukes with loaded missiles, consider firing immediately
+                                for iTeam = 1, M28Team.iTotalTeamCount do
+                                    if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                                        ForkThread(M28Building.ConsiderFiringFirstLoadedNukeOnTeam, iTeam)
+                                    end
+                                end
+                            end
                         end
 
                         --Fixed shields
@@ -490,6 +500,12 @@ function OnUnitDeath(oUnit)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1, oUnit.UnitId) then
                                         if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
                                             ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oUnit:GetAIBrain(), oUnit.UnitId)
+                                        end
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield - categories.TECH2 - categories.TECH1, oUnit.UnitId) then
+                                        --Shield tracking
+                                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                                        if tLZTeamData then
+                                            tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = math.max(0, (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) - 1)
                                         end
                                     end
                                     M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
@@ -1636,16 +1652,27 @@ function OnConstructed(oEngineer, oJustBuilt)
                             --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oJustBuilt.UnitId) then
                             --Cybran ED1 shields - upgrade if enemy has novax or t3 arti
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.BUILTBYTIER2ENGINEER * categories.CYBRAN, oJustBuilt.UnitId) then
-                            if M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] then
-                                M28Economy.UpgradeUnit(oJustBuilt, true)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.BUILTBYTIER2ENGINEER * categories.CYBRAN, oJustBuilt.UnitId) then
+                                if M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] then
+                                    M28Economy.UpgradeUnit(oJustBuilt, true)
+                                end
                             end
+
+                            --Shield tracking
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield  - categories.TECH2 - categories.TECH1, oJustBuilt.UnitId) then
+                                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                if tLZTeamData then
+                                    tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) + 1
+                                end
+                            end
+
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
-                        end
-                        --Clear engineers that just built this
+                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            end
+                            --Clear engineers that just built this
 
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                         if not(M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat]) then

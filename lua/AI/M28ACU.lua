@@ -2823,6 +2823,61 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)
+    --If it's dangerous for ACUs and the current zone isnt a core zone with a shield, but there is a nearby core zone with a shield, then send the ACU there and returns true
+    local sFunctionRef = 'ConsiderRunningToNearestShield'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --No point looking for other core bases if we were the only M28 on the team originally, or if not dangerous for ACU
+    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount] > 1 then
+        --If we have shields in this zone dont leave it
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if it is safe for ACU owend by brain '..oACU:GetAIBrain().Nickname..' to be in zone '..iLandOrWaterZone..'; tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount]='..(tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 'nil')..'; Is core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Time='..GetGameTimeSeconds()) end
+        if (tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) > 0 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+            --Do nothing
+        else
+            --Find out closest zone on a plateau that has a shield
+            local iClosestCoreZoneWithShield = 275 --no point trying to move to a zone further away than this
+            local iCurDist
+            local iClosestZoneWithShieldRef
+            local tMoveDestination
+            local iMinShieldsWanted = 2
+            if M28UnitInfo.GetUnitHealthPercent(oACU) < 1 or tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then iMinShieldsWanted = 1 end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateauOrZero]) == false then
+                for iZone, bCoreZone in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateauOrZero] do
+                    if not(iZone == iLandOrWaterZone) then
+                        local tAltLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iZone]
+                        local tAltLZTeamData = tAltLZData[M28Map.subrefLZTeamData][iTeam]
+                        --Require at least 1 more shield at the target zone than in this zone, otherwise hte first zone to get a shield will have all ACUs going towards it
+                        if (tAltLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) >= iMinShieldsWanted and tAltLZTeamData[M28Map.subrefLZbCoreBase] and not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                            iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iZone)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Alternative zone '..iZone..' has shield constructed count '..(tAltLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0)..'; iCurDist='..iCurDist..'; iMinShieldsWanted='..iMinShieldsWanted) end
+                            if iCurDist < iClosestCoreZoneWithShield then
+                                --Is the target zone not significantly closer to the nearest enemy base?
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest base from target zone='..M28Utilities.GetDistanceBetweenPositions(tAltLZData[M28Map.subrefMidpoint], tAltLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to enemy base from cur zone='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+                                if M28Utilities.GetDistanceBetweenPositions(tAltLZData[M28Map.subrefMidpoint], tAltLZTeamData[M28Map.reftClosestEnemyBase]) + 30 >= M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) then
+                                    iClosestCoreZoneWithShield = iCurDist
+                                    iClosestZoneWithShieldRef = iZone
+                                    tMoveDestination = {tAltLZData[M28Map.subrefMidpoint][1], tAltLZData[M28Map.subrefMidpoint][2], tAltLZData[M28Map.subrefMidpoint][3]}
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iClosestZoneWithShieldRef='..(iClosestZoneWithShieldRef or 'nil')..'; iClosestCoreZoneWithShield='..iClosestCoreZoneWithShield) end
+            if iClosestZoneWithShieldRef then
+                M28Orders.IssueTrackedMove(oACU, tMoveDestination, 5, false, 'RetrSh', false)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will retreat ACU to the zone') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end
+
 function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
     local sFunctionRef = 'ReturnACUToCoreBase'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3429,8 +3484,11 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                 M28Orders.IssueTrackedMove(oACU, oClosestFixedShield:GetPosition(), 5, false, 'ACUTelSh', false)
             else
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
-                    if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base') end
-                    ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                    if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base unless want shield instead') end
+                    if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
+                        ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Going to core base') end
+                    end
                 else
 
                     --Upgrade to telesnipe
@@ -3622,9 +3680,13 @@ function GetACUOrder(aiBrain, oACU)
         if oACU[refbDoingInitialBuildOrder] then
             if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(M28Map.bIsCampaignMap) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) > 0) then
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
-                ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to return to core base (or core zone with shield)') end
+                if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
+                    ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will go to core base') end
+                end
                 bProceedWithLogic = false
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to return to core base') end
+
             elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) then
                 bProceedWithLogic = false
                 GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
@@ -3824,7 +3886,10 @@ function GetACUOrder(aiBrain, oACU)
                         ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                         if not(ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': ACU more than 10 from core base midpoint so will retreat there, ACU dist to this midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
-                            ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                            if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
+                                ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Going to core base') end
+                            end
                         end
                     elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                         if not(ConsiderRunningToGETemplate(oACU, tLZOrWZTeamData, iPlateauOrZero)) then

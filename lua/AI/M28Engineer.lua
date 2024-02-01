@@ -1132,7 +1132,12 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,          false, bBuildCheapestStructure, iOptionalCategoryForStructureToBuild)
         end
         if not(sBlueprintToBuild) then
-            if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
+            if (iOptionalEngineerAction == refActionBuildShield or iOptionalEngineerAction == refActionBuildSecondShield) and EntityCategoryContains(categories.TECH2, oEngineer.UnitId) then
+                --Presumably we tried getting a T2 engi to build a T3 shield, as a T2 shield cant be built close enough, so dont sent error message
+                tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] = (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Failed ot build shield with t2 engi, tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] ='..(tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount]  or 'nil')) end
+                if tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] >= 10 then M28Utilities.ErrorHandler('Still trying to build t3 shields with t2 engineers', true) end
+            elseif not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
                 M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ or if unit restrictions are present - refer to log for more details')
                 if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
                 else
@@ -7994,7 +7999,13 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
         end
     end
 
-    if iBPWanted > 0 and oUnitToShield and (oUnitToShield[refiFailedShieldBuildDistance] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnitToShield.UnitId)) then iTechLevelWanted = 3 end
+    if iBPWanted > 0 and iTechLevelWanted < 3 then
+        if oUnitToShield and (oUnitToShield[refiFailedShieldBuildDistance] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnitToShield.UnitId)) then
+            iTechLevelWanted = 3
+        elseif (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 5 then
+            iTechLevelWanted = 3
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': oUnitToShield='..(oUnitToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToShield) or 'nil')..'; iBPWanted='..iBPWanted..'; iTechLevelWanted='..iTechLevelWanted..'; iHighestMassValue='..iHighestMassValue) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted, iTechLevelWanted, oUnitToShield
@@ -9039,7 +9050,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iCurPriority = iCurPriority + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Need to shield the SMD first') end
                 local iTechLevelWanted = 2
-                if (oSMDToShield[refiFailedShieldConstructionCount] or 0) > 0 then iTechLevelWanted = 3 end
+                if (oSMDToShield[refiFailedShieldConstructionCount] or 0) > 0 or (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 5 then iTechLevelWanted = 3 end
                 HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oSMDToShield)
 
             elseif bAssistSMD then
@@ -12010,7 +12021,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     iCurPriority = iCurPriority + 1
                     if bDebugMessages == true then LOG(sFunctionRef..': Need to shield the SMD first') end
                     local iTechLevelWanted = 2
-                    if (oSMDToShield[refiFailedShieldConstructionCount] or 0) > 0 then iTechLevelWanted = 3 end
+                    if (oSMDToShield[refiFailedShieldConstructionCount] or 0) > 0 or (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 5 then iTechLevelWanted = 3 end
                     HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oSMDToShield)
 
                 elseif bAssistSMD then
@@ -15122,8 +15133,10 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             --HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
                         else
                             bAreBuildingShield = true
-                            HaveActionToAssign(refActionBuildShield, 2, iBPWanted, oArtiToShield)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority') end
+                            local iShieldTechLevelWanted = 2
+                            if (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 8 then iShieldTechLevelWanted = 3 end --normal limit elsewhere is 5
+                            HaveActionToAssign(refActionBuildShield, iShieldTechLevelWanted, iBPWanted, oArtiToShield)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority. iShieldTechLevelWanted='..iShieldTechLevelWanted) end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; HaveLowMass='..tostring(bHaveLowMass)) end

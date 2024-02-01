@@ -4354,6 +4354,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 end
 
 function UpdateLastBuiltTracker(oFactory, sBlueprint)
+    local sFunctionRef = 'UpdateLastBuiltTracker'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code, oFactory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; Factory position='..repru(oFactory:GetPosition())..'; sBlueprint='..(sBlueprint or 'nil')..'; reftAssignedPlateauAndLandZoneByTeam='..repru(oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Time='..GetGameTimeSeconds()) end
     if not (oFactory[refiBuildCountByBlueprint]) then
         oFactory[refiBuildCountByBlueprint] = {}
     end
@@ -4374,7 +4378,7 @@ function UpdateLastBuiltTracker(oFactory, sBlueprint)
         end
         tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] = GetGameTimeSeconds()
     end
-
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)

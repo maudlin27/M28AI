@@ -1024,6 +1024,7 @@ function AssignAIPersonalityAndRating(aiBrain)
         tbAssignedPersonalities[aiBrain[refiAssignedPersonality]] = true
     end
     if aiBrain.M28AI then
+        LOG('AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname)
         if (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AiX gets stuff in priority to AI
             local iBaseRating = 750
             local iApproxRating
@@ -1337,7 +1338,7 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
 end
 
 function ConsiderPerTeamStartMessage(aiBrain)
-    ForkThread(SendStartOfGameMessage, aiBrain, (aiBrain.M28Team - 1) * 8, aiBrain.M28Team)
+    ForkThread(SendStartOfGameMessage, aiBrain, (aiBrain.M28Team - 1) * 10, aiBrain.M28Team)
 end
 
 function ConsiderMessageForACUInTrouble(oACU, aiBrain)
