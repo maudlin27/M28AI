@@ -6782,7 +6782,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, iMediumSearchRange, 'Enemy')
         --GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, nil)
         local bIncreaseMAAWeighting = false
-        if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) then bIncreaseMAAWeighting = true end
+        if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) and (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 30000) then bIncreaseMAAWeighting = true end
         function GetUnitTypeMassWeighting(oUnit)
             if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
                 return 4
@@ -6926,14 +6926,35 @@ function GetNovaxTarget(aiBrain, oNovax)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all units at time '..GetGameTimeSeconds()..' in cur and adjacent zones, iStartPlateauOrZero='..(iStartPlateauOrZero)..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; iBestTargetValue='..iBestTargetValue) end
 
-        if not (oTarget) then
+        --Consider ignoring closest target and focusing on something furhter away if we dont have a high value target
+        local bConsiderFurtherAwayMexes = false
+        if not(oTarget) then bConsiderFurtherAwayMexes = true
+        --NOTE: iBestTargetValue is already set at a threshold to mean really low value targets are ignored
+        else
+            if GetUnitTypeMassWeighting(oTarget) < 1.5 and iBestTargetValue < 150 then
+                --Not a high value category; consider if we will still deal lots of damage relative to the mass cost; e.g. a T2 mex costs 900 mass with 2.5k health, so a dps of 243 would take 10.3s to kill, so 900 / 10.3 = 87.4 (ignoring the x2 weighting).  for a sniperbot, it's c.2s to kill a 880 mass unit so worth targeting (value is c.440); for a blaze it's c.4s to kill a 180 mass unit so c.45 mass/s; for UEF Fixed T2 flak (no modifier) it's 39 mass/s; i.e. if go with a value of 80 then it should exclude a lot of low value targets
+                bConsiderFurtherAwayMexes = true --will consider further away mexes, but not much further away
+            end
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all units at time '..GetGameTimeSeconds()..' in cur and adjacent zones, iStartPlateauOrZero='..(iStartPlateauOrZero)..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; iBestTargetValue='..iBestTargetValue..'; bConsiderFurtherAwayMexes='..tostring(bConsiderFurtherAwayMexes)) end
+
+        if bConsiderFurtherAwayMexes then
+            local iFurtherAwayMexTargetDist
+            if oTarget then
+                iFurtherAwayMexTargetDist = math.min(150, M28Map.iMapSize * 0.4)
+            else
+                iFurtherAwayMexTargetDist = math.min(750, math.max(200, M28Map.iMapSize * 0.6))
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Searching for unshielded T1 and T2 mexes, iFurtherAwayMexTargetDist='..iFurtherAwayMexTargetDist..'; M28Map.iMapSize='..M28Map.iMapSize) end
+
+
             --Get low priority target (i.e. further away target) - for now have done a copy of M27 approach
-            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryT3Mex, oNovax:GetPosition(), 200, 'Enemy')
+            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryT3Mex, oNovax:GetPosition(), iFurtherAwayMexTargetDist, 'Enemy')
+            local iClosestTarget = 10000
+            local iCurDist
             if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                local iClosestTarget = 10000
-                local iCurDist
                 for iUnit, oUnit in tEnemyUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': Searching for mexes, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Is underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false))) end
                     if oUnit:GetFractionComplete() == 1 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false)) then
@@ -6947,7 +6968,7 @@ function GetNovaxTarget(aiBrain, oNovax)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oTarget after searching for nearby mexes='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')) end
 
-            if not (oTarget) then
+            if not (oTarget) or iClosestTarget >= 500 then
                 --Nearest surface naval unit
                 tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface, tPositionToSearchFrom, 1000, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef .. ': No high priority targets, will search for lower priority, first with surface naval units. Is table empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
