@@ -361,6 +361,15 @@ function OnUnitDeath(oUnit)
                             else
                                 M28Building.TMLDied(oUnit)
                             end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                            if oUnit:GetFractionComplete() == 1 then
+                                --Go through each team other team with M28 in it, and if they have nukes with loaded missiles, consider firing immediately
+                                for iTeam = 1, M28Team.iTotalTeamCount do
+                                    if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                                        ForkThread(M28Building.ConsiderFiringFirstLoadedNukeOnTeam, iTeam)
+                                    end
+                                end
+                            end
                         end
 
                         --Fixed shields

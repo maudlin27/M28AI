@@ -4001,3 +4001,30 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function ConsiderFiringFirstLoadedNukeOnTeam(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderFiringFirstLoadedNukeOnTeam'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oSMLToConsiderFiring
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        local tFriendlyNukes = oBrain:GetListOfUnits(M28UnitInfo.refCategorySML, true, false)
+        if M28Utilities.IsTableEmpty(tFriendlyNukes) == false then
+            for iNuke, oNuke in tFriendlyNukes do
+                if oNuke:GetFractionComplete() == 1 and oNuke.GetNukeSiloAmmoCount and oNuke:GetNukeSiloAmmoCount() >= 1 then
+                    if not(oNuke[refiTimeLastFiredMissile]) or GetGameTimeSeconds() - oNuke[refiTimeLastFiredMissile] >= 10 then
+                        oSMLToConsiderFiring = oNuke
+                        break
+                    end
+                end
+            end
+            if oSMLToConsiderFiring then break end
+        end
+    end
+    if oSMLToConsiderFiring then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider firing nuke launcher='..oSMLToConsiderFiring.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMLToConsiderFiring)) end
+        ConsiderLaunchingMissile(oSMLToConsiderFiring)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

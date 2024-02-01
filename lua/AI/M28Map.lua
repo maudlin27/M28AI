@@ -251,6 +251,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
 
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
+            subrefThreatEnemyDFStructures = 'ESDFTo'
             subrefLZIndirectThreatWanted = 'IFWanted'
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
             subrefLZThreatEnemyStructureIndirect = 'ESITotal'
