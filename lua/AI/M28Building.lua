@@ -1112,7 +1112,7 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
                 end
             end
             if iRevisedIndex < iTableSize then
-                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                     table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iRemovalEntry)
                 end
             end

@@ -233,7 +233,7 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
                 tUnits[iOrigIndex] = nil
             end
             if iRevisedIndex < iTableSize then
-                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                     table.remove(tUnits, iRemovalEntry)
                 end
             end
@@ -3988,7 +3988,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 end
             end
             if iRevisedIndex < iTableSize then
-                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                     table.remove(tMAAToAdvance, iRemovalEntry)
                 end
             end
@@ -4241,7 +4241,7 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
                 end
             end
             if iRevisedIndex < iTableSize then
-                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                     table.remove(tMAAToAdvance, iRemovalEntry)
                 end
             end

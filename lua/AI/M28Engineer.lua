@@ -609,7 +609,7 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                     end
                 end
                 if iRevisedIndex < iTableSize then
-                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                         table.remove(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable], iRemovalEntry)
                     end
                 end
@@ -3955,7 +3955,7 @@ function RefreshPartBuiltMexList(tLZOrWZTeamData)
         end
     end
     if iRevisedIndex < iTableSize then
-        for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+        for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
             table.remove(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRemovalEntry)
         end
     end
@@ -4055,7 +4055,7 @@ function ClearEngineerTracking(oEngineer)
         end
 
         if iRevisedIndex < iTableSize then
-            for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                 table.remove(tArray, iRemovalEntry)
             end
         end

@@ -9,9 +9,9 @@ M28ShowEnemyUnitNames = true --Will rename enemy units to reflect their ID and l
 M28RunVeryFast = true --Game starts off at +15 speed if set to adjustable
 
 --Detailed profiling config options
-M28RunProfiling = true --If turning to true-part way through the game then also run ForkThread(M28Profiler.ProfilerActualTimePerTick); Records data on how long most functions are taking
-M28ProfilingIncludePerTick = true --if M28RunProfiling is true, then this determins whether will just do the detailed log of time taken for functions, or will also include the per tick results
-M28ProfilerIgnoreFirst2Seconds = true --Means logic relating to pathing generation gets ignored
+M28RunProfiling = false --If turning to true-part way through the game then also run ForkThread(M28Profiler.ProfilerActualTimePerTick); Records data on how long most functions are taking
+M28ProfilingIncludePerTick = false --if M28RunProfiling is true, then this determins whether will just do the detailed log of time taken for functions, or will also include the per tick results
+M28ProfilerIgnoreFirst2Seconds = false --Means logic relating to pathing generation gets ignored
 M28RunMemoryProfiling = false --if true then every 60s will list out how much memory each file in M28 is using
 --Simple profiling option:
-M28RunSimpleProfiling = false --if true then will output time taken every 10s
+M28RunSimpleProfiling = true --if true then will output time taken every 10s

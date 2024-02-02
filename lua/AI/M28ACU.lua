@@ -1287,7 +1287,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
         end
         if iRevisedIndex < iTableSize then
-            for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                 table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
             end
         end

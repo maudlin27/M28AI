@@ -399,7 +399,9 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
         end
     end
     if iRevisedIndex < iTableSize then
-        for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+        bDebugMessages = true
+        for iRemovalEntry = iTableSize, iRevisedIndex + 1, -1 do
+            if bDebugMessages == true then LOG(sFunctionRef..': removing entry '..iRemovalEntry..' from iRecordedLandZone='..iRecordedLandZone..'; Entry being removed UnitId='..(tUnits[iRemovalEntry].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iRemovalEntry]) or 'nil')..'; iTableSize='..iTableSize..'; iRevisedIndex='..iRevisedIndex) end
             table.remove(tUnits, iRemovalEntry)
         end
     end
@@ -1621,7 +1623,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
                     end
                 end
                 if iRevisedIndex < iTableSize then
-                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                         table.remove(tMAAToAdvance, iRemovalEntry)
                     end
                 end
@@ -1653,7 +1655,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
                     end
                 end
                 if iRevisedIndex < iTableSize then
-                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                         table.remove(tHoverMAAToAdvance, iRemovalEntry)
                     end
                 end
@@ -6874,7 +6876,7 @@ function TrackWallSegment(oWall, bJustBuilt)
                     end
                 end
                 if iRevisedIndex < iTableSize then
-                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                         table.remove(tLZData[M28Map.subrefLZPlayerWallSegments], iRemovalEntry)
                     end
                 end
