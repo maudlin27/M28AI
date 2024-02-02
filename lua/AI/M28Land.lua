@@ -399,9 +399,8 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
         end
     end
     if iRevisedIndex < iTableSize then
-        bDebugMessages = true
         for iRemovalEntry = iTableSize, iRevisedIndex + 1, -1 do
-            if bDebugMessages == true then LOG(sFunctionRef..': removing entry '..iRemovalEntry..' from iRecordedLandZone='..iRecordedLandZone..'; Entry being removed UnitId='..(tUnits[iRemovalEntry].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iRemovalEntry]) or 'nil')..'; iTableSize='..iTableSize..'; iRevisedIndex='..iRevisedIndex) end
+            --if bDebugMessages == true then LOG(sFunctionRef..': removing entry '..iRemovalEntry..' from iRecordedLandZone='..iRecordedLandZone..'; Entry being removed UnitId='..(tUnits[iRemovalEntry].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iRemovalEntry]) or 'nil')..'; iTableSize='..iTableSize..'; iRevisedIndex='..iRevisedIndex) end
             table.remove(tUnits, iRemovalEntry)
         end
     end
