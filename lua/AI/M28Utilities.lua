@@ -526,6 +526,7 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
         end
     end
     if iRevisedIndex < iTableSize then
+        --table.setn(tArray, iRevisedIndex - 1)
         for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
             table.remove(tArray, iRemovalEntry)
         end

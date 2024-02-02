@@ -1188,6 +1188,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
             end
         end
         if iRevisedIndex < iTableSize then
+            --table.setn(tTeamData[iTeam][sTableRef], iRevisedIndex - 1)
             for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
                 table.remove(tTeamData[iTeam][sTableRef], iRemovalEntry)
             end
