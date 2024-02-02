@@ -232,6 +232,11 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
 
                 tUnits[iOrigIndex] = nil
             end
+            if iRevisedIndex < iTableSize then
+                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    table.remove(tUnits, iRemovalEntry)
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3982,6 +3987,11 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                     end
                 end
             end
+            if iRevisedIndex < iTableSize then
+                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    table.remove(tMAAToAdvance, iRemovalEntry)
+                end
+            end
 
             --Now assign the combat MAA to attack the enemy structure
             for iUnit, oUnit in tCombatAAByOrigRef do
@@ -4228,6 +4238,11 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
                         tMAAToAdvance[iOrigIndex] = nil;
                         if tOptionalCombatAAByOrigRef then tOptionalCombatAAByOrigRef[iOrigIndex] = nil end
                     end
+                end
+            end
+            if iRevisedIndex < iTableSize then
+                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    table.remove(tMAAToAdvance, iRemovalEntry)
                 end
             end
         end

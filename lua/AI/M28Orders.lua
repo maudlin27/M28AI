@@ -204,6 +204,11 @@ function UpdateRecordedOrders(oUnit)
                         end
                     end
                 end
+                if iRevisedIndex < iTableSize then
+                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                        table.remove(oUnit[reftiLastOrders], iRemovalEntry)
+                    end
+                end
             end
         end
     end

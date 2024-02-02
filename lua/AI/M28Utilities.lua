@@ -525,6 +525,11 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
             end
         end
     end
+    if iRevisedIndex < iTableSize then
+        for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+            table.remove(tArray, iRemovalEntry)
+        end
+    end
     return tArray;
 end
 

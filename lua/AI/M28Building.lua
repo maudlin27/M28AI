@@ -1111,6 +1111,11 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
                     end
                 end
             end
+            if iRevisedIndex < iTableSize then
+                for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                    table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iRemovalEntry)
+                end
+            end
         end
     end
     oUnit[refbUnitWantsMoreTMD] = false --redundancy

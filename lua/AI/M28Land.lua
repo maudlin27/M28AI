@@ -398,6 +398,11 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
             end
         end
     end
+    if iRevisedIndex < iTableSize then
+        for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+            table.remove(tUnits, iRemovalEntry)
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iRevisedIndex='..iRevisedIndex..'; Is tUnits empty='..tostring(M28Utilities.IsTableEmpty(tUnits))..'; iiRecordedPlateau='..iRecordedPlateau..'; iRecordedLandZone='..iRecordedLandZone..'; GameTime='..GetGameTimeSeconds()..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)..'; bUseActualPositionIfEnemy='..tostring(bUseActualPositionIfEnemy)..'; bUpdateTimeOfLastEnemyPositionCheck='..tostring(bUpdateTimeOfLastEnemyPositionCheck)) end
 end
 
@@ -1615,6 +1620,11 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
                         end
                     end
                 end
+                if iRevisedIndex < iTableSize then
+                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                        table.remove(tMAAToAdvance, iRemovalEntry)
+                    end
+                end
             else
                 --Need to remove from both the hover MAA table, and the main MAA table
                 local iRevisedIndex = 1
@@ -1640,6 +1650,11 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
                             end
                             tHoverMAAToAdvance[iOrigIndex] = nil;
                         end
+                    end
+                end
+                if iRevisedIndex < iTableSize then
+                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                        table.remove(tHoverMAAToAdvance, iRemovalEntry)
                     end
                 end
             end
@@ -6856,6 +6871,11 @@ function TrackWallSegment(oWall, bJustBuilt)
                         else
                             tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
                         end
+                    end
+                end
+                if iRevisedIndex < iTableSize then
+                    for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                        table.remove(tLZData[M28Map.subrefLZPlayerWallSegments], iRemovalEntry)
                     end
                 end
                 if bDebugMessages == true then

@@ -1187,6 +1187,11 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
                 end
             end
         end
+        if iRevisedIndex < iTableSize then
+            for iRemovalEntry = iTableSize, (iTableSize - iRevisedIndex), -1 do
+                table.remove(tTeamData[iTeam][sTableRef], iRemovalEntry)
+            end
+        end
     end
 end
 function LongRangeThreatMonitor(iTeam)
