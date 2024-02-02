@@ -192,6 +192,7 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
             tUnits[iOrigIndex] = nil
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..(tUnits[iOrigIndex].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex]) or 'nil')..' is dead so removing') end
         else
             --Unit still valid, does it have the right water zone?
             if bAreEnemyUnits or bUseLastKnownPosition then
@@ -214,6 +215,7 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
                     tUnits[iOrigIndex] = nil
                 end
                 iRevisedIndex = iRevisedIndex + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit is valid, so increasing revised index') end
             else
                 local oUnitToAdd = tUnits[iOrigIndex]
                 oUnitToAdd[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] = nil
@@ -231,14 +233,16 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
                 end
 
                 tUnits[iOrigIndex] = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit not valid so not increasing revised index') end
             end
-            if iRevisedIndex < iTableSize then
-                --table.setn(tUnits, iRevisedIndex - 1)
+        end
+    end
+    if iRevisedIndex < iTableSize then
+        --table.setn(tUnits, iRevisedIndex - 1)
 
-                for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
-                    table.remove(tUnits, iRemovalEntry)
-                end
-            end
+        for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+            if bDebugMessages == true then LOG(sFunctionRef..': removing entry from zone, Entry='..(tUnits[iRemovalEntry].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iRemovalEntry]) or 'nil')..'; iTableSize='..iTableSize..'; iRevisedIndex='..iRevisedIndex) end
+            table.remove(tUnits, iRemovalEntry)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
