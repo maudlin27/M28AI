@@ -2838,8 +2838,10 @@ function IdleFactoryMonitor(aiBrain)
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
             for iFactory, oFactory in tOurFactories do
                 if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())) end
                     tCommandQueue = oFactory:GetCommandQueue()
+                    bDebugMessages = false
                     if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)

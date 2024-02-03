@@ -2022,7 +2022,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
 end
 
 function OnCreate(oUnit, bIgnoreMapSetup)
-    LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
+    --LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
