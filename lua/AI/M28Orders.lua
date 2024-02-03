@@ -204,6 +204,12 @@ function UpdateRecordedOrders(oUnit)
                         end
                     end
                 end
+                if iRevisedIndex < iTableSize then
+                    --table.setn(oUnit[reftiLastOrders], iRevisedIndex - 1)
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                        table.remove(oUnit[reftiLastOrders], iRemovalEntry)
+                    end
+                end
             end
         end
     end

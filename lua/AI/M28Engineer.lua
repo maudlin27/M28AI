@@ -608,6 +608,12 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                         end
                     end
                 end
+                if iRevisedIndex < iTableSize then
+                    --table.setn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable], iRevisedIndex - 1)
+                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                        table.remove(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable], iRemovalEntry)
+                    end
+                end
             end
         end
     end
@@ -3949,6 +3955,12 @@ function RefreshPartBuiltMexList(tLZOrWZTeamData)
             tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex] = nil;
         end
     end
+    if iRevisedIndex < iTableSize then
+        --table.setn(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRevisedIndex - 1)
+        for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+            table.remove(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRemovalEntry)
+        end
+    end
 end
 
 function UpdatePartBuiltListForCompletedMex(oMex)
@@ -4002,6 +4014,7 @@ function RecordPartBuiltMex(oEngineer, oMex)
 end
 
 
+
 function ClearEngineerTracking(oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ClearEngineerTracking'
@@ -4009,6 +4022,7 @@ function ClearEngineerTracking(oEngineer)
 
 
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Is paused='..tostring(oEngineer[M28UnitInfo.refbPaused] or false)..'; oEngineer[refbBuildingExperimental]='..tostring(oEngineer[refbBuildingExperimental] or false)..'; oEngineer[M28Land.reftiPlateauAndLZToMoveTo]='..repru(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; oEngineer[reftAssignedReclaimSegments]='..repru(oEngineer[reftAssignedReclaimSegments])..'; Is table of queued buildings empty='..tostring(M28Utilities.IsTableEmpty(oEngineer[reftQueuedBuildings]))..'; Is table of engineers assisting this empty='..tostring(M28Utilities.IsTableEmpty(oEngineer[M28UnitInfo.reftoUnitsAssistingThis]))..'; Do we have a valid unit for special shield tracking='..tostring(M28UnitInfo.IsUnitValid(oEngineer[refoUnitActivelyShielding]))..'; oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])) end
     --Unpause unit if it was paused (redundancy)
     if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
 
@@ -4026,7 +4040,7 @@ function ClearEngineerTracking(oEngineer)
         local iRevisedIndex = 1
         local tArray = M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]
         local iTableSize = table.getn(tArray)
-
+        if bDebugMessages == true then LOG(sFunctionRef..': removing engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' from table of engis building experimentals, iTableSize='..iTableSize) end
         for iOrigIndex=1, iTableSize do
             if tArray[iOrigIndex] then
                 if oEngineer ~= tArray[iOrigIndex] and M28UnitInfo.IsUnitValid(tArray[iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
@@ -4042,6 +4056,14 @@ function ClearEngineerTracking(oEngineer)
             end
         end
 
+        if iRevisedIndex < iTableSize then
+            --table.setn(tArray, iRevisedIndex - 1)
+            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                table.remove(tArray, iRemovalEntry)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': table size after removal='..table.getn(tArray)..'; iRevisedIndex='..iRevisedIndex..'; tArray[iTableSize]='..(tArray[iTableSize].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tArray[iTableSize]) or 'nil')) end
+
         oEngineer[refbBuildingExperimental] = nil
     end
 
@@ -4049,6 +4071,7 @@ function ClearEngineerTracking(oEngineer)
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
         local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
         if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': removing from table of engis traveling here, size of table='..table.getn(tTargetLZTeamData[M28Map.subrefTEngineersTravelingHere])) end
             for iUnit, oUnit in tTargetLZTeamData[M28Map.subrefTEngineersTravelingHere] do
                 if oUnit == oEngineer then
                     table.remove(tTargetLZTeamData[M28Map.subrefTEngineersTravelingHere][iUnit])
@@ -4078,6 +4101,7 @@ function ClearEngineerTracking(oEngineer)
 
     --Clear any queued building orders
     if M28Utilities.IsTableEmpty(oEngineer[reftQueuedBuildings]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': removing from table of queued buildings, size of table='..table.getn(oEngineer[reftQueuedBuildings])) end
         for iEntry, tOrderDetails in oEngineer[reftQueuedBuildings] do
             local tLZOrWZTeamData, tLZOrWZData
             if tOrderDetails[subrefPlateauOrZero] > 0 then
@@ -4104,6 +4128,7 @@ function ClearEngineerTracking(oEngineer)
     --Clear assisting engineers
     if M28Utilities.IsTableEmpty(oEngineer[M28UnitInfo.reftoUnitsAssistingThis]) == false then
         local tEngineersToRemove = {}
+        if bDebugMessages == true then LOG(sFunctionRef..': Will clear all engineers assisting this, number of engineers assisting='..table.getn(oEngineer[M28UnitInfo.reftoUnitsAssistingThis])) end
         for iAssistingEngineer, oAssistingEngineer in oEngineer[M28UnitInfo.reftoUnitsAssistingThis] do
             if M28UnitInfo.IsUnitValid(oAssistingEngineer) then
                 table.insert(tEngineersToRemove, oAssistingEngineer)
@@ -4123,6 +4148,7 @@ function ClearEngineerTracking(oEngineer)
     if oEngineer[refoUnitActivelyShielding] then
         if M28UnitInfo.IsUnitValid(oEngineer[refoUnitActivelyShielding]) then
             if M28Utilities.IsTableEmpty(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': remvogin from special shield engineers list, size of list='..table.getn(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding])) end
                 for iRecordedEngi, oRecordedEngi in oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding] do
                     if oRecordedEngi == oEngineer then
                         table.remove(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding], iRecordedEngi)
@@ -4143,6 +4169,7 @@ function ClearEngineerTracking(oEngineer)
         local iTemplateRef = oEngineer[M28Building.reftArtiTemplateRefs][3]
         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oEngineer:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': removing from list of engineers assigned to GE Template, size of table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers])) end
             for iRecordedEngi, oRecordedEngi in tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers] do
                 if oRecordedEngi == oEngineer then
                     table.remove(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers], iRecordedEngi)
@@ -4204,6 +4231,10 @@ function TrackQueuedBuilding(oEngineer, sBuildingID, tBuildLocation)
 end
 
 function ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadius, bAddToQueue)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ChangeQueuedLocationsTracker'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iBaseX = math.floor(tBuildLocation[1])
     local iBaseZ = math.floor(tBuildLocation[3])
     for iX = iBaseX - iBuildingRadius, iBaseX + iBuildingRadius, 1 do
@@ -4223,6 +4254,7 @@ function ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadi
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCurPriority, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable, bMarkAsSpare)
@@ -4243,8 +4275,17 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
 
     --Track experimental construction
     if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionManageGameEnderTemplate then
-        table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
-        oEngineer[refbBuildingExperimental] = true
+        if not(oEngineer[refbBuildingExperimental]) then --dont want engineers on GE template to keep being added to table
+            table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
+            oEngineer[refbBuildingExperimental] = true
+            if bDebugMessages == true then
+                local iDeadCount = 0
+                for iUnit, oUnit in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals] do
+                    if oUnit.Dead then iDeadCount = iDeadCount + 1 end
+                end
+                LOG(sFunctionRef..': Adding engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to team '..oEngineer:GetAIBrain().M28Team..' table of engineers building experimental, size of table='..table.getn(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals])..'; iDeadCount='..iDeadCount)
+            end
+        end
     else
         oEngineer[refbBuildingExperimental] = nil
     end
