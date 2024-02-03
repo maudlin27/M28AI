@@ -4486,6 +4486,18 @@ function ManageACU(aiBrain, oACUOverride)
         --If this is an ACU then add to table of friendly ACUs
         if EntityCategoryContains(categories.COMMAND, oACU.UnitId) then table.insert(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftM28ACUs], oACU) end
 
+        if oACU[M28UnitInfo.refbEasyBrain] then
+            --Enable autoovercharge if have easy mode ACU
+            local bHaveAutoOvercharge = false
+            for iWeapon, tWeapon in oACU:GetBlueprint() do
+                if tWeapon.Label == 'AutoOverCharge' then
+                    bHaveAutoOvercharge = true
+                    break
+                end
+            end
+            oACU:SetAutoOvercharge(true)
+        end
+
         while M28UnitInfo.IsUnitValid(oACU) do
             oACU[refbTreatingAsACU] = true
             if oACU[refbUseACUAggressively] then

@@ -70,6 +70,7 @@ refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 
     --Unit micro related
+refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds

@@ -66,6 +66,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
     subrefiGrossEnergyWhenStalled = 'M28TeamGrossEWhenStalled' --Amount of energy team had (gross) when we had a power stall
     refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
+    refiTimeLastConsideredEnergyStall = 'M28TeamTimeConsStall' --Used so in easymode can ensure a c.2s gap
     refiTimeLastNeededEnergyForOvercharge = 'M28TeamTimeLastNeedEForOC' --Gametimeseconds that an ACU oculdnt afford to overcharge despite having enough energy storage capacity, and having its weapon cooled down, with significant enemies in range
     refiEnergyWhenAirFactoryLastUnableToBuildAir = 'M28TeamEnergyAirFacUnableToBuildAir' --Team Gross energy when air factory didnt consider building air units due to lack of energy
     refiTimeOfLastEngiSelfDestruct = 'M28TeamTimeOfLastEnegiSelfDestruct'

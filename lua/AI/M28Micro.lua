@@ -202,24 +202,26 @@ function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
                 for iUnit, oUnit in tUnitsToRun do
                     oCurUnitBrain = oUnit:GetAIBrain()
                     if oCurUnitBrain.M28AI and oCurUnitBrain.M28Team == iTeam then
-                        --If gunship runs to temp destination is it likely to be going the wrong way to avoid the bomb? if so then have it run in a different direction
-                        iCurDistToBomb = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBombTarget)
-                        bMoveToAltDestination = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDistToBomb='..iCurDistToBomb..'; ANgle from bomb='..M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())..'; iAngleFromBombToBase='..iAngleFromBombToBase) end
-                        if iCurDistToBomb >= 4 then
-                            iCurAngleFromBomb = M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())
-                            if M28Utilities.GetAngleDifference(iCurAngleFromBomb, iAngleFromBombToBase) > 50 then
-                                bMoveToAltDestination = true
-                                tAltTempDestination = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleFromBomb, iRadiusSize, true, false, bCampaignMap)
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            --If gunship runs to temp destination is it likely to be going the wrong way to avoid the bomb? if so then have it run in a different direction
+                            iCurDistToBomb = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBombTarget)
+                            bMoveToAltDestination = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDistToBomb='..iCurDistToBomb..'; ANgle from bomb='..M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())..'; iAngleFromBombToBase='..iAngleFromBombToBase) end
+                            if iCurDistToBomb >= 4 then
+                                iCurAngleFromBomb = M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())
+                                if M28Utilities.GetAngleDifference(iCurAngleFromBomb, iAngleFromBombToBase) > 50 then
+                                    bMoveToAltDestination = true
+                                    tAltTempDestination = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleFromBomb, iRadiusSize, true, false, bCampaignMap)
+                                end
                             end
+                            M28Orders.IssueTrackedClearCommands(oUnit)
+                            if bMoveToAltDestination then
+                                M28Orders.IssueTrackedMove(oUnit, tAltTempDestination, 3, false, 'AhwRunH', true)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tTemporaryDestination, 3, false, 'AhwRunT', true)
+                            end
+                            TrackTemporaryUnitMicro(oUnit, 4) --takes roughly 4s for bomb to land
                         end
-                        M28Orders.IssueTrackedClearCommands(oUnit)
-                        if bMoveToAltDestination then
-                            M28Orders.IssueTrackedMove(oUnit, tAltTempDestination, 3, false, 'AhwRunH', true)
-                        else
-                            M28Orders.IssueTrackedMove(oUnit, tTemporaryDestination, 3, false, 'AhwRunT', true)
-                        end
-                        TrackTemporaryUnitMicro(oUnit, 4) --takes roughly 4s for bomb to land
                     end
                 end
             end
@@ -289,68 +291,70 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; iTimeToRun='..iTimeToRun) end
                         oCurBrain = oUnit:GetAIBrain()
                         if oCurBrain.M28AI and not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and IsEnemy(oCurBrain:GetArmyIndex(), iBomberArmyIndex) then
-                            --ACU specific
-                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                                local aiBrain = oCurBrain
-                                --If ACU is upgrading might not want to cancel
-                                local bDontTryAndDodge = false
-                                if oUnit:IsUnitState('Upgrading') then
-                                    --Are we facing a T1 bomb?
-                                    if EntityCategoryContains(categories.TECH1, oBomber.UnitId) then
-                                        bDontTryAndDodge = true
-                                    else
-                                        --Facing T2+ bomb, so greater risk if we dont try and dodge; dont dodge if are almost complete
-                                        if oUnit:GetWorkProgress() >= 0.9 then
+                            if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                                --ACU specific
+                                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                                    local aiBrain = oCurBrain
+                                    --If ACU is upgrading might not want to cancel
+                                    local bDontTryAndDodge = false
+                                    if oUnit:IsUnitState('Upgrading') then
+                                        --Are we facing a T1 bomb?
+                                        if EntityCategoryContains(categories.TECH1, oBomber.UnitId) then
                                             bDontTryAndDodge = true
                                         else
-                                            --Is it a T2 bomber, and there arent many bombers nearby?
-                                            if EntityCategoryContains(categories.TECH2, oBomber.UnitId) then
-                                                local tNearbyBombers = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship - categories.TECH1, oUnit:GetPosition(), 100, 'Enemy')
-                                                if M28Utilities.IsTableEmpty(tNearbyBombers) == true then
-                                                    bDontTryAndDodge = true
-                                                else
-                                                    local iEnemyBomberCount = 0
-                                                    for iEnemy, oEnemy in tNearbyBombers do
-                                                        if M28UnitInfo.IsUnitValid(oEnemy) then
-                                                            iEnemyBomberCount = iEnemyBomberCount + 1
-                                                            if iEnemyBomberCount >= 4 then break end
+                                            --Facing T2+ bomb, so greater risk if we dont try and dodge; dont dodge if are almost complete
+                                            if oUnit:GetWorkProgress() >= 0.9 then
+                                                bDontTryAndDodge = true
+                                            else
+                                                --Is it a T2 bomber, and there arent many bombers nearby?
+                                                if EntityCategoryContains(categories.TECH2, oBomber.UnitId) then
+                                                    local tNearbyBombers = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship - categories.TECH1, oUnit:GetPosition(), 100, 'Enemy')
+                                                    if M28Utilities.IsTableEmpty(tNearbyBombers) == true then
+                                                        bDontTryAndDodge = true
+                                                    else
+                                                        local iEnemyBomberCount = 0
+                                                        for iEnemy, oEnemy in tNearbyBombers do
+                                                            if M28UnitInfo.IsUnitValid(oEnemy) then
+                                                                iEnemyBomberCount = iEnemyBomberCount + 1
+                                                                if iEnemyBomberCount >= 4 then break end
+                                                            end
                                                         end
+                                                        if iEnemyBomberCount < 4 then bDontTryAndDodge = true end
                                                     end
-                                                    if iEnemyBomberCount < 4 then bDontTryAndDodge = true end
                                                 end
                                             end
                                         end
-                                    end
-                                elseif oUnit:IsUnitState('Teleporting') then
-                                    bDontTryAndDodge = true
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bDontTryAndDodge after checking if upgrading='..tostring(bDontTryAndDodge)) end
-                                if not(bDontTryAndDodge) then
-                                    --Is there a significant enemy land threat and we are against a T1 bomber?
-                                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                                    if iLandZone > 0 and EntityCategoryContains(categories.TECH1, oBomber.UnitId) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTThreatEnemyCombatTotal] * 1.2 > math.min(300, M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false, false, false, false, false, false)) then
+                                    elseif oUnit:IsUnitState('Teleporting') then
                                         bDontTryAndDodge = true
                                     end
-                                end
-
-                                if not(bDontTryAndDodge) then
-                                    if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will move in a circle as micro is already active') end
-                                        MoveInCircleTemporarily(oUnit, iTimeToRun)
-                                    else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will move away from bomb target temporarily') end
-                                        MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
-                                        oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bDontTryAndDodge after checking if upgrading='..tostring(bDontTryAndDodge)) end
+                                    if not(bDontTryAndDodge) then
+                                        --Is there a significant enemy land threat and we are against a T1 bomber?
+                                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                                        if iLandZone > 0 and EntityCategoryContains(categories.TECH1, oBomber.UnitId) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTThreatEnemyCombatTotal] * 1.2 > math.min(300, M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false, false, false, false, false, false)) then
+                                            bDontTryAndDodge = true
+                                        end
                                     end
-                                end
 
-                            else
-                                --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
-                                if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
-                                    if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
-                                        MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
-                                        oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                    if not(bDontTryAndDodge) then
+                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will move in a circle as micro is already active') end
+                                            MoveInCircleTemporarily(oUnit, iTimeToRun)
+                                        else
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will move away from bomb target temporarily') end
+                                            MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
+                                            oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                        end
+                                    end
+
+                                else
+                                    --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
+                                    if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
+                                        if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
+                                            MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
+                                            oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                        end
                                     end
                                 end
                             end
@@ -415,8 +419,10 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     --Do nothing
                 elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
                     if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
-                        table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
+                            table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                        end
                     end
                 end
             end
@@ -767,238 +773,240 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
-    --Do we have positive energy income? If not, then only overcharge if ACU is low on health as an emergency
     local oOverchargeTarget
-    local reftiAngleFromACUToUnit = 'M28AngleFromACUToUnit'
-    local reftiDistFromACUToUnit = 'M28DistFromACUToUnit'
-    local toStructuresAndACU
+    if not(oUnitWithOvercharge[M28UnitInfo.refbEasyBrain]) then
+        --Do we have positive energy income? If not, then only overcharge if ACU is low on health as an emergency
+        local reftiAngleFromACUToUnit = 'M28AngleFromACUToUnit'
+        local reftiDistFromACUToUnit = 'M28DistFromACUToUnit'
+        local toStructuresAndACU
 
-    --Subfunction
-    function IsBuildingOrACUBlockingShot(oFiringUnit, oTargetUnit)
-        --Assumes have already been through tBlockingUnits and set their angle to the firing unit, so we just need to compare to firing unit
-        if bDebugMessages == true then LOG(sFunctionRef..': Will see if any buildings or ACU are blocking the shot; if dont get log saying result was false then means was true') end
-        if M28Utilities.IsTableEmpty(toStructuresAndACU) == false then
-            local iAngleToTargetUnit = M28Utilities.GetAngleFromAToB(oFiringUnit:GetPosition(), oTargetUnit:GetPosition())
-            local iDistToTargetUnit = M28Utilities.GetDistanceBetweenPositions(oFiringUnit:GetPosition(), oTargetUnit:GetPosition())
-            local iCurAngleDif
-            if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTargetUnit='..iAngleToTargetUnit..'; iDistToTargetUnit='..iDistToTargetUnit) end
-            for iUnit, oUnit in toStructuresAndACU do
-                if not(oUnit == oTargetUnit) and iDistToTargetUnit > oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] then
-                    iCurAngleDif = iAngleToTargetUnit - oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]
-                    if iCurAngleDif < 0 then iCurAngleDif = iCurAngleDif + 360 end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' will block a shot from the ACU to the target '..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; iCurAngleDif='..iCurAngleDif..'; 180 / iDistToTargetUnit='..180 / iDistToTargetUnit..'; oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]='..oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]..'; oUnit[reftiDistFromACUToUnit]='..oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()]..'; angle from ACU to unit='..oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]) end
-                    if iCurAngleDif <= math.max(8, 180 / iDistToTargetUnit) then
-                        return true
-                    end
-                end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, will return false') end
-        return false
-    end
-
-    --Subfunction
-    function WillShotHit(oFiringUnit, oTargetUnit)
-        --Check for units in a transport
-        if oTargetUnit:IsUnitState('Attached') or M28Logic.IsShotBlocked(oFiringUnit, oTargetUnit) or IsBuildingOrACUBlockingShot(oFiringUnit, oTargetUnit) then
-            if bDebugMessages == true then LOG(sFunctionRef..': oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; shot is blocked so wont hit. IsShotBlocked='..tostring(M28Logic.IsShotBlocked(oFiringUnit, oTargetUnit))) end
-            return false
-        else return true
-        end
-    end
-
-    local tUnitPosition = oUnitWithOvercharge:GetPosition()
-    local iACURange = oUnitWithOvercharge[M28UnitInfo.refiDFRange]
-    if (iACURange or 0) > 0 then
-        local iOverchargeArea = 2.5
-
-        --First locate where any blocking units are - will assume non-wall structures larger than a T1 pgen will block the shot, and ACUs will block
-        local iMaxSearchDistance
-        if bOnlyConsiderEnemiesInRange then iMaxSearchDistance = iACURange - 1
-        else iMaxSearchDistance = 50
-        end
-        toStructuresAndACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - categories.SIZE4 + categories.COMMAND, tUnitPosition, iMaxSearchDistance, 'Enemy')
-
-        if bDebugMessages == true then LOG(sFunctionRef..': First locating blocking units; is table empty='..tostring(M28Utilities.IsTableEmpty(toStructuresAndACU))..'; iACURange='..iACURange..'; iOverchargeArea='..iOverchargeArea) end
-        if M28Utilities.IsTableEmpty(toStructuresAndACU) == false then
-            for iUnit, oUnit in toStructuresAndACU do
-                if not(oUnit[reftiAngleFromACUToUnit]) then
-                    oUnit[reftiAngleFromACUToUnit] = {}
-                    oUnit[reftiDistFromACUToUnit] = {}
-                end
-                oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()] = M28Utilities.GetAngleFromAToB(tUnitPosition, oUnit:GetPosition())
-                oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oUnit:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': Angle from oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to our ACU='..repru(oUnit[reftiAngleFromACUToUnit])..'; distance='..repru(oUnit[reftiDistFromACUToUnit])) end
-
-                --If enemy ACU is nearby and low health then target as top priority
-                if oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] < (iACURange - 2) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetHealth() < 1400 then
-                    oOverchargeTarget = oUnit
-                end
-            end
-        end
-
-
-        if not(oOverchargeTarget) then
-            --Cycle through every land combat non-ACU, and/or surface naval, unit within firing range to see if can find one that reduces the damage the most, or failing that does the most mass damage; will include all navy on the assumption isshotblocked will trigger if shot will go underwater (as otherwise we might ignore sera T2 destroyers)
-            local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand - categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryAllNavy, tUnitPosition, iACURange, 'Enemy')
-
-            local iMostMassDamage = 0
-            local oMostMassDamage, iKillsExpected
-            local iMaxOverchargeDamage = (aiBrain:GetEconomyStored('ENERGY') * 0.9) * 0.25
-            local iCurDamageDealt, iCurKillsExpected
-            if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy mobile units and PD within 2 of the ACU max range; is the table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
-            if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                for iUnit, oUnit in tEnemyUnits do
-                    --Reduce range to consider if unit is moving and isn't moving towards ACU
-                    if not(oUnit:IsUnitState('Moving')) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition()) < iACURange - 1 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition())) <= 25 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if shot will hit for ACU '..(oUnitWithOvercharge.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitWithOvercharge) or 'nil')..' to hit oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' unit position='..repru(oUnit:GetPosition())..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Will shot hit='..tostring(WillShotHit(oUnitWithOvercharge, oUnit))) end
-                        if WillShotHit(oUnitWithOvercharge, oUnit) then
-                            iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
-                            if iCurDamageDealt > iMostMassDamage then
-                                iMostMassDamage = iCurDamageDealt
-                                oMostMassDamage = oUnit
-                                iKillsExpected = iCurKillsExpected
-
-                            end
+        --Subfunction
+        function IsBuildingOrACUBlockingShot(oFiringUnit, oTargetUnit)
+            --Assumes have already been through tBlockingUnits and set their angle to the firing unit, so we just need to compare to firing unit
+            if bDebugMessages == true then LOG(sFunctionRef..': Will see if any buildings or ACU are blocking the shot; if dont get log saying result was false then means was true') end
+            if M28Utilities.IsTableEmpty(toStructuresAndACU) == false then
+                local iAngleToTargetUnit = M28Utilities.GetAngleFromAToB(oFiringUnit:GetPosition(), oTargetUnit:GetPosition())
+                local iDistToTargetUnit = M28Utilities.GetDistanceBetweenPositions(oFiringUnit:GetPosition(), oTargetUnit:GetPosition())
+                local iCurAngleDif
+                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTargetUnit='..iAngleToTargetUnit..'; iDistToTargetUnit='..iDistToTargetUnit) end
+                for iUnit, oUnit in toStructuresAndACU do
+                    if not(oUnit == oTargetUnit) and iDistToTargetUnit > oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] then
+                        iCurAngleDif = iAngleToTargetUnit - oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]
+                        if iCurAngleDif < 0 then iCurAngleDif = iCurAngleDif + 360 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' will block a shot from the ACU to the target '..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; iCurAngleDif='..iCurAngleDif..'; 180 / iDistToTargetUnit='..180 / iDistToTargetUnit..'; oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]='..oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]..'; oUnit[reftiDistFromACUToUnit]='..oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()]..'; angle from ACU to unit='..oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()]) end
+                        if iCurAngleDif <= math.max(8, 180 / iDistToTargetUnit) then
+                            return true
                         end
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching through enemy mobile untis and PD in range, iMostMassDamage='..iMostMassDamage..'; iKillsExpected='..(iKillsExpected or 0)..'; Energy stored %='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; E stored='..aiBrain:GetEconomyStored('ENERGY')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': End of code, will return false') end
+            return false
+        end
 
-            --if iMostMobileCombatMassDamage >= 80 then
-            --    oOverchargeTarget = oMostCombatMassDamage
-            if iMostMassDamage >= 200 or iKillsExpected >= 3 or (iKillsExpected >= 1 and iMostMassDamage >= 100) or (iMostMassDamage >= 60 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 and (aiBrain:GetEconomyStored('ENERGY') >= 10000 or (aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 1 and aiBrain:GetEconomyStored('ENERGY') >= 8000))) then --e.g. striker is 56 mass; lobo is 36
-                oOverchargeTarget = oMostMassDamage
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a mobile or PD unit in range that will do enough damage to, oOverchargeTarget='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
-            else
-                --Check we aren't running before considering whether to target walls or T2 PDs
-                if GetGameTimeSeconds() - (oUnitWithOvercharge[M28ACU.refiTimeLastWantedToRun] or -30) >= 30 then
-                    --No decent combat targets; Check for lots of walls that might be blocking our path (dont reduce ACU range given these are structures)
-                    --Only consider overcharging walls if no enemies within our combat range + 3
-                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false and table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 9 then
-                        local tAllEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, tUnitPosition, math.min(iMaxSearchDistance, iACURange + 3), 'Enemy')
-                        if M28Utilities.IsTableEmpty(tAllEnemies) then
-                            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryWall, tUnitPosition, iACURange, 'Enemy')
-                            if bDebugMessages == true then LOG(sFunctionRef..': iMostMassDamage='..iMostMassDamage..'; so will check for walls and other structure targets; is table of wall units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
-                            if M28Utilities.IsTableEmpty(tEnemyUnits) == false and table.getn(tEnemyUnits) >= 5 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have at least 5 wall units in range, so potential blockage; size='..table.getn(tEnemyUnits)) end
-                                local bSuspectedPathBlock = false
-                                --If more than 10 then assume blocking our path
+        --Subfunction
+        function WillShotHit(oFiringUnit, oTargetUnit)
+            --Check for units in a transport
+            if oTargetUnit:IsUnitState('Attached') or M28Logic.IsShotBlocked(oFiringUnit, oTargetUnit) or IsBuildingOrACUBlockingShot(oFiringUnit, oTargetUnit) then
+                if bDebugMessages == true then LOG(sFunctionRef..': oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; shot is blocked so wont hit. IsShotBlocked='..tostring(M28Logic.IsShotBlocked(oFiringUnit, oTargetUnit))) end
+                return false
+            else return true
+            end
+        end
 
-                                if table.getn(tEnemyUnits) >= 10 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': At least 10 wall units so assuming a blockage') end
-                                    bSuspectedPathBlock = true
-                                else
-                                    local tFirstWall = tEnemyUnits[1]:GetPosition()
-                                    for iWall, oWall in tEnemyUnits do
-                                        if iWall > 1 then
-                                            if M28Utilities.GetDistanceBetweenPositions(oWall:GetPosition(), tFirstWall) >= 4 then
+        local tUnitPosition = oUnitWithOvercharge:GetPosition()
+        local iACURange = oUnitWithOvercharge[M28UnitInfo.refiDFRange]
+        if (iACURange or 0) > 0 then
+            local iOverchargeArea = 2.5
+
+            --First locate where any blocking units are - will assume non-wall structures larger than a T1 pgen will block the shot, and ACUs will block
+            local iMaxSearchDistance
+            if bOnlyConsiderEnemiesInRange then iMaxSearchDistance = iACURange - 1
+            else iMaxSearchDistance = 50
+            end
+            toStructuresAndACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - categories.SIZE4 + categories.COMMAND, tUnitPosition, iMaxSearchDistance, 'Enemy')
+
+            if bDebugMessages == true then LOG(sFunctionRef..': First locating blocking units; is table empty='..tostring(M28Utilities.IsTableEmpty(toStructuresAndACU))..'; iACURange='..iACURange..'; iOverchargeArea='..iOverchargeArea) end
+            if M28Utilities.IsTableEmpty(toStructuresAndACU) == false then
+                for iUnit, oUnit in toStructuresAndACU do
+                    if not(oUnit[reftiAngleFromACUToUnit]) then
+                        oUnit[reftiAngleFromACUToUnit] = {}
+                        oUnit[reftiDistFromACUToUnit] = {}
+                    end
+                    oUnit[reftiAngleFromACUToUnit][aiBrain:GetArmyIndex()] = M28Utilities.GetAngleFromAToB(tUnitPosition, oUnit:GetPosition())
+                    oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oUnit:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Angle from oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to our ACU='..repru(oUnit[reftiAngleFromACUToUnit])..'; distance='..repru(oUnit[reftiDistFromACUToUnit])) end
+
+                    --If enemy ACU is nearby and low health then target as top priority
+                    if oUnit[reftiDistFromACUToUnit][aiBrain:GetArmyIndex()] < (iACURange - 2) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetHealth() < 1400 then
+                        oOverchargeTarget = oUnit
+                    end
+                end
+            end
+
+
+            if not(oOverchargeTarget) then
+                --Cycle through every land combat non-ACU, and/or surface naval, unit within firing range to see if can find one that reduces the damage the most, or failing that does the most mass damage; will include all navy on the assumption isshotblocked will trigger if shot will go underwater (as otherwise we might ignore sera T2 destroyers)
+                local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand - categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryAllNavy, tUnitPosition, iACURange, 'Enemy')
+
+                local iMostMassDamage = 0
+                local oMostMassDamage, iKillsExpected
+                local iMaxOverchargeDamage = (aiBrain:GetEconomyStored('ENERGY') * 0.9) * 0.25
+                local iCurDamageDealt, iCurKillsExpected
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy mobile units and PD within 2 of the ACU max range; is the table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
+                if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                    for iUnit, oUnit in tEnemyUnits do
+                        --Reduce range to consider if unit is moving and isn't moving towards ACU
+                        if not(oUnit:IsUnitState('Moving')) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition()) < iACURange - 1 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition())) <= 25 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if shot will hit for ACU '..(oUnitWithOvercharge.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitWithOvercharge) or 'nil')..' to hit oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' unit position='..repru(oUnit:GetPosition())..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Will shot hit='..tostring(WillShotHit(oUnitWithOvercharge, oUnit))) end
+                            if WillShotHit(oUnitWithOvercharge, oUnit) then
+                                iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
+                                if iCurDamageDealt > iMostMassDamage then
+                                    iMostMassDamage = iCurDamageDealt
+                                    oMostMassDamage = oUnit
+                                    iKillsExpected = iCurKillsExpected
+
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished searching through enemy mobile untis and PD in range, iMostMassDamage='..iMostMassDamage..'; iKillsExpected='..(iKillsExpected or 0)..'; Energy stored %='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; E stored='..aiBrain:GetEconomyStored('ENERGY')) end
+
+                --if iMostMobileCombatMassDamage >= 80 then
+                --    oOverchargeTarget = oMostCombatMassDamage
+                if iMostMassDamage >= 200 or iKillsExpected >= 3 or (iKillsExpected >= 1 and iMostMassDamage >= 100) or (iMostMassDamage >= 60 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 and (aiBrain:GetEconomyStored('ENERGY') >= 10000 or (aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 1 and aiBrain:GetEconomyStored('ENERGY') >= 8000))) then --e.g. striker is 56 mass; lobo is 36
+                    oOverchargeTarget = oMostMassDamage
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a mobile or PD unit in range that will do enough damage to, oOverchargeTarget='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
+                else
+                    --Check we aren't running before considering whether to target walls or T2 PDs
+                    if GetGameTimeSeconds() - (oUnitWithOvercharge[M28ACU.refiTimeLastWantedToRun] or -30) >= 30 then
+                        --No decent combat targets; Check for lots of walls that might be blocking our path (dont reduce ACU range given these are structures)
+                        --Only consider overcharging walls if no enemies within our combat range + 3
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false and table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 9 then
+                            local tAllEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, tUnitPosition, math.min(iMaxSearchDistance, iACURange + 3), 'Enemy')
+                            if M28Utilities.IsTableEmpty(tAllEnemies) then
+                                tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryWall, tUnitPosition, iACURange, 'Enemy')
+                                if bDebugMessages == true then LOG(sFunctionRef..': iMostMassDamage='..iMostMassDamage..'; so will check for walls and other structure targets; is table of wall units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
+                                if M28Utilities.IsTableEmpty(tEnemyUnits) == false and table.getn(tEnemyUnits) >= 5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 5 wall units in range, so potential blockage; size='..table.getn(tEnemyUnits)) end
+                                    local bSuspectedPathBlock = false
+                                    --If more than 10 then assume blocking our path
+
+                                    if table.getn(tEnemyUnits) >= 10 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': At least 10 wall units so assuming a blockage') end
+                                        bSuspectedPathBlock = true
+                                    else
+                                        local tFirstWall = tEnemyUnits[1]:GetPosition()
+                                        for iWall, oWall in tEnemyUnits do
+                                            if iWall > 1 then
+                                                if M28Utilities.GetDistanceBetweenPositions(oWall:GetPosition(), tFirstWall) >= 4 then
+                                                    bSuspectedPathBlock = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                    if bSuspectedPathBlock then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Think enemy has walls in a line so will overcharge them unless they are all closer to our base than us') end
+                                        iMostMassDamage = 0
+                                        oMostMassDamage = nil
+                                        bSuspectedPathBlock = false
+
+                                        local iOurDistToBase = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                        local iWallDistToBase
+                                        for iWall, oUnit in tEnemyUnits do
+                                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]) <= iOurDistToBase + 4 then
                                                 bSuspectedPathBlock = true
                                                 break
                                             end
                                         end
-                                    end
-                                end
-                                if bSuspectedPathBlock then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Think enemy has walls in a line so will overcharge them unless they are all closer to our base than us') end
-                                    iMostMassDamage = 0
-                                    oMostMassDamage = nil
-                                    bSuspectedPathBlock = false
-
-                                    local iOurDistToBase = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
-                                    local iWallDistToBase
-                                    for iWall, oUnit in tEnemyUnits do
-                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]) <= iOurDistToBase + 4 then
-                                            bSuspectedPathBlock = true
-                                            break
-                                        end
-                                    end
-                                    if bSuspectedPathBlock then
-                                        for iWall, oUnit in tEnemyUnits do
-                                            if WillShotHit(oUnitWithOvercharge, oUnit) then
-                                                iCurDamageDealt = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage, true)
-                                                if iCurDamageDealt > iMostMassDamage then
-                                                    iMostMassDamage = iCurDamageDealt
-                                                    oMostMassDamage = oUnit
+                                        if bSuspectedPathBlock then
+                                            for iWall, oUnit in tEnemyUnits do
+                                                if WillShotHit(oUnitWithOvercharge, oUnit) then
+                                                    iCurDamageDealt = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage, true)
+                                                    if iCurDamageDealt > iMostMassDamage then
+                                                        iMostMassDamage = iCurDamageDealt
+                                                        oMostMassDamage = oUnit
+                                                    end
                                                 end
                                             end
+                                            if oMostMassDamage then oOverchargeTarget = oMostMassDamage end
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Walls are all closer to our base than we are so probably not blocking us')
                                         end
-                                        if oMostMassDamage then oOverchargeTarget = oMostMassDamage end
-                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Walls are all closer to our base than we are so probably not blocking us')
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Dont think the walls are in a line so wont try and OC')
                                     end
-                                elseif bDebugMessages == true then LOG(sFunctionRef..': Dont think the walls are in a line so wont try and OC')
                                 end
                             end
                         end
-                    end
-                    if not(oOverchargeTarget) then
-                        --Check further away incase enemy has T2 PD that can see us
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if any T2 PD further away') end
-                        tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, tUnitPosition, iMaxSearchDistance, 'Enemy')
-                        if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have enemy T2 defence that can hit us but is out of our range - considering if OC it will bring us in range of T1 PD, and/or if shot is blocked, and/or if the T2PD cant even see us') end
-                            local tNearbyT1PD
-                            local iNearestT1PD = 10000
-                            local iCurDistance
-                            if 50 - iACURange > 0 then tNearbyT1PD = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD * categories.TECH1, tUnitPosition, 50 - iACURange, 'Enemy') end
-                            if M28Utilities.IsTableEmpty(tNearbyT1PD) == false then
-                                for iT1PD, oT1PD in tNearbyT1PD do
-                                    iCurDistance = M28Utilities.GetDistanceBetweenPositions(oT1PD:GetPosition(), tUnitPosition)
-                                    if iCurDistance < iNearestT1PD then iNearestT1PD = iCurDistance end
+                        if not(oOverchargeTarget) then
+                            --Check further away incase enemy has T2 PD that can see us
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if any T2 PD further away') end
+                            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, tUnitPosition, iMaxSearchDistance, 'Enemy')
+                            if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enemy T2 defence that can hit us but is out of our range - considering if OC it will bring us in range of T1 PD, and/or if shot is blocked, and/or if the T2PD cant even see us') end
+                                local tNearbyT1PD
+                                local iNearestT1PD = 10000
+                                local iCurDistance
+                                if 50 - iACURange > 0 then tNearbyT1PD = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD * categories.TECH1, tUnitPosition, 50 - iACURange, 'Enemy') end
+                                if M28Utilities.IsTableEmpty(tNearbyT1PD) == false then
+                                    for iT1PD, oT1PD in tNearbyT1PD do
+                                        iCurDistance = M28Utilities.GetDistanceBetweenPositions(oT1PD:GetPosition(), tUnitPosition)
+                                        if iCurDistance < iNearestT1PD then iNearestT1PD = iCurDistance end
+                                    end
                                 end
-                            end
 
-                            for iUnit, oEnemyT2PD in tEnemyUnits do
-                                --Can we get in range of the T2 PD without getting in range of the T1 PD? (approximates just based on distances rather than considering the likely path to take)
-                                if M28Utilities.GetDistanceBetweenPositions(oEnemyT2PD:GetPosition(), tUnitPosition) - iACURange + 2 < iNearestT1PD then
-                                    if M28Logic.IsShotBlocked(oUnitWithOvercharge, oEnemyT2PD) == false then
-                                        --Can the T2 PD see us?
-                                        if M28UnitInfo.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Setting target to T2 PD') end
-                                            oOverchargeTarget = oEnemyT2PD
-                                            break
-                                        else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy T2 PDs owner can see our ACU') end
+                                for iUnit, oEnemyT2PD in tEnemyUnits do
+                                    --Can we get in range of the T2 PD without getting in range of the T1 PD? (approximates just based on distances rather than considering the likely path to take)
+                                    if M28Utilities.GetDistanceBetweenPositions(oEnemyT2PD:GetPosition(), tUnitPosition) - iACURange + 2 < iNearestT1PD then
+                                        if M28Logic.IsShotBlocked(oUnitWithOvercharge, oEnemyT2PD) == false then
+                                            --Can the T2 PD see us?
+                                            if M28UnitInfo.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Setting target to T2 PD') end
+                                                oOverchargeTarget = oEnemyT2PD
+                                                break
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy T2 PDs owner can see our ACU') end
+                                            end
                                         end
                                     end
                                 end
                             end
                         end
-                    end
-                    if not(oOverchargeTarget) then
-                        --Consider all structures (can do ACU max range since before when structures were considered we were looking at reduced range)
-                        tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tUnitPosition, iACURange, 'Enemy')
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering all enemy structures within range of ACU; is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
-                        --local iMostMobileCombatMassDamage = 0
-                        --local oMostCombatMassDamage
-                        if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering other enemy structures in range; iMostMassDamage before looking='..iMostMassDamage) end
-                            for iUnit, oUnit in tEnemyUnits do
-                                if WillShotHit(oUnitWithOvercharge, oUnit) then
-                                    iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
-                                    if iCurDamageDealt > iMostMassDamage then
-                                        iMostMassDamage = iCurDamageDealt
-                                        oMostMassDamage = oUnit
-                                        iKillsExpected = iCurKillsExpected
+                        if not(oOverchargeTarget) then
+                            --Consider all structures (can do ACU max range since before when structures were considered we were looking at reduced range)
+                            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tUnitPosition, iACURange, 'Enemy')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering all enemy structures within range of ACU; is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
+                            --local iMostMobileCombatMassDamage = 0
+                            --local oMostCombatMassDamage
+                            if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering other enemy structures in range; iMostMassDamage before looking='..iMostMassDamage) end
+                                for iUnit, oUnit in tEnemyUnits do
+                                    if WillShotHit(oUnitWithOvercharge, oUnit) then
+                                        iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
+                                        if iCurDamageDealt > iMostMassDamage then
+                                            iMostMassDamage = iCurDamageDealt
+                                            oMostMassDamage = oUnit
+                                            iKillsExpected = iCurKillsExpected
+                                        end
                                     end
                                 end
                             end
-                        end
-                        if iMostMassDamage >= 110 then
-                            oOverchargeTarget = oMostMassDamage
+                            if iMostMassDamage >= 110 then
+                                oOverchargeTarget = oMostMassDamage
+                            end
                         end
                     end
                 end
             end
         end
-    end
-    if oOverchargeTarget == nil then
-        if bDebugMessages == true then LOG(sFunctionRef..': No OC targets found') end
-    else
-        if bDebugMessages == true then LOG(sFunctionRef..': Overcharge target='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
+        if oOverchargeTarget == nil then
+            if bDebugMessages == true then LOG(sFunctionRef..': No OC targets found') end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Overcharge target='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oOverchargeTarget
@@ -1178,42 +1186,47 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase)
     local sFunctionRef = 'MegalithRetreatMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
-    local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
-    local iAngleToClosestBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tClosestFriendlyBase)
-    local iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
-    local iAngleIfMoving = iFacingDirection + 180
-    if iAngleIfMoving > 360 then iAngleIfMoving = iAngleIfMoving - 360 end
-    local tMoveDirection
-
     local bGivenOrder = false
 
-    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving) <= 60 or M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving) <= 60 then
-        local iDistanceToMove = 8 --worked ok with value of 5
-        tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
-        if M28Utilities.IsTableEmpty(tMoveDirection) == false then
-            --Looks like megalith has to be stationery or reversing for this to work?
-            local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
-            local bClearAndWait = false
-            if tCurOrder then
-                if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
-                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) >= iDistanceToMove then
+    if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+
+        --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
+        local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+        local iAngleToClosestBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tClosestFriendlyBase)
+        local iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+        local iAngleIfMoving = iFacingDirection + 180
+        if iAngleIfMoving > 360 then iAngleIfMoving = iAngleIfMoving - 360 end
+        local tMoveDirection
+
+
+
+        if M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving) <= 60 or M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving) <= 60 then
+            local iDistanceToMove = 8 --worked ok with value of 5
+            tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
+            if M28Utilities.IsTableEmpty(tMoveDirection) == false then
+                --Looks like megalith has to be stationery or reversing for this to work?
+                local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
+                local bClearAndWait = false
+                if tCurOrder then
+                    if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
+                        if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) >= iDistanceToMove then
+                            bClearAndWait = true
+                        end
+                    else
                         bClearAndWait = true
                     end
-                else
-                    bClearAndWait = true
-                end
 
+                end
+                if bClearAndWait then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                    ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are already trying to kite so will just check if move order needs updating') end
+                    M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegMiRM', false)
+                end
+                bGivenOrder = true
             end
-            if bClearAndWait then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
-                M28Orders.IssueTrackedClearCommands(oUnit)
-                ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': Are already trying to kite so will just check if move order needs updating') end
-                M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegMiRM', false)
-            end
-            bGivenOrder = true
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleToClosestBase='..iAngleToClosestBase..'; iAngleIfMoving='..iAngleIfMoving..'; Time='..GetGameTimeSeconds()) end
