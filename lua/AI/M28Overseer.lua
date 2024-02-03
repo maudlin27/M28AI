@@ -390,6 +390,11 @@ function M28BrainCreated(aiBrain)
 
     --Setup AI personality for this
     M28Chat.AssignAIPersonalityAndRating(aiBrain)
+    --Set easy flag
+    if ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat' then
+        aiBrain.M28Easy = true
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if dealing with easy AI, M28Easy='..tostring(aiBrain.M28Easy or false)) end
 
 
     if not(bInitialSetup) then
