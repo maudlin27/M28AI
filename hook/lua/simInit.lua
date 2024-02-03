@@ -14,5 +14,5 @@ end
 local M28BeginSession = BeginSession
 function BeginSession()
     M28BeginSession()
-    ForkThread(M28Events.OnGameStart)
+    M28Events.OnGameStart()
 end

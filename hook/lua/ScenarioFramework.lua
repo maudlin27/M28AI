@@ -13,16 +13,18 @@ end
 
 function ForkedPlayableAreaChange(rect, voFlag)
     --If run too early M28 code wont have loaded
-    while GetGameTimeSeconds() < 3 do
-        WaitTicks(1)
+    if GetGameTimeSeconds() < 3 then
+        WaitSeconds(3 - math.floor(GetGameTimeSeconds()))
     end
-    local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ForkedPlayableAreaChange'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': rect='..repru(rect)..'; voFlag='..reprs(voFlag)) end
-    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayableAreaChange, rect, voFlag)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if import('/mods/M28AI/lua/AI/M28Utilities.lua').bM28AIInGame then
+        local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'ForkedPlayableAreaChange'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': rect='..repru(rect)..'; voFlag='..reprs(voFlag)) end
+        ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayableAreaChange, rect, voFlag)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 end
 
 local M28OldCreatePlatoonDeathTrigger = CreatePlatoonDeathTrigger

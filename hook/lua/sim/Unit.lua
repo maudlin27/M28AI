@@ -38,10 +38,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             M28Events.OnUnitDeath(self) --Any custom code we want to run
             M28OldUnit.OnDestroy(self) --Normal code
         end,
-        OnWorkEnd = function(self, work)
+        --[[OnWorkEnd = function(self, work)
             M28Events.OnWorkEnd(self, work)
             M28OldUnit.OnWorkEnd(self, work)
-        end,
+        end,--]]
         OnDamage = function(self, instigator, amount, vector, damageType)
             M28OldUnit.OnDamage(self, instigator, amount, vector, damageType)
             M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up

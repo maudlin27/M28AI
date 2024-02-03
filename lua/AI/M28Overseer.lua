@@ -397,6 +397,7 @@ function M28BrainCreated(aiBrain)
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
+        --LOG('M28 in game 3')
 
         --Send a message warning players this could take a while
         M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
@@ -2078,6 +2079,7 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         aiBrain.M28AI = true
         M28Utilities.bM28AIInGame = true
+        --LOG('M28 in game 4')
         if ScenarioInfo.Options.CmApplyAiX == 1 then
             aiBrain.CheatEnabled = true
         end
