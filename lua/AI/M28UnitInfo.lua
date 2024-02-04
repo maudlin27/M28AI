@@ -1595,30 +1595,28 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
     --Remove from list of paused units
     local iTeam = iOptionalTeam or oUnit:GetAIBrain().M28Team
     if not(bPauseNotUnpause) then
-        if oUnit[refbPaused] then
-            local iUnitPausePriority = oUnit[refiPausedPriority]
-            if iUnitPausePriority then
-                local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
-                local tUnitTable = M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iUnitPausePriority]
-                if M28Utilities.IsTableEmpty(tUnitTable) == false then
-                    local iAllPausedUnits = table.getn(tUnitTable)
-                    for iCurUnit = iAllPausedUnits, 1, -1 do
-                        if tUnitTable[iCurUnit] == oUnit then
-                            table.remove(tUnitTable, iCurUnit)
-                            M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] - 1
-                            LOG('Clearing paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
-                            oUnit[refiPausedPriority] = nil
-                            break
-                        end
+        local iUnitPausePriority = oUnit[refiPausedPriority]
+        if iUnitPausePriority then
+            local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+            local tUnitTable = M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iUnitPausePriority]
+            if M28Utilities.IsTableEmpty(tUnitTable) == false then
+                local iAllPausedUnits = table.getn(tUnitTable)
+                for iCurUnit = iAllPausedUnits, 1, -1 do
+                    if tUnitTable[iCurUnit] == oUnit then
+                        table.remove(tUnitTable, iCurUnit)
+                        M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] - 1
+                        --LOG('Clearing paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+                        oUnit[refiPausedPriority] = nil
+                        break
                     end
                 end
-            else
-                M28Utilities.ErrorHandler('Unpausing unit with no pause priority, so unable to locate it in the table, unit='..(oUnit.UnitId or 'nil')..(GetUnitLifetimeCount(oUnit) or 'nil'))
             end
+        elseif oUnit[refbPaused] then
+            M28Utilities.ErrorHandler('Unpausing unit with no pause priority, so unable to locate it in the table, unit='..(oUnit.UnitId or 'nil')..(GetUnitLifetimeCount(oUnit) or 'nil'))
         end
     else
         --Are pausing unit, make sure it is in the table of paused units
-        if not(oUnit[refbPaused]) then
+        if not(oUnit[refbPaused]) or not(oUnit[refiPausedPriority]) then
             local bRecordUnit = true
             local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
             if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority]) then
@@ -1640,11 +1638,12 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
                 table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority], oUnit)
                 oUnit[refiPausedPriority] = iPausePriority
                 M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] + 1
-                LOG('Setting paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' equal to '..(iPausePriority or 'nil'))
+                --LOG('Setting paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' equal to '..(iPausePriority or 'nil'))
                 if not(iPausePriority) then M28Utilities.ErrorHandler('Havent specified pause priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
             end
         end
     end
+    --LOG('AddOrRemove from paused table after considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPausedNotUnpause='..tostring(bPauseNotUnpause)..'; Is paused='..tostring(oUnit[refbPaused])..'; Pause priority='..(oUnit[refiPausedPriority] or 'nil'))
 end
 
 function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
@@ -1678,19 +1677,20 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; oUnit[refbPaused]='..tostring(oUnit[refbPaused])) end
         elseif bDebugMessages == true then
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
         end
         if bPauseNotUnpause == oUnit[refbPaused] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update table of paused units, iPausePriority='..(iPausePriority or 'nil')) end
             AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt valid') end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code unit paused flag='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of mass pause, after considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPausedNotUnpause='..tostring(bPauseNotUnpause)..'; Is paused='..tostring(oUnit[refbPaused])..'; Pause priority='..(oUnit[refiPausedPriority] or 'nil')) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

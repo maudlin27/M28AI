@@ -1583,7 +1583,7 @@ function ManageMassStalls(iTeam)
                 if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] <= 0 then
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] = false
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': We are no longer stalling mass')
+                        LOG(sFunctionRef .. ': We are no longer stalling mass, setting paused unit count to 0 (it was already <=0)')
                     end
                     M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = 0
                     M28Team.tTeamData[iTeam][M28Team.refiLastMassStallCategoryAndEngineerTables] = nil
@@ -1623,7 +1623,7 @@ function ManageMassStalls(iTeam)
                 end
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) .. '; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Mass stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Net mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; gross mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])
+                LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) .. '; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Mass stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Net mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; gross mass income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; refiPausedUnitCount='..M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount])
             end
         end
     else
@@ -2196,7 +2196,7 @@ function ManageEnergyStalls(iTeam)
                         M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                         M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = 0
                         M28Team.tTeamData[iTeam][M28Team.refiLastEnergyStallCategoryAndEngineerTables] = nil
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': We are no longer stalling energy') end
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': We are no longer stalling energy, we had a paused unit count of <= 0') end
                     elseif M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not(bPauseNotUnpause) and not(bHaveWeCappedUnpauseAmount) then
                         --Unpause all units' energy usage only (i.e. production remains paused, but radar and shields should be unpaused
                         for iCategory, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
