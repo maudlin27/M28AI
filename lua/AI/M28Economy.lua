@@ -2469,7 +2469,6 @@ function TeamResourceSharingMonitor(iTeam)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --moved here since getting very high readings for how long this is taking
