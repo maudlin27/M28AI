@@ -3041,7 +3041,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                         iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.6, math.max((iUnitHealth - 15000) * 0.3))
                     end
                 else
-                    iCurTargetValue = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
+                    iCurTargetValue = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before shield adjust='..iCurTargetValue) end
                 if iCurTargetValue > iHighestValueTarget then

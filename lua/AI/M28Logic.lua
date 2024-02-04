@@ -407,7 +407,6 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
     else tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy, oTargetUnit:GetPosition(), iAOE, 'Enemy')
     end
 
-    local oCurBP
     local iMassFactor
     local iCurHealth, iMaxHealth, iCurShield, iMaxShield
     local iActualDamage
@@ -418,7 +417,6 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
     if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
         for iUnit, oUnit in tEnemiesInRange do
             if oUnit.GetBlueprint then
-                oCurBP = oUnit:GetBlueprint()
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; dist to postiion='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition())) end
                 --Is the unit within range of the aoe?
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) <= iAOE then
@@ -449,8 +447,8 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMassFactor after considering if will kill it='..iMassFactor..'; Unit max health='..iMaxHealth..'; CurHealth='..iCurHealth) end
                         --Is the target mobile and within 1 of the AOE edge? If so then reduce to 25% as it might move out of the wayif
                         if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and iAOE - 0.5 < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) then iMassFactor = iMassFactor * 0.25 end
-                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
+                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..';refiUnitMassCost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
                     end
                 end
             end
@@ -531,7 +529,6 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
         end
     end
-    local oCurBP
     local iMassFactor
     local iCurHealth, iMaxHealth
     local iCurShield = 0
@@ -577,7 +574,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
                         end
                     else
-                        iTotalDamage = iTotalDamage - oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
+                        iTotalDamage = iTotalDamage - oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
                     end
                 end
             end
@@ -638,7 +635,6 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
             if oUnit.GetBlueprint and not(oUnit.Dead) and (oUnit:GetFractionComplete() < 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId))) then
                 iMassFactor = 1
-                oCurBP = oUnit:GetBlueprint()
                 --Is the unit within range of the aoe?
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Distance to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)..'; iAOE='..iAOE) end
@@ -711,7 +707,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         --Increase mass factor for special category specified
                         if iOptionalSpecialCategoryDamageFactor and EntityCategoryContains(iOptionalSpecialCategory, oUnit.UnitId) then iMassFactor = iMassFactor * iOptionalSpecialCategoryDamageFactor end
 
-                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
+                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
                         --Increase further for SML and SMD that might have a missile
                         if EntityCategoryContains(M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                             if oUnit:GetFractionComplete() == 1 then
@@ -753,7 +749,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                                 end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..';refiUnitMassCost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
                     end
                 end
 

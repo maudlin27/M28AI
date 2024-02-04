@@ -3744,7 +3744,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2000 and EntityCategoryContains(M28UnitInfo.refCategoryBomber, tAvailableBombers[1].UnitId) then
             local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tEnemyTargets)
             if M28Utilities.IsTableEmpty(tEnemyACU) == false then
-                if M28UnitInfo.GetCombatThreatRating(tAvailableBombers, false, true) >= 15000 then
+                if M28UnitInfo.GetMassCostOfUnits(tAvailableBombers) >= 15000 then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyACU, iAirSubteam, bForceGroundFire, false)
                 end
             end
@@ -4765,7 +4765,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 end
                                                 local iCurEnemyZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
 
-                                                local iMassValueOfTargets = M28UnitInfo.GetCombatThreatRating(tNewlyAddedEnemies, true, true)
+                                                local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tNewlyAddedEnemies)
                                                 local tCurEnemyZoneData, tCurEnemyTeamData
                                                 if iCurEnemyPlateauOrZero > 0 then
                                                     --Land zone
@@ -4805,7 +4805,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 if iPostFirstTargetCount >= iPostTargetMaxZoneCheck or bDontLookForMoreTargets then
                                                     break
                                                 elseif iPostTargetMaxZoneCheck > 4 then
-                                                    local iMassValueOfTargets = M28UnitInfo.GetCombatThreatRating(tEnemyGroundOrGunshipTargets, true, true)
+                                                    local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tEnemyGroundOrGunshipTargets)
                                                     if iMassValueOfTargets > iLowValueZoneThreshold or ((tCurEnemyTeamData[M28Map.subrefLZSValue] or 0) > 100 and iMassValueOfTargets * 5 > (tCurEnemyTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)) then
                                                         iPostTargetMaxZoneCheck = 4
                                                         iPostTargetMaxDistance = 80
@@ -6830,7 +6830,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
-                    iCurValue = oUnitBP.Economy.BuildCostMass * iMassFactor
+                    iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
                         if iFractionComplete < 0.2 or not(EntityCategoryContains(categories.SHIELD + categories.PERSONALSHIELD, oUnit.UnitId)) then

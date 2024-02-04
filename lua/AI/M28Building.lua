@@ -102,7 +102,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
         else
             local oBP = oUnit:GetBlueprint()
             --Dont get shields for other shields (to avoid infinite shields)
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
             local bT2ArtiAgainstEnemyT2ArtiOrFatboy
             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
@@ -111,15 +111,15 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
                     bT2ArtiAgainstEnemyT2ArtiOrFatboy = true
                 end
             end
-            if (bT2ArtiAgainstEnemyT2ArtiOrFatboy or oBP.Economy.BuildCostMass >= 2000 or (EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0)) and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
+            if (bT2ArtiAgainstEnemyT2ArtiOrFatboy or oUnit[M28UnitInfo.refiUnitMassCost] >= 2000 or (EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0)) and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
                 local iTeam = oUnit:GetAIBrain().M28Team
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
-                if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1
+                if oBP.Defense.Health / oUnit[M28UnitInfo.refiUnitMassCost] < 1
                         or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId)
-                        or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId))
+                        or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oUnit[M28UnitInfo.refiUnitMassCost] >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId))
                         or (EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0) then
 
-                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 1 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) and M28Utilities.IsTableEmpty(oUnit[reftoSpecialAssignedShields]) then iShieldsWanted = 2
+                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and oUnit[M28UnitInfo.refiUnitMassCost] >= 12000 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 1 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) and M28Utilities.IsTableEmpty(oUnit[reftoSpecialAssignedShields]) then iShieldsWanted = 2
                     else iShieldsWanted = 1
                     end
                 end
@@ -1237,7 +1237,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
                                 elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                                     iCurMassValue = 27500
                                 else
-                                    iCurMassValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+                                    iCurMassValue = oUnit[M28UnitInfo.refiUnitMassCost]
                                 end
                                 if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
                                     iCurMassValue = iCurMassValue * 0.1
@@ -2110,13 +2110,13 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     end
                     if M28Utilities.IsTableEmpty(tEnemyClosestLandAndNavalThreats) == false then
-                        local iMassValueOfThreats = M28UnitInfo.GetCombatThreatRating(tEnemyClosestLandAndNavalThreats, true, true)
+                        local iMassValueOfThreats = M28UnitInfo.GetMassCostOfUnits(tEnemyClosestLandAndNavalThreats)
                         if bDebugMessages == true then LOG(sFunctionRef..': Mass value of nearby threats='..iMassValueOfThreats) end
                         if iMassValueOfThreats * 2 > iBestTargetValue and iMassValueOfThreats > 24000 then
                             --Go through the actual zones and consider targeting units in here, but always checking for SMD even with yolona
                             for iPlateauOrZero, tSubtable in toClosestEnemyUntisByPlateauAndZone do
                                 for iZone, tUnits in tSubtable do
-                                    if M28UnitInfo.GetCombatThreatRating(tUnits, true, true) >= 24000 then
+                                    if M28UnitInfo.GetMassCostOfUnits(tUnits) >= 24000 then
                                         local iBestValuePreCheck = iBestTargetValue
                                         if bDebugMessages == true then LOG(sFunctionRef..': Best target value pre check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
                                         ConsiderTableOfPotentialTargets(tUnits, true, 0.8)
@@ -2628,7 +2628,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
                 --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
                 if iCurMobileThreat >= 1000 then
-                    iCurMobileThreat = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
+                    iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
                 end
                 iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat) end
@@ -2649,7 +2649,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 if iCurAAThreat >= 3000 then
                     local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                     if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
-                        iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetCombatThreatRating(tEnemyMobileAA, true, true) * 0.8
+                        iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetMassCostOfUnits(tEnemyMobileAA) * 0.8
                     else
                         iCurValue = iCurValue + iCurAAThreat * 0.2
                     end
@@ -2743,7 +2743,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iMaxRange='..iMaxRange..'; iMinRange='..iMinRange..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; iFriendlyUnitReductionFactor='..(iFriendlyUnitReductionFactor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iSizeAdjust='..(iSizeAdjust or 'nil')..'; iMultipleShotMod='..(iMultipleShotMod or 'nil')..'; iMobileValueFactorInner='..(iMobileValueFactorInner or 'nil')..'; iShieldReductionFactor='..(iShieldReductionFactor or 'nil')) end
                             if iCurDist <= iMaxRange and iCurDist >= iMinRange then
-                                iBaseValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0) * oUnit:GetFractionComplete()
+                                iBaseValue = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
                                 if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.98 then iBaseValue = iBaseValue * iMobileValueFactorInner end
                                 tiBaseValueOfPriorityUnits[iUnit] = iBaseValue
                             end
@@ -2762,7 +2762,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
                             if (iCurValue or 0) >= 0 and M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and (oUnit:GetFractionComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
                                 --redundancy for buildings and under construction units
-                                iMinValue = (M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) or 0) * oUnit:GetFractionComplete()
+                                iMinValue = (oUnit[M28UnitInfo.refiUnitMassCost] or 0) * oUnit:GetFractionComplete()
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end
                                 iCurValue = math.max((iCurValue or 0), iMinValue)
                             end

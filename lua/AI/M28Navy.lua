@@ -483,7 +483,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatEnemySurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],   true,       false,              false,                      false,      true,           false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
-        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
+        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]))
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = {}
         local iLRThreshold = iLongRangeThreshold
 
@@ -1396,7 +1396,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
 
         function RecordIfUnitWantsShieldOrStealth(oUnit)
-            iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
+            iUnitMassCost = oUnit[M28UnitInfo.refiUnitMassCost]
             if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                 table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
             end
@@ -2784,7 +2784,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
         --Retreat to rally point
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
-            if iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > 0 and iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) * 0.05 then
+            if iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > 0 and iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits) * 0.05 then
                 bHaveRunFromAir = true
                 local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 for iUnit, oUnit in tAvailableCombatUnits do
@@ -2802,7 +2802,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             --Decide if we want to run from enemy air - only run if they have torp bombers
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want our subs to run from enemy, will depend on if they ahve torps, enemy torp total threat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0)..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; Available sub mass value='..M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true)) end
-            if (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > iFriendlyAdjacentAAThreat * 1.5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] - iFriendlyAdjacentAAThreat >= 0.1 * M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true) then
+            if (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > iFriendlyAdjacentAAThreat * 1.5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] - iFriendlyAdjacentAAThreat >= 0.1 * M28UnitInfo.GetMassCostOfUnits(tAvailableSubmarines) then
                 bHaveRunFromAir = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Will retreat to closest friendly base for amphibious unit, or rally point for subs') end
                 local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
@@ -2885,7 +2885,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 bMoveBlockedNotAttackMove = true
             end
 
-            if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) + M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true) then
+            if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits) + M28UnitInfo.GetMassCostOfUnits(tAvailableSubmarines) then
                 bWantReinforcements = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat exceeds our combat rating, tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our combat units rating='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)) end
             end
@@ -3330,7 +3330,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                                     local iCurValueTarget
                                                     for iEnemyTarget, oEnemyTarget in tNearbyUnitsOfInterest do
                                                         if not(M28UnitInfo.IsUnitUnderwater(oEnemyTarget)) then
-                                                            iCurValueTarget = oEnemyTarget:GetBlueprint().Economy.BuildCostMass
+                                                            iCurValueTarget = oEnemyTarget[M28UnitInfo.refiUnitMassCost]
                                                             if iCurValueTarget > iHighestValueTarget then
                                                                 iHighestValueTarget = iCurValueTarget
                                                                 oEnemyToTarget = oEnemyTarget
@@ -4738,7 +4738,7 @@ function RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
                                     if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                         tZoneStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
                                         if M28Utilities.IsTableEmpty(tZoneStructures) == false then
-                                            iZoneEnemyStructureMassValue = M28UnitInfo.GetCombatThreatRating(tZoneStructures, true, true)
+                                            iZoneEnemyStructureMassValue = M28UnitInfo.GetMassCostOfUnits(tZoneStructures)
                                             local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tZoneStructures)
                                             if M28Utilities.IsTableEmpty(tMexes) == false then
                                                 iZoneEnemyStructureMassValue = iZoneEnemyStructureMassValue + 300 * table.getn(tMexes)

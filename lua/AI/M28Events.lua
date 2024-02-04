@@ -750,7 +750,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         --Reset the arti shot count if damaged a high value unit
                         if M28UnitInfo.IsUnitValid(self) then
                             if bDebugMessages == true then LOG(sFunctionRef..': T3/Exp arti owned by M28 brain '..oUnitCausingDamage:GetAIBrain().Nickname..', arti unit='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' has just damaged unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' which is valid') end
-                            local iUnitDamagedMassValue = self:GetBlueprint().Economy.BuildCostMass * self:GetFractionComplete()
+                            local iUnitDamagedMassValue = self[M28UnitInfo.refiUnitMassCost] * self:GetFractionComplete()
                             if iUnitDamagedMassValue >= 700 then
                                 --Reduce the ineffective arti shot count
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
@@ -2059,6 +2059,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame + 1
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
 
+                --All units (not just M28 specific):
+                M28UnitInfo.RecordUnitRange(oUnit)
+
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
                 if M28Map.bIsCampaignMap then
                     local tiTeamsConsidered = {[(oUnit:GetAIBrain().M28Team or 0)] = true}
@@ -2070,8 +2073,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
                 end
 
-                --All units (not just M28 specific):
-                M28UnitInfo.RecordUnitRange(oUnit)
+
                 if bDebugMessages == true then LOG(sFunctionRef..': First time M28OnCreate has run, just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                 if M28Config.M28ShowEnemyUnitNames then
                     local sWZOrLZRef = ''

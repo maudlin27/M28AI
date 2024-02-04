@@ -5100,7 +5100,6 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             for iEntry, tLocation in oUnitToProtect[M28Building.reftLocationsForPriorityShield] do
                                 local rShieldAreaRect = M28Utilities.GetRectAroundLocation(tLocation, iSearchRadius)
                                 local tUnitsNearby = GetUnitsInRect(rShieldAreaRect)
-                                local oCurBuildingBP
                                 if M28Utilities.IsTableEmpty(tUnitsNearby) == false then
                                     local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, tUnitsNearby)
                                     if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
@@ -5129,8 +5128,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                         if not(bNearbyShield) then
                                             for iBuilding, oBuilding in tBuildingsNearby do
                                                 if oBuilding:GetAIBrain().M28AI and oBuilding:GetAIBrain().M28Team == aiBrain.M28Team then
-                                                    oCurBuildingBP = oBuilding:GetBlueprint()
-                                                    if (oCurBuildingBP.Economy.BuildCostMass or 0) * oBuilding:GetFractionComplete() <= 5000 then
+                                                    if oBuilding[M28UnitInfo.refiUnitMassCost] * oBuilding:GetFractionComplete() <= 5000 then
                                                         --Check the building position and size means it is actually a blocking building
                                                         if oBuilding:GetPosition()[1] >= rShieldAreaRect[1] and oBuilding:GetPosition()[1] <= rShieldAreaRect[3] and oBuilding:GetPosition()[3] >= rShieldAreaRect[2] and oBuilding:GetPosition()[3] <= rShieldAreaRect[2] and (not(oBuilding[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will destroy blocking building='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)..'; Building position='..repru(oBuilding:GetPosition())..'; will draw rectangle that this is within')
@@ -5327,7 +5325,7 @@ function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
     local iUnitToProtectEntry
     for iGameEnder, oGameEnder in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
         if M28UnitInfo.IsUnitValid(oGameEnder) then
-            iCurMassValue = oGameEnder:GetBlueprint().Economy.BuildCostMass * oGameEnder:GetFractionComplete()
+            iCurMassValue = oGameEnder[M28UnitInfo.refiUnitMassCost] * oGameEnder:GetFractionComplete()
             if iCurMassValue > iHighestMassValue then
                 iHighestMassValue = iCurMassValue
                 oUnitToProtect = oGameEnder
@@ -5533,7 +5531,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                             end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
-                            iCurValueBlockingBuildings = M28UnitInfo.GetCombatThreatRating(tUnitsToConsiderReclaiming, false, true)
+                            iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
                             if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
                                 iLowestValueBlockingBuildings = iCurValueBlockingBuildings
                                 tLowestValueBlockingBuildings = tUnitsToConsiderReclaiming
@@ -5969,7 +5967,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                             end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
-                            iCurValueBlockingBuildings = M28UnitInfo.GetCombatThreatRating(tUnitsToConsiderReclaiming, false, true)
+                            iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
                             if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
                                 iLowestValueBlockingBuildings = iCurValueBlockingBuildings
@@ -6218,7 +6216,7 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                                         end
                                     end
                                     if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
-                                        iCurValueBlockingBuildings = M28UnitInfo.GetCombatThreatRating(tUnitsToConsiderReclaiming, false, true)
+                                        iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
                                         if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
                                             iLowestValueBlockingBuildings = iCurValueBlockingBuildings
@@ -8014,7 +8012,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
                 --Increase likelihood the build location we want is available
                 SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15)
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
-                    iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
+                    iCurMass = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil')) end
                     if iCurMass and (iCurMass > iHighestMassValue or (oUnit[refiFailedShieldConstructionCount] or 0) < iLowestShieldAttempt) then
                         --Check we are likely to be able ot build a shield nearby
@@ -8167,7 +8165,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
             local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
                 if not(iOptionalSearchRange) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange then
-                    iMassToComplete = iMassToComplete + (oUnit:GetBlueprint().Economy.BuildCostMass or 0) * (1 - oUnit:GetFractionComplete())
+                    iMassToComplete = iMassToComplete + oUnit[M28UnitInfo.refiUnitMassCost] * (1 - oUnit:GetFractionComplete())
                 end
             end
         end
@@ -8758,7 +8756,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
             for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit:GetBlueprint().Economy.BuildCostMass)
+                LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
             end
         end
         if bContinue then
@@ -11833,7 +11831,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if not(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex].M28Easy) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
                     for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                        LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit:GetBlueprint().Economy.BuildCostMass)
+                        LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
                     end
                 end
                 if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
@@ -15110,7 +15108,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if M28UnitInfo.IsUnitValid(oT2Arti) then
                             if M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil') + 50 then
                                 iBestEnemyRange = math.max(iBestEnemyRange, (oT2Arti[M28UnitInfo.refiIndirectRange] or 'nil'))
-                                iEnemyLongRangeThreat = iEnemyLongRangeThreat + oT2Arti:GetBlueprint().Economy.BuildCostMass
+                                iEnemyLongRangeThreat = iEnemyLongRangeThreat + oT2Arti[M28UnitInfo.refiUnitMassCost]
                             end
                         end
                     end
@@ -15144,7 +15142,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 
                 if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-                    iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true, true))
+                    iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))
                 end
                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iThreatWanted = iThreatWanted * 0.75 end
 
@@ -15168,7 +15166,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                         if M28Utilities.IsTableEmpty(tT2Arti) == false then
-                            iT2ArtiThreat = M28UnitInfo.GetCombatThreatRating(tT2Arti, false, true) --Will be 60% of mass cost per getcombatthreatrating
+                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti) --Will be 60% of mass cost per getcombatthreatrating
                             for iArti, oArti in tT2Arti do
                                 if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
                                 if oArti[M28Building.refbUnitWantsShielding] and M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) and (oArti[refiFailedShieldConstructionCount] or 0) <= 1 then
@@ -15183,7 +15181,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     iThreatWanted = iThreatWanted - iT2ArtiThreat
                     iBPWanted = 240 --default
                     local bAreBuildingShield = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true, true)..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat) end
                     if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= 60 then
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)

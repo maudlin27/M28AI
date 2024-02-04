@@ -471,7 +471,7 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Map.DrawLandZones()
+    --M28Profiler.CompareDifferentThreatCalculations(aiBrain)
 
 
     --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
@@ -1146,7 +1146,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
