@@ -537,6 +537,11 @@ function OnUnitDeath(oUnit)
                                     end
                                 end
                             end
+
+                            --If unit was paused, update the table
+                            if oUnit[M28UnitInfo.refiPausedPriority] then
+                                M28UnitInfo.AddOrRemoveUnitFromListOfPausedUnits(oUnit, false)
+                            end
                         else
                             --Specific logic to apply only if the unit is not owned by M28
                             if oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then

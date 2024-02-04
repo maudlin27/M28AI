@@ -46,6 +46,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
 
     --Team economy subrefs
+    refiPausedUnitCount = 'M28TeamPausTo' --total number of paused units
+    subreftoPausedUnitsByPriority = 'M28TeamPausByPr' --[x] is the priority (e.g. 1 = first things to be paused, 2 = 2nd etc.), returns table of paused units for that priority
     subrefiTeamGrossEnergy = 'M28TeamGrossEnergy'
     subrefiTeamNetEnergy = 'M28TeamNetEnergy'
     subrefiTeamGrossMass = 'M28TeamGrossMass'
@@ -68,6 +70,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
     refiTimeLastConsideredEnergyStall = 'M28TeamTimeConsStall' --Used so in easymode can ensure a c.2s gap
     refiTimeLastNeededEnergyForOvercharge = 'M28TeamTimeLastNeedEForOC' --Gametimeseconds that an ACU oculdnt afford to overcharge despite having enough energy storage capacity, and having its weapon cooled down, with significant enemies in range
+    refiLastMassStallCategoryAndEngineerTables = 'M28TeamMssStlCatTbl' --the category and engineer tables for pausing in a mass stall
+    refiLastEnergyStallCategoryAndEngineerTables = 'M28TeamEneStlCatTbl' --the category and engineer tables for pausing in an energy stall
     refiEnergyWhenAirFactoryLastUnableToBuildAir = 'M28TeamEnergyAirFacUnableToBuildAir' --Team Gross energy when air factory didnt consider building air units due to lack of energy
     refiTimeOfLastEngiSelfDestruct = 'M28TeamTimeOfLastEnegiSelfDestruct'
     refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
@@ -611,6 +615,10 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftM28ACUs] = {}
     tTeamData[iTotalTeamCount][tPotentiallyActiveGETemplates] = {}
     tTeamData[iTotalTeamCount][subrefiLongestOverdueScoutingTarget] = 0
+    tTeamData[iTotalTeamCount][refiPausedUnitCount] = 0
+    tTeamData[iTotalTeamCount][subreftoPausedUnitsByPriority] = {}
+    tTeamData[iTotalTeamCount][refiLastMassStallCategoryAndEngineerTables] = {}
+    tTeamData[iTotalTeamCount][refiLastEnergyStallCategoryAndEngineerTables] = {}
 
 
     local bHaveCampaignM28AI = false
@@ -1382,7 +1390,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                             local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
                             if M28Utilities.IsTableEmpty(tSMD) == false then
                                 for iUnit, oUnit in tSMD do
-                                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+                                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam)
                                     oUnit:SetAutoMode(true)
                                 end
                             end
