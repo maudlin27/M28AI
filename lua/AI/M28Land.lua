@@ -1494,7 +1494,8 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
         return {M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][1], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][2], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][3]}
     else
         if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(M28Map.PlayerStartPoints[M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()]) then
-            M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..' for team '..iTeam..'; will return current midpoint')
+            --If dealing with plateau with 3+ zones then might not have set any to have a rally point
+            M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..' for team '..iTeam..'; will return current midpoint', true)
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Will draw specific land zone in gold, midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest friendly base='..repru(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase])..'; iTeam='..iTeam)
                 M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 4)
@@ -1512,7 +1513,7 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
     local sFunctionRef = 'RefreshLandRallyPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     if not(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {} end
     M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] = {}
@@ -1522,18 +1523,19 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
         local iLZWithHighestSValue
         local tiDangerousCoreBaseRefs = {}
         local iNetCombatValue
+        local iMaxZoneCount = (M28Map.tAllPlateaus[iPlateau][M28Map.subrefLandZoneCount] or 0)
 
-        for iLandZone, tLandZoneInfo in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
-            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLandZoneInfo[M28Map.subrefMidpoint]) then
-                if bDebugMessages == true then LOG(sFunctionRef..': considering if we want zone '..iLandZone..' in iPlateau='..iPlateau..' to be a rally point, is core base='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; is core expansion='..tostring(tLandZoneInfo[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)) end
-                local tLZTeamData = tLandZoneInfo[M28Map.subrefLZTeamData][iTeam]
-                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZSValue] >= 200 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZSValue] >= 1000)) then
+        for iLandZone, tLZData in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
+            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': considering if we want zone '..iLandZone..' in iPlateau='..iPlateau..' to be a rally point, is core base='..tostring(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; is core expansion='..tostring(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)..'; iMaxZoneCount='..iMaxZoneCount) end
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZSValue] >= 200 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(iLZWithHighestSValue) and tLZTeamData[M28Map.subrefLZSValue] >= 1000)) or (iMaxZoneCount <= 2 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (tLZData[M28Map.subrefLZMexCount] or 0) > 0))) then
                     if tLZTeamData[M28Map.subrefLZSValue] >= iHighestSValue then
                         iHighestSValue = tLZTeamData[M28Map.subrefLZSValue]
                         iLZWithHighestSValue = iLandZone
                     end
                     --Dont have as rally if enemy has T2 arti nearby
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
+                    if iMaxZoneCount > 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
                         iNetCombatValue = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
                         if iNetCombatValue < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and (iNetCombatValue <= 200 or  (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 1.25)) then
                             table.insert(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau], iLandZone)

@@ -87,7 +87,7 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
     else
         RefreshWaterRallyPoints(iTeam, iPond)
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]) then
-            M28Utilities.ErrorHandler('No rally point for Pond '..(iPond or 'nil')..' WZ'..(iWaterZone or 'nil')..'; iTeam='..iTeam..' even after refreshing, will return current midpoint')
+            M28Utilities.ErrorHandler('No rally point for Pond '..(iPond or 'nil')..' WZ'..(iWaterZone or 'nil')..'; iTeam='..iTeam..' even after refreshing, will return current midpoint', true)
         end
         return {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
     end
