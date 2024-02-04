@@ -491,6 +491,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
     else
         iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL
+        if M28Overseer.refiRoughTotalUnitsInGame >= 1000 then iCategoryToSearch = iCategoryToSearch - M28UnitInfo.refCategoryMobileLand * categories.TECH1 + categories.COMMAND end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, Time='..GetGameTimeSeconds()..'; bCheckForShields='..tostring(bCheckForShields)..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage..'; bCumulativeShieldHealthCheck='..tostring(bCumulativeShieldHealthCheck or false)..'; iOptionalSizeAdjust='..(iOptionalSizeAdjust or 'nil')..'; iOptionalModIfNeedMultipleShots='..(iOptionalModIfNeedMultipleShots or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; bT3ArtiShotReduction='..tostring(bT3ArtiShotReduction or false)..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')) end
     local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
@@ -512,16 +513,19 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; is table of capture units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]))..'; Is tLZOrWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData))) end
         if bIncludePreviouslySeenEnemies and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
-                if bDebugMessages == true then
-                    if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+            local tRelevantUnits = EntityCategoryFilterDown(iCategoryToSearch, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+            if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
+                for iUnit, oUnit in tRelevantUnits do
+                    if bDebugMessages == true then
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+                        end
                     end
-                end
-                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
-                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
-                        table.insert(tEnemiesInRange, oUnit)
+                    if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
+                            table.insert(tEnemiesInRange, oUnit)
+                        end
                     end
                 end
             end

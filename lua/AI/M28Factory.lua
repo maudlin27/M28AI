@@ -39,6 +39,7 @@ reftFactoryRallyPoint = 'M28FacRally' --against oFactory, Location to send units
 refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an order for the factory to build a unit (cleared when a unit is built or a different blueprint order is given) - used to spot for factories with units blocking them
 refbWantMoreEngineersBeforeUpgrading = 'M28FWnE' --against oFactory, true if have run the factory condition and it concluded wen eeded more engineers before upgrading
 refbPausedToStopDefaultAI = 'M28FPsC' --true if we have paused factory to stop a campaign AI giving it orders
+refbActiveDelayedCheck = 'M28FAcDC' --true if we are running code to consider if factory has nearby blocked units
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
@@ -2562,29 +2563,33 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
     local sFunctionRef = 'DelayedCheckIfFactoryBuildingAndRetry'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local iStartTime = GetGameTimeSeconds()
-    local iBuildCount = (oFactory[refiTotalBuildCount] or 0)
-    local iWaitCount = 0
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitSeconds(1)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    iWaitCount = iWaitCount + 1
-    --Check if factory has been stuck
-    while M28UnitInfo.IsUnitValid(oFactory) and oFactory[refiTotalBuildCount] == iBuildCount and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Building')) do
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iWaitCount='..iWaitCount..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
-        if iWaitCount >= 5 then
-            if oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or 0) >= 5 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get a new order for the factory and clear blocking units') end
-                MovePotentialBlockingUnitsFromFactory(oFactory)
-                DecideAndBuildUnitForFactory(oFactory:GetAIBrain(), oFactory, true, false)
-            end
-            break
-        end
+    if not(oFactory[refbActiveDelayedCheck]) then
+        oFactory[refbActiveDelayedCheck] = true
+        local iBuildCount = (oFactory[refiTotalBuildCount] or 0)
+        local iWaitCount = 0
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         iWaitCount = iWaitCount + 1
+        --Check if factory has been stuck
+        while M28UnitInfo.IsUnitValid(oFactory) and oFactory[refiTotalBuildCount] == iBuildCount and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Building')) do
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iWaitCount='..iWaitCount..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
+            if iWaitCount >= 5 then
+                if oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or 0) >= 5 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and get a new order for the factory and clear blocking units') end
+                    if not(EntityCategoryContains(categories.EXTERNALFACTORYUNIT + categories.MOBILE, oFactory.UnitId)) then
+                        MovePotentialBlockingUnitsFromFactory(oFactory)
+                    end
+                    DecideAndBuildUnitForFactory(oFactory:GetAIBrain(), oFactory, true, false)
+                end
+                break
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            iWaitCount = iWaitCount + 1
+        end
+        oFactory[refbActiveDelayedCheck] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
