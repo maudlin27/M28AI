@@ -249,9 +249,11 @@ function OnYthothaDeath(oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
                         if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
                             if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
-                                iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
-                                if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
-                                ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                                if not(oFriendlyUnit[M28UnitInfo.refbEasyBrain]) then
+                                    iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
+                                    ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                                end
                             end
                         end
                     end
@@ -748,7 +750,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         --Reset the arti shot count if damaged a high value unit
                         if M28UnitInfo.IsUnitValid(self) then
                             if bDebugMessages == true then LOG(sFunctionRef..': T3/Exp arti owned by M28 brain '..oUnitCausingDamage:GetAIBrain().Nickname..', arti unit='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' has just damaged unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' which is valid') end
-                            local iUnitDamagedMassValue = self:GetBlueprint().Economy.BuildCostMass * self:GetFractionComplete()
+                            local iUnitDamagedMassValue = self[M28UnitInfo.refiUnitMassCost] * self:GetFractionComplete()
                             if iUnitDamagedMassValue >= 700 then
                                 --Reduce the ineffective arti shot count
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
@@ -783,7 +785,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         if self:IsUnitState('Upgrading') then
                             --Do we want to cancel the upgrade? If were hit by a TML then want to
                             if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
-                                M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                                if not(self[M28UnitInfo.refbEasyBrain]) then
+                                    M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                                end
                             end
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, self.UnitId) and M28UnitInfo.IsUnitValid(self) and (self:GetFractionComplete() <= 0.7 or (self:GetFractionComplete() <= 0.85 and M28UnitInfo.GetUnitHealthPercent(self) <= 0.5)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect, oUnitCausingDamage.UnitId) then
@@ -860,7 +864,9 @@ function OnBombFired(oWeapon, projectile)
                 if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
-                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+                        end
 
                         --Have friendly gunships dodge
                         M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
@@ -902,8 +908,9 @@ function OnWeaponFired(oWeapon)
                     --Micro torp bombers if this is the last shot and torp only has 1 rack
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
                     if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
-
-                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                        end
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     ForkThread(M28Building.ConsiderManualT2ArtiTarget, oUnit, oWeapon)
@@ -2022,7 +2029,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
 end
 
 function OnCreate(oUnit, bIgnoreMapSetup)
-    LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
+    --LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2052,6 +2059,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame + 1
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
 
+                --All units (not just M28 specific):
+                M28UnitInfo.RecordUnitRange(oUnit)
+
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
                 if M28Map.bIsCampaignMap then
                     local tiTeamsConsidered = {[(oUnit:GetAIBrain().M28Team or 0)] = true}
@@ -2063,8 +2073,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
                 end
 
-                --All units (not just M28 specific):
-                M28UnitInfo.RecordUnitRange(oUnit)
+
                 if bDebugMessages == true then LOG(sFunctionRef..': First time M28OnCreate has run, just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                 if M28Config.M28ShowEnemyUnitNames then
                     local sWZOrLZRef = ''
@@ -2134,6 +2143,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
             if oUnit:GetAIBrain().M28AI then
+                --Set Easy flag
+                if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
                 --Check for upgrading unit transferred to us
                 if oUnit.IsUpgrade then
                     local aiBrain = oUnit:GetAIBrain()
@@ -2350,7 +2361,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if bIsHuman == nil then
             if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
         end
-        if not(bIsHuman) and (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat') then
+        if not(bIsHuman) and (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat') then
             aiBrain.M28AI = true
             M28Utilities.bM28AIInGame = true
             --LOG('M28 in game 1')

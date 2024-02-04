@@ -407,7 +407,6 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
     else tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy, oTargetUnit:GetPosition(), iAOE, 'Enemy')
     end
 
-    local oCurBP
     local iMassFactor
     local iCurHealth, iMaxHealth, iCurShield, iMaxShield
     local iActualDamage
@@ -418,7 +417,6 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
     if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
         for iUnit, oUnit in tEnemiesInRange do
             if oUnit.GetBlueprint then
-                oCurBP = oUnit:GetBlueprint()
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; dist to postiion='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition())) end
                 --Is the unit within range of the aoe?
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) <= iAOE then
@@ -449,8 +447,8 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMassFactor after considering if will kill it='..iMassFactor..'; Unit max health='..iMaxHealth..'; CurHealth='..iCurHealth) end
                         --Is the target mobile and within 1 of the AOE edge? If so then reduce to 25% as it might move out of the wayif
                         if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and iAOE - 0.5 < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) then iMassFactor = iMassFactor * 0.25 end
-                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
+                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..';refiUnitMassCost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
                     end
                 end
             end
@@ -491,6 +489,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
     else
         iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL
+        if M28Overseer.refiRoughTotalUnitsInGame >= 1000 then iCategoryToSearch = iCategoryToSearch - M28UnitInfo.refCategoryMobileLand * categories.TECH1 + categories.COMMAND end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, Time='..GetGameTimeSeconds()..'; bCheckForShields='..tostring(bCheckForShields)..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage..'; bCumulativeShieldHealthCheck='..tostring(bCumulativeShieldHealthCheck or false)..'; iOptionalSizeAdjust='..(iOptionalSizeAdjust or 'nil')..'; iOptionalModIfNeedMultipleShots='..(iOptionalModIfNeedMultipleShots or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; bT3ArtiShotReduction='..tostring(bT3ArtiShotReduction or false)..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')) end
     local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
@@ -512,22 +511,24 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; is table of capture units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]))..'; Is tLZOrWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData))) end
         if bIncludePreviouslySeenEnemies and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
-                if bDebugMessages == true then
-                    if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+            local tRelevantUnits = EntityCategoryFilterDown(iCategoryToSearch, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+            if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
+                for iUnit, oUnit in tRelevantUnits do
+                    if bDebugMessages == true then
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+                        end
                     end
-                end
-                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
-                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
-                        table.insert(tEnemiesInRange, oUnit)
+                    if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
+                            table.insert(tEnemiesInRange, oUnit)
+                        end
                     end
                 end
             end
         end
     end
-    local oCurBP
     local iMassFactor
     local iCurHealth, iMaxHealth
     local iCurShield = 0
@@ -573,7 +574,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
                         end
                     else
-                        iTotalDamage = iTotalDamage - oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
+                        iTotalDamage = iTotalDamage - oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
                     end
                 end
             end
@@ -634,7 +635,6 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
             if oUnit.GetBlueprint and not(oUnit.Dead) and (oUnit:GetFractionComplete() < 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId))) then
                 iMassFactor = 1
-                oCurBP = oUnit:GetBlueprint()
                 --Is the unit within range of the aoe?
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Distance to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)..'; iAOE='..iAOE) end
@@ -707,7 +707,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         --Increase mass factor for special category specified
                         if iOptionalSpecialCategoryDamageFactor and EntityCategoryContains(iOptionalSpecialCategory, oUnit.UnitId) then iMassFactor = iMassFactor * iOptionalSpecialCategoryDamageFactor end
 
-                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
+                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
                         --Increase further for SML and SMD that might have a missile
                         if EntityCategoryContains(M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                             if oUnit:GetFractionComplete() == 1 then
@@ -749,7 +749,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                                 end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..';refiUnitMassCost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
                     end
                 end
 
@@ -789,31 +789,36 @@ function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckF
     if bDebugMessages == true then LOG(sFunctionRef..': About to find the best target for bomb, tBaseLocation='..repru(tBaseLocation)..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')) end
 
     local tBestTarget = {tBaseLocation[1], tBaseLocation[2], tBaseLocation[3]}
-    --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage)
-    --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
-    local iCurTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
-    local iMaxTargetDamage = iCurTargetDamage
-    local iMaxDistanceChecks = math.min(4, math.ceil(iAOE / 2))
-    if iOptionalMaxDistanceCheckOptions then iMaxDistanceChecks = math.min(iOptionalMaxDistanceCheckOptions, iMaxDistanceChecks) end
-    local iDistanceFromBase = 0
-    local tPossibleTarget
-    if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
+    local iMaxTargetDamage
+    if aiBrain.M28Easy then
+        iMaxTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
+    else
+        --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage)
+        --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+        local iCurTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
+        iMaxTargetDamage = iCurTargetDamage
+        local iMaxDistanceChecks = math.min(4, math.ceil(iAOE / 2))
+        if iOptionalMaxDistanceCheckOptions then iMaxDistanceChecks = math.min(iOptionalMaxDistanceCheckOptions, iMaxDistanceChecks) end
+        local iDistanceFromBase = 0
+        local tPossibleTarget
+        if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
 
-    for iCurDistanceCheck = iMaxDistanceChecks, 1, -1 do
-        iDistanceFromBase = iAOE / iCurDistanceCheck
-        for iAngle = 0, 360, 45 do
-            tPossibleTarget = M28Utilities.MoveInDirection(tBaseLocation, iAngle, iDistanceFromBase)
-            --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
-            iCurTargetDamage = GetDamageFromBomb(aiBrain, tPossibleTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
-            if iCurTargetDamage > iMaxTargetDamage then
-                if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tPossibleTarget, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iCurTargetDamage = math.min(4000, iCurTargetDamage) end
+        for iCurDistanceCheck = iMaxDistanceChecks, 1, -1 do
+            iDistanceFromBase = iAOE / iCurDistanceCheck
+            for iAngle = 0, 360, 45 do
+                tPossibleTarget = M28Utilities.MoveInDirection(tBaseLocation, iAngle, iDistanceFromBase)
+                --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+                iCurTargetDamage = GetDamageFromBomb(aiBrain, tPossibleTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
                 if iCurTargetDamage > iMaxTargetDamage then
-                    tBestTarget = tPossibleTarget
-                    iMaxTargetDamage = iCurTargetDamage
+                    if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tPossibleTarget, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iCurTargetDamage = math.min(4000, iCurTargetDamage) end
+                    if iCurTargetDamage > iMaxTargetDamage then
+                        tBestTarget = tPossibleTarget
+                        iMaxTargetDamage = iCurTargetDamage
+                    end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking every angle for iDistanceFromBase='..iDistanceFromBase..'; iMaxTargetDamage='..iMaxTargetDamage..'; tBestTarget='..repru(tBestTarget)) end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking every angle for iDistanceFromBase='..iDistanceFromBase..'; iMaxTargetDamage='..iMaxTargetDamage..'; tBestTarget='..repru(tBestTarget)) end
     end
     if bDebugMessages == true then
         LOG(sFunctionRef..': Best target for bomb='..repru(tBestTarget)..'; iMaxTargetDamage='..iMaxTargetDamage)

@@ -68,8 +68,10 @@ refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded agains
 refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
 refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
+refiUnitMassCost = 'M28UMCs' --for profiling testing
 
     --Unit micro related
+refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
@@ -527,9 +529,20 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function GetMassCostOfUnits(tUnits)
+    local iMassCost = 0
+    if M28Utilities.IsTableEmpty(tUnits) == false then
+        for iUnit, oUnit in tUnits do
+            iMassCost = iMassCost + oUnit[refiUnitMassCost]
+        end
+    end
+    return iMassCost
+end
+
 function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
     --bJustGetMassValue - if thisi s true, will ignore things like health and just return the mass value (so none of the other values should matter if this is true - i.e. assumes tUnits is already filtered to those of interest)
+        --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatThreatRating'
@@ -580,7 +593,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
 
                 end
                 if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
-                    iBaseThreat = oUnit:GetBlueprint().Economy.BuildCostMass * 0.35
+                    iBaseThreat = oUnit[refiUnitMassCost] * 0.35
                 end
                 if iBaseThreat > 0 then
                     if bJustGetMassValue then iCurThreat = iBaseThreat
@@ -1422,6 +1435,9 @@ function RecordUnitRange(oUnit)
     --Record unit best range
     oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+
+    --Record mass cost
+    oUnit[refiUnitMassCost] = (oBP.Economy.BuildCostMass or 0)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

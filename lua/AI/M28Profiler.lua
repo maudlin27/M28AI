@@ -46,6 +46,7 @@ tMemoryOverloadTable = {} --If want to test high memory usage
 iMemoryOverloadCurFactor = 0 --To avoid rerunning exact same logic
 iMemoryCycleCount = 1000
 bActiveMemoryProfiler = false
+--bTestProfiler = false
 
 function FunctionProfiler(sFunctionRef, sStartOrEndRef)
     --sStartOrEndRef: refProfilerStart or refProfilerEnd (0 or 1)
@@ -373,5 +374,62 @@ function SimpleProfiler(iInterval)
         WaitSeconds(iInterval)
         if not(iTimeAfter10s) then iTimeAfter10s = GetSystemTimeSecondsOnlyForProfileUse() end
         LOG('SimpleProfiler: Time='..math.floor(GetGameTimeSeconds()*10)..'; Time taken cumulative='..GetSystemTimeSecondsOnlyForProfileUse()..'; Time since last update='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeOfLastCycle)..'; Time excl first 10s='..(GetSystemTimeSecondsOnlyForProfileUse() -iTimeAfter10s))
+    end
+end
+
+function CompareDifferentThreatCalculations(aiBrain)
+    if not(bTestProfiler) then
+        bTestProfiler = true
+        local iCategoriesToSpawn = categories.TECH3 * categories.AMPHIBIOUS + categories.EXPERIMENTAL * categories.AMPHIBIOUS + categories.TECH2 * categories.AMPHIBIOUS - categories.UNTARGETABLE
+        local tsUnitsToSpawn = EntityCategoryGetUnitList(iCategoriesToSpawn)
+        local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+        local tSpawnLocationBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+        local toUnits = {}
+        local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+        for iUnit, sUnit in tsUnitsToSpawn do
+            local oUnit = CreateUnit(sUnit, aiBrain:GetArmyIndex(), tSpawnLocationBase[1], tSpawnLocationBase[2], tSpawnLocationBase[3], 0, 0, 0, 0, 'Air')
+            table.insert(toUnits, oUnit)
+            oUnit[M28UnitInfo.refiUnitMassCost] = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+        end
+
+        ForkThread(CompareDifThreatCalculationsForTableOfUnits, toUnits)
+    end
+end
+
+function CompareDifThreatCalculationsForTableOfUnits(toUnits)
+    --Summary results of below - scenario 2 was about 6 times faster than
+    local iCycleCount = 100000
+    local tiTimeByScenario = {}
+    local iThreatVal
+    local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+    tiTimeByScenario[0] = GetSystemTimeSecondsOnlyForProfileUse()
+    iThreatVal = 0
+    for iCurCycle = 1, iCycleCount do
+        for iUnit, oUnit in toUnits do
+            iThreatVal = iThreatVal + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+        end
+    end
+    tiTimeByScenario[1] = GetSystemTimeSecondsOnlyForProfileUse()
+    iThreatVal = 0
+    for iCurCycle = 1, iCycleCount do
+        for iUnit, oUnit in toUnits do
+            iThreatVal = iThreatVal + (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+        end
+    end
+    tiTimeByScenario[2] = GetSystemTimeSecondsOnlyForProfileUse()
+    iThreatVal = 0
+    for iCurCycle = 1, iCycleCount do
+        for iUnit, oUnit in toUnits do
+            iThreatVal = iThreatVal + M28UnitInfo.GetCombatThreatRating({ oUnit }, false, true)
+        end
+    end
+    tiTimeByScenario[3] = GetSystemTimeSecondsOnlyForProfileUse()
+    for iCurCycle = 1, iCycleCount do
+        iThreatVal = M28UnitInfo.GetCombatThreatRating(toUnits, false, true)
+    end
+    tiTimeByScenario[4] = GetSystemTimeSecondsOnlyForProfileUse()
+
+    for iCurScenario = 1, 4 do
+        LOG('Time taken for scenario '..iCurScenario..'='..(tiTimeByScenario[iCurScenario] - tiTimeByScenario[iCurScenario - 1]))
     end
 end

@@ -3041,7 +3041,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                         iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.6, math.max((iUnitHealth - 15000) * 0.3))
                     end
                 else
-                    iCurTargetValue = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
+                    iCurTargetValue = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before shield adjust='..iCurTargetValue) end
                 if iCurTargetValue > iHighestValueTarget then
@@ -4485,6 +4485,18 @@ function ManageACU(aiBrain, oACUOverride)
 
         --If this is an ACU then add to table of friendly ACUs
         if EntityCategoryContains(categories.COMMAND, oACU.UnitId) then table.insert(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftM28ACUs], oACU) end
+
+        if oACU[M28UnitInfo.refbEasyBrain] then
+            --Enable autoovercharge if have easy mode ACU
+            local bHaveAutoOvercharge = false
+            for iWeapon, tWeapon in oACU:GetBlueprint() do
+                if tWeapon.Label == 'AutoOverCharge' then
+                    bHaveAutoOvercharge = true
+                    break
+                end
+            end
+            oACU:SetAutoOvercharge(true)
+        end
 
         while M28UnitInfo.IsUnitValid(oACU) do
             oACU[refbTreatingAsACU] = true

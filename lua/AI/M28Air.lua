@@ -3744,7 +3744,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2000 and EntityCategoryContains(M28UnitInfo.refCategoryBomber, tAvailableBombers[1].UnitId) then
             local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tEnemyTargets)
             if M28Utilities.IsTableEmpty(tEnemyACU) == false then
-                if M28UnitInfo.GetCombatThreatRating(tAvailableBombers, false, true) >= 15000 then
+                if M28UnitInfo.GetMassCostOfUnits(tAvailableBombers) >= 15000 then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyACU, iAirSubteam, bForceGroundFire, false)
                 end
             end
@@ -3971,6 +3971,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
     local tiValidPlacements = {}
     local iTotalUnits = table.getn(tAvailableGunships)
     for iUnit, oUnit in tAvailableGunships do
+        if bDebugMessages == true then LOG(sFunctionRef..': Working out what gunships already have placements, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Placement='..(oUnit[refiGunshipPlacement] or 'nil')..'; Is easy brain='..tostring(oUnit[M28UnitInfo.refbEasyBrain] or false)) end
         if oUnit[refiGunshipPlacement] then
             if tiValidPlacements[oUnit[refiGunshipPlacement]] then
                 --Duplicate entry so need to clear this unit
@@ -3981,7 +3982,6 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         end
     end
     local iFirstMissingPlacement
-    local tiExistingPlacements = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..'; iTotalUnits='..iTotalUnits) end
     for iCurPlacement = 1, iTotalUnits do
         if not(tiValidPlacements[iCurPlacement]) then
@@ -3994,51 +3994,61 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
     local tAdjustedMovePosition
     local iCurPlacement
     local iPlacementSize = table.getn(tDistanceAdjustXZ)
+    local iEasyGunships = 0
     if iFirstMissingPlacement then
         local toUnitsToPlace = {}
         for iUnit, oUnit in tAvailableGunships do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering gunship'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; its placement is '..(oUnit[refiGunshipPlacement] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering gunship'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; its placement is '..(oUnit[refiGunshipPlacement] or 'nil')..'; Is easy='..tostring(oUnit[M28UnitInfo.refbEasyBrain] or false)..'; iFirstMissingPlacement='..iFirstMissingPlacement) end
             if (oUnit[refiGunshipPlacement] or 10000) >= iFirstMissingPlacement then
-                if bDebugMessages == true then LOG(sFunctionRef..': Gunship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has placement '..(oUnit[refiGunshipPlacement] or 'nil')..' so will add to table of units needing new placements') end
-                table.insert(toUnitsToPlace, oUnit)
+                if oUnit[M28UnitInfo.refbEasyBrain] then
+                    --Just attackmove to the target
+                    M28Orders.IssueTrackedAggressiveMove(oUnit, tTarget, 4, false, 'GSEsyA', false)
+                    iEasyGunships = iEasyGunships + 1
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Gunship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has placement '..(oUnit[refiGunshipPlacement] or 'nil')..' so will add to table of units needing new placements') end
+                    table.insert(toUnitsToPlace, oUnit)
+                end
             end
         end
 
         local iClosestDist
         local iCurDist
         local iClosestUnitRef
-
-        for iBasePlacement = iFirstMissingPlacement, iTotalUnits do
-            --Adjust placement value to reflect we have only defined a limited number of options
-            if M28Utilities.IsTableEmpty(toUnitsToPlace) then break end --redundancy
-            iCurPlacement = iBasePlacement
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurPlacement='..iCurPlacement..'; iPlacementSize='..iPlacementSize..'; will reduce cur placement if it exceeds the size') end
-            while iCurPlacement  > iPlacementSize do
-                iCurPlacement = iCurPlacement - iPlacementSize
-            end
-            --Identify which gunship is closest to each placement point
-            tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
-            iClosestDist = 10000
-            iClosestUnitRef = nil
-            for iUnit, oUnit in toUnitsToPlace do
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAdjustedMovePosition)
-                if iCurDist < iClosestDist then
-                    iClosestDist = iCurDist
-                    iClosestUnitRef = iUnit
+        if iEasyGunships == 0 or iFirstMissingPlacement <= iTotalUnits - iEasyGunships then
+            for iBasePlacement = iFirstMissingPlacement, iTotalUnits - iEasyGunships do
+                --Adjust placement value to reflect we have only defined a limited number of options
+                if M28Utilities.IsTableEmpty(toUnitsToPlace) then break end --redundancy
+                iCurPlacement = iBasePlacement
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPlacement='..iCurPlacement..'; iPlacementSize='..iPlacementSize..'; will reduce cur placement if it exceeds the size') end
+                while iCurPlacement  > iPlacementSize do
+                    iCurPlacement = iCurPlacement - iPlacementSize
                 end
+                --Identify which gunship is closest to each placement point
+                tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
+                iClosestDist = 10000
+                iClosestUnitRef = nil
+                for iUnit, oUnit in toUnitsToPlace do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAdjustedMovePosition)
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        iClosestUnitRef = iUnit
+                    end
+                end
+                --Assign this position to this gunship
+                toUnitsToPlace[iClosestUnitRef][refiGunshipPlacement] = iBasePlacement
+                if bDebugMessages == true then LOG(sFunctionRef..': Assigning gunship '..toUnitsToPlace[iClosestUnitRef].UnitId..M28UnitInfo.GetUnitLifetimeCount(toUnitsToPlace[iClosestUnitRef])..' to base placement '..iBasePlacement) end
+                table.remove(toUnitsToPlace, iClosestUnitRef)
             end
-            --Assign this position to this gunship
-            toUnitsToPlace[iClosestUnitRef][refiGunshipPlacement] = iBasePlacement
-            if bDebugMessages == true then LOG(sFunctionRef..': Assigning gunship '..toUnitsToPlace[iClosestUnitRef].UnitId..M28UnitInfo.GetUnitLifetimeCount(toUnitsToPlace[iClosestUnitRef])..' to base placement '..iBasePlacement) end
-            table.remove(toUnitsToPlace, iClosestUnitRef)
         end
     end
 
     --Issue move orders
     local toUnitsByBasePlacementRef = {}
     for iUnit, oUnit in tAvailableGunships do
-        toUnitsByBasePlacementRef[oUnit[refiGunshipPlacement]] = oUnit
-        if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with gunship placement '..(oUnit[refiGunshipPlacement] or 'nil')..' in table toUnitsByBasePlacementRef') end
+        if oUnit[refiGunshipPlacement] then
+            toUnitsByBasePlacementRef[oUnit[refiGunshipPlacement]] = oUnit
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with gunship placement '..(oUnit[refiGunshipPlacement] or 'nil')..' in table toUnitsByBasePlacementRef') end
+        end
     end
 
     function MoveIndividualGunship(oClosestUnit, tUnitDestination)
@@ -4050,20 +4060,21 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         end
     end
 
+    if iEasyGunships== 0 or iTotalUnits > iEasyGunships then
+        for iBasePlacement = 1, iTotalUnits - iEasyGunships do
+            iCurPlacement = iBasePlacement
+            while iCurPlacement  > iPlacementSize do
+                iCurPlacement = iCurPlacement - iPlacementSize
+            end
 
-    for iBasePlacement = 1, iTotalUnits do
-        iCurPlacement = iBasePlacement
-        while iCurPlacement  > iPlacementSize do
-            iCurPlacement = iCurPlacement - iPlacementSize
-        end
-
-        tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
-        tAdjustedMovePosition[2] = GetSurfaceHeight(tAdjustedMovePosition[1], tAdjustedMovePosition[3])
-        if bDebugMessages == true then LOG(sFunctionRef..': iBasePlacement='..iBasePlacement..'; Is the entry in UnitsByPlacementRef nil for this='..tostring(not(toUnitsByBasePlacementRef[iBasePlacement]))) end
-        if not(toUnitsByBasePlacementRef[iBasePlacement]) then
-            M28Utilities.ErrorHandler('Missing gunship for iBasePlacement='..iBasePlacement)
-        else
-            MoveIndividualGunship(toUnitsByBasePlacementRef[iBasePlacement], tAdjustedMovePosition)
+            tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
+            tAdjustedMovePosition[2] = GetSurfaceHeight(tAdjustedMovePosition[1], tAdjustedMovePosition[3])
+            if bDebugMessages == true then LOG(sFunctionRef..': iBasePlacement='..iBasePlacement..'; Is the entry in UnitsByPlacementRef nil for this='..tostring(not(toUnitsByBasePlacementRef[iBasePlacement]))) end
+            if not(toUnitsByBasePlacementRef[iBasePlacement]) then
+                M28Utilities.ErrorHandler('Missing gunship for iBasePlacement='..iBasePlacement..'; iEasyGunships='..(iEasyGunships or 'nil')..'; iTotalUnits='..iTotalUnits)
+            else
+                MoveIndividualGunship(toUnitsByBasePlacementRef[iBasePlacement], tAdjustedMovePosition)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4754,7 +4765,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 end
                                                 local iCurEnemyZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
 
-                                                local iMassValueOfTargets = M28UnitInfo.GetCombatThreatRating(tNewlyAddedEnemies, true, true)
+                                                local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tNewlyAddedEnemies)
                                                 local tCurEnemyZoneData, tCurEnemyTeamData
                                                 if iCurEnemyPlateauOrZero > 0 then
                                                     --Land zone
@@ -4794,7 +4805,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 if iPostFirstTargetCount >= iPostTargetMaxZoneCheck or bDontLookForMoreTargets then
                                                     break
                                                 elseif iPostTargetMaxZoneCheck > 4 then
-                                                    local iMassValueOfTargets = M28UnitInfo.GetCombatThreatRating(tEnemyGroundOrGunshipTargets, true, true)
+                                                    local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tEnemyGroundOrGunshipTargets)
                                                     if iMassValueOfTargets > iLowValueZoneThreshold or ((tCurEnemyTeamData[M28Map.subrefLZSValue] or 0) > 100 and iMassValueOfTargets * 5 > (tCurEnemyTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)) then
                                                         iPostTargetMaxZoneCheck = 4
                                                         iPostTargetMaxDistance = 80
@@ -6819,7 +6830,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
-                    iCurValue = oUnitBP.Economy.BuildCostMass * iMassFactor
+                    iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
                         if iFractionComplete < 0.2 or not(EntityCategoryContains(categories.SHIELD + categories.PERSONALSHIELD, oUnit.UnitId)) then
