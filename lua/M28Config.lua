@@ -14,4 +14,4 @@ M28ProfilingIncludePerTick = false --if M28RunProfiling is true, then this deter
 M28ProfilerIgnoreFirst2Seconds = false --Means logic relating to pathing generation gets ignored
 M28RunMemoryProfiling = false --if true then every 60s will list out how much memory each file in M28 is using
 --Simple profiling option:
-M28RunSimpleProfiling = false --if true then will output time taken every 10s
+M28RunSimpleProfiling = true --if true then will output time taken every 10s

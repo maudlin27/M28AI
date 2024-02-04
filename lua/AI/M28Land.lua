@@ -2024,7 +2024,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-        if iCurShield < iMaxShield * 0.5 then
+        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.5 then
             --Retreat
             table.insert(tShieldsToRetreat, oUnit)
         elseif oUnit[refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileShieldTarget]) then
@@ -5701,7 +5701,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                         end
 
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()..'; Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is table of paused units empty for unit brain='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain()[M28Economy.reftPausedUnits]))..'; Is unit paused='..tostring(oUnit[M28UnitInfo.refbPaused] or false)..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oUnit))..'; is oUnit[refbShieldIsDisabled] nil='..tostring(oUnit[M28UnitInfo.refbShieldIsDisabled] == nil)) end
-                                        if iMaxShield > 0 and iCurShield < iMaxShield * (0.35 + iShieldPercentageAdjust) and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * (iShieldPercentageAdjust + 0.05)) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
+                                        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iMaxShield > 0 and iCurShield < iMaxShield * (0.35 + iShieldPercentageAdjust) and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * (iShieldPercentageAdjust + 0.05)) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
                                             table.insert(tOtherUnitsToRetreat, oUnit)
                                             RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
                                             --Redundancy for rare cases where a units shield can be disabled from a transfer

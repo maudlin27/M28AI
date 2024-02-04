@@ -3971,6 +3971,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
     local tiValidPlacements = {}
     local iTotalUnits = table.getn(tAvailableGunships)
     for iUnit, oUnit in tAvailableGunships do
+        if bDebugMessages == true then LOG(sFunctionRef..': Working out what gunships already have placements, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Placement='..(oUnit[refiGunshipPlacement] or 'nil')..'; Is easy brain='..tostring(oUnit[M28UnitInfo.refbEasyBrain] or false)) end
         if oUnit[refiGunshipPlacement] then
             if tiValidPlacements[oUnit[refiGunshipPlacement]] then
                 --Duplicate entry so need to clear this unit
@@ -3981,7 +3982,6 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         end
     end
     local iFirstMissingPlacement
-    local tiExistingPlacements = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..'; iTotalUnits='..iTotalUnits) end
     for iCurPlacement = 1, iTotalUnits do
         if not(tiValidPlacements[iCurPlacement]) then
@@ -3998,7 +3998,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
     if iFirstMissingPlacement then
         local toUnitsToPlace = {}
         for iUnit, oUnit in tAvailableGunships do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering gunship'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; its placement is '..(oUnit[refiGunshipPlacement] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering gunship'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; its placement is '..(oUnit[refiGunshipPlacement] or 'nil')..'; Is easy='..tostring(oUnit[M28UnitInfo.refbEasyBrain] or false)..'; iFirstMissingPlacement='..iFirstMissingPlacement) end
             if (oUnit[refiGunshipPlacement] or 10000) >= iFirstMissingPlacement then
                 if oUnit[M28UnitInfo.refbEasyBrain] then
                     --Just attackmove to the target
@@ -4014,7 +4014,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         local iClosestDist
         local iCurDist
         local iClosestUnitRef
-        if iEasyGunships == 0 or iFirstMissingPlacement < iTotalUnits - iEasyGunships then
+        if iEasyGunships == 0 or iFirstMissingPlacement <= iTotalUnits - iEasyGunships then
             for iBasePlacement = iFirstMissingPlacement, iTotalUnits - iEasyGunships do
                 --Adjust placement value to reflect we have only defined a limited number of options
                 if M28Utilities.IsTableEmpty(toUnitsToPlace) then break end --redundancy
@@ -4061,7 +4061,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
     end
 
     if iEasyGunships== 0 or iTotalUnits > iEasyGunships then
-        for iBasePlacement = 1, iTotalUnits do
+        for iBasePlacement = 1, iTotalUnits - iEasyGunships do
             iCurPlacement = iBasePlacement
             while iCurPlacement  > iPlacementSize do
                 iCurPlacement = iCurPlacement - iPlacementSize
@@ -4071,7 +4071,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
             tAdjustedMovePosition[2] = GetSurfaceHeight(tAdjustedMovePosition[1], tAdjustedMovePosition[3])
             if bDebugMessages == true then LOG(sFunctionRef..': iBasePlacement='..iBasePlacement..'; Is the entry in UnitsByPlacementRef nil for this='..tostring(not(toUnitsByBasePlacementRef[iBasePlacement]))) end
             if not(toUnitsByBasePlacementRef[iBasePlacement]) then
-                M28Utilities.ErrorHandler('Missing gunship for iBasePlacement='..iBasePlacement)
+                M28Utilities.ErrorHandler('Missing gunship for iBasePlacement='..iBasePlacement..'; iEasyGunships='..(iEasyGunships or 'nil')..'; iTotalUnits='..iTotalUnits)
             else
                 MoveIndividualGunship(toUnitsByBasePlacementRef[iBasePlacement], tAdjustedMovePosition)
             end

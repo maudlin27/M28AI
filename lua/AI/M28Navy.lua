@@ -917,7 +917,7 @@ function ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-        if iCurShield < iMaxShield * 0.5 then
+        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.5 then
             --Retreat
             table.insert(tShieldsToRetreat, oUnit)
         elseif oUnit[M28Land.refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[M28Land.refoMobileShieldTarget]) then
