@@ -1606,13 +1606,14 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
                         if tUnitTable[iCurUnit] == oUnit then
                             table.remove(tUnitTable, iCurUnit)
                             M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] - 1
+                            LOG('Clearing paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
                             oUnit[refiPausedPriority] = nil
                             break
                         end
                     end
                 end
             else
-                M28Utilities.ErrorHandler('Unpausing unit with no pause priority, so unable to locate it in the table')
+                M28Utilities.ErrorHandler('Unpausing unit with no pause priority, so unable to locate it in the table, unit='..(oUnit.UnitId or 'nil')..(GetUnitLifetimeCount(oUnit) or 'nil'))
             end
         end
     else
@@ -1639,6 +1640,8 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
                 table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority], oUnit)
                 oUnit[refiPausedPriority] = iPausePriority
                 M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] + 1
+                LOG('Setting paused priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' equal to '..(iPausePriority or 'nil'))
+                if not(iPausePriority) then M28Utilities.ErrorHandler('Havent specified pause priority for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
             end
         end
     end
@@ -1659,8 +1662,6 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
     end
 
     if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
-        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
-
         --Want to pause unit, check for any special logic for pausing
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
         if (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) or (oUnit:IsPaused() and not(bPauseNotUnpause))) then
@@ -1682,11 +1683,14 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
         end
+        if bPauseNotUnpause == oUnit[refbPaused] then
+            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
+        end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt valid') end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, unit paused flag='..tostring(oUnit[refbPaused] or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code unit paused flag='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1708,7 +1712,6 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
         --Want this to run before the later stages so can properly track if unit is paused
         if not(bExcludeProduction) or bPauseNotUnpause then
-            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
 
             if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
                 if oUnit.UnitId == 'xsb2401'  and bPauseNotUnpause then M28Utilities.ErrorHandler('Pausing Yolona') end
@@ -1727,6 +1730,9 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
             elseif bDebugMessages == true then
                 LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1; is .SetPaused nil='..tostring(oUnit.SetPaused == nil)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit[refbPaused]='..tostring(oUnit[refbPaused])..'; fraction complete='..oUnit:GetFractionComplete()..'; Is unit a factory='..tostring(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
+            end
+            if oUnit[refbPaused] == bPauseNotUnpause then
+                AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
             end
         end
 
@@ -1758,6 +1764,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
             end
             oUnit[refbPaused] = bPauseNotUnpause
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': end of code oUnit[refbPaused]='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
 
     end
 
