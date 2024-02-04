@@ -114,6 +114,7 @@ refWeaponPriorityMegalith = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, 
 refbUsingDefaultWeaponPriority = 'M28UDfW' --true if using default weapon priroity (for unit with multiple options - e.g. gunships)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
+refiPausedPriority = 'M28UnitPsPr' --table index where the paused unit is s tored in team data
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
 
 --Categories:
@@ -1588,46 +1589,63 @@ function GetUpgradeEnergyCost(oUnit, sUpgradeRef)
     return iUpgradeEnergy
 end
 
-function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
-    local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
-    --Remove from list of paused units
+function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
+    --iPausePriority - if pausing unit, will reord this against the unit
 
+    --Remove from list of paused units
+    local iTeam = iOptionalTeam or oUnit:GetAIBrain().M28Team
     if not(bPauseNotUnpause) then
         if oUnit[refbPaused] then
-            local aiBrain = oUnit:GetAIBrain()
-            if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
-                for iPausedUnit, oPausedUnit in aiBrain[M28Economy.reftPausedUnits] do
-                    if oPausedUnit == oUnit then
-                        --LOG('AddOrRemoveUnitFromListOfPausedUnits: Removing unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' from table of paused units')
-                        table.remove(aiBrain[M28Economy.reftPausedUnits], iPausedUnit)
-                        break
+            local iUnitPausePriority = oUnit[refiPausedPriority]
+            if iUnitPausePriority then
+                local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+                local tUnitTable = M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iUnitPausePriority]
+                if M28Utilities.IsTableEmpty(tUnitTable) == false then
+                    local iAllPausedUnits = table.getn(tUnitTable)
+                    for iCurUnit = iAllPausedUnits, 1, -1 do
+                        if tUnitTable[iCurUnit] == oUnit then
+                            table.remove(tUnitTable, iCurUnit)
+                            M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] - 1
+                            oUnit[refiPausedPriority] = nil
+                            break
+                        end
                     end
                 end
+            else
+                M28Utilities.ErrorHandler('Unpausing unit with no pause priority, so unable to locate it in the table')
             end
         end
     else
         --Are pausing unit, make sure it is in the table of paused units
         if not(oUnit[refbPaused]) then
-            local aiBrain = oUnit:GetAIBrain()
             local bRecordUnit = true
-            if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
-                --Check if already recorded - redundancy due to nasty near-infinite loop in M27 where it could keep adding units to the table resulting in the same unit considered 20+ times
-                for iRecordedUnit, oRecordedUnit in aiBrain[M28Economy.reftPausedUnits] do
-                    if oRecordedUnit == oUnit then
-                        bRecordUnit = false
-                        break
+            local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+            if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority]) then
+                if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) then M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] = {} end
+                M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority] = {}
+            else
+                --Check not already recorded this unit (redundancy to avoid near-infinite loop that saw in M27 where untis would keep getting added to the table resulting in the same unit considered 20+ times)
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority]) == false then
+                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority] do
+                        if oRecordedUnit == oUnit then
+                            bRecordUnit = false
+                            break
+                        end
                     end
                 end
             end
             if bRecordUnit then
                 --LOG('AddOrRemoveUnitFromListOfPausedUnits: Adding unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' to table of paused units')
-                table.insert(aiBrain[M28Economy.reftPausedUnits], oUnit)
+                table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority], oUnit)
+                oUnit[refiPausedPriority] = iPausePriority
+                M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] = M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] + 1
             end
         end
     end
 end
 
-function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
+function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
+    --iPausePriority - only needed if are pausing the unit
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PauseOrUnpauseMassUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1641,7 +1659,7 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     end
 
     if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
-        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
+        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
 
         --Want to pause unit, check for any special logic for pausing
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
@@ -1673,7 +1691,8 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction)
+function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, iOptionalTeam, iPausePriority)
+    --iPausePriority - only needed if are pausing the unit
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1689,7 +1708,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction)
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
         --Want this to run before the later stages so can properly track if unit is paused
         if not(bExcludeProduction) or bPauseNotUnpause then
-            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
+            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
 
             if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
                 if oUnit.UnitId == 'xsb2401'  and bPauseNotUnpause then M28Utilities.ErrorHandler('Pausing Yolona') end

@@ -5550,7 +5550,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 local oUnitToReclaim = tLowestValueBlockingBuildings[1]
                 CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
                 for iEngineer, oEngineer in tAvailableEngineers do
-                    if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false) end
+                    if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false, nil, iTeam) end
                     M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GERecl', false)
                 end
                 tAvailableEngineers = nil
@@ -5585,7 +5585,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, false, 'GEBArt')
                 bTriedBuildingSomething = true
             end
-            if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false) end
+            if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false, nil, iTeam) end
             oEngineerToBuild[refbPrimaryBuilder] = true
             if not(oEngineerToBuild[M28Building.reftArtiTemplateRefs][3] == iTableRef) or not( oEngineerToBuild[M28Building.reftArtiTemplateRefs][2] == iLandZone) then oEngineerToBuild[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTableRef} end --Redundancy
         end
@@ -6146,7 +6146,7 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                             M28Orders.IssueTrackedBuild(oEngineerToBuild, tBuildLocation, sBPToBuild, false, 'GESMDB')
                             bTriedBuildingSomething = true
                         end
-                        if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false) end
+                        if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false, nil, iTeam) end
                         oEngineerToBuild[refbPrimaryBuilder] = true
                         if not(oEngineerToBuild[M28Building.reftArtiTemplateRefs][3] == iTemplateRef) or not( oEngineerToBuild[M28Building.reftArtiTemplateRefs][2] == iLandZone) then oEngineerToBuild[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef} end --Redundancy
                     else

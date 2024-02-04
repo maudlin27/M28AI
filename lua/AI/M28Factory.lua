@@ -2713,7 +2713,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     --Pause the factory if in campaign and are a campaign AI
                     if M28Map.bIsCampaignMap and aiBrain.CampaignAI then
                         --Pause the factory to stop the AI giving it something to build
-                        M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, true)
+                        M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, true, nil, 1)
                         oFactory[refbPausedToStopDefaultAI] = true
                     end
 
@@ -2851,7 +2851,7 @@ function IdleFactoryMonitor(aiBrain)
                         iTeam = oFactory:GetAIBrain().M28Team
                         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)..'; M28Team.tTeamData[M28Team.subrefiTeamNetMass]='..(M28Team.tTeamData[M28Team.subrefiTeamNetMass] or 'nil')..'; M28Team.tTeamData[M28Team.subrefiTeamNetEnergy]='..(M28Team.tTeamData[M28Team.subrefiTeamNetEnergy] or 'nil')) end
                         if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 0 then
-                            M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false)
+                            M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Unpause override for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
                         end
                     end
