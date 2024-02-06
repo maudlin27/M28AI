@@ -599,6 +599,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = 0
         tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = 0
+        tLZTeamData[M28Map.subrefLZThreatAllyMAA] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])

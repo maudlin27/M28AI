@@ -4793,7 +4793,11 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 if oNearestReclaim then
                     if oEngineer:IsUnitState('Capturing') then M28Utilities.ErrorHandler('Are aborting an engineer that was capturing and telling it to reclaim instead', true, true) end
                     bGivenOrder = true
-                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
+                    if oEngineer[M28UnitInfo.refbEasyBrain] then
+                        M28Orders.IssueTrackedAggressiveMove(oEngineer, oNearestReclaim:GetPosition(), 3, false, 'ReclLZeSeg', false)
+                    else
+                        M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')..'; mass value='..(oNearestReclaim.MaxMassReclaim or 'nil')) M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have any reclaim of sufficient value; iMinReclaimIndividualValue='..iMinReclaimIndividualValue) end
@@ -4818,7 +4822,11 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
             if bDebugMessages == true then LOG(sFunctionRef..': Recording that we failed to get reclaim in this zone, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)) end
             --If there is a valid reclaim nearby (it just is too low value) then also give order to reclaim this
             if oNearestReclaim and not(oEngineer:IsUnitState('Capturing')) then
-                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
+                if oEngineer[M28UnitInfo.refbEasyBrain] then
+                    M28Orders.IssueTrackedAggressiveMove(oEngineer, oNearestReclaim:GetPosition(), 3, false, 'ReclBLZeSeg', false)
+                else
+                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
+                end
             end
         end
     end
