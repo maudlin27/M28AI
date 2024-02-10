@@ -2870,7 +2870,7 @@ end
 
 function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -3183,8 +3183,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to upgrade T1 air fac to T2, iFactoryTechLevel='..iFactoryTechLevel..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
         if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 32 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2 and (not (M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory)) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 and not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory)))) and ((aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 45 and not (bHaveLowMass)) or not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetTravelDistanceBetweenPositions(oFactory:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase], M28Map.refPathingTypeLand) >= 375) then
-            if ConsiderUpgrading() then
-                return sBPIDToBuild
+            --Only upgrade if not in t1 spam mode, and either have a t2 mex or high gross mass
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering further conditions, M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+            if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+
+                if ConsiderUpgrading() then
+                    return sBPIDToBuild
+                end
             end
         end
 
@@ -3205,7 +3210,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) then
             --Try and get an upgrade if dont have low mass
             if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
-                if ConsiderUpgrading() then return sBPIDToBuild end
+                if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+                    if ConsiderUpgrading() then return sBPIDToBuild end
+                end
             end
         else
             --Adjacent LZs - gunship (enemy ground) or AirAA (enemy air)
@@ -3374,8 +3381,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': bUpgradingAirFactory already='..tostring(bUpgradingAirFactory)) end
                     if not (bUpgradingAirFactory) then
-                        if ConsiderUpgrading() then
-                            return sBPIDToBuild
+                        if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+                            if ConsiderUpgrading() then
+                                return sBPIDToBuild
+                            end
                         end
                     end
 
@@ -3401,7 +3410,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Emergency bomber production if have approaching experimental
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..iCurGunships..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunships)..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 0) + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0) <= 15000 then
                     local iClosestLandExp = 350 --Ignore land exp further away than this
                     local oClosestLandExp, iCurDist
