@@ -1699,7 +1699,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             if M28UnitInfo.IsUnitValid(oLauncher) then
                 if bTML then
 
-                    local tHighHealthTargets = {}
+                    --local tHighHealthTargets = {}
                     local tStartPos = oLauncher:GetPosition()
                     local tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
                     local iValidTargets = 0
