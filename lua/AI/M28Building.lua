@@ -2615,6 +2615,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             local iCurAAThreat
             local iShotMissFactor
             local iArtiAngleFactor
+
             for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
                 local tAltLZOrWZData
                 local tAltLZOrWZTeamData

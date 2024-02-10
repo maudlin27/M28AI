@@ -214,15 +214,20 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
                 end
             end
             local tNearbyHydro = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby hydro empty based on subreftoLZOrWZAlliedUnits='..tostring(M28Utilities.IsTableEmpty(tNearbyHydro))) end
             if M28Utilities.IsTableEmpty(tNearbyHydro) == false then
                 for iHydro, oHydro in tNearbyHydro do
+                    if bDebugMessages == true then LOG(sFunctionRef..': considering oHydro='..(oHydro.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oHydro) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oHydro))) end
                     if M28UnitInfo.IsUnitValid(oHydro) then
                         if oHydro:GetFractionComplete() < 1 then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oHydro:GetPosition(), oACU:GetPosition())
-                            if iCurDist < iNearestHydro then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; iNearestHydro='..iNearestHydro) end
+                            --2 competing scenarios to avoid, 1 - helping a teammate's hydro that starts construction just before our hydro; 2 - having 2 hydros in our base and not helping the first one because the second is slightly closer (e.g. xander adaptive)
+                            if iCurDist <= iNearestHydro or (not(oNearestUnderConstructionHydro) and (oHydro:GetAIBrain() == oACU:GetAIBrain() or iCurDist - 10 <= iNearestHydro)) then
                                 iNearestHydro = iCurDist
                                 tNearestHydro = oHydro:GetPosition()
                                 oNearestUnderConstructionHydro = oHydro
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording as the nearest hydro so far') end
                             end
                         else
                             iCompletedHydroCount = iCompletedHydroCount + 1
@@ -1062,8 +1067,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 --Hydro and power-stalling and tree reclaim within build area - reclaim trees
             elseif aiBrain:GetEconomyStored('ENERGY') <= 30 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 then
                 local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(oACU:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': Are power stalling, will see if energy reclaim nearby, energy in segment are in='..M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy]) end
-                if M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy] > 10 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Are power stalling, will see if energy reclaim nearby, energy in segment are in='..(M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy] or 'nil')) end
+                if (M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy] or 0) > 10 then
                     local iBuildRange = oACU:GetBlueprint().Economy.MaxBuildDistance
                     local rNearbyRect = M28Utilities.GetRectAroundLocation(oACU:GetPosition(), iBuildRange)
                     local tReclaimables = M28Map.GetReclaimInRectangle(4, rNearbyRect, false)
