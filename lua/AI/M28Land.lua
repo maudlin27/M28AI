@@ -664,6 +664,24 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
     end
+
+    --Add non-M28 teammate defences
+    if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoTeammateFixedDF]) then
+        local iAlliedFixedDF = 0
+        for iUnit, oUnit in tLZTeamData[M28Map.subreftoTeammateFixedDF] do
+            iAlliedFixedDF = iAlliedFixedDF + oUnit[M28UnitInfo.refiUnitMassCost]
+        end
+        tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] + iAlliedFixedDF
+        if bDebugMessages == true then LOG(sFunctionRef..': Increasing combat threat for zone '..iLandZone..' for DF by '..iAlliedFixedDF) end
+    end
+    if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoTeammateFixedAA]) then
+        local iAlliedFixedAA = 0
+        for iUnit, oUnit in tLZTeamData[M28Map.subreftoTeammateFixedAA] do
+            iAlliedFixedAA = iAlliedFixedAA + oUnit[M28UnitInfo.refiUnitMassCost]
+        end
+        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] + iAlliedFixedAA
+        if bDebugMessages == true then LOG(sFunctionRef..': Increasing AA allied threat for zone '..iLandZone..' by '..iAlliedFixedAA) end
+    end
     local bNearbyEnemies = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy units in this or adjacent LZ, is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Adjacent LZs='..repru(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
@@ -3666,7 +3684,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             local tOurDFAndT1ArtiUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAvailableCombatUnits)
                             local iAdjacentDistThreshold = 0
                             local iCurDist
-                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
+                            --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             for iUnit, oUnit in tOurDFAndT1ArtiUnits do
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                                 if iCurDist > iAdjacentDistThreshold then iAdjacentDistThreshold = iCurDist end
@@ -4412,7 +4430,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if iCurDist > iAdjacentDistThreshold then iAdjacentDistThreshold = iCurDist end
                             end
                             iAdjacentDistThreshold = iAdjacentDistThreshold + 20
-                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
+                            --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
                             local iStructureUnitDistThresholdAdjust = math.max(-30, -iAdjacentDistThreshold + 15)
                             local tbZonesConsidered = {}

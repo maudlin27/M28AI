@@ -1668,7 +1668,17 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) + 1
                                         end
                                     end
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF] = {} end
+                                    table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF], oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA, oUnit.UnitId) then
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA] = {} end
+                                    table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA], oUnit)
                                 end
+
+
                             else
                                 --M28 ally specific
 
