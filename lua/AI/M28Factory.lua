@@ -869,7 +869,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': bConsiderUpgrading='..tostring(bConsiderUpgrading)) end
         if bConsiderUpgrading then
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
         end
     end
@@ -2533,16 +2533,17 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
     local sFunctionRef = 'MovePotentialBlockingUnitsFromFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local aiBrain = oFactory:GetAIBrain()
 
     local rRect = M28Utilities.GetRectAroundLocation(oFactory:GetPosition(), M28UnitInfo.GetBuildingSize(oFactory.UnitId) * 0.5 - 0.2)
     local tUnitsInRect = GetUnitsInRect(rRect)
-    if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' owned by brain '..oFactory:GetAIBrain().Nickname..'; so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; Team='..aiBrain.M28Team..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
         local tMobileLandInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand, tUnitsInRect)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile land empty='..tostring(M28Utilities.IsTableEmpty(tMobileLandInRect))) end
         if M28Utilities.IsTableEmpty(tMobileLandInRect) == false then
             for iUnit, oUnit in tMobileLandInRect do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..tostring(M28UnitInfo.GetUnitState(oUnit))..'; Unit team='..oUnit:GetAIBrain().M28Team..'; Time last tried unblocking move order='..GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100)) end
                 if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
                     --Move the unit unless we've recently given such an order
                     if GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100) > 10 then
@@ -2642,10 +2643,15 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     end
                     break
                 end
-
-                if iTicksWaited >= 200 then
+                --(naval factories can take longer for larger units to move away, e.g. aircraft carriers)
+                if iTicksWaited >= 200 and (iTicksWaited >= 400 or not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId))) then
+                    --Only display warning if dealing with a conventional factory (since most of the time other factories will want to be building)
                     if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
                         M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                        if bDebugMessages == true then
+                            local oFacBrain = oFactory:GetAIBrain()
+                            LOG(sFunctionRef..': refiOurHighestAirFactoryTech='..oFacBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Our highest land fac tech='..oFacBrain[M28Economy.refiOurHighestLandFactoryTech]..'; refiOurHighestNavalFactoryTech='..oFacBrain[M28Economy.refiOurHighestNavalFactoryTech])
+                        end
                     end
                     break
                 elseif iTicksWaited >= 40 then
@@ -2653,8 +2659,11 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry stuck at 0 work progress, factory order blueprint='..(oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
                         if oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] and ((oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 5) or (M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) == false)) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' has been waiting a while and isnt ready, will see if issue is a blocking unit') end
-                            MovePotentialBlockingUnitsFromFactory(oFactory)
+                            --Naval facs can take longer for units to clear'; v74 - tried adjusting to allow naval facs to wait >200 ticks
+                            if iTicksWaited <= 200 or not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId)) or (oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 20) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' has been waiting a while and isnt ready, will see if issue is a blocking unit') end
+                                MovePotentialBlockingUnitsFromFactory(oFactory)
+                            end
                         end
                     end
                 end
@@ -2919,7 +2928,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     function ConsiderUpgrading()
         if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
         end
     end
@@ -3183,8 +3192,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to upgrade T1 air fac to T2, iFactoryTechLevel='..iFactoryTechLevel..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
         if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 32 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2 and (not (M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory)) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 and not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory)))) and ((aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 45 and not (bHaveLowMass)) or not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetTravelDistanceBetweenPositions(oFactory:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase], M28Map.refPathingTypeLand) >= 375) then
-            if ConsiderUpgrading() then
-                return sBPIDToBuild
+            --Only upgrade if not in t1 spam mode, and either have a t2 mex or high gross mass
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering further conditions, M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+            if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+
+                if ConsiderUpgrading() then
+                    return sBPIDToBuild
+                end
             end
         end
 
@@ -3205,7 +3219,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) then
             --Try and get an upgrade if dont have low mass
             if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
-                if ConsiderUpgrading() then return sBPIDToBuild end
+                if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+                    if ConsiderUpgrading() then return sBPIDToBuild end
+                end
             end
         else
             --Adjacent LZs - gunship (enemy ground) or AirAA (enemy air)
@@ -3374,8 +3390,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': bUpgradingAirFactory already='..tostring(bUpgradingAirFactory)) end
                     if not (bUpgradingAirFactory) then
-                        if ConsiderUpgrading() then
-                            return sBPIDToBuild
+                        if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+                            if ConsiderUpgrading() then
+                                return sBPIDToBuild
+                            end
                         end
                     end
 
@@ -3401,7 +3419,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Emergency bomber production if have approaching experimental
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..iCurGunships..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship)..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 0) + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0) <= 15000 then
                     local iClosestLandExp = 350 --Ignore land exp further away than this
                     local oClosestLandExp, iCurDist
@@ -3906,7 +3924,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     function ConsiderUpgrading()
         if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
         end
     end

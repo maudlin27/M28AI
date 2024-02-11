@@ -1162,6 +1162,10 @@ function MoveAwayFromFactory(oUnit, oFactory)
                         end
                     end
                     M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 0, false, 'JustBuilt', true)
+                    local iMicroDelay = 1.5
+                    if EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then iMicroDelay = 4 --done as when was 1.5 would have RAS SACUs given new orders like GE template just after being built and getting stuck
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then iMicroDelay = 4
+                    end
                     TrackTemporaryUnitMicro(oUnit, 1.5)
                 end
 

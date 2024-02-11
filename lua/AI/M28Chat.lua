@@ -36,7 +36,10 @@ tsPersonalityNames = {[refiFletcher] = 'Fletcher', [refiHall] = 'Hall', [refiCel
 refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific message involving this (used e.g. for ondamaged trigger for an experimental)
 
 function SendSuicideMessage(aiBrain)
-    --See the taunt.lua for a full list of taunts
+    --See the taunt.lua for a full list of taunts; recommended to manually use these via soundcue and bank info so can avoid voice audio overlapping
+    --Below was based on M27 - not actually used so commented out
+    M28Utilities.ErrorHandler('Old code, usage should be reviewed', true)
+    --[[
     local sFunctionRef = 'SendSuicideMessage'
     if GetGameTimeSeconds() - (tiM28VoiceTauntByType[sFunctionRef] or -10000) > 60 then
 
@@ -61,7 +64,7 @@ function SendSuicideMessage(aiBrain)
         LOG(sFunctionRef..': Sent chat message '..sTauntChatCode) --Log so in replays can see if this triggers since chat doesnt show properly
         SUtils.AISendChat('all', aiBrain.Nickname, '/'..sTauntChatCode) --QAI I cannot be defeated.
         tiM28VoiceTauntByType[sFunctionRef] = GetGameTimeSeconds()
-    end
+    end--]]
 end
 
 function SendForkedGloatingMessage(aiBrain, iOptionalDelay, iOptionalTimeBetweenTaunts)
@@ -106,6 +109,7 @@ function SendForkedGloatingMessage(aiBrain, iOptionalDelay, iOptionalTimeBetween
 end
 
 function SendGenericGloatingMessage(aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetweenTaunts)
+    --Note: Not recommended to use generally since it risks voice taunts overlapping
     ForkThread(SendForkedGloatingMessage, aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetweenTaunts)
 end
 
@@ -244,7 +248,7 @@ function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimil
                     if not(oBrain.M28Team == oBrainToSendMessage.M28Team) and IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                         if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
                             bEnemyHasAeon = true
-                        elseif oBrain:GetFactionIndex() == M28UnitInfo.bEnemyHasCybran then
+                        elseif oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
                             bEnemyHasCybran = true
                         end
                     end
@@ -506,6 +510,10 @@ end--]]
 
 function ConsiderPlayerSpecificMessages(aiBrain)
     --Call via ForkThread( given the delay - considers messages at start of game, including generic gl hf
+
+    --Below is based off M27 code, not actually used by M28 but left commented out in case decide want to make use of it
+    M28Utilities.ErrorHandler('Old chat code, usage should be reviewed', true)
+    --[[
     local sFunctionRef = 'ConsiderPlayerSpecificMessages'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
@@ -579,7 +587,7 @@ function ConsiderPlayerSpecificMessages(aiBrain)
         end
     end
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)--]]
 end
 
 function ConsiderEndOfGameMessage(oBrainDefeated)
@@ -668,8 +676,13 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
             table.insert(tsPotentialMessages, 'Thats not how the simulation went!')
 
             if not(M28Map.bIsCampaignMap) and (not(oBrainDefeated.CheatEnabled) or oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1) then
-                table.insert(tsPotentialMessages, 'Bet you couldnt beat an AiX version of me!')
-                table.insert(tsPotentialMessages, 'Make me an AiX and Ill show you what I can really do!')
+                if oBrainDefeated.M28Easy then
+                    table.insert(tsPotentialMessages, 'Time for the training wheels to come off')
+                    table.insert(tsPotentialMessages, 'Well done, but I was going easy on you')
+                else
+                    table.insert(tsPotentialMessages, 'Bet you couldnt beat an AiX version of me!')
+                    table.insert(tsPotentialMessages, 'Make me an AiX and Ill show you what I can really do!')
+                end
             elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
                 table.insert(tsPotentialMessages, 'Bet you couldnt beat me if I was a 1.5 AiX!')
             elseif not(M28Map.bIsCampaignMap) then
@@ -798,7 +811,10 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     else
                         if bHadEnemyHuman then
                             table.insert(tsPotentialMessages, 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
-                            if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] == 1 then table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time') end
+                            if (oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] or 1) == 1 then
+                                table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time')
+                                if not(oEnemyM28AIBrain.M28Easy) then table.insert(tsPotentialMessages, 'If you found me too hard you could practice against M28Easy') end
+                            end
                             table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
                         end
                     end
@@ -1153,8 +1169,8 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
                 AddPotentialMessage(LOC('<LOC X02_T01_180_010>: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.'), 'X02_QAI_T01_04554', 'X02_VO')
             end
             AddPotentialMessage(LOC('<LOC X05_T01_100_010>: On this day, I will teach you the true power of the Quantum Realm.'), 'X05_QAI_T01_04424', 'X05_VO')
-            AddPotentialMessage('/82') -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
-            AddPotentialMessage('/83') --QAI: All calculations indicate that your demise is near
+            AddPotentialMessage(LOC('<LOC X02_T01_280_010>: If you destroy this ACU, another shall rise in its place. I am endless.'), 'X02_QAI_T01_04564', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_220_010>: All calculations indicate that your demise is near.'), 'X02_QAI_T01_04558', 'X02_VO')
             AddPotentialMessage(LOC('<LOC XGG_MP1_490_010>[{i QAI}]: You will not prevail.'), 'XGG_QAI_MP1_04614', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_500_010>[{i QAI}]: Your destruction is 99% certain.'), 'XGG_QAI_MP1_04615', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_510_010>[{i QAI}]: I cannot be defeated.'), 'XGG_QAI_MP1_04616', 'XGG')

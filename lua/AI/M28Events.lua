@@ -1241,6 +1241,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic, Unit='..(oConstruction.UnitId or 'nil')..'; Engineer action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Engineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil'))
                             oConstruction[M28Building.reftArtiTemplateRefs] = nil
                             if EntityCategoryContains(M28UnitInfo.refCategoryFactory + categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) then oEngineer[M28Building.reftArtiTemplateRefs] = nil end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engi starting unexpected category, oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; Brain='..oEngineer:GetAIBrain().Nickname..'; index='..oEngineer:GetAIBrain():GetArmyIndex()) end
                         end
                     else M28Utilities.ErrorHandler('Started building a unit for arti template but it isnt in a zone')
                     end

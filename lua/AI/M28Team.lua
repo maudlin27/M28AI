@@ -862,8 +862,8 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
 
 
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then
-        M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit, UnitId='..oUnit.UnitId)
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then
+        M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit, UnitId='..oUnit.UnitId)
     end
 
 
@@ -1016,7 +1016,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         end
     end
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 then M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit') end
 
 
     local bAddToZone = true
@@ -1668,7 +1668,17 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) + 1
                                         end
                                     end
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF] = {} end
+                                    table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedDF], oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA, oUnit.UnitId) then
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA] = {} end
+                                    table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA], oUnit)
                                 end
+
+
                             else
                                 --M28 ally specific
 

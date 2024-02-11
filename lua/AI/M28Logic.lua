@@ -492,8 +492,12 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         if M28Overseer.refiRoughTotalUnitsInGame >= 1000 then iCategoryToSearch = iCategoryToSearch - M28UnitInfo.refCategoryMobileLand * categories.TECH1 + categories.COMMAND end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, Time='..GetGameTimeSeconds()..'; bCheckForShields='..tostring(bCheckForShields)..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage..'; bCumulativeShieldHealthCheck='..tostring(bCumulativeShieldHealthCheck or false)..'; iOptionalSizeAdjust='..(iOptionalSizeAdjust or 'nil')..'; iOptionalModIfNeedMultipleShots='..(iOptionalModIfNeedMultipleShots or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; bT3ArtiShotReduction='..tostring(bT3ArtiShotReduction or false)..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')) end
-    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
+    local bCheckForCaptureTarget = M28Map.bIsCampaignMap
+    local iSearchRangeIncrease = 0
+    if bCheckForCaptureTarget then iSearchRangeIncrease = 4 end --incase when tested the campaign this was an issue (as originally used a value of iAOE + 4 prior to changing in v74)
+    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + iSearchRangeIncrease, 'Enemy')
     local tLZOrWZData
+
     --Expand enemies in range with any unseen enemies (e.g. these will be enemies that are firing at us or we have intel of previously but have now lost)
     if bIncludePreviouslySeenEnemies or M28Map.bIsCampaignMap then
 
@@ -509,6 +513,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
             end
         end
+        local bHaveUnitsInRange = not(M28Utilities.IsTableEmpty(tEnemiesInRange)) --used to decide if we need to do a distance check
         if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; is table of capture units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]))..'; Is tLZOrWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData))) end
         if bIncludePreviouslySeenEnemies and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
             local tRelevantUnits = EntityCategoryFilterDown(iCategoryToSearch, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
@@ -520,9 +525,13 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         end
                     end
                     if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) then
-                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
+                        if bHaveUnitsInRange then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range, will check its distance later') end
                             table.insert(tEnemiesInRange, oUnit)
+                        elseif M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range as it is within range, allowing for AOE') end
+                            table.insert(tEnemiesInRange, oUnit)
+                            bHaveUnitsInRange = true
                         end
                     end
                 end
@@ -574,7 +583,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
                         end
                     else
-                        iTotalDamage = iTotalDamage - oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
+                        iTotalDamage = iTotalDamage - (oUnit[M28UnitInfo.refiUnitMassCost] or 0) * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
                     end
                 end
             end
@@ -626,7 +635,6 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
         end
         -- not(aiBrain[M27Overseer.refiActiveEnemyBrains] > 1 and ScenarioInfo.Options.Share == 'FullShare')
-        local bCheckForCaptureTarget = M28Map.bIsCampaignMap
         for iUnit, oUnit in tEnemiesInRange do
             if bDebugMessages == true then
                 if M28UnitInfo.IsUnitValid(oUnit) then
@@ -648,7 +656,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit is a capture target='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; reducing damage from bomb, iCurDist='..iCurDist..'; Damage after reduction (but may still have other units)='..iTotalDamage) end
                 end
-                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE then
+                if iCurDist <= iAOE then
                     --Is the unit shielded by more than 90% of our damage?
                     --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
                     if bCheckForShields and IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
