@@ -1565,7 +1565,6 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                 else
                                     if not(bAdjacentToCoreLZ) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Not adjacent to core LZ so want to run as it is dangerous for ACUs now') end
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         bWantToRun = true
                                     end
                                 end

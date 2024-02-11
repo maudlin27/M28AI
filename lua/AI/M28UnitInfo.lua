@@ -534,7 +534,7 @@ function GetMassCostOfUnits(tUnits)
     local iMassCost = 0
     if M28Utilities.IsTableEmpty(tUnits) == false then
         for iUnit, oUnit in tUnits do
-            iMassCost = iMassCost + oUnit[refiUnitMassCost]
+            iMassCost = iMassCost + (oUnit[refiUnitMassCost] or 0)
         end
     end
     return iMassCost

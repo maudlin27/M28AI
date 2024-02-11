@@ -316,6 +316,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefbFailedToGetArtiLocation = 12
                 subrefGEbActiveShieldMonitor = 13
                 subrefiCyclesWaitingForEngineer = 14
+                subrefGEShieldBlockedFailureCount = 15 --used to stop constantly searching for blocking buildings for a shield
+                subrefGEArtiBlockedFailureCount = 16 --used to stop constantly searching for blocking buildings for an arti
+                subrefGEDefenceBlockedFailureCount = 17
 
 
 
@@ -8303,7 +8306,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
         }
 
         tBaseTable[subreftLargeShieldLocations] = {
-            --NOTE: If changing these then review use of tbShieldEntiresNotToConsider
+            --NOTE: If changing these then review use of tbShieldEntriesNotToConsider
             [1] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 }, --To the right of the RH paragon
             [2] = { tMidpoint[1] - 10, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
             [3] = { tMidpoint[1] -4,0, tMidpoint[3] + 3 }, --Row 2 Inner left
@@ -8325,7 +8328,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
         }
 
         tBaseTable[subreftLargeShieldLocations] = {
-            --NOTE: If changing these then review use of tbShieldEntiresNotToConsider
+            --NOTE: If changing these then review use of tbShieldEntriesNotToConsider
             [1] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 }, --To the right of the RH novax
             [2] = { tMidpoint[1] - 9, 0, tMidpoint[3] + 3 }, --Row 2, LH side, X: 3 in from far left (which would be 13) in from the above LH shield; V: 3 down
             [3] = { tMidpoint[1]+ -3,0, tMidpoint[3] + 3 }, --Row 2 Inner left
@@ -8343,7 +8346,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
         --Vertical midpoint: Might as well pick it so we have 2 shields (12) below, and 1 paragon (10) above, so easier to think through adjustments
         tBaseTable[subreftLargeArtiLocations] = {[1]={tMidpoint[1],0,tMidpoint[3]-5}} --1 paragon: At midpoint horizontally, but is size 10 vs 2 shields which are size 12, so want to move it up 2 vertically
         tBaseTable[subreftLargeShieldLocations] = {
-            --NOTE: If changing these then review use of tbShieldEntiresNotToConsider
+            --NOTE: If changing these then review use of tbShieldEntriesNotToConsider
             [1] = { tMidpoint[1] - 8, 0, tMidpoint[3] - 3 }, --To the left of the paragon (-5+-3); vertically the bottom will be in line with the paragon bottom
             [2] = { tMidpoint[1] + 8, 0, tMidpoint[3] - 3 }, --Right size of paragon
             [3] = { tMidpoint[1] - 6, 0, tMidpoint[3] + 3 }, --LH side,X: 2 in from the above LH shield; V: 3 down

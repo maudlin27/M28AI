@@ -195,7 +195,7 @@ tiActionCategory = {
     [refActionAssistShield] = M28UnitInfo.refCategoryFixedShield * categories.TECH3,
     [refActionBuildSecondMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionCompletePartBuiltMex] = M28UnitInfo.refCategoryT1Mex,
-    [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE,
+    [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE + M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL * categories.CYBRAN + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL * categories.SERAPHIM,
     [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
     [refActionBuildLandExperimental] = M28UnitInfo.refCategoryLandExperimental,
     [refActionBuildWall] = M28UnitInfo.refCategoryWall,
@@ -5501,11 +5501,21 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEArtiLocations] do
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5 - 0.3)) --tried with -0.7 but wouldnt pickup on SAM that was just inside the shield build area
                 if not(tBlockingUnits) then
-                    M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it')
+                    M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it', true)
+                    if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry]) then
+                        if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount]) then tTableRef[M28Map.subrefGEArtiBlockedFailureCount] = {} end
+                        tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = 0
+                    end
+                    tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] + 1
                 else
                     local tBlockingUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryWall, tBlockingUnits)
                     if M28Utilities.IsTableEmpty(tBlockingUnits) then
-                        M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it')
+                        M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it', true)
+                        if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry]) then
+                            if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount]) then tTableRef[M28Map.subrefGEArtiBlockedFailureCount] = {} end
+                            tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = 0
+                        end
+                        tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] + 1
                     else
                         tUnitsToConsiderReclaiming = {}
                         for iUnit, oUnit in tBlockingUnits do
@@ -5546,6 +5556,12 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                 iLowestValueRef = iEntry
                                 bHavePotentiallyValidLocation = true
                             end
+                        else
+                            if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry]) then
+                                if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount]) then tTableRef[M28Map.subrefGEArtiBlockedFailureCount] = {} end
+                                tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = 0
+                            end
+                            tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] + 1
                         end
                     end
                 end
@@ -5680,7 +5696,7 @@ end
 
 function ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
     oEngineerToBuild[refiGETemplateTimeTryingToBuild] = (oEngineerToBuild[refiGETemplateTimeTryingToBuild] or 0) + 1
-    if oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 15 then
+    if oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 15 and (not(oEngineerToBuild[M28UnitInfo.refbSpecialMicroActive]) or oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 50) then
         M28Orders.IssueTrackedClearCommands(oEngineerToBuild)
         oEngineerToBuild[refiGETemplateTimeTryingToBuild] = 0
     end
@@ -5766,11 +5782,11 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
 
         --Scenarios where we have 2 arti locations but our shield radius is too small - dont want to build on the 7th shield location, but instead want to build on the arti location
         local bUseArtiInsteadOfLastShieldLocation = false
-        local tbShieldEntiresNotToConsider = {}
+        local tbShieldEntriesNotToConsider = {}
 
         if __blueprints[sShieldToBuild].Defense.ShieldSize <= 37 and table.getn(tTableRef[M28Map.subrefGEArtiLocations]) >= 2 and not(oFirstUEF) and not(oFirstSeraphim) then
             --Only want to build aeon/cybran shields in the 'middle' locations (where they cover both game-enders and all other shields), outer shields will need to be UEF/Seraphim
-            tbShieldEntiresNotToConsider = {[1]=true,[2]=true,[5]=true,[6]=true,[8]=true}
+            tbShieldEntriesNotToConsider = {[1]=true,[2]=true,[5]=true,[6]=true,[8]=true}
             --Flag we want UEF and sera engineers
             if not(tLZTeamData[M28Map.subreftbBPByFactionWanted]) then tLZTeamData[M28Map.subreftbBPByFactionWanted] = {} end
             if not(oFirstUEF) then
@@ -5810,7 +5826,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         local iLocationsToBuild = 0
         if not(iMaxShieldsToTryAndBuild) then iMaxShieldsToTryAndBuild = 1 end
         for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEShieldLocations] do
-            if not(tbShieldEntiresNotToConsider[iEntry]) then
+            if not(tbShieldEntriesNotToConsider[iEntry]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering shield location '..repru(tBuildLocation)..'; can we build a shield here='..tostring(aiBrain:CanBuildStructureAt(sShieldToBuild, tBuildLocation))) end
                 if aiBrain:CanBuildStructureAt(sShieldToBuild, tBuildLocation) then
                     table.insert(tLocationsToBuild, {tBuildLocation[1], tBuildLocation[2],tBuildLocation[3]})
@@ -5910,20 +5926,31 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
 
         if M28Utilities.IsTableEmpty(tAvailableEngineers) == false and iLocationsToBuild < iMaxShieldsToTryAndBuild and (iLocationsToBuild == 0 or not(bUseArtiInsteadOfLastShieldLocation)) then
             --Look to reclaim buildings that are blocking us with remaining engineers, unless they are very high value buildings
+            M28Profiler.FunctionProfiler(sFunctionRef..'ReclaimBlockers', M28Profiler.refProfilerStart)
             local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
             local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
             local bHavePotentiallyValidLocation = false
             local tUnitsToConsiderReclaiming
             local iXDif, iZDif
 
-            function ConsiderUnitsToReclaim(tBuildLocation)
+            function ConsiderUnitsToReclaim(tBuildLocation, iEntry)
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5 - 0.3))
                 if not(tBlockingUnits) then
-                    M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it')
+                    M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it', true)
+                    if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry]) then
+                        if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount]) then tTableRef[M28Map.subrefGEShieldBlockedFailureCount] = {} end
+                        tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = 0
+                    end
+                    tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] + 1
                 else
                     local tBlockingUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryWall, tBlockingUnits)
                     if M28Utilities.IsTableEmpty(tBlockingUnits) then
-                        M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it')
+                        M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it', true)
+                        if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry]) then
+                            if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount]) then tTableRef[M28Map.subrefGEShieldBlockedFailureCount] = {} end
+                            tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = 0
+                        end
+                        tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] + 1
                     else
                         tUnitsToConsiderReclaiming = {}
                         for iUnit, oUnit in tBlockingUnits do
@@ -5983,17 +6010,27 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                                 bHavePotentiallyValidLocation = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have a potentially valid location for shields so will reclaim if it remains the lowest value of blocking units') end
                             end
+                        else
+                            if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry]) then
+                                if not(tTableRef[M28Map.subrefGEShieldBlockedFailureCount]) then tTableRef[M28Map.subrefGEShieldBlockedFailureCount] = {} end
+                                if bDebugMessages == true then LOG(sFunctionRef..': tTableRef[M28Map.subrefGEShieldBlockedFailureCount]='..repru(tTableRef[M28Map.subrefGEShieldBlockedFailureCount])..'; iEntry='..iEntry..'; Is tTableRef[M28Map.subrefGEShieldBlockedFailureCount] nil='..tostring(tTableRef[M28Map.subrefGEShieldBlockedFailureCount] == nil)) end
+                                tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = 0
+                            end
+                            tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] + 1
                         end
                     end
                 end
             end
 
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEShieldLocations] do
-                if not(tbShieldEntiresNotToConsider[iEntry]) then
-                    ConsiderUnitsToReclaim(tBuildLocation)
+                if not(tbShieldEntriesNotToConsider[iEntry]) then
+                    if (tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] or 0) <= 5 then
+                        ConsiderUnitsToReclaim(tBuildLocation, iEntry)
+                    end
                 end
             end
-            if not(bHavePotentiallyValidLocation) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiLocations][2]) == false then ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGEArtiLocations][2]) end
+            M28Profiler.FunctionProfiler(sFunctionRef..'ReclaimBlockers', M28Profiler.refProfilerEnd)
+            if not(bHavePotentiallyValidLocation) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiLocations][2]) == false then ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGEArtiLocations][2], 2) end
             if bHavePotentiallyValidLocation then
                 --Get all engineers to reclaim the units here
                 local oUnitToReclaim = tLowestValueBlockingBuildings[1]
@@ -6165,14 +6202,24 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                         local iXDif, iZDif
                         local iBuildingSize = M28UnitInfo.GetBuildingSize(sBPToBuild)
 
-                        function ConsiderUnitsToReclaim(tSearchLocation)
+                        function ConsiderUnitsToReclaim(tSearchLocation, iEntry)
                             local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tSearchLocation, iBuildingSize * 0.5 - 0.3))
                             if not(tBlockingUnits) then
-                                M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it')
+                                M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it', true)
+                                if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
+                                    if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
+                                    tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
+                                end
+                                tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
                             else
                                 local tBlockingUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryWall, tBlockingUnits)
                                 if M28Utilities.IsTableEmpty(tBlockingUnits) then
-                                    M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it')
+                                    M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it', true)
+                                    if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
+                                        if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
+                                        tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
+                                    end
+                                    tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
                                 else
                                     tUnitsToConsiderReclaiming = {}
                                     for iUnit, oUnit in tBlockingUnits do
@@ -6232,13 +6279,20 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                                             bHavePotentiallyValidLocation = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have a potentially valid location for shields so will reclaim if it remains the lowest value of blocking units') end
                                         end
+                                    else
+                                        if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
+                                            if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
+                                            tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
+                                        end
+                                        tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
                                     end
                                 end
                             end
                         end
 
-
-                        ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGESMDLocation])
+                        if (tTableRef[M28Map.subrefGEShieldBlockedFailureCount][1] or 0) < 5 then
+                            ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGESMDLocation], 1)
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': bHavePotentiallyValidLocation='..tostring(bHavePotentiallyValidLocation or false)..'; Is tLowestValueBlockingBuildings empty='..tostring(M28Utilities.IsTableEmpty(tLowestValueBlockingBuildings))) end
                         if bHavePotentiallyValidLocation then
                             --Get all engineers to reclaim the units here
@@ -6346,6 +6400,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                             if not(oFirstEngineer) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3 + categories.SUBCOMMANDER * categories.TECH3, oEngineer.UnitId) then oFirstEngineer = oEngineer end
                             if not(oEngineer[M28Building.reftArtiTemplateRefs]) then oEngineer[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef} end --redundancy
                         end
+
+
                     end
 
                     tAvailableT3EngineersByFaction = {}
@@ -6606,7 +6662,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         if tTableRef[M28Map.subrefGEbDontNeedEngineers] and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
             for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont want any more engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
-                M28Orders.IssueTrackedClearCommands(oEngineer)
+                if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+                    M28Orders.IssueTrackedClearCommands(oEngineer)
+                end
                 --Make sure RAS SACUs have their assigned template cleared
                 if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
                     oEngineer[M28Building.reftArtiTemplateRefs] = nil
@@ -6622,7 +6680,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
             if bDebugMessages == true then LOG(sFunctionRef..': Redundancy for clearing engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
             if M28UnitInfo.IsUnitValid(oEngineer) then
-                M28Orders.IssueTrackedClearCommands(oEngineer)
+                if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+                    M28Orders.IssueTrackedClearCommands(oEngineer)
+                end
                 --Make sure RAS SACUs have their assigned template cleared
                 if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
                     oEngineer[M28Building.reftArtiTemplateRefs] = nil
@@ -6825,6 +6885,10 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 oEngineer[refbPrimaryBuilder] = true
                 oEngineer[refiAssignedActionPriority] = 1
             end
+            --Clear engineer orders to avoid it carrying on an order it previously had and that unit being treated as a GE template unit
+            if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) or not(EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oEngineer.UnitId)) then
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Will start a manager for this zone if we dont already have one, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
         if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor]) then
@@ -6834,7 +6898,9 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
         end
     else
         M28Utilities.ErrorHandler('Couldnt find a gameender template for engineer to assist so will clear its orders')
-        M28Orders.IssueTrackedClearCommands(oEngineer)
+        if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+            M28Orders.IssueTrackedClearCommands(oEngineer)
+        end
         ClearEngineerTracking(oEngineer)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
