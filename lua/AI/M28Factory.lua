@@ -2879,7 +2879,7 @@ end
 
 function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -3419,7 +3419,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Emergency bomber production if have approaching experimental
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunships)..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if have approaching experimental, iCurGunships='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship)..'; Is table of enemy land exp empty='..tostring( M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; Can path to base with amphibious='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious])) end
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 0) + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0) <= 15000 then
                     local iClosestLandExp = 350 --Ignore land exp further away than this
                     local oClosestLandExp, iCurDist

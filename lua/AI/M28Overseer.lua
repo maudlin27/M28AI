@@ -2246,7 +2246,7 @@ end
 
 function DecideOnGeneralMapStrategy(aiBrain)
     --Decide if we want to consider ignoring T2 mex upgrading and going all in on T1 spam
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnGeneralMapStrategy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

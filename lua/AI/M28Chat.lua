@@ -248,7 +248,7 @@ function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimil
                     if not(oBrain.M28Team == oBrainToSendMessage.M28Team) and IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                         if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
                             bEnemyHasAeon = true
-                        elseif oBrain:GetFactionIndex() == M28UnitInfo.bEnemyHasCybran then
+                        elseif oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
                             bEnemyHasCybran = true
                         end
                     end
