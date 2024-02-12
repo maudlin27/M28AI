@@ -114,7 +114,7 @@ function SendGenericGloatingMessage(aiBrain, iOptionalDelayInSeconds, iOptionalT
 end
 
 function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimilarMessages)
-    local sFunctionRef = 'JustKilledEnemyValuableUnit'
+    local sFunctionRef = 'SendGloatingMessage'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28Map.bIsCampaignMap or not(aiBrain[refiAssignedPersonality]) or (aiBrain[refiAssignedPersonality] == refiQAI and not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran)) then

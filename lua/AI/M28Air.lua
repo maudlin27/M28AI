@@ -4482,9 +4482,12 @@ function ManageGunships(iTeam, iAirSubteam)
 
         --Retreat if ahwassa bomb exploded near front gunship
         local bRetreatFromAhwassa = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to retreat from Ahwassa targets, tiRecentExpBomberTargets='..repru(tiRecentExpBomberTargets)) end
         if oFrontGunship and M28Utilities.IsTableEmpty(tiRecentExpBomberTargets) == false then
+            local iDistanceThreshold = 55 + math.min(20, table.getn(tAvailableGunships) * 0.25)
             for iTarget, tTarget in tiRecentExpBomberTargets do
-                if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget) <= 40 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist between front gunship and ahwassa target='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget)..'; iDistanceThreshold='..iDistanceThreshold) end
+                if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget) <= iDistanceThreshold then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to retreat from ahwassa target, tTarget='..repru(tTarget)..'; Dist to front gunship='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tTarget)) end
                     bRetreatFromAhwassa = true
                     break
@@ -4541,7 +4544,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                     if tiPlateauAndZone[1] > 0 then
                         local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        if not(bRetreatFromAhwassa) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             local iCurDistToBase
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
 

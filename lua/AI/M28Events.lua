@@ -191,8 +191,12 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                             bConsiderMessage = true
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
-                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                    if bConsiderMessage then
+                                        if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                            ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                        end
+                                    end
                                 end
                             end
                         end
