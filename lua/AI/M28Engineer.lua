@@ -15121,6 +15121,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Time='..GetGameTimeSeconds()) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
@@ -15208,8 +15209,13 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
                 end
             end
-            local iLongRangeFurtherAwayThreat = M28Land.GetFarAwayLandThreatOfLongRangeUnits(tLZData[M28Map.subrefMidpoint], iTeam, not(tLZTeamData[M28Map.subrefLZbCoreBase])) --Will just consider mobile long range units
-            if iLongRangeFurtherAwayThreat > 0 then iBestEnemyRange = math.max(90, iBestEnemyRange) end --assume enemy long range threat will be at least 90, e.g. fatboy
+            local iLongRangeFurtherAwayThreat = M28Land.GetFarAwayLandThreatOfLongRangeUnits(tLZData[M28Map.subrefMidpoint], iTeam, (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.refbBaseInSafePosition])) --Will just consider mobile long range units
+            if iLongRangeFurtherAwayThreat > 0 then
+                iBestEnemyRange = math.max(90, iBestEnemyRange) --assume enemy long range threat will be at least 90, e.g. fatboy
+                --If this is a safe base and the LR threat is sub-8k and we have low mass then ignore (we already reduce the threat for fractinocomplete in the above function)
+                if iLongRangeFurtherAwayThreat <= 8000 and bHaveLowMass and tLZTeamData[M28Map.refbBaseInSafePosition] then iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat * 0.1 end
+            end
+
 
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat..'; iHighestIndividiualLongRangeThreat='..iHighestIndividiualLongRangeThreat..'; Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat) end
             if iEnemyLongRangeThreat >= 750 or iLongRangeFurtherAwayThreat >= 750 or iHighestIndividiualLongRangeThreat > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or iNearbyEnemyFixedShieldThreat > 0 then

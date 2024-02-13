@@ -2649,3 +2649,47 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function JustBuiltT2PlusPowerOrExperimentalInZone(oPGen)
+    --If we dont have an activem ex upgrade in the zone then will try and upgrade a mex, assuming it is safe
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'JustBuiltT2PlusPowerOrExperimentalInZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTeam = oPGen:GetAIBrain().M28Team
+    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oPGen:GetPosition(), true, iTeam)
+    if tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] == 0 and (tLZOrWZData[M28Map.subrefLZMexCount] or 0) > 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < tLZOrWZData[M28Map.subrefLZMexCount] then
+        if  tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0 and EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oPGen.UnitId)) then
+            if not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        --Get a mex in the zone to upgrade
+                        local oMexToUpgrade
+                        local iCurDist
+                        local iClosestDist = 10000
+                        function ConsiderUnits(tUnitsToConsider)
+                            if M28Utilities.IsTableEmpty(tUnitsToConsider) == false then
+                                for iUnit, oUnit in tUnitsToConsider do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                                        if iCurDist < iClosestDist then
+                                            iClosestDist = iCurDist
+                                            oMexToUpgrade = oUnit
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        ConsiderUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryT1Mex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))
+                        if not(oMexToUpgrade) then ConsiderUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Mex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) end
+                        if oMexToUpgrade  then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just completed oPgen='..oPGen.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPGen)..'; oMexToUpgrade='..oMexToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMexToUpgrade)) end
+                            UpgradeUnit(oMexToUpgrade, true)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

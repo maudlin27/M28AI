@@ -1240,7 +1240,7 @@ end
 
 function MoveAndKillAirUnit(oUnit)
     --Move to a random nearby positionand then ctrl-k; reason is to reduce likelihood we are detsroying existing wrecks
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MoveAndKillAirUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

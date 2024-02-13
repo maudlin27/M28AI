@@ -1630,6 +1630,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
                             --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
@@ -1680,11 +1681,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
                             --If enemy has nuke then flag we need resources for missile
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                             --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
@@ -1703,7 +1708,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) + 1
                                 end
                             end
-
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                         ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
