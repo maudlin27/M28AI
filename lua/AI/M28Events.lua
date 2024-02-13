@@ -191,8 +191,12 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                             bConsiderMessage = true
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
-                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                    if bConsiderMessage then
+                                        if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                            ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -1283,6 +1287,19 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have told engineer to abort consturction of '..oConstruction.UnitId..' and to reclaim it instead') end
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer that is starting this construction='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')) end
+                        if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
+                            local iTeam = oConstruction:GetAIBrain().M28Team
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to cancel experimental queued in other zones, bCancelBuilding='..tostring(bCancelBuilding)..'; M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Team has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))) end
+                            if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 20000 and M28Conditions.TeamHasLowMass(iTeam) then
+                                --If dont have an experimental constructed yet then when we start our first exp go through each other zone with engineers trying to build an experimental and clear the engineers if we have low mass and the engineers havent started building yet
+                                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+                                if iPlateau > 0 and iLandZone > 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider cancelling other queued engineer construction if there is any; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true)
+                                end
+                            end
+                        end
+
                         --Game ender and T3 arti specific - reserve locations for shields
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
@@ -1613,6 +1630,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
                             --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
@@ -1663,11 +1681,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
                             --If enemy has nuke then flag we need resources for missile
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                 M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                             end
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                             --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderManualT2ArtiTarget, oJustBuilt)
@@ -1686,7 +1708,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) + 1
                                 end
                             end
-
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
+                            ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                         ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
