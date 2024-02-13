@@ -1674,8 +1674,27 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to upgrade factory, iFactoryTechLevel='..(iFactoryTechLevel or 'nil')..'; Highest friendly tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; Time since last had no order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100))..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; iUnitCountToUpgrade='..iUnitCountToUpgrade..'; Factory lifetime build count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
             if M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= iUnitCountToUpgrade then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
-                if ConsiderUpgrading() then return sBPIDToBuild end
+                --Exception - we have access to higher tech than this factory already, and have low mass, and still have mexes in the zone at the same tech levle as this factory
+                if not(bHaveLowMass) or M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= math.max(20, iUnitCountToUpgrade * 3) or tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] == 0 and (iFactoryTechLevel == 1 or tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel][1] == 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                    if ConsiderUpgrading() then return sBPIDToBuild end
+                else
+                    local iHighestOtherLandOrAirTech = 0
+
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local tOtherFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory,  tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tOtherFactoriesInZone) == false then
+                            for iOtherFactory, oOtherFactory in tOtherFactoriesInZone do
+                                iHighestOtherLandOrAirTech = math.max(iHighestOtherLandOrAirTech, M28UnitInfo.GetUnitTechLevel(oOtherFactory))
+                            end
+                        end
+                    end
+                    if iHighestOtherLandOrAirTech <= iFactoryTechLevel then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have any factories with a higher tech level so will try upgrading this factory, factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                        if ConsiderUpgrading() then return sBPIDToBuild end
+                    end
+
+                end
             end
         end
 
