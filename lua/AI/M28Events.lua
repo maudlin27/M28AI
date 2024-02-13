@@ -1287,6 +1287,19 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have told engineer to abort consturction of '..oConstruction.UnitId..' and to reclaim it instead') end
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer that is starting this construction='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')) end
+                        if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
+                            local iTeam = oConstruction:GetAIBrain().M28Team
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to cancel experimental queued in other zones, bCancelBuilding='..tostring(bCancelBuilding)..'; M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Team has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))) end
+                            if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 20000 and M28Conditions.TeamHasLowMass(iTeam) then
+                                --If dont have an experimental constructed yet then when we start our first exp go through each other zone with engineers trying to build an experimental and clear the engineers if we have low mass and the engineers havent started building yet
+                                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+                                if iPlateau > 0 and iLandZone > 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider cancelling other queued engineer construction if there is any; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true)
+                                end
+                            end
+                        end
+
                         --Game ender and T3 arti specific - reserve locations for shields
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)

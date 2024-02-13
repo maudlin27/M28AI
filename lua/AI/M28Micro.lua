@@ -1237,3 +1237,66 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bGivenOrder
 end
+
+function MoveAndKillAirUnit(oUnit)
+    --Move to a random nearby positionand then ctrl-k; reason is to reduce likelihood we are detsroying existing wrecks
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MoveAndKillAirUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
+        if bDebugMessages == true then LOG(sFunctionRef..': About to give more and kill order to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; time='..GetGameTimeSeconds()) end
+        if oUnit[M28UnitInfo.refbEasyBrain] then
+            M28Orders.IssueTrackedKillUnit(oUnit)
+        else
+            local iPotentialXAdjust, iPotentialZAdjust
+            local iSearchRadius = 30
+            local bHaveLowHealthUnitOrReclaim
+            local iMaxSearchAttempt = 10
+            for iSearchAttempt = 1, iMaxSearchAttempt do
+                bHaveLowHealthUnitOrReclaim = false
+                iPotentialXAdjust = math.random(1,iSearchRadius*2) - iSearchRadius
+                iPotentialZAdjust = math.random(1,iSearchRadius*2) - iSearchRadius
+                local tPotentialPosition = oUnit:GetPosition()
+                tPotentialPosition[1] = tPotentialPosition[1] + iPotentialXAdjust
+                tPotentialPosition[3] = tPotentialPosition[3] + iPotentialXAdjust
+                --Check no low health units (e.g. radar, shields) at the target position unless cant find any
+                if iSearchAttempt < iMaxSearchAttempt then
+                    local rRectangleToSearch = M28Utilities.GetRectAroundLocation(tPotentialPosition, 1)
+                    local tUnitsNearPosition = GetUnitsInRect(rRectangleToSearch)
+                    if M28Utilities.IsTableEmpty(tUnitsNearPosition) == false then
+                        local tBuildings = EntityCategoryFilterDown(categories.STRUCTURE + categories.EXPERIMENTAL,  tUnitsNearPosition)
+                        if M28Utilities.IsTableEmpty(tBuildings) == false then
+                            for iNearbyUnit, oNearbyUnit in tBuildings do
+                                if oNearbyUnit:GetHealth() <= 110 then
+                                    bHaveLowHealthUnitOrReclaim = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if not(bHaveLowHealthUnitOrReclaim) then
+                        local iReclaimNearby = M28Map.GetReclaimInRectangle(3, rRectangleToSearch)
+                        if iReclaimNearby >= 10 then
+                            bHaveLowHealthUnitOrReclaim = true
+                        end
+                        --iReturnType: 1 = true/false; 2 = number of wrecks; 3 = total mass, 4 = valid wrecks, 5 = energy
+                    end
+                end
+                if not(bHaveLowHealthUnitOrReclaim) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have got location to move to for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; .Dead='..tostring(oUnit.Dead or false)..'; been destroyed='..tostring(oUnit:BeenDestroyed())..'; tPotentialPosition='..repru(tPotentialPosition)) end
+                    M28Orders.IssueTrackedMove(oUnit, tPotentialPosition, 0, false, 'MveToDie', true)
+                    TrackTemporaryUnitMicro(oUnit, 3)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(3)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        M28Orders.IssueTrackedKillUnit(oUnit)
+                    end
+                    break
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
