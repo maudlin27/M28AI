@@ -2160,7 +2160,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
@@ -6522,7 +6522,7 @@ function ManageTransports(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tCargo) == false then
                 M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRFalUnl', false)
             else
-                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition()) <= 30 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition()) <= 30 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) then --(exp exclusion is a redundancy, shoudlnt get to this point)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                 else

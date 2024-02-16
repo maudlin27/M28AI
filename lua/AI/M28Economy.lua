@@ -1178,7 +1178,7 @@ function ManageMassStalls(iTeam)
                 local iMassSavingManaged = 0
                 local iEngineerSubtableCount = 0
                 local tEngineerActionSubtable
-                local tRelevantUnits, oUnit
+                local oUnit
 
                 local bAbort = false
                 local iTotalUnits = 0
@@ -1226,6 +1226,7 @@ function ManageMassStalls(iTeam)
                     LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint)
                 end
                 for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
+                    local tRelevantUnits
                     iCategoryRef = tCategoriesByPriority[iCategoryCount]
 
                     --Are we considering upgrading factory HQs?
@@ -1636,7 +1637,7 @@ function ManageEnergyStalls(iTeam)
     local sFunctionRef = 'ManageEnergyStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Is M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25] empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25]))) end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         local bOnlyEasyAI = true
@@ -1684,7 +1685,18 @@ function ManageEnergyStalls(iTeam)
                 if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.2)))) then
                     --M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Have enough energy stored or income to start unpausing things if any are paused')
+                        LOG(sFunctionRef .. ': Have enough energy stored or income to start unpausing things if any are paused, refiPausedUnitCount='..M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount])
+                        if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 then
+                            local iShieldsAndRadarPaused = 0
+                            for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
+                                local tShieldsAndRadarPaused = EntityCategoryFilterDown(categories.PERSONALSHIELD + categories.SHIELD + M28UnitInfo.refCategoryRadar, tUnits)
+                                if M28Utilities.IsTableEmpty(tShieldsAndRadarPaused) == false then
+                                    LOG(sFunctionRef..': iPriority '..iPriority..' has '..table.getn(tShieldsAndRadarPaused)..' units with shield or radar that are paused')
+                                end
+                                iShieldsAndRadarPaused = iShieldsAndRadarPaused + table.getn(tShieldsAndRadarPaused)
+                            end
+                            LOG(sFunctionRef..': tShieldsAndRadarPaused in total='..iShieldsAndRadarPaused)
+                        end
                     end
                     bPauseNotUnpause = false
                     if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then bChangeRequired = true end
@@ -1789,7 +1801,7 @@ function ManageEnergyStalls(iTeam)
                     local iEnergySavingManaged = 0
                     local iEngineerSubtableCount = 0
                     local tEngineerActionSubtable
-                    local tRelevantUnits, oUnit
+                    local oUnit
                     local iBuildRateMod
 
                     local bAbort = false
@@ -1815,6 +1827,7 @@ function ManageEnergyStalls(iTeam)
                     local bConsideringFactory
                     local bFirstBrain
                     for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
+                        local tRelevantUnits
                         iCategoryRef = tCategoriesByPriority[iCategoryCount]
                         bConsideringFactory = false
 
@@ -2258,6 +2271,7 @@ function ManageEnergyStalls(iTeam)
     else
         M28Utilities.ErrorHandler('No active M28 brains')
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, Is M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25] empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
