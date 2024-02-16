@@ -1637,7 +1637,7 @@ function ManageEnergyStalls(iTeam)
     local sFunctionRef = 'ManageEnergyStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Is M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25] empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25]))) end
+
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         local bOnlyEasyAI = true
@@ -2271,7 +2271,7 @@ function ManageEnergyStalls(iTeam)
     else
         M28Utilities.ErrorHandler('No active M28 brains')
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, Is M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25] empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][25]))) end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
