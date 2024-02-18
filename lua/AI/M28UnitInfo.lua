@@ -1606,6 +1606,11 @@ end
 
 function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
     --iPausePriority - if pausing unit, will reord this against the unit
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddOrRemoveUnitFromListOfPausedUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     --Remove from list of paused units
     local iTeam = iOptionalTeam or oUnit:GetAIBrain().M28Team
@@ -1658,6 +1663,8 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; oUnit[refbPaused]='..tostring(oUnit[refbPaused] or false)..'; iPausePriority='..(iPausePriority or 'nil')..'; Unit owner='..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause or false)..'; time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     --LOG('AddOrRemove from paused table after considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPausedNotUnpause='..tostring(bPauseNotUnpause)..'; Is paused='..tostring(oUnit[refbPaused])..'; Pause priority='..(oUnit[refiPausedPriority] or 'nil'))
 end
 
@@ -1686,20 +1693,18 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             end
             oUnit:SetPaused(bPauseNotUnpause)
             oUnit[refbPaused] = bPauseNotUnpause
-            --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag
-            if oUnit[refbPaused] and not(oUnit:IsPaused()) then
-                oUnit[refbPaused] = false
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
-            end
+            --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled as was leading to false cases where unit was paused but this triggered
+            --if oUnit[refbPaused] and not(oUnit:IsPaused()) then
+                --oUnit[refbPaused] = false
+                --if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
+            --end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update table of paused units, iPausePriority='..(iPausePriority or 'nil')) end
+            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; oUnit[refbPaused]='..tostring(oUnit[refbPaused])) end
         elseif bDebugMessages == true then
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
-        end
-        if bPauseNotUnpause == oUnit[refbPaused] then
-            if bDebugMessages == true then LOG(sFunctionRef..': Will update table of paused units, iPausePriority='..(iPausePriority or 'nil')) end
-            AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt valid') end
@@ -1735,19 +1740,17 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                 end
                 oUnit:SetPaused(bPauseNotUnpause)
                 oUnit[refbPaused] = bPauseNotUnpause
-                --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag
-                if oUnit[refbPaused] and not(oUnit:IsPaused()) then
+                --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled in v75 due to case with energy pause where unit would be paused but :IsPaused would return flase
+                --[[if oUnit[refbPaused] and not(oUnit:IsPaused()) then
                     oUnit[refbPaused] = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag (but will change back to paused later if we pause energy requiring abilities)') end
-                end
+                end--]]
+                AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
             elseif bDebugMessages == true then
                 LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1; is .SetPaused nil='..tostring(oUnit.SetPaused == nil)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit[refbPaused]='..tostring(oUnit[refbPaused])..'; fraction complete='..oUnit:GetFractionComplete()..'; Is unit a factory='..tostring(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
-            end
-            if oUnit[refbPaused] == bPauseNotUnpause then
-                AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
             end
         end
 

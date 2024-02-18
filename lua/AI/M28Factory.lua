@@ -2803,7 +2803,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                 ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
                             else
                                 --CtrlK for mass
-                                if (not(oFactory[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                if (not(oFactory[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and EntityCategoryContians(M28UnitInfo.refCategoryFactory - categories.EXPERIMENTAL, oFactory.UnitId)  then --entity category contains is a redundancy
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': Will ctrlK factory ' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' for mass/reclaim')
                                     end

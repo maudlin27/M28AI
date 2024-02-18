@@ -4516,6 +4516,35 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefThreatEnemyDFStructures]='..tLZTeamData[M28Map.subrefThreatEnemyDFStructures]..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) end
                     end
+                    --Dont have a massive army - consider staying if enemy has mexes in this zone and we have more threat than enemy threat that is just in this zone
+                    if not(bAttackWithEverything) and iOurCombatThreat < 10000 and iOurCombatThreat > (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) and tLZData[M28Map.subrefLZMexCount] > 0 and tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 10 then
+                        local bCouldDoSomeDamage = false
+                        local tEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD - M28UnitInfo.refCategoryStructureAA - M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tEnemyBuildings) == false then
+                            for iUnit, oUnit in tEnemyBuildings do
+                                if oUnit:GetFractionComplete() == 1 then
+                                    bCouldDoSomeDamage = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider being more aggressive as enemy has buildings we could try and kill even if overall we might be outnumbered soon') end
+                                    break
+                                end
+                            end
+                        end
+                        if bCouldDoSomeDamage then
+                            --Would our retreat path take us somewhere dangerous? in which case stay and attack
+                            local tAdjacentZoneRally = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
+                            if M28Utilities.IsTableEmpty(tAdjacentZoneRally) then
+                                bAttackWithEverything = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Nowhere to retreat so will attack to try and do some damage') end
+                            else
+                                local tAdjacentRallyData, tAdjacentRallyTeamData = M28Map.GetLandOrWaterZoneData(tAdjacentZoneRally, true, iTeam)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat in adj rally point zone='..tAdjacentRallyTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iOurCombatThreat='..iOurCombatThreat) end
+                                if tAdjacentRallyTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 0.4 * iOurCombatThreat then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous to retreat so might as well attack and try and do some damage') end
+                                    bAttackWithEverything = true
+                                end
+                            end
+                        end
+                    end
 
                     if iOurCombatThreat < iEnemyCombatThreat * 1.4 or not(bAttackWithEverything) then
                         bWantReinforcements = true
