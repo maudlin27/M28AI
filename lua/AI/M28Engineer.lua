@@ -7748,7 +7748,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                         iHighestCompletionUnshieldedSMD = oSMD:GetFractionComplete()
                         oUnshieldedSMD = oSMD
                         if bDebugMessages == true then LOG(sFunctionRef..': Setting oSMD as one that we want to shield') end
-                    elseif M28Utilities.IsTableEmpty(oSMD[M28Building.reftoShieldsProvidingCoverage]) == false and oSMD:GetFractionComplete() > iHighestCompletionUnshieldedSMD then
+                    elseif oSMD:GetFractionComplete() > iHighestCompletionUnshieldedSMD and M28Conditions.IsTableOfUnitsStillValid(oSMD[M28Building.reftoShieldsProvidingCoverage]) then
                         bHaveShieldCoverage = false
                         for iShield, oShield in oSMD[M28Building.reftoShieldsProvidingCoverage] do
                             if oShield:GetFractionComplete() == 1 then
