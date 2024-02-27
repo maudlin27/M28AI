@@ -1197,7 +1197,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Priority upgrade to T3 if have lots of T3 mexes, and no enemies in this zone (even if have enemies nearby), provided we have other factores in the zone that can build units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Priority factory upgrade, iFactoryTechLevel='..iFactoryTechLevel..'; Our highest factory tech='..(aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; T3 mexes='..(tLZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Team has low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-    if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4) and (not(M28Conditions.HaveLowPower(iTeam)) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100)) then
+    if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 14) or (tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 18)) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4) and (not(M28Conditions.HaveLowPower(iTeam)) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100)) then
         local bAlreadyUpgradingT2HQ = false
         --Check we arent already upgrading a T2 factory of any kind
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
@@ -1208,6 +1208,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Passed eco and enemy unit conditions, will check if have other upgrades already, bAlreadyUpgradingT2HQ='..tostring(bAlreadyUpgradingT2HQ)) end
         if not(bAlreadyUpgradingT2HQ) then
             --Do we have other land factories in this zone? treat t1 factories as being worth 1/3 a t2 factory, need to -1 due to this factory
             local iT2FactoryEquivalent = -1 + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH2) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) / 3
