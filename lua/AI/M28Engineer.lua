@@ -3097,7 +3097,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy base dist is '..iDistToNearestEnemyBase..' so will get T3 arti') end
                                     end
                                 else
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get paragon1; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction) end
                                         iCategoryWanted = M28UnitInfo.refCategoryParagon
                                     else
@@ -3106,7 +3106,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                 end
                             else
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get paragon2; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction) end
                                     iCategoryWanted = M28UnitInfo.refCategoryParagon
                                 else
@@ -3131,7 +3131,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar
                             else
                                 --Build GC or paragon or T3 arti (or Czar in some rare cases)
-                                if ((iTeamLandExperimentals >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 70) or (iTeamLandExperimentals >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                if ((iTeamLandExperimentals >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 70) or (iTeamLandExperimentals >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get paragon3 or T3 arti due to lots of friendly land experimentals; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iTeamLandExperimentals='..iTeamLandExperimentals) end
                                     if M28Map.iMapSize >= 512 and (M28Map.iMapSize >= 1024 or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFixedT3Arti, iTeam) >= 4) and iFriendlyGameEnderUnderConstruction == 0 then
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 9500 then
@@ -4057,13 +4057,14 @@ function ClearEngineerTracking(oEngineer)
     --Update experimental construction tracking:
     if oEngineer[refbBuildingExperimental] then
         --As backup, also remove any dead engineers from this table
+        oEngineer[refbBuildingExperimental] = nil
         local iRevisedIndex = 1
         local tArray = M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]
         local iTableSize = table.getn(tArray)
         if bDebugMessages == true then LOG(sFunctionRef..': removing engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' from table of engis building experimentals, iTableSize='..iTableSize) end
         for iOrigIndex=1, iTableSize do
             if tArray[iOrigIndex] then
-                if oEngineer ~= tArray[iOrigIndex] and M28UnitInfo.IsUnitValid(tArray[iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                if oEngineer[refbBuildingExperimental] and oEngineer ~= tArray[iOrigIndex] and M28UnitInfo.IsUnitValid(tArray[iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                     --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
                     if (iOrigIndex ~= iRevisedIndex) then
                         tArray[iRevisedIndex] = tArray[iOrigIndex];
@@ -4083,8 +4084,6 @@ function ClearEngineerTracking(oEngineer)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': table size after removal='..table.getn(tArray)..'; iRevisedIndex='..iRevisedIndex..'; tArray[iTableSize]='..(tArray[iTableSize].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tArray[iTableSize]) or 'nil')) end
-
-        oEngineer[refbBuildingExperimental] = nil
     end
 
     --Update details of engineers moving to a plateau
@@ -6659,6 +6658,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 break
             end
         end
+
+        --END OF LOOP (i.e. have exited from loop):
         if bDebugMessages == true then LOG(sFunctionRef..': Aborting loop, is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])..'; Time='..GetGameTimeSeconds()) end
         if tTableRef[M28Map.subrefGEbDontNeedEngineers] and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
             for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
@@ -6674,8 +6675,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 end
             end
         end
-    else
-
+        tTableRef[M28Map.subrefGEbActiveMonitor] = false
     end
 
 
