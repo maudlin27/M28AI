@@ -1601,13 +1601,26 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())..'Unit missile count='..M28UnitInfo.GetMissileCount(oLauncher)..'; Time since last tried to give an issue nuke order='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or -1000))
+        if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then bDebugMessages = true end
+        --Aeon SML - one case having 11s threshold was fine, another when it was 12.1s since it fired a nuke it ended up clearing the old order
+        local iTimeToWaitBetweenLaunches = 6 --i.e. TML
+        if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+            if EntityCategoryContains(categories.AEON, oLauncher.UnitId) then
+                iTimeToWaitBetweenLaunches = 13
+            else
+                iTimeToWaitBetweenLaunches = 8
+            end
         end
+
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())..'Unit missile count='..M28UnitInfo.GetMissileCount(oLauncher)..'; Time since last issued a nuke launch order='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or -1000)..'; iTimeToWaitBetweenLaunches='..iTimeToWaitBetweenLaunches)
+        end
+
         --If we have just tried giving an order to fire then wait longer
-        if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= 5 then
+        if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= iTimeToWaitBetweenLaunches then
+            if bDebugMessages == true then LOG(sFunctionRef..': we tried firing recently so will do a delayed launch instead') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            DelayedConsiderLaunchingMissile(oLauncher, 5 - (GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile]), true, true)
+            DelayedConsiderLaunchingMissile(oLauncher, iTimeToWaitBetweenLaunches - (GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile]), true, true)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Beginning main launcher logic, setting active missile checker to true') end
@@ -1631,6 +1644,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
             if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
             elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+                bDebugMessages = true
                 bSML = true
                 if not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                     bCheckForSMD = true --default
