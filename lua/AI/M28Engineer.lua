@@ -3204,12 +3204,14 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             --Switch from gameender to T3 arti if enemy has a nearby firebase and the nearest enemy base is within 820 of us
             if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) >= 1500) and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) <= 820 then
                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has nearby t2 arti so will switch to t3 arti instead of gameender') end
             end
 
             --Check if we want to switch to using a gameender template
             if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre) then
                 --DO we have a template available?
                 if M28Conditions.HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, aiBrain.M28Team) and not(aiBrain.M28Easy) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category') end
                     iGameEnderTemplateCategory = iCategoryWanted
                     tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = iCategoryWanted
                     iCategoryWanted = refActionManageGameEnderTemplate
@@ -6341,7 +6343,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
     local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
-        if bDebugMessages == true then LOG(sFunctionRef..': iTemplateRef='..(iTemplateRef or 'nil')..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Setting GE active monitor to true for iTemplateRef='..(iTemplateRef or 'nil')..'; P'..iPlateau..'Z'..iLandZone..' Team '..iTeam..'; Is tLZTeamData[M28Map.reftActiveGameEnderTemplates] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Is table empty for engis using alt ref='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers]))) end
         tTableRef[M28Map.subrefGEbActiveMonitor] = true
         M28Overseer.refiCurGETemplateGlobalCount = M28Overseer.refiCurGETemplateGlobalCount + 1
 
@@ -6367,8 +6369,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         local bTriedBuildingSomething = false
         local bGaveBuildOrder = false
 
-
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for P'..iPlateau..'Z'..iLandZone..'; iTableRef='..iTemplateRef..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers] or false)..'; is tableo f engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
 
         while not(tTableRef[M28Map.subrefGEbDontNeedEngineers]) do
             --Decide whether to continue with loop - abort if have no engineers and no arti and no shields
@@ -6673,26 +6674,31 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 end
             end
         end
+    else
+
     end
 
-    --Redundancy - clear engineers
-    if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
-        for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Redundancy for clearing engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
-            if M28UnitInfo.IsUnitValid(oEngineer) then
-                if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
-                    M28Orders.IssueTrackedClearCommands(oEngineer)
-                end
-                --Make sure RAS SACUs have their assigned template cleared
-                if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
-                    oEngineer[M28Building.reftArtiTemplateRefs] = nil
-                else
-                    ClearEngineerTracking(oEngineer)
+
+    if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then --v77 - had issues with the main loop being called repeatedly and engineers not being given orders, suspect this was the cause, but this was added due to issues with engineers staying stuck on GE duty, so might need to consider further if run into issues again
+        --Redundancy - clear engineers
+        if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
+            for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy for clearing engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
+                if M28UnitInfo.IsUnitValid(oEngineer) then
+                    if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+                        M28Orders.IssueTrackedClearCommands(oEngineer)
+                    end
+                    --Make sure RAS SACUs have their assigned template cleared
+                    if oEngineer[M28Building.reftArtiTemplateRefs] and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId)) then
+                        oEngineer[M28Building.reftArtiTemplateRefs] = nil
+                    else
+                        ClearEngineerTracking(oEngineer)
+                    end
                 end
             end
         end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Clearing active monitor flag for template '..iTemplateRef..' at time='..GetGameTimeSeconds()) end
     tTableRef[M28Map.subrefGEbActiveMonitor] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -6795,9 +6801,13 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 end
 
 
+
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
-                    LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; tPotentialSMDLocation='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation])..'; bHaveLargeShields='..tostring(bHaveLargeShields or false)..'; Shield locations='..repru(tShieldLocations)..'; Template size='..tBaseTable[M28Map.subrefiSize]..'; Midpoint='..repru(tBaseTable[M28Map.subrefGEMidpoint])..'; Playable area='..repru(M28Map.rMapPlayableArea))
+                    LOG(sFunctionRef..': Have just added a new active gameendertemplate table to iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of gameendertemplates table='..table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])..'; Arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; Largest build location pre blacklist for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; tPotentialSMDLocation='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation])..'; bHaveLargeShields='..tostring(bHaveLargeShields or false)..'; Shield locations='..repru(tShieldLocations)..'; Template size='..tBaseTable[M28Map.subrefiSize]..'; Midpoint='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEMidpoint])..'; Playable area='..repru(M28Map.rMapPlayableArea)..'; will draw midpoint')
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEMidpoint]) == false then
+                        M28Utilities.DrawLocation(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEMidpoint])
+                    end
                 end
 
 
@@ -6878,19 +6888,26 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
             end
         end
         if bAddEngineer then
+            --Clear engineer orders to avoid it carrying on an order it previously had and that unit being treated as a GE template unit
+            if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) or not(EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oEngineer.UnitId)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Cleaing engineer orders so it is available for orders for the GE template, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)) end
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+            end
             table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers], oEngineer)
+            if bDebugMessages == true then LOG(sFunctionRef..': Added engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to table of engineers for iTempalteRef='..iTemplateRef..'; bAddedToNewTemplate='..tostring(bAddedToNewTemplate)..'; Is table of engineers empty for template ref='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEEngineers]))) end
             oEngineer[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef}
             if bAddedToNewTemplate then
                 --Set priority to 1 so it is hopefully less likely to be overwritten
                 oEngineer[refbPrimaryBuilder] = true
                 oEngineer[refiAssignedActionPriority] = 1
             end
-            --Clear engineer orders to avoid it carrying on an order it previously had and that unit being treated as a GE template unit
-            if not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) or not(EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oEngineer.UnitId)) then
-                M28Orders.IssueTrackedClearCommands(oEngineer)
+        end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Will start a manager for this zone if we dont already have one, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])..'; iTemplateRef='..(iTemplateRef or 'nil')..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Brain owner='..oEngineer:GetAIBrain().Nickname..'; tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor]='..tostring(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor] or false))
+            if iTemplateRef and not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations][1])) then
+                M28Utilities.DrawLocation(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations][1])
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Will start a manager for this zone if we dont already have one, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; arti locations='..repru(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEArtiLocations])) end
         if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor]) then
             local iTeam
             if M28UnitInfo.IsUnitValid(oEngineer) then iTeam = oEngineer:GetAIBrain().M28Team end
