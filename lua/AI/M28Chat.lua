@@ -35,6 +35,9 @@ tsPersonalityNames = {[refiFletcher] = 'Fletcher', [refiHall] = 'Hall', [refiCel
 --Against specific unit
 refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific message involving this (used e.g. for ondamaged trigger for an experimental)
 
+--Other global variables
+iNukeGloatingMessagesSent = 0
+
 function SendSuicideMessage(aiBrain)
     --See the taunt.lua for a full list of taunts; recommended to manually use these via soundcue and bank info so can avoid voice audio overlapping
     --Below was based on M27 - not actually used so commented out
@@ -1896,6 +1899,28 @@ function SendUnitCapMessage(oBrainToSendMessage)
     local iRand = math.random(1, table.getn(tsPotentialMessages))
     if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     SendMessage(oBrainToSendMessage, 'UnitCap', tsPotentialMessages[iRand], 0, 1000000, false)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SendUnitReclaimedMessage(oEngineer, oReclaim)
+    local sFunctionRef = 'SendUnitReclaimedMessage'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tsPotentialMessages = {
+        'Great, now I have to deal with my so called teammates reclaiming my units, thanks a lot ' .. oEngineer:GetAIBrain().Nickname,
+        'Hey ' .. oEngineer:GetAIBrain().Nickname .. ', quit reclaiming my units!',
+        'You\’re reclaiming my unit ' .. oEngineer:GetAIBrain().Nickname .. '? You know I’m on the same team as you right?',
+        'Just be warnted ' .. oEngineer:GetAIBrain().Nickname .. ', if you keep reclaiming my units, I have more apm for a reclaim war!',
+    }
+    local sBlueprintDesc
+    local oBP
+    if oReclaim.GetBlueprint then oBP = oReclaim:GetBlueprint() sBlueprintDesc = oBP.Description end
+    if sBlueprintDesc then table.insert(tsPotentialMessages, 'Why are you reclaiming my '..sBlueprintDesc..' '..oEngineer:GetAIBrain().Nickname..'?' end
+
+    local iRand = math.random(1, table.getn(tsPotentialMessages))
+    if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming', tsPotentialMessages[iRand], 0, 100000, false)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

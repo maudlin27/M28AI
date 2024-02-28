@@ -2155,7 +2155,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
 
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <80k then will consider other targets. tTarget='..repru(tTarget)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <80k then will consider other targets. tTarget='..repru(tTarget)..'; iBestValueOfDefensiveNuke='..iBestValueOfDefensiveNuke) end
                         if iBestTargetValue < 80000 and (not(oLauncher[M28UnitInfo.refbEasyBrain]) or iBestTargetValue < 30000) then --If have high value location for nearest enemy start then just go with this
                             for iRef, iCategory in tEnemyCategoriesOfInterest do
                                 ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
@@ -2167,7 +2167,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
-                        if iBestTargetValue < 14000 then
+                        if iBestTargetValue < 20000 then --Mex is 4.6k base, with a 1.75 factor is 8050; with mass storage would be 9450; therefore if want to hit 3+ mex equivalents with a nuke, min value should be at least 19k (just over 2 capped T3 mexes)
                             if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                                 tTarget = nil
                             end
@@ -2351,8 +2351,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget--]]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                                 --Send a voice taunt if havent in last 10m and we expect to do significant damage
-                                if iBestTargetValue >= 25000 then
+                                if iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
                                     if bCheckForSMD or not(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0)) then
+                                        M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
                                         ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
                                     end
                                 end

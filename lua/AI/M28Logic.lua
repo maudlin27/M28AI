@@ -601,7 +601,12 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         if iMobileValueOverrideFactorWithin75Percent then
             iMobileDamageFactorWithinThreshold = math.max(iMobileDamageFactorOutsideThreshold, iMobileValueOverrideFactorWithin75Percent)
         else
-            if iAOE >= 3.5 then iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold * 1.25
+            if iAOE >= 3.5 then
+                if iAOE >= 10 then
+                    iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold * 1.75
+                else
+                    iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold * 1.25
+                end
             else
                 iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold
             end
@@ -701,7 +706,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                                     end
                                 end
                                 --Is it a mex that will be killed outright and/or a volatile structure? Then increase the value of killing it
-                            elseif iMassFactor >= 1 and EntityCategoryContains(categories.MASSEXTRACTION + categories.VOLATILE, oUnit.UnitId) then iMassFactor = iMassFactor * 2
+                            elseif iMassFactor >= 1 and EntityCategoryContains(categories.MASSEXTRACTION + categories.VOLATILE, oUnit.UnitId) then iMassFactor = iMassFactor * 1.75
                             end
                         end
                         if bT3ArtiShotReduction then

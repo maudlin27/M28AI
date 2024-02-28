@@ -1376,13 +1376,14 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId)))
                     end
 
-                    --Flag if SMD built so can update nuke targeting
+                    --Flag if SMD built so can update nuke targeting; refiTimeOfLastCheck is used to hold the estimated time that the smd was built (which then informs whether the smd is assumed to be able to block a nuke)
                     if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
                         local iTimeAssumedConstructed
-                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.75 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
-                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 180 - 60 * oUnit:GetWorkProgress()
-                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 * oUnit:GetFractionComplete()
+                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
+                        --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
+                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 - 180 * oUnit:GetWorkProgress()
+                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 45 * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                         --Unpause any paused SMD
