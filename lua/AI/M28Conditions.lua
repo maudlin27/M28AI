@@ -2115,7 +2115,11 @@ function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCateg
             for iFactory, oFactory in tFactories do
                 sBeingBuilt = oFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
                 if sBeingBuilt and EntityCategoryContains(iCategory, sBeingBuilt) then
-                    iCount = iCount + 1
+                    if M28UnitInfo.IsUnitValid(oFactory) and oFactory.GetWorkProgress then
+                        if oFactory:GetWorkProgress() > 0 or M28UnitInfo.IsUnitValid(oFactory:GetFocusUnit()) then
+                            iCount = iCount + 1
+                        end
+                    end
                 end
             end
         end

@@ -659,7 +659,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
     end
@@ -1230,7 +1229,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --MAA as a priority for 1 factory if have multiple factories in LZ and a land experimental
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Priority MAA builder for experimental, MAA in this zone='..(tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 'nil')..'; Enemy air to ground='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; Dangerous enemies in this LZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; iLandFactoriesInLZ='..iLandFactoriesInLZ..'; iFactoryTechLevel='..iFactoryTechLevel..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])..'; iNearbyMAAThreat='..iNearbyMAAThreat..'; iNearbyAirToGroundThreat='..iNearbyAirToGroundThreat..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 0)..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')) end
-        if not(bDontConsiderBuildingMAA) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and iFactoryTechLevel >= 2 and iLandFactoriesInLZ >= 2 and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or ((M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 0) < 3500 and ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 2000 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])))) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 and iNearbyMAAThreat < math.max(iNearbyAirToGroundThreat, 1000 + 250 * iLandFactoriesInLZ) then
+        if not(bDontConsiderBuildingMAA) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and iFactoryTechLevel >= 2 and (iLandFactoriesInLZ >= 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and bHaveLowMass) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2))) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or ((M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 0) < 3500 and ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 2000 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])))) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 and iNearbyMAAThreat < math.max(iNearbyAirToGroundThreat, 1000 + 250 * iLandFactoriesInLZ) then
             if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] <= math.max(3000, iNearbyAirToGroundThreat, math.min(5000, (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) * 0.2)) then
                 --If we either have a land experimental needing MAA, or we have nearby enemy air to ground threat and minimal MAA, then want more MAA
                 if bDebugMessages == true then LOG(sFunctionRef..': Cur land experimentals='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)) end
@@ -1238,7 +1237,38 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     local iCurMAABeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryMAA - categories.TECH1)
                     if bDebugMessages == true then LOG(sFunctionRef..': Want MAA unless already building some, iCurMAABeingBUilt='..iCurMAABeingBuilt) end
                     if iCurMAABeingBuilt == 0 or (iCurMAABeingBuilt <= 1 and iLandFactoriesInLZ >= 4) then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH1) then return sBPIDToBuild end
+                        if iNearbyMAAThreat < iNearbyAirToGroundThreat then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH1) then return sBPIDToBuild end
+                        else
+                            --Do we have a land non-Fatboy (since it can build its own MAA) experimental on the same plateau as this factory and wanting MAA?
+                            local tFriendlyLandExp = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryFatboy, false, true)
+                            if M28Utilities.IsTableEmpty(tFriendlyLandExp) == false then
+                                local bExpOnPlateauWantsMAA = false
+                                local bExpOnIslandWantsMAA = false
+                                local iIslandWanted = NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition())
+                                if iIslandWanted then
+                                    local iExpIslandRef
+                                    for iExp, oExp in tFriendlyLandExp do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oExp='..oExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExp)..'; assigned plateau='..(oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')) end
+                                        if oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau or iPlateau == NavUtils.GetLabel(M28Map.refPathingTypeHover, oExp:GetPosition()) then
+                                            bExpOnPlateauWantsMAA = true
+                                            iExpIslandRef = NavUtils.GetLabel(M28Map.refPathingTypeLand, oExp:GetPosition())
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iExpIslandRef='..iExpIslandRef) end
+                                            if iExpIslandRef == iIslandWanted then
+                                                bExpOnIslandWantsMAA = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bExpOnIslandWantsMAA='..tostring(bExpOnIslandWantsMAA or false)..'; bExpOnPlateauWantsMAA='..tostring(bExpOnPlateauWantsMAA or false)..'; iIslandWanted='..iIslandWanted) end
+                                if bExpOnIslandWantsMAA then
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH1) then return sBPIDToBuild end
+                                elseif bExpOnPlateauWantsMAA then
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA * categories.HOVER - categories.TECH1) then return sBPIDToBuild end
+                                end
+                            end
+                        end
                     end
                 end
             end
