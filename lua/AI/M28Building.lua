@@ -1700,7 +1700,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                 end
 
 
-
+            elseif EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oLauncher.UnitId) then
+                M28Utilities.ErrorHandler('Are running TML logic on an ACU or SACU, but code not setup to work for this yet')
             else M28Utilities.ErrorHandler('Unknown type of launcher, code to fire a missile wont work; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher))
             end
 
