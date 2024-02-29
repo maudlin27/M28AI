@@ -5570,15 +5570,28 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             if bHavePotentiallyValidLocation then
                 tTableRef[M28Map.subrefbFailedToGetArtiLocation] = false
                 --Get all engineers to reclaim the units here
-                local oUnitToReclaim = tLowestValueBlockingBuildings[1]
-                CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
-                for iEngineer, oEngineer in tAvailableEngineers do
-                    if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false, nil, iTeam) end
-                    M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GERecl', false)
+                local iCtrlKdUnits = 0
+                local oUnitToReclaim
+                for iUnit, oUnit in tLowestValueBlockingBuildings do
+                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                        --CtrlK instead of reclaiming
+                        M28Orders.IssueTrackedKillUnit(oUnit)
+                        iCtrlKdUnits = iCtrlKdUnits + 1
+                    elseif not(oUnitToReclaim) then oUnitToReclaim = oUnit
+                    end
                 end
-                tAvailableEngineers = nil
-                tAvailableT3EngineersByFaction = nil
-                if bDebugMessages == true then LOG(sFunctionRef..': Want engineers to reclaim blocking unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
+
+                if oUnitToReclaim then
+                    CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
+                    for iEngineer, oEngineer in tAvailableEngineers do
+                        if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false, nil, iTeam) end
+                        M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GERecl', false)
+                    end
+                    tAvailableEngineers = nil
+                    tAvailableT3EngineersByFaction = nil
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want engineers to reclaim blocking unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': No unit to eclaim, ctrlKcount='..iCtrlKdUnits)
+                end
             else
                 --Dont have a valid location, so need to come up with some redundancy logic, e.g. clear engis and flag that we mustn't try and use this location again, unless we already have an arti unit
                 --e.g. have a flag on the index; and then when creating an index first check we dont already have an index; and then update the function for considering if we have available locations
@@ -5709,7 +5722,6 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local bTriedBuildingSomething = false
 
     local sShieldToBuild = nil
@@ -5818,7 +5830,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                     bUseArtiInsteadOfLastShieldLocation = true
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Our shield size is below 37 and we have 2+ arti locations in this zone, so will consider 1 less hsield entry and flag we want UEF or seraphim engineers for this zone') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Our shield size is below 37 and we have 2+ arti locations in this zone, so will consider 1 less hsield entry and flag we want UEF or seraphim engineers for this zone, tbShieldEntriesNotToConsider='..repru(tbShieldEntriesNotToConsider)) end
         end
 
         --Are any of the shield locations available? If not then need to reclaim blocking buildings
@@ -5924,7 +5936,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             end
 
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider reclaiming blocking units if still have avaialble engis, Is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; iLocationsToBuild='..iLocationsToBuild..'; iMaxShieldsToTryAndBuild='..iMaxShieldsToTryAndBuild..'; bUseArtiInsteadOfLastShieldLocation='..tostring(bUseArtiInsteadOfLastShieldLocation or false)) end
         if M28Utilities.IsTableEmpty(tAvailableEngineers) == false and iLocationsToBuild < iMaxShieldsToTryAndBuild and (iLocationsToBuild == 0 or not(bUseArtiInsteadOfLastShieldLocation)) then
             --Look to reclaim buildings that are blocking us with remaining engineers, unless they are very high value buildings
             M28Profiler.FunctionProfiler(sFunctionRef..'ReclaimBlockers', M28Profiler.refProfilerStart)
@@ -5962,10 +5974,31 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                                     tUnitsToConsiderReclaiming = nil
                                     break
                                 elseif oUnit[M28Building.reftArtiTemplateRefs] then
-                                    --Do nothing
-                                    tUnitsToConsiderReclaiming = nil
-                                    break
+                                    --Do nothing; abort if the unit is more than .5 within the margin
+                                    local bAbort = true
+                                    local iUnitRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
 
+                                    iXDif = oUnit:GetPosition()[1] - tBuildLocation[1]
+                                    if iXDif < 0 then iXDif = iXDif - iUnitRadius
+                                    else iXDif = iXDif + iUnitRadius end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit XDif='..iXDif) end
+                                    if math.abs(iXDif) >= 5.25 then
+                                        iZDif = oUnit:GetPosition()[3] - tBuildLocation[3]
+                                        if iZDif < 0 then iZDif = iZDif - iUnitRadius
+                                        else iZDif = iZDif + iUnitRadius end
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit ZDif='..iZDif) end
+                                        if math.abs(iZDif) >= 5.25 then
+                                            --Assume unit isnt actually a true blocking unit and ignore
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit might not actually be blocking so will continue search') end
+                                            bAbort = false
+                                        end
+                                    end
+
+                                    if bAbort then
+                                        tUnitsToConsiderReclaiming = nil
+                                        break
+                                    end
                                 else
                                     local bShieldToAdd = false
                                     --e.g. has another engineer unrelated to template logic gone and built in our template, but managed to build in the right place?
@@ -5996,11 +6029,11 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                                         end
 
                                     else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will add to table of units to reclaim') end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units to reclaim') end
                                         table.insert(tUnitsToConsiderReclaiming, oUnit)
                                     end
                                 end
-                            end
+                                end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
                             iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
@@ -6024,6 +6057,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             end
 
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEShieldLocations] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to consider tBuildLocation='..repru(tBuildLocation)..'; iEntry='..iEntry..'; tbShieldEntriesNotToConsider[iEntry]='..tostring(tbShieldEntriesNotToConsider[iEntry] or false)..'; (tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] or 0)='..(tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] or 0)) end
                 if not(tbShieldEntriesNotToConsider[iEntry]) then
                     if (tTableRef[M28Map.subrefGEShieldBlockedFailureCount][iEntry] or 0) <= 5 then
                         ConsiderUnitsToReclaim(tBuildLocation, iEntry)
@@ -6034,34 +6068,48 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             if not(bHavePotentiallyValidLocation) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiLocations][2]) == false then ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGEArtiLocations][2], 2) end
             if bHavePotentiallyValidLocation then
                 --Get all engineers to reclaim the units here
-                local oUnitToReclaim = tLowestValueBlockingBuildings[1]
-                local iEngisGivenReclaimOrder = 0
-                CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
-                for iEngineer, oEngineer in tAvailableEngineers do
-                    if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false) end
-                    M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GESRecl', false)
-                    iEngisGivenReclaimOrder = iEngisGivenReclaimOrder + 1
-                    if iOptionalMaxEngiPerAction and iEngisGivenReclaimOrder >= iOptionalMaxEngiPerAction then break end
-                    bTriedBuildingSomething = true
+                local oUnitToReclaim
+                local iCtrlKdUnits = 0
+                for iUnit, oUnit in tLowestValueBlockingBuildings do
+                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                        --CtrlK instead of reclaiming
+                        M28Orders.IssueTrackedKillUnit(oUnit)
+                        iCtrlKdUnits = iCtrlKdUnits + 1
+                    elseif not(oUnitToReclaim) then oUnitToReclaim = oUnit
+                    end
                 end
-                if iOptionalMaxEngiPerAction then
-                    for iRemoveCount = 1, iEngisGivenReclaimOrder do
-                        local oEngiToRemove = tAvailableEngineers[1]
-                        if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false then
-                            for iFactionEngi, oFactionEngi in tEngisOfDesiredFaction do
-                                if oFactionEngi == oEngiToRemove then
-                                    table.remove(tEngisOfDesiredFaction, iFactionEngi)
-                                    break
+                local iEngisGivenReclaimOrder = 0
+                if oUnitToReclaim then
+
+
+                    CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
+                    for iEngineer, oEngineer in tAvailableEngineers do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Giving order to engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim the blocking unit') end
+                        if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineer, false) end
+                        M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GESRecl', false)
+                        iEngisGivenReclaimOrder = iEngisGivenReclaimOrder + 1
+                        if iOptionalMaxEngiPerAction and iEngisGivenReclaimOrder >= iOptionalMaxEngiPerAction then break end
+                        bTriedBuildingSomething = true
+                    end
+                    if iOptionalMaxEngiPerAction then
+                        for iRemoveCount = 1, iEngisGivenReclaimOrder do
+                            local oEngiToRemove = tAvailableEngineers[1]
+                            if M28Utilities.IsTableEmpty(tEngisOfDesiredFaction) == false then
+                                for iFactionEngi, oFactionEngi in tEngisOfDesiredFaction do
+                                    if oFactionEngi == oEngiToRemove then
+                                        table.remove(tEngisOfDesiredFaction, iFactionEngi)
+                                        break
+                                    end
                                 end
                             end
+                            table.remove(tAvailableEngineers, 1)
                         end
-                        table.remove(tAvailableEngineers, 1)
+                    else
+                        tAvailableEngineers = nil
+                        tEngisOfDesiredFaction = nil
                     end
-                else
-                    tAvailableEngineers = nil
-                    tEngisOfDesiredFaction = nil
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for shield by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for shield by reclaiming unit '..(oUnitToReclaim.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim) or 'nil')..'; bTriedBuildingSomething='..tostring(bTriedBuildingSomething)..'; iEngisGivenReclaimOrder='..iEngisGivenReclaimOrder..'; Is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; iCtrlKdUnits='..iCtrlKdUnits) end
             end
         else
             if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
@@ -6297,32 +6345,45 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                         if bDebugMessages == true then LOG(sFunctionRef..': bHavePotentiallyValidLocation='..tostring(bHavePotentiallyValidLocation or false)..'; Is tLowestValueBlockingBuildings empty='..tostring(M28Utilities.IsTableEmpty(tLowestValueBlockingBuildings))) end
                         if bHavePotentiallyValidLocation then
                             --Get all engineers to reclaim the units here
-                            local oUnitToReclaim = tLowestValueBlockingBuildings[1]
-                            local iEngisGivenReclaimOrder = 0
-                            CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
-                            for iEngineer, oEngineer in tAvailableEngineers do
-                                M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GESMDRecl', false)
-                                iEngisGivenReclaimOrder = iEngisGivenReclaimOrder + 1
-                                if iOptionalMaxEngiPerAction and iEngisGivenReclaimOrder >= iOptionalMaxEngiPerAction then break end
+                            local iCtrlKdUnits = 0
+                            local oUnitToReclaim
+                            for iUnit, oUnit in tLowestValueBlockingBuildings do
+                                if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                                    --CtrlK instead of reclaiming
+                                    M28Orders.IssueTrackedKillUnit(oUnit)
+                                    iCtrlKdUnits = iCtrlKdUnits + 1
+                                elseif not(oUnitToReclaim) then oUnitToReclaim = oUnit
+                                end
                             end
-                            if iOptionalMaxEngiPerAction then
-                                for iRemoveCount = 1, iEngisGivenReclaimOrder do
-                                    local oEngiToRemove = tAvailableEngineers[1]
-                                    if M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction) == false then
-                                        for iFactionEngi, oFactionEngi in tAvailableT3EngineersByFaction do
-                                            if oFactionEngi == oEngiToRemove then
-                                                table.remove(tAvailableT3EngineersByFaction, iFactionEngi)
-                                                break
+
+                            if oUnitToReclaim then
+                                local iEngisGivenReclaimOrder = 0
+                                CheckAndClearEngineersConstructingTargetUnit(oUnitToReclaim, tLZTeamData)
+                                for iEngineer, oEngineer in tAvailableEngineers do
+                                    M28Orders.IssueTrackedReclaim(oEngineer, oUnitToReclaim, false, 'GESMDRecl', false)
+                                    iEngisGivenReclaimOrder = iEngisGivenReclaimOrder + 1
+                                    if iOptionalMaxEngiPerAction and iEngisGivenReclaimOrder >= iOptionalMaxEngiPerAction then break end
+                                end
+                                if iOptionalMaxEngiPerAction then
+                                    for iRemoveCount = 1, iEngisGivenReclaimOrder do
+                                        local oEngiToRemove = tAvailableEngineers[1]
+                                        if M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction) == false then
+                                            for iFactionEngi, oFactionEngi in tAvailableT3EngineersByFaction do
+                                                if oFactionEngi == oEngiToRemove then
+                                                    table.remove(tAvailableT3EngineersByFaction, iFactionEngi)
+                                                    break
+                                                end
                                             end
                                         end
+                                        table.remove(tAvailableEngineers, 1)
                                     end
-                                    table.remove(tAvailableEngineers, 1)
+                                else
+                                    tAvailableEngineers = nil
+                                    tAvailableT3EngineersByFaction = nil
                                 end
-                            else
-                                tAvailableEngineers = nil
-                                tAvailableT3EngineersByFaction = nil
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for SMD by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': CtrlKdUnitCount='..iCtrlKdUnits)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for SMD by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
                         end
                     end
                 end

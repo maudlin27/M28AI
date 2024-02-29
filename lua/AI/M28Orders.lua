@@ -147,7 +147,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual030912' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual020812' and GetGameTimeSeconds() >= 20 * 60 then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
