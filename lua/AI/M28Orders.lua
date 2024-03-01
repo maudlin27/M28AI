@@ -906,8 +906,11 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+    --LOG('Considering issuing new unload order, Last order type='..(tLastOrder[subrefiOrderType] or 'nil')..'; iDistanceToReissueOrder='..(iDistanceToReissueOrder or 'nil')..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(tOrderPosition, (tLastOrder[subreftOrderPosition] or {-100,0,-100}))..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false))
     if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderUnloadTransport and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
-        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(bAddToExistingQueue) then
+            IssueTrackedClearCommands(oUnit)
+        end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})

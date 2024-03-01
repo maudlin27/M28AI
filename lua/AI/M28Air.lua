@@ -6437,23 +6437,49 @@ function ManageTransports(iTeam, iAirSubteam)
                         --Consider proceeding
                         local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                         local bUnloadAtRallyOrOtherZone = true
+                        local bDropDueToAirAA = false
                         if bDebugMessages == true then LOG(sFunctionRef..': Last order='..reprs(tLastOrder)..'; Is last order tyep unoad transport='..tostring(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport)) end
                         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
-                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
-                            if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget) end
-                            if iDistToTarget <= 30 then
-                                --Might as well unload - significant risk we just die if we return by this stage anyway
-                                bUnloadAtRallyOrOtherZone = false
-                            elseif iDistToTarget <= 250 then
-                                local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
-                                local iCargoSize = table.getn(tCargo)
-                                if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 then
-                                    bUnloadAtRallyOrOtherZone = false
+                            --Consider dropping immediately due to enemy AirAA threat
+                            local tCurZoneData, tCurZoneTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': enemy AirAA threat in this zone='..(tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
+                            if (tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 and (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                                local iAirAAThreshold = math.max(10, ((oUnit[M28UnitInfo.refiUnitMassCost] or 0) - 60) * 0.3 * M28UnitInfo.GetUnitHealthPercent(oUnit))
+                                if tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] > iAirAAThreshold then
+
+                                    --Check for nearby enemy airaa units by distance
+                                    local iClosestEnemyAirAA = 10000
+                                    for iEnemy, oEnemy in tCurZoneTeamData[M28Map.reftLZEnemyAirUnits] do
+                                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) then
+                                            iClosestEnemyAirAA = math.min(iClosestEnemyAirAA, M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()))
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA) end
+                                    if iClosestEnemyAirAA <= 35 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
+                                        M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergDr', false)
+                                        bDropDueToAirAA = true
+                                        bUnloadAtRallyOrOtherZone = false
+                                    end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+                            end
+                            if not(bDropDueToAirAA) then
+                                local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
+                                if iDistToTarget <= 30 then
+                                    --Might as well unload - significant risk we just die if we return by this stage anyway
+                                    bUnloadAtRallyOrOtherZone = false
+                                elseif iDistToTarget <= 250 then
+                                    local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
+                                    local iCargoSize = table.getn(tCargo)
+                                    if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 then
+                                        bUnloadAtRallyOrOtherZone = false
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+                                end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a cargo, bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a cargo, bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)..'; Last order destination='..repru(tLastOrder[M28Orders.subreftOrderPosition])) end
                         if bUnloadAtRallyOrOtherZone then
                             --If far from rally then look for nearest zone to unload at
                             local iTransportPlateauOrZero, iTransportLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -6499,7 +6525,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                        else
+                        elseif not(bDropDueToAirAA) then
                             --Cant identify where we are, go to last unnload position if we have one (to avoid getting stuck in a loop), otherwise go to rally
                             if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
                                 M28Orders.IssueTrackedTransportUnload(oUnit, tLastOrder[M28Orders.subreftOrderPosition], 10, false, 'TRUnlB2', false)
@@ -6532,6 +6558,7 @@ function ManageTransports(iTeam, iAirSubteam)
             end
         end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
