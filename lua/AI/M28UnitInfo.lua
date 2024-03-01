@@ -69,6 +69,7 @@ refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred fro
 refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 refiUnitMassCost = 'M28UMCs' --for profiling testing
+refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against the table of non-M28 experimentals being constructed
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI

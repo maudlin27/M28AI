@@ -87,6 +87,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiMassUpgradesStartedThisCycle = 'M28TeamMassUpgradesThisCycle' --Amount of mass per tick that we have committed in upgrades this cycle
     subrefiEnergyUpgradesStartedThisCycle = 'M28TeamEnergyUpgradesThisCycle' --Amount of energy per tick that we have committed in upgrades this cycle
     subreftTeamEngineersBuildingExperimentals = 'M28TeamEngineersBuildingExperimentals' --table of engineers building an experimental level unit anywhere in our team
+    reftoNonM28ConstructingExpAndT3Navy = 'M28TeamNonM28ExpC' --table of experimental level units being built by non-M28 teammates
 
 
     --Tech level and factory details (subteam will track factories in more detail by tech and faction and type)
@@ -1677,6 +1678,18 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                                     if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA] = {} end
                                     table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA], oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then
+                                    if oUnit:GetFractionComplete() < 1 then
+                                        local bAlreadyRecorded = false
+                                        local iTeam = aiBrain.M28Team
+                                        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy]) == false then
+                                        elseif not(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy]) then tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy] = {}
+                                        end
+                                        if not(bAlreadyRecorded) then
+                                            table.insert(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy], oUnit)
+                                            oUnit[M28UnitInfo.refbNonM28ExpConstruction] = true
+                                        end
+                                    end
                                 end
 
 

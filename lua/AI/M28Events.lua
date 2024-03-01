@@ -563,6 +563,18 @@ function OnUnitDeath(oUnit)
                                     end
                                 end
                             end
+                            if oUnit[M28UnitInfo.refbNonM28ExpConstruction] then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
+                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
+                                        if oRecordedUnit == oUnit then
+                                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
+                                            break
+                                        end
+                                    end
+                                end
+                                oUnit[M28UnitInfo.refbNonM28ExpConstruction] = false
+                            end
                         end
                     end
                 end
@@ -1597,7 +1609,6 @@ function OnConstructed(oEngineer, oJustBuilt)
                                                 end
                                             end
                                         end
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
                                         if iClosestNonM28BrainDistBase <= 200 and iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase then
                                             ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
@@ -1911,6 +1922,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end--]]
                 end
             else
+                --Non-M28 only units
+
                 --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
                 if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
                     local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
@@ -1929,6 +1942,19 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                         oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
                     end--]]
+                end
+                --Tracking of under construction experimentals
+                if oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] then
+                    local iTeam = oJustBuilt:GetAIBrain().M28Team
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
+                        for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
+                            if oRecordedUnit == oJustBuilt then
+                                table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
+                                break
+                            end
+                        end
+                    end
+                    oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] = false
                 end
 
             end
