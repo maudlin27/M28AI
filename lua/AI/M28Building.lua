@@ -1643,7 +1643,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
             if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
             elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-                bDebugMessages = true
                 bSML = true
                 if not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                     bCheckForSMD = true --default

@@ -1458,6 +1458,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                         table.insert(tAvailableCombatUnits, oUnit)
                                         table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from this WZ to table of missile ships, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                         table.insert(tMissileShips, oUnit)
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have an amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavyRange='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
@@ -1595,6 +1596,9 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                     bConsiderAdjacentMAA = false
                                     if not(bConsiderAdjacentCombat) then break end
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from adj WZ to table of missile ships, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                table.insert(tMissileShips, oUnit)
                             end
                         end
                     end
@@ -1603,7 +1607,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             end
         end
 
-        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tMissileShips) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ') end
             if tWZData[M28Map.subrefbPacifistArea] then
                 if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
@@ -1613,7 +1617,8 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                     RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
                 end
             else
-                local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
+                                            --ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
+                local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
                 if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                     for iUnit, oUnit in tRemainingLandUnits do
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of amphibious units from table of remaining land units') end
@@ -1909,7 +1914,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
     return iEnemyBestAntiNavyRange, iEnemyBestCombatRange, iBestEnemyUnderwaterRange
 end
 
-function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
+function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget, tMissileShips)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderOrdersForUnitsWithNoTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2067,21 +2072,33 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
             end
         end
     end
+    local bOnlyBombardmentIsMissileShip = false
+    if M28Utilities.IsTableEmpty(tMissileShips) == false then
+        if not(tPotentialBombardmentUnits) then
+            tPotentialBombardmentUnits = tMissileShips
+            bOnlyBombardmentIsMissileShip = true
+        else
+            for iUnit, oUnit in tMissileShips do
+                table.insert(tPotentialBombardmentUnits, oUnit)
+            end
+        end
+    end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of bombardment units empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBombardmentUnits))) end
     if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false then
         --consider doing via a separate function based on a set of units both to keep code tidy and incase we end up wanting to give certain untis bombardment orders from the main logic above
-
-        AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialBombardmentUnits)
+        --AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialBombardmentUnits, tbOptionalPlateauAndLandZonesToConsider, iOptionalRaidBaseWZ, bOptionalDontTreatAsBombardment)
+        AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialBombardmentUnits,     nil,                                    nil,                bOnlyBombardmentIsMissileShip)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tUnassignedLandUnits
 end
 
-function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialBombardmentUnits, tbOptionalPlateauAndLandZonesToConsider, iOptionalRaidBaseWZ)
+function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialBombardmentUnits, tbOptionalPlateauAndLandZonesToConsider, iOptionalRaidBaseWZ, bOptionalDontTreatAsBombardment)
     --tbOptionalPlateauAndLandZonesToConsider - if not empty, then will only consider targets in the same plateau and land zone as this (table which returns true for tbOptionalPlateauAndLandZonesToConsider[iPlateau][iLandZone])
     --iOptionalRaidBaseWZ - need to set if calling from raid logic so can refresh raid locations if no target
+    --bOptionalDontTreatAsBombardment - further manual flag (if set to true) to not treat this as bombardment mode - e.g. for units like missile ships that only have a bombardment mode
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignBombardmentActions'
@@ -2089,7 +2106,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
 
 
-    if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false and not(tbOptionalPlateauAndLandZonesToConsider) and not(iOptionalRaidBaseWZ) then
+    if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false and not(tbOptionalPlateauAndLandZonesToConsider) and not(iOptionalRaidBaseWZ) and not(bOptionalDontTreatAsBombardment) then
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] = GetGameTimeSeconds()
     end
 
@@ -2127,7 +2144,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
     local iBombardmentBuildingCategory = M28UnitInfo.refCategoryStructure
     local bIgnoreLowThreats = false
-    if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 6500 then
+    if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 6500 or iOurBestIndirectRange >= 175 then
         iBombardmentBuildingCategory = iBombardmentBuildingCategory - categories.TECH1 + M28UnitInfo.refCategoryTorpedoLauncher
     end
 
@@ -2717,7 +2734,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
+function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
@@ -2726,7 +2743,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
     local tUnassignedLandUnits
-    if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; Is table of missile ships empty='..tostring(M28Utilities.IsTableEmpty(tMissileShips))) end
 
     local bWantReinforcements = false
 
@@ -2826,7 +2843,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have told all units to run to tRallyPoint='..repru(tRallyPoint)) end
     end
-    if not(bHaveRunFromAir) or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+    if not(bHaveRunFromAir) or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': About to get nearest enemy units to midpoint, tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
         if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
             bEnemyHasNoCombatUnits = M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies])
@@ -3621,6 +3638,22 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
         end
 
+        --Missile ships - consider retreating from nearby enemy units
+        local tMissileShipsToBombard = {}
+        if M28Utilities.IsTableEmpty(tMissileShips) == false then
+            if oNearestEnemyToMidpoint then
+                for iUnit, oUnit in tMissileShips do
+                    if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refiCombatRange] * 0.6, math.min(oUnit[M28UnitInfo.refiCombatRange] - 10, oNearestEnemyToMidpoint[M28UnitInfo.refiCombatRange] + 10, (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) + 10)) then
+                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, 'MisRetr', false)
+                    else
+                        table.insert(tMissileShipsToBombard, oUnit)
+                    end
+                end
+            else
+                tMissileShipsToBombard = tMissileShips
+            end
+        end
+
         --Update if had visula of WZ recently
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
             tWZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
@@ -3628,9 +3661,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of subs with no target empty='..tostring(M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget))..'; Is table of combat units with no target empty='..tostring(M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget))) end
-        if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false or M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
+        if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false or M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false or M28Utilities.IsTableEmpty(tMissileShipsToBombard) == false then
             --No enemies in the water zone or adjacent that can target so will look to reinforce another water zone
-            tUnassignedLandUnits = ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
+            --ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget, tMissileShips)
+            tUnassignedLandUnits = ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget, tMissileShipsToBombard)
             if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false then
                 if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond]) then M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond] = {} end
                 M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond][iPond] = GetGameTimeSeconds()

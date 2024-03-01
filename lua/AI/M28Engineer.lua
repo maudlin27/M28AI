@@ -154,6 +154,7 @@ refActionAssistLandFactory = 72
 refActionBuildT1TorpLauncher = 73
 refActionBuildTorpLauncher = 74
 refActionManageGameEnderTemplate = 75 --if there's an available template for building t3 arti or a gameender, then this action shoudl be used
+refActionBuildAirExperimental = 76 --e.g. used for water zones
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -203,6 +204,7 @@ tiActionCategory = {
     [refActionBuildT1TorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher * categories.TECH1,
     [refActionBuildTorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher,
     [refActionManageGameEnderTemplate] = refActionManageGameEnderTemplate, --Special case where if a category is equal to this variable then will apply this logic; done this way so we can convert a 'build experimental' action into this action
+    [refActionBuildAirExperimental] = categories.AIR * categories.EXPERIMENTAL - M28UnitInfo.refCategoryTransport
 }
 
 tiActionOrder = {
@@ -262,6 +264,7 @@ tiActionOrder = {
     [refActionBuildT1TorpLauncher] = M28Orders.refiOrderIssueBuild,
     [refActionBuildTorpLauncher] = M28Orders.refiOrderIssueBuild,
     [refActionManageGameEnderTemplate] = M28Orders.refiOrderIssueBuild, --will use custom logic
+    [refActionBuildAirExperimental] = M28Orders.refiOrderIssueBuild
 }
 
 --Adjacent categories to search for for a particular action
@@ -4293,7 +4296,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     oEngineer[refbHasSpareAction] = bMarkAsSpare
 
     --Track experimental construction
-    if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionManageGameEnderTemplate then
+    if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionManageGameEnderTemplate or iActionToAssign == refActionBuildAirExperimental then
         if not(oEngineer[refbBuildingExperimental]) then --dont want engineers on GE template to keep being added to table
             table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
             oEngineer[refbBuildingExperimental] = true
@@ -6990,7 +6993,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionBuildNavalFactory and iLandOrWaterZone == 5 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) bDebugMessages = false end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -7042,7 +7045,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
 
         --Experimental specific - Dont want to build if we have other engineers in a different zone building an experimental and we dont have the eco to support multiple ones - instead rely on separate engi transfer and mass transfer logic to get the experimental built
-        if (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental) then
+        if (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionBuildAirExperimental) then
             if bDebugMessages == true then LOG(sFunctionRef..': About to remove BP wanted for experimental construction if we already have one under construction nearby that has recently started, or are about to start construction, and we cant support multiple at once, and dont have one in this zone') end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 400 then
                 --Do we have negative mass income, or have less than 70% mass stored? Also only consider for land experimentals (not navy) for now:
@@ -13255,7 +13258,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 end
             end
             --If is a small pond then include adjacent zone naval factories
-            if M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize <= 4000 or M28Map.tPondDetails[iPond][M28Map.subrefPondWZCount] <= 3 then
+            if M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize <= 5000 or M28Map.tPondDetails[iPond][M28Map.subrefPondWZCount] <= 3 then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
                     if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
@@ -13432,7 +13435,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Naval fac if this is a core WZ and we dont have any (or lack an HQ), with eco condition
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
-    bDebugMessages = true
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; First M28 lifetime factory highest build count='..(M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; WZ brain build count='..(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount] or 'nil'))
     end
@@ -13457,7 +13459,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
-    bDebugMessages = false
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': About to consider what actions we want to give engineers for iPond=' .. iPond .. '; iWaterZone=' .. iWaterZone .. '; iTeam=' .. iTeam .. '; Is table of unbuilt mex locations empty=' .. tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations])) .. '; Is table of part complete mexes empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoPartBuiltMexes])))
@@ -13618,8 +13619,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 end
 
                 --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
-                if iExistingWaterFactory >= 3 and (iExistingWaterFactory < iMaxFactories or (iExistingWaterFactory > 0 and not(bHaveFactoryHQ))) then bDebugMessages = true end
-
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': iMaxFactories=' .. iMaxFactories .. '; iExistingWaterFactory=' .. iExistingWaterFactory..'; Pond segment size='..M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount])
                 end
@@ -13695,18 +13694,18 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBattleship) >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100) then
             --Cap experimentals to 2 if there are no enemy naval targets (increase cap if about to overflow mass)
-            bDebugMessages = true
-            local iCurNavalExperimentals = 0
+            local iCurNavalExperimentalsOrSubstitutes = 0
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    iCurNavalExperimentals = iCurNavalExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllNavy * categories.EXPERIMENTAL)
+                    iCurNavalExperimentalsOrSubstitutes = iCurNavalExperimentalsOrSubstitutes + oBrain:GetCurrentUnits(tiActionCategory[refActionBuildExperimentalNavy])
                 end
             end
             local iExperimentalsWanted = 4
             if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond][iPond] or -100) <= 30 then
                 iExperimentalsWanted = 2
             end
-            if iCurNavalExperimentals >= iExperimentalsWanted then
+            if M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize <= 8000 then iExperimentalsWanted = iExperimentalsWanted * 0.5 end
+            if iCurNavalExperimentalsOrSubstitutes >= iExperimentalsWanted then
                 local iCurLandExperimentals = 0
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -13718,19 +13717,32 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     LOG(sFunctionRef .. ': iCurLandExperimentals=' .. iCurLandExperimentals)
                 end
             end
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.99 and not(bHaveLowPower)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40) then
                 iExperimentalsWanted = iExperimentalsWanted * 1.5
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iExperimentalsWanted='..iExperimentalsWanted..'; iCurNavalExperimentals='..iCurNavalExperimentals) end
-            if iCurNavalExperimentals < iExperimentalsWanted then
+            if bDebugMessages == true then LOG(sFunctionRef..': iExperimentalsWanted='..iExperimentalsWanted..'; iCurNavalExperimentalsOrSubstitutes='..iCurNavalExperimentalsOrSubstitutes) end
+            if iCurNavalExperimentalsOrSubstitutes < iExperimentalsWanted then
                 iBPWanted = 45
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 10) then
                     iBPWanted = 90
                 end
                 HaveActionToAssign(refActionBuildExperimentalNavy, 3, iBPWanted, false, false, true)
+
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Want experimental naval unit, iBPWanted=' .. iBPWanted)
                 end
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 and not(bHaveLowPower) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.95 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 then
+                --Get land or air experimental
+                iBPWanted = 60
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.75 then iBPWanted = 120 end
+                --Are we a smallish pond on the same plateau as a core zone? then get a land experimental
+                local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+                if iPlateau and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) == false and M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize <= 20000 and ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                    HaveActionToAssign(refActionBuildLandExperimental, 3, iBPWanted)
+                else
+                    HaveActionToAssign(refActionBuildAirExperimental, 3, iBPWanted)
+                end
+
             elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 then
                 HaveActionToAssign(refActionBuildLandExperimental, 3, 90)
             end
@@ -13922,11 +13934,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if iExistingWaterFactory > 0 and iExistingWaterFactory < 4 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(bHaveLowPower) and GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100) >= 30 then
         local iMaxFactoriesToGet = 4
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99 then
-            iMaxFactoriesToGet = math.min(4, M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize / 1000) --e.g. tabula ross pond is a size of 2379, but really would only want 2 naval facs in it, have done /1k to be safe though
+            iMaxFactoriesToGet = math.min(4, M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize / 2000) --e.g. tabula ross pond is a size of 2379, but really would only want 2 naval facs in it, have done /1k to be safe though
         end
         if iExistingWaterFactory < iMaxFactoriesToGet then
-
-            bDebugMessages = true
             iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
             if bDebugMessages == true then LOG(sFunctionRef..': Want to assign BP to build a naval fac, iBPWanted='..iBPWanted..'; Pond segment size='..M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount]) end
