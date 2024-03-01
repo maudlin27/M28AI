@@ -1378,6 +1378,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         local tUnavailableUnitsInThisWZ = {}
         local tTempOtherUnits = {}
         local tAvailableMAA = {}
+        local tMissileShips = {}
         local iCurWZValue = tWZTeamData[M28Map.subrefWZTValue]
 
         local iOurBestDFRange = 0
@@ -1456,12 +1457,14 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                     elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
                                         table.insert(tAvailableCombatUnits, oUnit)
                                         table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                        table.insert(tMissileShips, oUnit)
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have an amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavyRange='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
                                         table.insert(tAmphibiousUnits, oUnit)
                                     end
                                     if bIncludeUnit then
-                                        RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
+                                    RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
                                     end
                                 end
                                 --Is this a land unit traveling from 1 island to another island? In which case also want to consider

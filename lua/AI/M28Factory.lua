@@ -3908,6 +3908,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
+    if iFactoryTechLevel >= 3 then bDebugMessages = true end
+
 
 
     if bDebugMessages == true then
@@ -4345,11 +4347,30 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
     if iFactoryTechLevel >= 3 then
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
+        --Aeon specific - build missile ships once have 3+ battleships and are in bombardment mode
+        if iCurBattleships >= 3 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+            local iCurMissileShips = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMissileShip * categories.TECH3)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurMissileShips='..iCurMissileShips..'; iCurBattleships='..iCurBattleships) end
+            if iCurMissileShips < iCurBattleships then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMissileShip * categories.TECH3 - categories.SUBMERSIBLE) then return sBPIDToBuild end
+            end
+        end
         local iBSWantedAdjust = 0
         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 3 then iBSWantedAdjust = 5 end
+        local iPondSize = M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize
+        if iPondSize <= 6000 then
+            iBSWantedAdjust = math.max(-1, iBSWantedAdjust - 5 * (6000 - iPondSize) / iPondSize)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)) end
         if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust or (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
+            end
+        elseif iCurBattleships < 3 and iCurBattleships > 0 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+            local iCurMissileShips = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMissileShip * categories.TECH3)
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want more battleships yet, iCurMissileShips='..iCurMissileShips..'; iCurBattleships='..iCurBattleships) end
+            if iCurMissileShips < iCurBattleships then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMissileShip * categories.TECH3 - categories.SUBMERSIBLE) then return sBPIDToBuild end
             end
         end
     elseif iFactoryTechLevel == 2 then

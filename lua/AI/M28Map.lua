@@ -5164,7 +5164,7 @@ end
 
 function RecordPondToExpandTo(aiBrain)
     --Calculates which pond we think is most important to hold; assumes we have already recorded all segments and ponds (but havent yet setup water zones)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RecordPondToExpandTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     bHaveConsideredPreferredPondForM28AI = true
@@ -5307,7 +5307,7 @@ function RecordPondToExpandTo(aiBrain)
                             --X is in range, is Z?
                             if math.abs(tPondSubtable[subrefPondMinZ] - tEnemyBase[3]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[3] - tPondSubtable[subrefPondMaxZ]) <= iEnemyBaseThreshold or (tEnemyBase[3] >= tPondSubtable[subrefPondMinZ] and tEnemyBase[3] <= tPondSubtable[subrefPondMaxZ]) then
                                 iCurPondValue = math.max(iCurPondValue * 1.2, iCurPondValue + 2)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%, iEnemyBaseThreshold='..iEnemyBaseThreshold) end
                             end
                         end
 

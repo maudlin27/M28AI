@@ -6990,7 +6990,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildNavalFactory and iLandOrWaterZone == 5 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) bDebugMessages = false end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -13254,6 +13254,29 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     bHaveFactoryHQ = true
                 end
             end
+            --If is a small pond then include adjacent zone naval factories
+            if M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize <= 4000 or M28Map.tPondDetails[iPond][M28Map.subrefPondWZCount] <= 3 then
+                for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                    local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                    if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local tAdjWZFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAdjWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tAdjWZFactories) == false then
+                            for iFactory, oFactory in tExistingWaterFactory do
+                                if oFactory:GetFractionComplete() == 1 then
+                                    iExistingWaterFactory = iExistingWaterFactory + 1
+                                    if not(bHaveFactoryHQ) and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
+                                        bHaveFactoryHQ = true
+                                    end
+                                elseif not(bHaveFactoryHQ) and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
+                                    bHaveFactoryHQ = true
+                                end
+                            end
+                        end
+                    end
+
+                end
+            end
+
             --Want to set flag to rebuild naval fac if we only have support facs (this won't work 100% if e.g. a teammate has a factory of a different faction in the zone or elsewhere, but should cover majority fo cases; also have the logic to xfer support facs to a teammate of same faction which shoudl help)
             --Note that need to keep it general as otherwise would likely run into issues of infinitely building naval facs (e.g. if we have UEF and Aeon support facs in zone, and UEF has an HQ elsewhere but Aeon doesnt, if we try and build naval fac as a result, we might be building UEF naval facs on repeat)
             if iExistingWaterFactory > 0 and not(bHaveFactoryHQ) then
@@ -13409,8 +13432,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Naval fac if this is a core WZ and we dont have any (or lack an HQ), with eco condition
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
+    bDebugMessages = true
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; First M28 lifetime factory highest build count='..M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount]..'; WZ brain build count='..ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount])
+        LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; First M28 lifetime factory highest build count='..(M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; WZ brain build count='..(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount] or 'nil'))
     end
     if (tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount] >= 30)))
             or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]
@@ -13433,6 +13457,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+    bDebugMessages = false
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': About to consider what actions we want to give engineers for iPond=' .. iPond .. '; iWaterZone=' .. iWaterZone .. '; iTeam=' .. iTeam .. '; Is table of unbuilt mex locations empty=' .. tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations])) .. '; Is table of part complete mexes empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoPartBuiltMexes])))
@@ -13593,8 +13618,10 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 end
 
                 --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
+                if iExistingWaterFactory >= 3 and (iExistingWaterFactory < iMaxFactories or (iExistingWaterFactory > 0 and not(bHaveFactoryHQ))) then bDebugMessages = true end
+
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': iMaxFactories=' .. iMaxFactories .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
+                    LOG(sFunctionRef .. ': iMaxFactories=' .. iMaxFactories .. '; iExistingWaterFactory=' .. iExistingWaterFactory..'; Pond segment size='..M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount])
                 end
                 if iExistingWaterFactory < iMaxFactories or (iExistingWaterFactory > 0 and not(bHaveFactoryHQ)) then
                     if bDebugMessages == true then
@@ -13668,6 +13695,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBattleship) >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100) then
             --Cap experimentals to 2 if there are no enemy naval targets (increase cap if about to overflow mass)
+            bDebugMessages = true
             local iCurNavalExperimentals = 0
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -13693,6 +13721,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 then
                 iExperimentalsWanted = iExperimentalsWanted * 1.5
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iExperimentalsWanted='..iExperimentalsWanted..'; iCurNavalExperimentals='..iCurNavalExperimentals) end
             if iCurNavalExperimentals < iExperimentalsWanted then
                 iBPWanted = 45
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 10) then
@@ -13891,11 +13920,19 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': More naval fac if already have some and have lots of mass stored, iCurPrioriyt='..iCurPriority..'; iExistingWaterFactory='..iExistingWaterFactory..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Time since last had nothing to build='..GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100)..'; Have low power='..tostring(bHaveLowPower)) end
     if iExistingWaterFactory > 0 and iExistingWaterFactory < 4 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(bHaveLowPower) and GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100) >= 30 then
-        iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Want to assign BP to build a naval fac, iBPWanted='..iBPWanted) end
-        if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iBPWanted = iBPWanted * 0.75 end
-        HaveActionToAssign(refActionBuildNavalFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech], iBPWanted, nil)
+        local iMaxFactoriesToGet = 4
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99 then
+            iMaxFactoriesToGet = math.min(4, M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize / 1000) --e.g. tabula ross pond is a size of 2379, but really would only want 2 naval facs in it, have done /1k to be safe though
+        end
+        if iExistingWaterFactory < iMaxFactoriesToGet then
+
+            bDebugMessages = true
+            iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to assign BP to build a naval fac, iBPWanted='..iBPWanted..'; Pond segment size='..M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount]) end
+            if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iBPWanted = iBPWanted * 0.75 end
+            HaveActionToAssign(refActionBuildNavalFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech], iBPWanted, nil)
+        end
     end
 
     --Preemptive AA builder if we are at T3 and have decent mass income, and have friendly units in the WZ or intel coverage, and no enemy units
