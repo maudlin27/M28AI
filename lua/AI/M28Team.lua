@@ -1642,7 +1642,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record, with some exceptions; iTeam='..(aiBrain.M28Team or 'nil')) end
                                 bIgnore = true
                                 if M28Map.bIsCampaignMap then
                                     local bAddToNeutralTable = true
@@ -1679,6 +1679,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA] = {} end
                                     table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA], oUnit)
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will record experimental level or T3 navy unit if it isnt compelte yet, Fraction complete='..oUnit:GetFractionComplete()) end
                                     if oUnit:GetFractionComplete() < 1 then
                                         local bAlreadyRecorded = false
                                         local iTeam = aiBrain.M28Team
