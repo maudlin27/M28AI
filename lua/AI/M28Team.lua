@@ -3467,6 +3467,11 @@ function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
     import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
 end
 
+function DelayedUnitTransferToPlayer(tUnits, iReceivingBrainIndex, iSecondsToWait)
+    WaitSeconds(iSecondsToWait)
+    TransferUnitsToPlayer(tUnits, iReceivingBrainIndex, false)
+end
+
 function GiveAllResourcesToAllies(aiBrain)
     local iMassToGive = aiBrain:GetEconomyStored('MASS')
     local iEnergyToGive = aiBrain:GetEconomyStored('ENERGY')

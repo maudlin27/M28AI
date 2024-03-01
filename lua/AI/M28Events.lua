@@ -1575,14 +1575,45 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
 
                             --Update part built t1 mex tracking
+                            local bGiftingToTeammate = false
                             if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
+                                --Check if teammate has enough factories that we should give this to them - require mex to be closer to their base and for them to have factories in the zone, and for us to have no T2+ mexes
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= 3 then
+                                        local iClosestNonM28BrainDistBase = 100000
+                                        local oClosestNonM28Brain
+                                        local iClosestM28BrainDistBase = 100000
+
+                                        local iCurDist
+                                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                            if not(oBrain:IsDefeated()) then
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oJustBuilt:GetPosition(), M28Map.GetPlayerStartPosition(oBrain))
+                                                if oBrain.M28AI then iClosestM28BrainDistBase = math.min(iClosestM28BrainDistBase, iCurDist)
+                                                elseif iClosestNonM28BrainDistBase > iCurDist then
+                                                    iClosestNonM28BrainDistBase = iCurDist
+                                                    oClosestNonM28Brain = oBrain
+                                                end
+                                            end
+                                        end
+                                        bDebugMessages = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
+                                        if iClosestNonM28BrainDistBase <= 200 and iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase then
+                                            ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
+                                            M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            bGiftingToTeammate = true
+                                        end
+                                    end
+                                end
                             end
-                            if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                                ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                            if not(bGiftingToTeammate) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                                    ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                end
+                                --COnsider upgrading another mex in this zone
+                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt)
                             end
-                            --COnsider upgrading another mex in this zone
-                            ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
                             local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)

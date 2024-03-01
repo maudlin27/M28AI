@@ -3611,9 +3611,9 @@ function JustBuiltParagon(oParagon)
             oParagon['M28BuiltParagon'] = true
             local aiBrain = oParagon:GetAIBrain()
             local iTeam = aiBrain.M28Team
+            local oOtherBrain
             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                 --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
-                local oOtherBrain
                 local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
                 local iEngineersGifted = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -3660,30 +3660,45 @@ function JustBuiltParagon(oParagon)
                         end
                     end
                 end
-                if oOtherBrain then
-                    local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) then
-                        tUnitsToGift = {}
-                    end
-                    local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
-                    if M28Utilities.IsTableEmpty(tT3Power) == false then
-                        local iCurCount = -1
-                        local iGiftThreshold = 1
-                        for iUnit, oUnit in tT3Power do
-                            iCurCount = iCurCount + 1
-                            if iCurCount >= iGiftThreshold then
-                                iCurCount = 0
-                                table.insert(tUnitsToGift, oUnit)
-                            end
+            end
+            if not(oOtherBrain) then
+                --Do we have other (non-M28) teammates we can gift to, that aren't campaign AI?
+                local oFirstTeammateBrain
+                local oFirstHumanBrain
+                for iBrain, oBrain in ArmyBrains do
+                    if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28Team == aiBrain.M28Team and not(oBrain == aiBrain) and not(oBrain.CampaignAI) then
+                        if not(oFirstTeammateBrain) then oFirstTeammateBrain = oBrain end
+                        if not(aiBrain.BrainType == 'AI') and not(oFirstHumanBrain) then
+                            oFirstHumanBrain = oBrain
+                            break
                         end
                     end
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
-
-                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
-
+                end
+                if oFirstHumanBrain then oOtherBrain = oFirstHumanBrain else oOtherBrain = oFirstTeammateBrain end
+            end
+            if oOtherBrain then
+                local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                if M28Utilities.IsTableEmpty(tUnitsToGift) then
+                    tUnitsToGift = {}
+                end
+                local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
+                if M28Utilities.IsTableEmpty(tT3Power) == false then
+                    local iCurCount = -1
+                    local iGiftThreshold = 1
+                    for iUnit, oUnit in tT3Power do
+                        iCurCount = iCurCount + 1
+                        if iCurCount >= iGiftThreshold then
+                            iCurCount = 0
+                            table.insert(tUnitsToGift, oUnit)
+                        end
                     end
                 end
-
+                if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                    M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+                    if not(oOtherBrain.M28AI) then
+                        M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use these resource buildings more than me', 0, 300, true, true, nil, nil)
+                    end
+                end
             end
         end
     end
