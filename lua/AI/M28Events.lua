@@ -1867,12 +1867,24 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
-                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
-                            for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
-                                    M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
-                                    break
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                                        M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
+                                        break
+                                    end
+                                end
+                            end
+                            --Check if we own any paused non-mexes that we own, and unpause them
+                            if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) == false then
+                                for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
+                                    for iPaused, oPaused in tUnits do
+                                        if M28UnitInfo.IsUnitValid(oPaused) and oPaused:GetAIBrain() == oParagonBrain then
+                                            M28UnitInfo.PauseOrUnpauseEnergyUsage(oPaused, false, false, oParagonBrain.M28Team)
+                                        end
+                                    end
                                 end
                             end
                         end

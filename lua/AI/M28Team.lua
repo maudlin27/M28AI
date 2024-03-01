@@ -78,7 +78,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
     refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
     refiMexCountByTech = 'M28TeamMexByTech' --for all brains, not just M28 brains, treats a 1% complete mex as being completed for these purposes (to simplify code)
-    refbBuiltParagon = 'M28TeamBltPa' --true if someone on the team has a paragon
+    refbBuiltParagon = 'M28TeamBltPa' --true if an M28 brain on the team has a paragon
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
