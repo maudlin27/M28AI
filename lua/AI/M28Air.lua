@@ -27,6 +27,7 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     subreftPlateauAndLandZonesInPath = 'M28APathPlatLZ' --if are any
     subreftWaterZonesInPath = 'M28APathWZ'
 tDistanceAdjustXZ = {} --Used for gunships to space out
+iMinimumASFCountPostGifting = 20 --if we give asfs to a teammate we want to maintain this number for basic defence
 
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
 tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one full cycle
@@ -2550,6 +2551,34 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; iAirSubteam='..iAirSubteam..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
     --Update threat level
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableAirAA, false, true) + M28UnitInfo.GetAirThreatLevel(tAirForRefueling, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, true)
+    --Include human air player if we have gifted them asfs
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs] then
+        local oHumanToInclude = M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs]
+        local iHumanAirAAToInclude = 0
+        if not(oHumanToInclude) or oHumanToInclude.M28IsDefeated or oHumanToInclude:IsDefeated() then
+            oHumanToInclude = nil
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                local iCurAirAAThreat = 0
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                    if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                        iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
+                        if iCurAirAAThreat > iHumanAirAAToInclude then
+                            oHumanToInclude = oBrain
+                            iHumanAirAAToInclude = iCurAirAAThreat
+                        end
+                    end
+                end
+            end
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs] = oHumanToInclude
+        else
+            iHumanAirAAToInclude = M28UnitInfo.GetMassCostOfUnits(oHumanToInclude:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will increase AirAA threat for the air subteam '..iAirSubteam..' based on human player '..(oHumanToInclude.Nickname or 'nil')..'; iHumanAirAAToInclude='..iHumanAirAAToInclude) end
+        if iHumanAirAAToInclude > 0 then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iHumanAirAAToInclude
+        end
+    end
+
     local iAdjacentGroundAAMax = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.15 --Even if we want to consider attacking adjacent zones, thsi is the max groundAA to permit
 
     --Update if we have air control and/or are far behind on air
@@ -3091,6 +3120,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     end
                                 end
                             end
+                            local iIdleAirAACount = 0
                             for iUnit, oUnit in tAvailableAirAA do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
                                 if not(oUnit.Dead) then --redundancy
@@ -3115,8 +3145,62 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         end
                                     else
                                         M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
+                                        iIdleAirAACount = iIdleAirAACount + 1
                                     end
                                 elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
+                                end
+                            end
+                            if iIdleAirAACount >= 30 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 12000 then
+                                --Consider gifting ASFs to a teammate if we haven't considered recently; only gift if they have more asfs than we do, and we lack air control
+                                if bDebugMessages == true then LOG(sFunctionRef..': Time since we last considered gifting asf to a teammate for airsubteam '..iAirSubteam..'='..(GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100))) end
+                                if GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100) >= 30 then
+                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] = GetGameTimeSeconds()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Table of friendly human and ai brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
+                                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                                        local iHumanHighestAirAAThreat = 0
+                                        local oHumanHighestAirAAThreat
+                                        local iAllTeamAirAAThreat = 0
+                                        local iCurAirAAThreat = 0
+                                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                            if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                                                iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
+                                                iAllTeamAirAAThreat = iAllTeamAirAAThreat + iCurAirAAThreat
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering human '..oBrain.Nickname..'; iCurAirAAThreat='..iCurAirAAThreat..'; iAllTeamAirAAThreat='..iAllTeamAirAAThreat) end
+                                                if iCurAirAAThreat > iHumanHighestAirAAThreat then
+                                                    iHumanHighestAirAAThreat = iCurAirAAThreat
+                                                    oHumanHighestAirAAThreat = oBrain
+                                                end
+                                            end
+                                        end
+                                        if iHumanHighestAirAAThreat >= math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.3, 15000) then
+                                            --Want to gift some of our ASF to teammate
+                                            local tOurASFs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirAA *  categories.TECH3, tAvailableAirAA)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of our available asfs empty='..tostring(M28Utilities.IsTableEmpty(tOurASFs))) end
+                                            if M28Utilities.IsTableEmpty(tOurASFs) == false then
+                                                local toUnitsToConsiderGifting = {}
+                                                local iASFCount = 0
+                                                for iASF, oASF in tOurASFs do
+                                                    if oASF[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(oASF[M28UnitInfo.refbSpecialMicroActive]) then
+                                                        iASFCount = iASFCount + 1
+                                                        table.insert(toUnitsToConsiderGifting, oASF)
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iASFCount='..iASFCount) end
+                                                if iASFCount >= 30 then
+                                                    local toASFToGive = {}
+                                                    local iASFToGive = iASFCount - iMinimumASFCountPostGifting
+                                                    for iASF, oASF in toUnitsToConsiderGifting do
+                                                        table.insert(toASFToGive, oASF)
+                                                        if iASF >= iASFToGive then break end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Transferring '..iASFToGive..' to player '..oHumanHighestAirAAThreat.Nickname) end
+                                                    M28Chat.SendMessage(toUnitsToConsiderGifting[1]:GetAIBrain(), 'GiveASFs', 'We should combine our air forces to maintain air control, I\'ve just transferred '..iASFToGive..' of my fighters to you '..oHumanHighestAirAAThreat.Nickname..', I trust you\'ll keep the skies clear of hostiles', 0.1, 900, true, true)
+                                                    M28Team.TransferUnitsToPlayer(toASFToGive, oHumanHighestAirAAThreat:GetArmyIndex())
+                                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs] = oHumanHighestAirAAThreat
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end

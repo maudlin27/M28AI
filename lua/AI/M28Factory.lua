@@ -3749,7 +3749,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --AirAA if far behind on air (lower priority since we are alreayd building in proportion to gunships above; i.e. dont want to get stuck only building airaa if have lost air control
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': AirAA if far behind on air, iCurrentConditionToTry='..iCurrentConditionToTry..'; are we far behind='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
-                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and (iAirAACountOfSearchCategory < 20 or (iCurGunships >= iAirAACountOfSearchCategory * 0.25 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] or 0) >= 2500))) then
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and (iAirAACountOfSearchCategory < M28Air.iMinimumASFCountPostGifting or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs]) and iCurGunships >= iAirAACountOfSearchCategory * 0.25 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] or 0) >= 2500))) then
                     if iFactoryTechLevel >= 3 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                     end
@@ -3816,7 +3816,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                             elseif tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] + tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] + tLZOrWZTeamData[M28Map.refiEnemyAirOtherThreat] > 0 then
-                                if iAirAACountOfSearchCategory < 400 and (iAirAACountOfSearchCategory < 150 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= iAirAACountOfSearchCategory * 200) then
+                                if iAirAACountOfSearchCategory < 400 and (iAirAACountOfSearchCategory < 150 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= iAirAACountOfSearchCategory * 200 and (iAirAACountOfSearchCategory <= M28Air.iMinimumASFCountPostGifting or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs])))) then
                                     if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
                                 end
                             end
@@ -3827,7 +3827,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --AirAA if high mass and lack air control
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..'; AirAA if high mass and lack air control, iCurrentConditionToTry='..iCurrentConditionToTry..'; iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; Have low mass='..tostring(bHaveLowMass)..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Have air control='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; AirAA threat='..M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]) end
-                if iAirAACountOfSearchCategory < 400 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and (not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat] <= 750 * iFactoryTechLevel) then
+                if iAirAACountOfSearchCategory < 400 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and (not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat] <= 750 * iFactoryTechLevel or (iAirAACountOfSearchCategory <= 50 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs])) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Low priority AirAA builder') end
                     if iFactoryTechLevel >= 3 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end

@@ -251,6 +251,8 @@ tAirSubteamData = {}
     refiLastTorpBomberAdjacencyLevel = 'M28ASTLastTBAdj' --i.e. 3 means we last looked up to 3 adjacency levels out for targets
     refbOnlyGetASFs = 'M28OnlyGetASFs' --true if we should only get asfs now
     reftWaterZonesHasFriendlyTorps = 'M28WZWiTor' --[x] is the water zone, returns true if we have torpedo bombers in it
+    refiTimeLastConsideredGiftingASFToAlly = 'M28ATimLstGift' --Gametimeseconds that we last considered gifting asfs for this subteam
+    refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
 
 
 --Land subteam data varaibles (used for factory production logic)
