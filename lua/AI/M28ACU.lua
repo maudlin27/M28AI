@@ -4377,7 +4377,7 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
                 if GetGameTimeSeconds() >= 900 then
                     bStillBeAggressive = false
                 else
-                    local iThresholdFactor = 1 + (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] - 1) * 0.25
+                    local iThresholdFactor = 1 + ((M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) - 1) * 0.25
                     if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
                     if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
                     elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then

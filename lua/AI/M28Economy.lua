@@ -1070,7 +1070,16 @@ function ManageMassStalls(iTeam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start at time'..GetGameTimeSeconds()..'; Is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-
+        local bOnlyParagons = false
+        if M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] then
+            bOnlyParagons = true
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(oBrain[refbBuiltParagon]) then
+                    bOnlyParagons = false
+                    break
+                end
+            end
+        end
         local bPauseNotUnpause = true
         local bChangeRequired = false
         local iUnitsAdjusted = 0
@@ -1091,6 +1100,7 @@ function ManageMassStalls(iTeam)
         --Dont consider pausing or unpausing if are stalling energy or early game, as our energy stall manager is likely to be operating
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, GetGameTimeSeconds='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team stalling mass already='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or ((GetGameTimeSeconds() >= 120 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.99)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() >= 80 and GetGameTimeSeconds() <= 180 and not(M28Map.bIsLowMexMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 1 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            if bOnlyParagons then bPauseNotUnpause = false end
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': About to consider if we have a mass stall or not. Team lowest mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
             end
@@ -1109,7 +1119,7 @@ function ManageMassStalls(iTeam)
             end
             if bDebugMessages == true then LOG(sFunctionRef .. ': Checking if we shoudl flag that we are mass stalling. bChangeRequired='..tostring(bChangeRequired)..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Need resources for missile='..tostring((M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or false))..'; Gross mass income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]) end
             --Check if should manage mass stall
-            if bChangeRequired == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= (0.001 + iMassStallPercentAdjust) and (M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and (-M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iOverspendPercentage))) then
+            if bChangeRequired == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= (0.001 + iMassStallPercentAdjust) and (M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and (-M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iOverspendPercentage))) and not(bOnlyParagons) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': We are stalling mass, will look for units to pause')
                 end
@@ -1118,7 +1128,7 @@ function ManageMassStalls(iTeam)
                 M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] = true
                 M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] = GetGameTimeSeconds()
             end
-            if bPauseNotUnpause and not(bChangeRequired) then
+            if bPauseNotUnpause and not(bChangeRequired) and not(bOnlyParagons) then
                 if M28Team.tTeamData[iTeam][M28Team.subrefbStallingMassFlaggedFromTeamEconomy] then
                     M28Team.tTeamData[iTeam][M28Team.subrefbStallingMassFlaggedFromTeamEconomy] = false
                     bChangeRequired = true
@@ -1255,7 +1265,9 @@ function ManageMassStalls(iTeam)
                         end
 
                         if bPauseNotUnpause then
-                            if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                            if oBrain[refbBuiltParagon] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': This brain has built a paragon so wont search for units to pause') end
+                            elseif iCategoryRef == iSpecialSurplusUpgradeCategory then
                                 --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade. also dont pause anything that is >=85% complete
                                 tRelevantUnits = {}
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then

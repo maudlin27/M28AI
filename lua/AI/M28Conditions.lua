@@ -403,6 +403,17 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                     end
                                 end
                             end
+                        elseif iLastOrderType == M28Orders.refiOrderIssueRepair then
+                            local oUnitRepairing = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget]
+                            if not(M28UnitInfo.IsUnitValid(oUnitRepairing)) or (oUnitRepairing:GetFractionComplete() == 1 and (oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRepairAllyUnit or M28UnitInfo.GetUnitHealthPercent(oUnitRepairing) == 1)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are repairing a unit that is completed and full health or was an ally unit to repair, so are available') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are assigned to repair a unit that isnt complete or healed yet so not available') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2115,7 +2126,11 @@ function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCateg
             for iFactory, oFactory in tFactories do
                 sBeingBuilt = oFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
                 if sBeingBuilt and EntityCategoryContains(iCategory, sBeingBuilt) then
-                    iCount = iCount + 1
+                    if M28UnitInfo.IsUnitValid(oFactory) and oFactory.GetWorkProgress then
+                        if oFactory:GetWorkProgress() > 0 or M28UnitInfo.IsUnitValid(oFactory:GetFocusUnit()) then
+                            iCount = iCount + 1
+                        end
+                    end
                 end
             end
         end

@@ -78,7 +78,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
     refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
     refiMexCountByTech = 'M28TeamMexByTech' --for all brains, not just M28 brains, treats a 1% complete mex as being completed for these purposes (to simplify code)
-    refbBuiltParagon = 'M28TeamBltPa' --true if someone on the team has a paragon
+    refbBuiltParagon = 'M28TeamBltPa' --true if an M28 brain on the team has a paragon
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -87,6 +87,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiMassUpgradesStartedThisCycle = 'M28TeamMassUpgradesThisCycle' --Amount of mass per tick that we have committed in upgrades this cycle
     subrefiEnergyUpgradesStartedThisCycle = 'M28TeamEnergyUpgradesThisCycle' --Amount of energy per tick that we have committed in upgrades this cycle
     subreftTeamEngineersBuildingExperimentals = 'M28TeamEngineersBuildingExperimentals' --table of engineers building an experimental level unit anywhere in our team
+    reftoNonM28ConstructingExpAndT3Navy = 'M28TeamNonM28ExpC' --table of experimental level units being built by non-M28 teammates
 
 
     --Tech level and factory details (subteam will track factories in more detail by tech and faction and type)
@@ -250,6 +251,8 @@ tAirSubteamData = {}
     refiLastTorpBomberAdjacencyLevel = 'M28ASTLastTBAdj' --i.e. 3 means we last looked up to 3 adjacency levels out for targets
     refbOnlyGetASFs = 'M28OnlyGetASFs' --true if we should only get asfs now
     reftWaterZonesHasFriendlyTorps = 'M28WZWiTor' --[x] is the water zone, returns true if we have torpedo bombers in it
+    refiTimeLastConsideredGiftingASFToAlly = 'M28ATimLstGift' --Gametimeseconds that we last considered gifting asfs for this subteam
+    refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -1376,13 +1379,14 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId)))
                     end
 
-                    --Flag if SMD built so can update nuke targeting
+                    --Flag if SMD built so can update nuke targeting; refiTimeOfLastCheck is used to hold the estimated time that the smd was built (which then informs whether the smd is assumed to be able to block a nuke)
                     if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
                         local iTimeAssumedConstructed
-                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.75 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
-                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 180 - 60 * oUnit:GetWorkProgress()
-                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 * oUnit:GetFractionComplete()
+                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
+                        --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
+                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 - 180 * oUnit:GetWorkProgress()
+                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 45 * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                         --Unpause any paused SMD
@@ -1640,7 +1644,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record, with some exceptions; iTeam='..(aiBrain.M28Team or 'nil')) end
                                 bIgnore = true
                                 if M28Map.bIsCampaignMap then
                                     local bAddToNeutralTable = true
@@ -1676,6 +1680,19 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                                     if not(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA]) then tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA] = {} end
                                     table.insert(tLZOrWZTeamData[M28Map.subreftoTeammateFixedAA], oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will record experimental level or T3 navy unit if it isnt compelte yet, Fraction complete='..oUnit:GetFractionComplete()) end
+                                    if oUnit:GetFractionComplete() < 1 then
+                                        local bAlreadyRecorded = false
+                                        local iTeam = aiBrain.M28Team
+                                        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy]) == false then
+                                        elseif not(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy]) then tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy] = {}
+                                        end
+                                        if not(bAlreadyRecorded) then
+                                            table.insert(tTeamData[iTeam][reftoNonM28ConstructingExpAndT3Navy], oUnit)
+                                            oUnit[M28UnitInfo.refbNonM28ExpConstruction] = true
+                                        end
+                                    end
                                 end
 
 
@@ -3464,6 +3481,11 @@ end
 
 function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
     import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+end
+
+function DelayedUnitTransferToPlayer(tUnits, iReceivingBrainIndex, iSecondsToWait)
+    WaitSeconds(iSecondsToWait)
+    TransferUnitsToPlayer(tUnits, iReceivingBrainIndex, false)
 end
 
 function GiveAllResourcesToAllies(aiBrain)

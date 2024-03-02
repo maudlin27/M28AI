@@ -1601,13 +1601,25 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())..'Unit missile count='..M28UnitInfo.GetMissileCount(oLauncher)..'; Time since last tried to give an issue nuke order='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or -1000))
+        --Aeon SML - one case having 11s threshold was fine, another when it was 12.1s since it fired a nuke it ended up clearing the old order
+        local iTimeToWaitBetweenLaunches = 6 --i.e. TML
+        if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+            if EntityCategoryContains(categories.AEON, oLauncher.UnitId) then
+                iTimeToWaitBetweenLaunches = 13
+            else
+                iTimeToWaitBetweenLaunches = 8
+            end
         end
+
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())..'Unit missile count='..M28UnitInfo.GetMissileCount(oLauncher)..'; Time since last issued a nuke launch order='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or -1000)..'; iTimeToWaitBetweenLaunches='..iTimeToWaitBetweenLaunches)
+        end
+
         --If we have just tried giving an order to fire then wait longer
-        if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= 5 then
+        if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= iTimeToWaitBetweenLaunches then
+            if bDebugMessages == true then LOG(sFunctionRef..': we tried firing recently so will do a delayed launch instead') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            DelayedConsiderLaunchingMissile(oLauncher, 5 - (GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile]), true, true)
+            DelayedConsiderLaunchingMissile(oLauncher, iTimeToWaitBetweenLaunches - (GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile]), true, true)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Beginning main launcher logic, setting active missile checker to true') end
@@ -1687,7 +1699,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                 end
 
 
-
+            elseif EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oLauncher.UnitId) then
+                M28Utilities.ErrorHandler('Are running TML logic on an ACU or SACU, but code not setup to work for this yet')
             else M28Utilities.ErrorHandler('Unknown type of launcher, code to fire a missile wont work; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher))
             end
 
@@ -1703,6 +1716,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         tEnemyCategoriesOfInterest = {M28UnitInfo.refCategoryExperimentalStructure, M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML + categories.COMMAND, M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti - M28UnitInfo.refCategoryExperimentalStructure - M28UnitInfo.refCategoryFixedT3Arti - M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryT3Mex - M28UnitInfo.refCategorySMD - M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface * categories.EXPERIMENTAL}
                     end
                 end
+
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
                 if M28UnitInfo.IsUnitValid(oLauncher) then
                     if bTML then
@@ -1790,8 +1804,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     iCurTargetValue = 0
                                     if bDebugMessages == true then LOG(sFunctionRef..': Shields are covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 else
-                                    --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                                    iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true)
+                                    --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
+                                    iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true,                               nil,                                nil,                    nil)
                                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
                                     --Adjust value if we think the missile will hit a cliff
                                     if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
@@ -1956,17 +1970,24 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             return true --we havent fired here recently
                         end
 
+                        --Decide whether to value destroying reclaim
+                        local iReclaimFactor
+                        if M28Utilities.IsTableEmpty(M28Map.tiVeryHighValueReclaimSegments) == false then
+                            iReclaimFactor = 0.4
+                        end
+
                         --First get the best location if just target the start position or locations near here
                         if HaventRecentlyNukedLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) then--, not(bCheckForSMD)) then
-                            --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
                             iTimeSMDNeedsToHaveBeenBuiltFor = 200 --3m20
-                            tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5)
+                                                                --GetBestAOETarget(aiBrain, tBaseLocation,                              iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                            tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(),    nil,                                    nil,                2,                                  2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor)
                             RecordHaveConsideredNukeLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), true)
                         end
 
                         --Cycle through other start positions to see if can get a better target, but reduce value of target if we havent scouted it in the last 5 minutes
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering best target for nuke.  If target enemy base then iBestTargetValue='..iBestTargetValue) end
                         local iPlateauOrZero, iLandOrWaterZone
+                        local bAbortLoop = false
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
                             local tEnemyStartPosition =  M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
                             if M28Utilities.GetDistanceBetweenPositions(tEnemyStartPosition, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) >= 30 then
@@ -1987,8 +2008,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
                                         if HaventRecentlyNukedLocation(tEnemyStartPosition) then --, not(bCheckForSMD)) then
                                             RecordHaveConsideredNukeLocation(tEnemyStartPosition, false)
-                                            --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tEnemyStartPosition, iAOE, iDamage,   2,                                  2.5                     , nil,                          nil,                nil,                            nil,                                        false,                  nil,                            true)
+                                            --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
+                                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tEnemyStartPosition, iAOE, iDamage,   2,                                  2.5                     , nil,                          nil,                nil,                            nil,                                        false,                  nil,                            true,                       nil,                                    nil,                    iReclaimFactor)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Considering the start position '..repru( tEnemyStartPosition)..'; value ignroign SMD='..iCurTargetValue) end
                                             if iCurTargetValue > iBestTargetValue then
                                                 iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions( tEnemyStartPosition, oLauncher:GetPosition()) / iMissileSpeed + 10)
@@ -2008,62 +2029,66 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
                         end
+                        function ConsiderPotentialNukeLocation(tLocationToConsiderNuke, bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
+                            iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tLocationToConsiderNuke)
+                            if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
+                                if HaventRecentlyNukedLocation(tLocationToConsiderNuke) then --, not(bOverrideCheckForSMD)) then
+                                    RecordHaveConsideredNukeLocation(tLocationToConsiderNuke, false)
+                                    --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
+                                    iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tLocationToConsiderNuke, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor,                  false,              nil,                            true,                       nil,                                    nil,                    iReclaimFactor)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tLocationToConsiderNuke='..repru(tLocationToConsiderNuke)..'; iCurTargetValue='..iCurTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                    --Stop looking if tried >=10 targets and have one that is at least 20k of value
+                                    if iCurTargetValue > iBestTargetValue then
+                                        iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(tLocationToConsiderNuke, oLauncher:GetPosition()) / iMissileSpeed + 10)
+                                        if bOverrideCheckForSMD and IsSMDBlockingTarget(aiBrain, tLocationToConsiderNuke, oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(tLocationToConsiderNuke)..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                            iCurTargetValue = 4000 end
+                                        if iCurTargetValue > iBestTargetValue then
+                                            bAlreadyConsideredBestAOETarget = false
+                                            iBestTargetValue = iCurTargetValue
+                                            tTarget = tLocationToConsiderNuke
+                                            if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                        end
+                                    end
+                                    --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
+                                    if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                        bAbortLoop = true
+                                    end
+                                end
+                            end
+                            --Spread out calculations over a number of ticks due to their intesnity
+                            if iPositionsConsideredThisTick >= 10 and not(bAbortLoop) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                WaitTicks(1)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                RefreshRecentlyNukedLocations()
+                                iPositionsConsideredThisTick = 0
+                                iTotalWaitCount = iTotalWaitCount + 1
+                                if not(M28UnitInfo.IsUnitValid(oLauncher)) then
+                                    tTarget = nil
+                                    bAbortLoop = true
+                                end
+                                --Lower requirements to stop searching over time
+                                if iTotalWaitCount >= 20 then
+                                    iAbortThreshold = iAbortThreshold * 0.95
+                                    if iTotalWaitCount >= 100 then
+                                        iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
+                                        if iTotalWaitCount >= 150 then bAbortLoop = true end
+                                    end
+                                    if iBestTargetValue >= iAbortThreshold then bAbortLoop = true end
+                                end
+                            end
+                        end
 
                         function ConsiderTableOfPotentialTargets(tEnemyUnitsOfInterest, bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
                             if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
                                 for iUnit, oUnit in tEnemyUnitsOfInterest do
                                     if M28UnitInfo.IsUnitValid(oUnit) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition())))) end
-                                        iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
-                                        if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                            if HaventRecentlyNukedLocation(oUnit:GetPosition()) then --, not(bOverrideCheckForSMD)) then
-                                                RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
-                                                --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
-                                                iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor,                  false,              nil,                            true)
-                                                if bDebugMessages == true then LOG(sFunctionRef..': target oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue='..iCurTargetValue..'; location='..repru(oUnit:GetPosition())..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
-                                                --Stop looking if tried >=10 targets and have one that is at least 20k of value
-                                                if iCurTargetValue > iBestTargetValue then
-                                                    iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oLauncher:GetPosition()) / iMissileSpeed + 10)
-                                                    if bOverrideCheckForSMD and IsSMDBlockingTarget(aiBrain, oUnit:GetPosition(), oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(oUnit:GetPosition())..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                        iCurTargetValue = 4000 end
-                                                    if iCurTargetValue > iBestTargetValue then
-                                                        bAlreadyConsideredBestAOETarget = false
-                                                        iBestTargetValue = iCurTargetValue
-                                                        tTarget = oUnit:GetPosition()
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                    end
-                                                end
-                                                --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
-                                                if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
-                                                    break
-                                                end
-                                            end
-                                        end
-                                        --Spread out calculations over a number of ticks due to their intesnity
-                                        if iPositionsConsideredThisTick >= 10 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
-                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                            WaitTicks(1)
-                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                                            RefreshRecentlyNukedLocations()
-                                            iPositionsConsideredThisTick = 0
-                                            iTotalWaitCount = iTotalWaitCount + 1
-                                            if not(M28UnitInfo.IsUnitValid(oLauncher)) then
-                                                tTarget = nil
-                                                break
-                                            end
-                                            --Lower requirements to stop searching over time
-                                            if iTotalWaitCount >= 20 then
-                                                iAbortThreshold = iAbortThreshold * 0.95
-                                                if iTotalWaitCount >= 100 then
-                                                    iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
-                                                    if iTotalWaitCount >= 150 then break end
-                                                end
-                                                if iBestTargetValue >= iAbortThreshold then break end
-                                            end
-                                        end
+                                        ConsiderPotentialNukeLocation(oUnit:GetPosition(), bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
+                                        if bAbortLoop then break end
                                     end
                                 end
                             end
@@ -2074,10 +2099,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         local iDefensiveThreshold = 350
                         local iBestValueOfDefensiveNuke = 0
                         local iDefensiveNukePlateauAndZone = {}
-                        if M28Map.iMapSize <= 512 then iDefensiveThreshold = 225 end
+                        if M28Map.iMapSize <= 512 then iDefensiveThreshold = 260 end
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oLauncher:GetPosition(), true, iTeam)
                         if tLZTeamData then
-                            iDefensiveThreshold = math.max(125, math.min(iDefensiveThreshold, M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) * 0.45)
+                            iDefensiveThreshold = math.max(125, math.min(iDefensiveThreshold, M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) * 0.475)
                         end
                         local iCurUnitPlateauOrZero, iCurUnitZone
                         local toClosestEnemyUntisByPlateauAndZone = {}
@@ -2140,20 +2165,34 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
 
 
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <80k then will consider other targets. tTarget='..repru(tTarget)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <80k then will consider other targets. tTarget='..repru(tTarget)..'; iBestValueOfDefensiveNuke='..iBestValueOfDefensiveNuke) end
                         if iBestTargetValue < 80000 and (not(oLauncher[M28UnitInfo.refbEasyBrain]) or iBestTargetValue < 30000) then --If have high value location for nearest enemy start then just go with this
+                            --Consider high reclaim segments
+                            if M28Utilities.IsTableEmpty(M28Map.tiVeryHighValueReclaimSegments) == false then
+                                for iEntry, tSegmentXZ in M28Map.tiVeryHighValueReclaimSegments do
+                                    local tSegmentMidpoint = M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2])
+                                    local tReclaimLZData, tReclaimLZTeamData = M28Map.GetLandOrWaterZoneData(tSegmentMidpoint, true, iTeam)
+                                    if tReclaimLZTeamData[M28Map.refiModDistancePercent] > 0.6 then --If changing 0.6 threshold also update getdamagefrombomb
+                                        ConsiderPotentialNukeLocation(tSegmentMidpoint, bCheckForSMD)
+                                        if bAbortLoop then break end
+                                    end
+                                end
+                            end
+
+
+
                             for iRef, iCategory in tEnemyCategoriesOfInterest do
                                 ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
 
                             end
                             if iBestTargetValue > iBestValueOfDefensiveNuke then
-                                if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget, iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5) end
+                                --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                                if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget,         iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(), nil,                                       nil,                2,                                      2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor) end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
-                        if iBestTargetValue < 14000 then
+                        if iBestTargetValue < 20000 then --Mex is 4.6k base, with a 1.75 factor is 8050; with mass storage would be 9450; therefore if want to hit 3+ mex equivalents with a nuke, min value should be at least 19k (just over 2 capped T3 mexes)
                             if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                                 tTarget = nil
                             end
@@ -2181,8 +2220,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     tPotentialAltTarget = M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit), iBaseLeadingDistance, true, false, true)
                                 end
                                 --Check the value of this isn't negative (due to friendly fire)
-                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                                if M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6,                                       nil,                    nil,                            true) > 0 then
+                                            --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
+                                if M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6,                                       nil,                    nil,                            true,                           nil,                                nil,                    iReclaimFactor) > 0 then
                                     tTarget = tPotentialAltTarget
                                     --Adjust the target further if it is far away
                                     local iCurDist = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
@@ -2337,8 +2376,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget--]]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                                 --Send a voice taunt if havent in last 10m and we expect to do significant damage
-                                if iBestTargetValue >= 25000 then
+                                if iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
                                     if bCheckForSMD or not(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0)) then
+                                        M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
                                         ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
                                     end
                                 end
@@ -2764,8 +2804,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iCurCount = iCurCount + 1
                             if iCurCount > iMaxTargetsPerZone then break end
                             local oUnit = tPriorityUnits[iEntry]
-                            --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
-                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
+                                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
+                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil)
                             if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
                             local iMinValue = 0
                             --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
@@ -2871,7 +2911,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     if bDebugMessages == true then LOG(sFunctionRef..': Changing Arti target for oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..' to try and lead target, oBestTarget position='..repru(oBestTarget:GetPosition())..'; tLeadingTarget='..repru(tLeadingTarget)..'; Time='..GetGameTimeSeconds()) end
                     tActualTarget = tLeadingTarget
                 else
-                    tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
+                                            --GetBestAOETarget(aiBrain, tBaseLocation,            iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                    tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false,                 nil,                    nil,                                    nil,            iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     nil,                            iMobileValueFactorInner,                    iShieldReductionFactor,         nil)
                 end
 
 
@@ -3570,9 +3611,9 @@ function JustBuiltParagon(oParagon)
             oParagon['M28BuiltParagon'] = true
             local aiBrain = oParagon:GetAIBrain()
             local iTeam = aiBrain.M28Team
+            local oOtherBrain
             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                 --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
-                local oOtherBrain
                 local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
                 local iEngineersGifted = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -3619,30 +3660,45 @@ function JustBuiltParagon(oParagon)
                         end
                     end
                 end
-                if oOtherBrain then
-                    local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) then
-                        tUnitsToGift = {}
-                    end
-                    local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
-                    if M28Utilities.IsTableEmpty(tT3Power) == false then
-                        local iCurCount = -1
-                        local iGiftThreshold = 1
-                        for iUnit, oUnit in tT3Power do
-                            iCurCount = iCurCount + 1
-                            if iCurCount >= iGiftThreshold then
-                                iCurCount = 0
-                                table.insert(tUnitsToGift, oUnit)
-                            end
+            end
+            if not(oOtherBrain) then
+                --Do we have other (non-M28) teammates we can gift to, that aren't campaign AI?
+                local oFirstTeammateBrain
+                local oFirstHumanBrain
+                for iBrain, oBrain in ArmyBrains do
+                    if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28Team == aiBrain.M28Team and not(oBrain == aiBrain) and not(oBrain.CampaignAI) then
+                        if not(oFirstTeammateBrain) then oFirstTeammateBrain = oBrain end
+                        if not(aiBrain.BrainType == 'AI') and not(oFirstHumanBrain) then
+                            oFirstHumanBrain = oBrain
+                            break
                         end
                     end
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
-
-                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
-
+                end
+                if oFirstHumanBrain then oOtherBrain = oFirstHumanBrain else oOtherBrain = oFirstTeammateBrain end
+            end
+            if oOtherBrain then
+                local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                if M28Utilities.IsTableEmpty(tUnitsToGift) then
+                    tUnitsToGift = {}
+                end
+                local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
+                if M28Utilities.IsTableEmpty(tT3Power) == false then
+                    local iCurCount = -1
+                    local iGiftThreshold = 1
+                    for iUnit, oUnit in tT3Power do
+                        iCurCount = iCurCount + 1
+                        if iCurCount >= iGiftThreshold then
+                            iCurCount = 0
+                            table.insert(tUnitsToGift, oUnit)
+                        end
                     end
                 end
-
+                if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                    M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+                    if not(oOtherBrain.M28AI) then
+                        M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use these resource buildings more than me', 0, 300, true, true, nil, nil)
+                    end
+                end
             end
         end
     end

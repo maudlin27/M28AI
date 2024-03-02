@@ -58,7 +58,9 @@ PlayerStartPoints = {} --Try to use M28Map.GetPlayerStartPosition(aiBrain) inste
 --Reclaim info (non-LZ/plateau specific):
 bReclaimManagerActive = false --used to spread updates of reclaim areas over each second
 tReclaimSegmentsToUpdate = {} --[n] where n is the count, returns {segmentX,segmentZ} as value; i.e. update by using table.insert
-tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]; if x=1 returns total mass in area; if x=2 then returns position of largest reclaim in the area, if x=3 returns how many platoons have been sent here since the game started
+tiVeryHighValueReclaimSegments = {} --[x] = 1,2,3...; returns {SegmentX, SegmentZ}
+iVeryHighReclaimThreshold = 10000 --Will record any segemnts with at least this much reclaim in tiVeryHighValueReclaimSegments
+tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]
     refReclaimTotalMass = 1
     refReclaimSegmentMidpoint = 2
     refReclaimHighestIndividualMassReclaim = 3
@@ -5305,7 +5307,7 @@ function RecordPondToExpandTo(aiBrain)
                             --X is in range, is Z?
                             if math.abs(tPondSubtable[subrefPondMinZ] - tEnemyBase[3]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[3] - tPondSubtable[subrefPondMaxZ]) <= iEnemyBaseThreshold or (tEnemyBase[3] >= tPondSubtable[subrefPondMinZ] and tEnemyBase[3] <= tPondSubtable[subrefPondMaxZ]) then
                                 iCurPondValue = math.max(iCurPondValue * 1.2, iCurPondValue + 2)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%, iEnemyBaseThreshold='..iEnemyBaseThreshold) end
                             end
                         end
 
@@ -7546,6 +7548,33 @@ function GetReclaimSegmentRectangle(iSegmentX, iSegmentZ, iOptionalSizeIncrease)
     end
 end
 
+function RemoveFromVeryHighValueSegmentTable(iSegmentX, iSegmentZ)
+    if M28Utilities.IsTableEmpty(tiVeryHighValueReclaimSegments) == false then
+        for iEntry, tSegXZ in tiVeryHighValueReclaimSegments do
+            if tSegXZ[1] == iSegmentX and tSegXZ[2] == iSegmentZ then
+                table.remove(tiVeryHighValueReclaimSegments, iEntry)
+                break
+            end
+        end
+    end
+end
+
+function AddToVeryHighValueSegmentTable(iSegmentX, iSegmentZ)
+    local bAlreadyIncluded = false
+    if M28Utilities.IsTableEmpty(tiVeryHighValueReclaimSegments) == false then
+        for iEntry, tSegXZ in tiVeryHighValueReclaimSegments do
+            if tSegXZ[1] == iSegmentX and tSegXZ[2] == iSegmentZ then
+                bAlreadyIncluded = true
+                break
+            end
+        end
+    end
+    if not(bAlreadyIncluded) then
+        table.insert(tiVeryHighValueReclaimSegments, {iSegmentX, iSegmentZ})
+    end
+
+end
+
 function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange)
     --Updates reclaim data for all segments within iSegmentRange of tLocation
 
@@ -7566,6 +7595,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
     end
 
     local iPlateau, iLandZone
+    local bWasVeryHighValue
 
     for iCurX = iBaseSegmentX - iSegmentRange, iBaseSegmentX + iSegmentRange do
         for iCurZ = iBaseSegmentZ - iSegmentRange, iBaseSegmentZ + iSegmentRange do
@@ -7577,6 +7607,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
             if tReclaimables and table.getn( tReclaimables ) > 0 then
                 -- local iWreckCount = 0
                 --local bIsProp = nil  --only used for log/testing
+
                 if bDebugMessages == true then LOG('Have wrecks within the segment iCurXZ='..iCurX..'-'..iCurZ) end
                 iTotalMassValue, tReclaimPos, iLargestCurReclaim, iTotalEnergyValue, iTotalMassAboveThreshold = GetReclaimablesMassAndEnergy(tReclaimables, iMinValueOfIndividualReclaim, iMinEnergyValue, bDebugMessages)
                 --Record this table:
@@ -7586,7 +7617,15 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 end
                 if tReclaimAreas[iCurX][iCurZ] == nil then
                     CreateReclaimSegment(iCurX, iCurZ)
+                    bWasVeryHighValue = false
+                else
+                    if (tReclaimAreas[iCurX][iCurZ][refReclaimTotalSignificantMass] or 0) >= iVeryHighReclaimThreshold then
+                        bWasVeryHighValue = true
+                    else
+                        bWasVeryHighValue = false
+                    end
                 end
+
                 --tReclaimAreas[iCurX][iCurZ][refiReclaimTotalPrev] = (tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] or 0)
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
                 tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualMassReclaim] = iLargestCurReclaim
@@ -7613,9 +7652,19 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                         end
                     end
                 end
+                if bWasVeryHighValue then
+                    if tReclaimAreas[iCurX][iCurZ][refReclaimTotalSignificantMass] < iVeryHighReclaimThreshold then
+                        RemoveFromVeryHighValueSegmentTable(iCurX, iCurZ)
+                    end
+                elseif tReclaimAreas[iCurX][iCurZ][refReclaimTotalSignificantMass] >= iVeryHighReclaimThreshold then
+                    --wouldnt have been high value before but should be now
+                    AddToVeryHighValueSegmentTable(iCurX, iCurZ)
+                end
             else
                 if tReclaimAreas[iCurX][iCurZ] == nil then
                     CreateReclaimSegment(iCurX, iCurZ)
+                elseif tReclaimAreas[iCurX][iCurZ][refReclaimTotalSignificantMass] >= iVeryHighReclaimThreshold then
+                    RemoveFromVeryHighValueSegmentTable(iCurX, iCurZ)
                 end
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = 0
                 tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualMassReclaim] = 0

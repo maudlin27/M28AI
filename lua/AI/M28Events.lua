@@ -563,6 +563,18 @@ function OnUnitDeath(oUnit)
                                     end
                                 end
                             end
+                            if oUnit[M28UnitInfo.refbNonM28ExpConstruction] then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
+                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
+                                        if oRecordedUnit == oUnit then
+                                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
+                                            break
+                                        end
+                                    end
+                                end
+                                oUnit[M28UnitInfo.refbNonM28ExpConstruction] = false
+                            end
                         end
                     end
                 end
@@ -979,7 +991,8 @@ function OnWeaponFired(oWeapon)
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
                             if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max((oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100), (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) end
-                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() --For an SMD this will effectively mean we think the SMD isnt loaded anymore; below acts as a basic check to approximate scenarios where SMD has been around a while (ideally if improving on this would just use a dif variable to refiTimeOfLastCheck so can track the actual values wanted)
+                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and oUnit:GetNukeSiloAmmoCount() >= 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 end
                             oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
 
@@ -1574,14 +1587,44 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
 
                             --Update part built t1 mex tracking
+                            local bGiftingToTeammate = false
                             if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
+                                --Check if teammate has enough factories that we should give this to them - require mex to be closer to their base and for them to have factories in the zone, and for us to have no T2+ mexes
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= 3 then
+                                        local iClosestNonM28BrainDistBase = 100000
+                                        local oClosestNonM28Brain
+                                        local iClosestM28BrainDistBase = 100000
+
+                                        local iCurDist
+                                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                            if not(oBrain:IsDefeated()) then
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oJustBuilt:GetPosition(), M28Map.GetPlayerStartPosition(oBrain))
+                                                if oBrain.M28AI then iClosestM28BrainDistBase = math.min(iClosestM28BrainDistBase, iCurDist)
+                                                elseif iClosestNonM28BrainDistBase > iCurDist then
+                                                    iClosestNonM28BrainDistBase = iCurDist
+                                                    oClosestNonM28Brain = oBrain
+                                                end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
+                                        if iClosestNonM28BrainDistBase <= 200 and iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase then
+                                            ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
+                                            M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            bGiftingToTeammate = true
+                                        end
+                                    end
+                                end
                             end
-                            if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                                ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                            if not(bGiftingToTeammate) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                                    ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                end
+                                --COnsider upgrading another mex in this zone
+                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt)
                             end
-                            --COnsider upgrading another mex in this zone
-                            ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
                             local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
@@ -1824,12 +1867,24 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
-                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
-                            for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
-                                    M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
-                                    break
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                                        M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
+                                        break
+                                    end
+                                end
+                            end
+                            --Check if we own any paused non-mexes that we own, and unpause them
+                            if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) == false then
+                                for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
+                                    for iPaused, oPaused in tUnits do
+                                        if M28UnitInfo.IsUnitValid(oPaused) and oPaused:GetAIBrain() == oParagonBrain then
+                                            M28UnitInfo.PauseOrUnpauseEnergyUsage(oPaused, false, false, oParagonBrain.M28Team)
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -1879,6 +1934,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end--]]
                 end
             else
+                --Non-M28 only units
+
                 --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
                 if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
                     local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
@@ -1897,6 +1954,19 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                         oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
                     end--]]
+                end
+                --Tracking of under construction experimentals
+                if oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] then
+                    local iTeam = oJustBuilt:GetAIBrain().M28Team
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
+                        for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
+                            if oRecordedUnit == oJustBuilt then
+                                table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
+                                break
+                            end
+                        end
+                    end
+                    oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] = false
                 end
 
             end
@@ -1917,6 +1987,7 @@ function OnReclaimStarted(oEngineer, oReclaim)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
+            M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)
             M28Chat.SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming', 'Great, now I have to deal with my so called teammates reclaiming my units, thanks a lot '..oEngineer:GetAIBrain().Nickname, 0, 100000)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

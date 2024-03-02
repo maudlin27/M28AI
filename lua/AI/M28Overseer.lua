@@ -1098,9 +1098,10 @@ function GetCivilianCaptureTargets(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DebugCheck(aiBrain)
-    local sFunctionRef = 'DebugCheck'
-    local iTickTimeToStartDetailedDebug = 20190.2 --set to high number if first want to figure out the tick where this happens
+function DebugCheckProfiling(aiBrain)
+    M28Utilities.ErrorHandler('Debug check profiling is enabled')
+    local sFunctionRef = 'DebugCheckProfiling'
+    local iTickTimeToStartDetailedDebug = 10000000 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true
@@ -1122,7 +1123,7 @@ function DebugCheck(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheck,aiBrain)
+    --ForkThread(DebugCheckProfiling,aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)

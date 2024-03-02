@@ -147,7 +147,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual030912' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual030918' and GetGameTimeSeconds() >= 142 then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
@@ -906,8 +906,11 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+    --LOG('Considering issuing new unload order, Last order type='..(tLastOrder[subrefiOrderType] or 'nil')..'; iDistanceToReissueOrder='..(iDistanceToReissueOrder or 'nil')..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(tOrderPosition, (tLastOrder[subreftOrderPosition] or {-100,0,-100}))..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false))
     if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderUnloadTransport and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
-        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(bAddToExistingQueue) then
+            IssueTrackedClearCommands(oUnit)
+        end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
