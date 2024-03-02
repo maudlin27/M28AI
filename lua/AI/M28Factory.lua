@@ -4349,7 +4349,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if iCurBattleships >= 3 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
             local iCurMissileShips = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMissileShip * categories.TECH3)
             if bDebugMessages == true then LOG(sFunctionRef..': iCurMissileShips='..iCurMissileShips..'; iCurBattleships='..iCurBattleships..'; Time since last had bombardment with battleships='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100)) end
-            if iCurMissileShips < iCurBattleships and (iCurMissileShips == 0 or iCurMissileShips < iCurBattleShips * 0.5 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 15) then
+            if iCurMissileShips < iCurBattleships and (iCurMissileShips == 0 or iCurMissileShips < iCurBattleships * 0.5 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 15) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryMissileShip * categories.TECH3 - categories.SUBMERSIBLE) then return sBPIDToBuild end
             end
         end
