@@ -2322,13 +2322,13 @@ function ConsiderSlowdownForHighUnitCount()
         end
         if iM28Units > 2000 or M28Land.iTicksPerLandCycle > 10 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
             bDebugMessages = true
-            M28Land.iTicksPerLandCycle = math.min(100, 10 + (iM28Units-1500) / 200)
-            M28Air.iExtraTicksToWaitBetweenAirCycles = M28Land.iTicksPerLandCycle - 10
+            M28Land.iTicksPerLandCycle = math.min(10, 10 + (iM28Units-1500) / 200)
+            M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
             M28Chat.SendMessage(oFirstM28Brain, 'Slowdown', 'Even my apm cant keep up with this many units!', 0, 1000000, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Slowdown mode active, M28Land.iTicksPerLandCycle='..M28Land.iTicksPerLandCycle..'; M28Air.iExtraTicksToWaitBetweenAirCycles='..M28Air.iExtraTicksToWaitBetweenAirCycles) end
         else
             --Use default values
-            M28Land.iTicksPerLandCycle = 10
+            M28Land.iTicksPerLandCycle = 1
             M28Air.iExtraTicksToWaitBetweenAirCycles = 0
         end
     end

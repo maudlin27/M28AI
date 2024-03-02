@@ -24,7 +24,7 @@ local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
-iTicksPerLandCycle = 10 --Set by ConsiderSlowdownForHighUnitCount; i.e. will try and run logic for every unit over this amount of time; with high unit numbers will consider adjusting
+iTicksPerLandCycle = 11 --Set by ConsiderSlowdownForHighUnitCount; WaitTicks(11) is equivalent to WaitSeconds(1) i.e. will try and run logic for every unit over this amount of time; with high unit numbers will consider adjusting
 --Land zone subteam data - see M28Map for main variables; threat specific values are included here
 
 --Varaibles against specific units
@@ -6297,7 +6297,7 @@ function ManageAllLandZones(aiBrain, iTeam)
 
     local iLastRefreshCount = (tLZRefreshCountByTeam[iTeam] or 1)
     local iCurRefreshCount = 0
-    local iTicksToSpreadOver = iTicksPerLandCycle --Default is 10, i.e. 1 second
+    local iTicksToSpreadOver = iTicksPerLandCycle - 1 --Default is 10, i.e. 1 second
     local iRefreshThreshold = math.max(2, math.ceil(iLastRefreshCount * 0.95 / iTicksToSpreadOver))
     local iCurCycleRefreshCount = 0
     local iCurTicksWaited = 0
@@ -6416,7 +6416,10 @@ function LandZoneOverseer(iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
             ForkThread(ManageAllLandZones, aiBrain, iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(iTicksPerLandCycle)
+            if GetGameTimeSeconds() >= 900 then
+                WaitTicks(iTicksPerLandCycle)
+            else WaitSeconds(1)
+            end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                 aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
