@@ -7783,7 +7783,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         UpdateBPTracking()
                         if bFirstEngi and iTotalBuildPowerWanted > 30 and iActionToAssign == refActionRepairAllyUnit then
                             --Send message to teammate that are helping them
-                            M28Chat.SendMessage(aiBrain, 'HelpAllyBuild'..oUnitToRepair:GetAIBrain():GetArmyIndex(), oUnitToRepair:GetAIBrain().Nickname..' I\'m sending some engineers to help you with that '..(oUnitToRepair:GetBlueprint().Description or 'unit'), 3, 3600, true, true)
+                            M28Chat.SendMessage(aiBrain, 'HelpAllyBuild'..oUnitToRepair:GetAIBrain():GetArmyIndex(), oUnitToRepair:GetAIBrain().Nickname..' I\'m sending some engineers to help you with that '..LOC((oUnitToRepair:GetBlueprint().Description or 'unit')), 3, 3600, true, true)
                         end
                         bFirstEngi = false
                     end
@@ -8724,7 +8724,6 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignBuildExperimentalOrT3NavyAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     --Check if a teammate has units nearby that we might want to assist instead
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..(iPlateau or 'nil')..'; iTeam='..iTeam..'; iActionToAssign='..(iActionToAssign or 'nil')..'; iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')..'; iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Is table of T3 navy and exp empty for our team (i.e. for nonM28 units)='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
@@ -8744,7 +8743,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         end
 
 
-        for iCurEntry = table.getn(tUnits), 1 do
+        for iCurEntry = table.getn(tUnits), 1, -1 do
             local oUnit = tUnits[iCurEntry]
             if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() <= 0.9 and (oUnit:GetFractionComplete() <= 0.75 or EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId)) then --No point assisting a near-complete unit as it will likely be done by the time we get there
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Has desired category='..tostring(EntityCategoryContains(iCategoryToSearch, oUnit.UnitId))..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Expected plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end

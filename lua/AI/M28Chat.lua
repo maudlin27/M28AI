@@ -1915,7 +1915,7 @@ function SendUnitReclaimedMessage(oEngineer, oReclaim)
     }
     local sBlueprintDesc
     local oBP
-    if oReclaim.GetBlueprint then oBP = oReclaim:GetBlueprint() sBlueprintDesc = oBP.Description end
+    if oReclaim.GetBlueprint then oBP = oReclaim:GetBlueprint() sBlueprintDesc = LOC(oBP.Description) end
     if sBlueprintDesc then table.insert(tsPotentialMessages, 'Why are you reclaiming my '..sBlueprintDesc..' '..oEngineer:GetAIBrain().Nickname..'?') end
 
     local iRand = math.random(1, table.getn(tsPotentialMessages))
