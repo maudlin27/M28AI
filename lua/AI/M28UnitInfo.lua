@@ -43,6 +43,7 @@ refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override 
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
+refiTimeOfLastHoverLandCombatOrder = 'M28UnitTimeLstHCO' --hover units will only be given new orders every 6s to try and reduce cases where they end up not moving
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)

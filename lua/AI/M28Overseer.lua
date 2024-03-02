@@ -20,6 +20,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 
 bInitialSetup = false
@@ -1168,7 +1169,7 @@ function OverseerManager(aiBrain)
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
-        --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
+        --[[if GetGameTimeSeconds() >= 900 and not(bEnabledProfiling) then
              if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
                  ForkThread(M28Profiler.ProfilerActualTimePerTick)
                  import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
@@ -2320,15 +2321,16 @@ function ConsiderSlowdownForHighUnitCount()
                 if (oBrain[refiRoughUnitCount] or 0) > 0 then oFirstM28Brain = oBrain end
             end
         end
-        if iM28Units > 2000 or M28Land.iTicksPerLandCycle > 10 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
+        if iM28Units > 1750 or M28Land.iTicksPerLandCycle > 11 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
             bDebugMessages = true
-            M28Land.iTicksPerLandCycle = math.min(10, 10 + (iM28Units-1500) / 200)
+            M28Land.iTicksPerLandCycle = math.min(11, math.max(11, 11 + (iM28Units-1500) / 200))
             M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
+            M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s
             M28Chat.SendMessage(oFirstM28Brain, 'Slowdown', 'Even my apm cant keep up with this many units!', 0, 1000000, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Slowdown mode active, M28Land.iTicksPerLandCycle='..M28Land.iTicksPerLandCycle..'; M28Air.iExtraTicksToWaitBetweenAirCycles='..M28Air.iExtraTicksToWaitBetweenAirCycles) end
         else
             --Use default values
-            M28Land.iTicksPerLandCycle = 1
+            M28Land.iTicksPerLandCycle = 11
             M28Air.iExtraTicksToWaitBetweenAirCycles = 0
         end
     end

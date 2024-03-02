@@ -4126,7 +4126,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About ot check if want to upgrade factory, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of active upgrades for WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades])))
     end
-    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 3)) then
+    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1)) then
         local iActiveFactoryUpgrades = 0
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do
@@ -4354,7 +4354,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             end
         end
         local iBSWantedAdjust = 0
-        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 3 then iBSWantedAdjust = 5 end
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 4.1 then iBSWantedAdjust = 5 end
         local iPondSize = M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize
         if iPondSize <= 6000 then
             iBSWantedAdjust = math.max(-1, iBSWantedAdjust - 5 * (6000 - iPondSize) / iPondSize)
@@ -4392,7 +4392,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             end
         end
     else
-        if bConsiderBuildingMoreCombat and (iCurFrigates < 5 or bAboutToOverflowMass or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] or -10) >= 3) and (bAboutToOverflowMass or (iCurFrigates <= 30 and (not (bHaveLowMass) or iCurFrigates <= 10))) then
+        if bConsiderBuildingMoreCombat and (iCurFrigates < 5 or bAboutToOverflowMass or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] or -10) >= 4.1) and (bAboutToOverflowMass or (iCurFrigates <= 30 and (not (bHaveLowMass) or iCurFrigates <= 10))) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then
                 return sBPIDToBuild
             end
