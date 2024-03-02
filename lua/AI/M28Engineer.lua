@@ -8738,7 +8738,10 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         local iCategoryToSearch
         if iActionToAssign == refActionAssistNavalFactory then
             iCategoryToSearch = M28UnitInfo.refCategoryNavalSurface - categories.TECH1 - categories.TECH2
-            iClosestDist = 175 --Tried with 125 but was a bit too short
+            if M28Map.iMapSize >= 1024 then iClosestDist = 225
+            else iClosestDist = 175 --Tried with 125 but was a bit too short
+            end
+
         elseif iActionToAssign == refActionBuildGameEnder then
             iCategoryToSearch = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti
         else
