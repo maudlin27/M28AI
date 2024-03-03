@@ -2622,7 +2622,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain.M28Team == 2 then bDebugMessages = true end
+
 
     local iFactionRequired
     local iCategoryWanted
@@ -5436,7 +5436,7 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iTeam == 2 then bDebugMessages = true end
+
     if not(oFirstUEF) and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
         --Switch from novax to T3 arti (or gameender if enemy base is very far away)
         if bDebugMessages == true then LOG(sFunctionRef..': we dont have a UEF engi but our category includes novax, will include T3 arti if enemy base is close, otherwise will include gameender') end
@@ -5673,6 +5673,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have an experimental level unit that might be blocking, if it is close then will record') end
                                     if M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition()) <= 3 then
                                         oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTableRef}
+                                        if oUnit:GetFractionComplete() < 1 then tTableRef[M28Map.subrefbFailedToGetArtiLocation] = false end
                                         local bAdd = true
                                         if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false then
                                             for iRecorded, oRecorded in tTableRef[M28Map.subrefGEArtiUnits] do
@@ -5772,10 +5773,8 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
         tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = (tTableRef[M28Map.subrefiCyclesWaitingForEngineer] or 0) + 1
         if tTableRef[M28Map.subrefiCyclesWaitingForEngineer] >= 15 and oFirstEngineer then
             --Reevaluate what gameender or T3 arti unit we want
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Have been waiting '..tTableRef[M28Map.subrefiCyclesWaitingForEngineer]..' cycles for an engineer so will reassess the GE category') end
             GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
-            bDebugMessages = false
 
             tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = 0
         end
@@ -6817,11 +6816,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
                                                             --Change the category to build if we have UEF and built a novax, or if we have high mass income on our team and we could be building a paragon
                                                             if not(bHaveAlreadyTriedSwitchingCategoryForNovax) and oFirstUEF and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNovaxCentre, tTableRef[M28Map.subrefGEArtiUnits])) == false and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
-                                                                bDebugMessages = true
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': We have a UEF engineer and havent yet reassessed GE category so will consider reassessing it') end
                                                                 GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true)
                                                                 bHaveAlreadyTriedSwitchingCategoryForNovax = true
-                                                                bDebugMessages = false
                                                             elseif oFirstAeon and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 600 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': We have an Aeon engineer and high enough gross mass that we dont want paragon and the category to build contains a paragon, so will reassess') end
                                                                 GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true)
@@ -6930,9 +6927,39 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iEntry, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iTemplateRef='..iEntry..'; Does it no longer need engis='..tostring(tSubtable[M28Map.subrefGEbDontNeedEngineers])..'; Has it failed ot get an arti location='..tostring(tSubtable[M28Map.subrefbFailedToGetArtiLocation])..'; Is table of arti units empty='..tostring(M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEArtiUnits]))) end
-            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) and not(tSubtable[M28Map.subrefbFailedToGetArtiLocation]) then
-                iTemplateRef = iEntry
-                break
+            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
+                if tSubtable[M28Map.subrefbFailedToGetArtiLocation] then
+                    --Do we have any under construction units in this template?
+                    local bHaveUnderConstruction = false
+                    if M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEArtiUnits]) == false then
+                        for iUnit, oUnit in tSubtable[M28Map.subrefGEArtiUnits] do
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                                bHaveUnderConstruction = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bHaveUnderConstruction) and M28Utilities.IsTableEmpty(tSubtable[M28Map.subrefGEShieldUnits]) == false then
+                        for iUnit, oUnit in tSubtable[M28Map.subrefGEShieldUnits] do
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                                bHaveUnderConstruction = true
+                                break
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We failed to get arti location to build on for this template ref; bHaveUnderConstruction='..tostring(bHaveUnderConstruction)) end
+                    if bHaveUnderConstruction then
+                        --Reset the flag for being unable to build
+                        tSubtable[M28Map.subrefbFailedToGetArtiLocation] = false
+                        iTemplateRef = iEntry
+                        break
+                    end
+                else
+                    iTemplateRef = iEntry
+                    break
+                end
+
+
             end
         end
     end

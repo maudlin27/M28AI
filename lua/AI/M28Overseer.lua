@@ -2322,7 +2322,6 @@ function ConsiderSlowdownForHighUnitCount()
             end
         end
         if iM28Units > 1750 or M28Land.iTicksPerLandCycle > 11 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
-            bDebugMessages = true
             M28Land.iTicksPerLandCycle = math.min(11, math.max(11, 11 + (iM28Units-1500) / 200))
             M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
             M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s

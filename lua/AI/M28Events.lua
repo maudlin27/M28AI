@@ -1204,6 +1204,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 if oEngineer[M28Building.reftArtiTemplateRefs] then
                     if bDebugMessages == true then LOG(sFunctionRef..': We have construction being built by engi with arti template ref, so will copy over engineer arti template ref') end
                     oConstruction[M28Building.reftArtiTemplateRefs] =  {oEngineer[M28Building.reftArtiTemplateRefs][1], oEngineer[M28Building.reftArtiTemplateRefs][2], oEngineer[M28Building.reftArtiTemplateRefs][3]}
+
                     local tLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oConstruction:GetAIBrain().M28Team]
                     if tLZTeamData then
                         if bDebugMessages == true then
@@ -1251,6 +1252,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             if not(bAlreadyRecorded) then
                                 table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
                             end
+                            tTemplateRef[M28Map.subrefbFailedToGetArtiLocation] = false
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
