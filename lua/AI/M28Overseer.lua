@@ -1112,7 +1112,7 @@ function GetCivilianCaptureTargets(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DebugCheckProfiling(aiBrain)
+function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
     local iTickTimeToStartDetailedDebug = 10000000 --set to high number if first want to figure out the tick where this happens
@@ -1123,21 +1123,19 @@ function DebugCheckProfiling(aiBrain)
         while true do
             WaitTicks(1)
             LOG(sFunctionRef..': Cur time='..GetGameTimeSeconds())
-            if GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
-                if not(bSetHook) then
-                    bSetHook = true
-                    M28Profiler.bFunctionCallDebugOverride = true
-                    --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
-                    debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
-                    LOG(sFunctionRef..': Have started the main hook of function calls')
-                end
+            if not(bSetHook) and not(bJustShowTickCount) and GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
+                bSetHook = true
+                M28Profiler.bFunctionCallDebugOverride = true
+                --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+                debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+                LOG(sFunctionRef..': Have started the main hook of function calls')
             end
         end
     end
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling,aiBrain)
+    --ForkThread(DebugCheckProfiling)
 
     --Make sure map setup will be done
     WaitTicks(1)
@@ -2340,6 +2338,7 @@ function GlobalOverseer()
     --Called once at initial setup if we have an M28 in the game; can be used for tracking things on a global basis (instead of per brain or team)
     local iSlowCycleThreshold = 30
     local iCurSlowCycle = 0
+    --ForkThread(DebugCheckProfiling) = true --will  output cur tick each log
     while M28Utilities.bM28AIInGame do
         iCurSlowCycle = iCurSlowCycle + 1
         if iCurSlowCycle >= iSlowCycleThreshold then
