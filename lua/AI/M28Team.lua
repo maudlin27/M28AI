@@ -3256,7 +3256,6 @@ function CheckForUnitsWithDisabledWeapons(iTeam)
     end
 end
 
-
 function TeamOverseer(iM28Team)
     while tTeamData[iM28Team][subrefiActiveM28BrainCount] > 0 do
         ForkThread(TeamEconomyRefresh, iM28Team)

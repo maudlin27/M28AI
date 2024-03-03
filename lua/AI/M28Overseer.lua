@@ -20,6 +20,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 
 bInitialSetup = false
@@ -60,6 +61,9 @@ refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroy
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
+refiRoughUnitCount = 'M28OvsrUntCn' --Currently only used against M28 brains, returns number of units brain has; is updated periodically to reflect the actual number
+refiTimeLastUpdatedUnitCount = 'M28OvsrUntTm' --Gametimeseconds we last used a precise value for refiRoughUnitCount
+
 
 --Global other variables
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
@@ -410,6 +414,7 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
+        ForkThread(GlobalOverseer)
     end
 
     ForkThread(OverseerManager, aiBrain)
@@ -757,6 +762,13 @@ function Initialisation(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderUpdatingBrainUnitCount(aiBrain)
+    if GetGameTimeSeconds() - (aiBrain[refiTimeLastUpdatedUnitCount] or 0) >= 30 then
+        aiBrain[refiTimeLastUpdatedUnitCount] = GetGameTimeSeconds()
+        aiBrain[refiRoughUnitCount] = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
+    end
+end
+
 function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -772,6 +784,8 @@ function CheckUnitCap(aiBrain)
         --for i, army in armies do
         --end
         local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
+        aiBrain[refiRoughUnitCount] = iCurUnits
+        aiBrain[refiTimeLastUpdatedUnitCount] = GetGameTimeSeconds()
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
         local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
         local iCurUnitsDestroyed = 0
@@ -1098,7 +1112,7 @@ function GetCivilianCaptureTargets(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DebugCheckProfiling(aiBrain)
+function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
     local iTickTimeToStartDetailedDebug = 10000000 --set to high number if first want to figure out the tick where this happens
@@ -1109,21 +1123,19 @@ function DebugCheckProfiling(aiBrain)
         while true do
             WaitTicks(1)
             LOG(sFunctionRef..': Cur time='..GetGameTimeSeconds())
-            if GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
-                if not(bSetHook) then
-                    bSetHook = true
-                    M28Profiler.bFunctionCallDebugOverride = true
-                    --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
-                    debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
-                    LOG(sFunctionRef..': Have started the main hook of function calls')
-                end
+            if not(bSetHook) and not(bJustShowTickCount) and GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
+                bSetHook = true
+                M28Profiler.bFunctionCallDebugOverride = true
+                --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+                debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+                LOG(sFunctionRef..': Have started the main hook of function calls')
             end
         end
     end
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling,aiBrain)
+    --ForkThread(DebugCheckProfiling)
 
     --Make sure map setup will be done
     WaitTicks(1)
@@ -1155,7 +1167,7 @@ function OverseerManager(aiBrain)
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
-        --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
+        --[[if GetGameTimeSeconds() >= 900 and not(bEnabledProfiling) then
              if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
                  ForkThread(M28Profiler.ProfilerActualTimePerTick)
                  import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
@@ -2291,4 +2303,48 @@ function DecideOnGeneralMapStrategy(aiBrain)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function ConsiderSlowdownForHighUnitCount()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderSlowdownForHighUnitCount'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if refiRoughTotalUnitsInGame >= 1500 then --in case the rough number isnt accurate
+        local iM28Units = 0
+        local oFirstM28Brain
+        for iBrain, oBrain in ArmyBrains do
+            if not(oBrain.M28IsDefeated) then
+                iM28Units = iM28Units + (oBrain[refiRoughUnitCount] or 0)
+                if (oBrain[refiRoughUnitCount] or 0) > 0 then oFirstM28Brain = oBrain end
+            end
+        end
+        if iM28Units > 1750 or M28Land.iTicksPerLandCycle > 11 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
+            M28Land.iTicksPerLandCycle = math.min(11, math.max(11, 11 + (iM28Units-1500) / 200))
+            M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
+            M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s
+            M28Chat.SendMessage(oFirstM28Brain, 'Slowdown', 'Even my apm cant keep up with this many units!', 0, 1000000, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Slowdown mode active, M28Land.iTicksPerLandCycle='..M28Land.iTicksPerLandCycle..'; M28Air.iExtraTicksToWaitBetweenAirCycles='..M28Air.iExtraTicksToWaitBetweenAirCycles) end
+        else
+            --Use default values
+            M28Land.iTicksPerLandCycle = 11
+            M28Air.iExtraTicksToWaitBetweenAirCycles = 0
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GlobalOverseer()
+    --Called once at initial setup if we have an M28 in the game; can be used for tracking things on a global basis (instead of per brain or team)
+    local iSlowCycleThreshold = 30
+    local iCurSlowCycle = 0
+    --ForkThread(DebugCheckProfiling) = true --will  output cur tick each log
+    while M28Utilities.bM28AIInGame do
+        iCurSlowCycle = iCurSlowCycle + 1
+        if iCurSlowCycle >= iSlowCycleThreshold then
+            iCurSlowCycle = 0
+            ForkThread(ConsiderSlowdownForHighUnitCount)
+        end
+        WaitSeconds(1) --in case want to add per second logic in the future
+    end
 end

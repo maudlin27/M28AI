@@ -28,6 +28,7 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     subreftWaterZonesInPath = 'M28APathWZ'
 tDistanceAdjustXZ = {} --Used for gunships to space out
 iMinimumASFCountPostGifting = 20 --if we give asfs to a teammate we want to maintain this number for basic defence
+iExtraTicksToWaitBetweenAirCycles = 0 --Set by ConsiderSlowdownForHighUnitCount; E.g. if want to run air logic once every 2s then set this to 10 (since normal air logic is run within 1s)
 
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
 tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one full cycle
@@ -243,6 +244,7 @@ function AirTeamOverseer(iTeam)
         --NOTE: Other logic is done on air subteam basis
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        if iExtraTicksToWaitBetweenAirCycles > 0 then WaitTicks(iExtraTicksToWaitBetweenAirCycles) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         tbFullAirTeamCycleRun[iTeam] = true
     end
@@ -524,6 +526,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         ForkThread(ManageOtherAir, iTeam, iAirSubteam) --e.g. mercies
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        if iExtraTicksToWaitBetweenAirCycles > 0 then WaitTicks(iExtraTicksToWaitBetweenAirCycles) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         tbFullAirSubteamCycleRun[iAirSubteam] = true
     end

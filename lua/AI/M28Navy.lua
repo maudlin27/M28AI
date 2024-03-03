@@ -40,6 +40,7 @@ refbEnemyNavyPreventingBuildingNavy = 'M28PondEnemyNavyNearBuildLocation' --agai
 --Global variables
 tWZRefreshCountByTeam = {}
 iLongRangeThreshold = 50 --I.e. units with this or better range get recorded in table of long range threats
+iTicksPerNavyCycle = 11
 
 tbBlueprintsAddedToTempTable = {} --[x] is the blueprintID, returns true if have shown a waraning message about the unit being in the temp unit table (so we dont fill up the log)
 
@@ -363,7 +364,7 @@ function ManageAllWaterZones(aiBrain, iTeam)
 
     local iLastRefreshCount = (tWZRefreshCountByTeam[iTeam] or 1)
     local iCurRefreshCount = 0
-    local iTicksToSpreadOver = 10
+    local iTicksToSpreadOver = iTicksPerNavyCycle
     local iRefreshThreshold = math.max(2, math.ceil(iLastRefreshCount * 0.95 / iTicksToSpreadOver))
     local iCurCycleRefreshCount = 0
     local iCurTicksWaited = 0
