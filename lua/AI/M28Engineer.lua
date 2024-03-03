@@ -5568,7 +5568,6 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local bTriedBuildingSomething = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tTableRef[M28Map.subrefGEArtiLocations])) end
@@ -5578,7 +5577,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     if oFirstAeon then
         aiBrain = oFirstAeon:GetAIBrain()
         oEngineerToBuild = oFirstAeon
-                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                    oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                    oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
         sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstAeon,    nil,        nil,        nil,            nil,                                nil,                    10)
     end
     if not(sArtiToBuild) then
@@ -5641,7 +5640,8 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
             local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
             local bHavePotentiallyValidLocation = false
-            local tUnitsToConsiderReclaiming
+            local tUnitsToConsiderReclaiming, iXDif, iZDif
+            local iThresholdDistDif = M28UnitInfo.GetBuildingSize(sArtiToBuild) * 0.5 + 3 - 0.8 --i.e. a shield is radius 6; so this gives a 0.8 leeway to hopefully cover off rounding
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEArtiLocations] do
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5 - 0.3)) --tried with -0.7 but wouldnt pickup on SAM that was just inside the shield build area
                 if not(tBlockingUnits) then
@@ -5664,11 +5664,37 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                         tUnitsToConsiderReclaiming = {}
                         for iUnit, oUnit in tBlockingUnits do
                             if M28UnitInfo.IsUnitValid(oUnit) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering potentially blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to arti position='..M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition())..'; Fraction complete='..oUnit:GetFractionComplete()) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering potentially blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to arti position='..M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition())..'; Fraction complete='..oUnit:GetFractionComplete()..'; oUnit[M28Building.reftArtiTemplateRefs]='..repru(oUnit[M28Building.reftArtiTemplateRefs])) end
                                 if oUnit[M28Building.reftArtiTemplateRefs] then
-                                    --Do nothing, and stop looking
-                                    tUnitsToConsiderReclaiming = nil
-                                    break
+                                    --Do nothing; abort if the unit is more than .5 within the margin
+                                    local bAbort = true
+                                    local iUnitRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
+
+                                    iXDif = oUnit:GetPosition()[1] - tBuildLocation[1]
+                                    if iXDif < 0 then iXDif = iXDif - iUnitRadius
+                                    else iXDif = iXDif + iUnitRadius end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit XDif='..iXDif..'; iThresholdDistDif='..iThresholdDistDif) end
+                                    if math.abs(iXDif) >= iThresholdDistDif then
+                                        bAbort = false
+                                    else
+                                        iZDif = oUnit:GetPosition()[3] - tBuildLocation[3]
+                                        if iZDif < 0 then iZDif = iZDif - iUnitRadius
+                                        else iZDif = iZDif + iUnitRadius end
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit ZDif='..iZDif) end
+                                        if math.abs(iZDif) >= iThresholdDistDif then
+                                            --Assume unit isnt actually a true blocking unit and ignore
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit might not actually be blocking so will continue search') end
+                                            bAbort = false
+                                        end
+                                    end
+
+                                    if bAbort then
+                                        tUnitsToConsiderReclaiming = nil
+                                        break
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Were going to abort but as the dist is far enough away will treat this unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as not blocking') end
+                                    end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) and (oUnit:GetFractionComplete() >= 0.05 or oUnit:GetHealth() >= 500 or M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition()) <= 1.5) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have an experimental level unit that might be blocking, if it is close then will record') end
                                     if M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition()) <= 3 then
@@ -5689,17 +5715,21 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                     break
 
                                 else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding blocking unit to table of units to consider reclaiming') end
                                     table.insert(tUnitsToConsiderReclaiming, oUnit)
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to consider reclaiming empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming))) end
                         if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
                             iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
                             if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
                                 iLowestValueBlockingBuildings = iCurValueBlockingBuildings
                                 tLowestValueBlockingBuildings = tUnitsToConsiderReclaiming
                                 iLowestValueRef = iEntry
                                 bHavePotentiallyValidLocation = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have potentially valid location, and will record this build location') end
                             end
                         else
                             if not(tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry]) then
@@ -5711,6 +5741,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering blocking buildings, bHavePotentiallyValidLocation='..tostring(bHavePotentiallyValidLocation or false)) end
             if bHavePotentiallyValidLocation then
                 tTableRef[M28Map.subrefbFailedToGetArtiLocation] = false
                 --Get all engineers to reclaim the units here
@@ -6128,6 +6159,9 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                                     else iXDif = iXDif + iUnitRadius end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit XDif='..iXDif) end
                                     if math.abs(iXDif) >= 5.25 then
+                                        bAbort = false
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit might not actually be blocking so will continue search') end
+                                    else
                                         iZDif = oUnit:GetPosition()[3] - tBuildLocation[3]
                                         if iZDif < 0 then iZDif = iZDif - iUnitRadius
                                         else iZDif = iZDif + iUnitRadius end
