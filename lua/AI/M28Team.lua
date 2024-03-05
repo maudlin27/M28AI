@@ -856,6 +856,48 @@ end
     M28Utilities.ErrorHandler('To add code')
 end--]]
 
+function UpdateUnitPreviousZones(oUnit, iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateUnitPreviousZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oUnit.UnitId == 'url0402' then bDebugMessages = true end
+
+    oUnit[M28UnitInfo.refbUnitStuckAlternating] = false
+    if not(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam]) then
+        oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam] = {}
+    end
+    table.insert(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam], 1, {iPlateau, iLandZone})
+    if oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam][8] then
+        if oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam][9] then
+            table.remove(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam], 9)
+        end
+
+        --Check if we have been alternating between the same two zones
+        local tiPlateauOrZeroAndZones = {}
+        local iUniqueCount = 0
+        for iEntry, tPlateauOrZeroAndZone in  oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam] do
+            if not(tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]]) then
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]] = {}
+            end
+            if not(tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]]) then
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] = 0
+                iUniqueCount = iUniqueCount + 1
+            else
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] = tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] + 1
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUniqueCount='..iUniqueCount..'; tiPlateauOrZeroAndZones='..repru(tiPlateauOrZeroAndZones)..'; oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam]='..repru(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam])..'; Time since unit last retreated='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastTriedRetreating] or -100)..'; Time='..GetGameTimeSeconds()) end
+        if iUniqueCount <= 3 then --if only 3 dif zones then chances are we have been alternating
+            if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastTriedRetreating] or -100) >= 30 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit is stuck alternating between zones so will flag accordingly') end
+                oUnit[M28UnitInfo.refbUnitStuckAlternating] = true
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function RecordUnitInLandZone()  end --DONE TO HELP LOCATE
 function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemyAirUnit)
     --If unit already has a land zone assigned then remove this
@@ -976,6 +1018,8 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                             oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
                         end
                     end
+                    --Update table of previous entries
+                    UpdateUnitPreviousZones(oUnit, iPlateau, iLandZone)
                     if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                         M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                     end
@@ -1081,6 +1125,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
                     oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
                 end
             end
+            UpdateUnitPreviousZones(oUnit, 0, iWaterZone)
 
             if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                 M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
