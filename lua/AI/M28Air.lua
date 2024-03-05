@@ -2023,7 +2023,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering air staging unit '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..'; Is tCargo empty='..tostring(M28Utilities.IsTableEmpty(tCargo))..'; bCargoReadyToRelease='..tostring(bCargoReadyToRelease)..'; Is oAirStaging[reftAssignedRefuelingUnits] empty='..tostring(M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]))) end
                     if bCargoReadyToRelease then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
                         M28Orders.ReleaseStoredUnits(oAirStaging, false, 'ASUnl', false)
                         --Dont clear unit status as should happen automatically in next cycle; dont consider sending units to it this cycle
                     else
