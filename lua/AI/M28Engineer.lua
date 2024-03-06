@@ -10340,7 +10340,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Assist land factory if we want to focus on getting sniperbots
     iCurPriority = iCurPriority + 1
-    if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(iTeam, tLZTeamData) then
+    if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData) then
         iBPWanted = 90
         if not(bHaveLowMass) then iBPWanted = 180 end
         local oClosestFactory
@@ -15568,12 +15568,16 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
             ((tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiModDistancePercent] > 0.05) then
 
         local iBPWanted = 0
+        local iEnemyIndirectThreatInNearbyPlateau = 0
+        local iBestEnemyRange = 0
+        if tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] then
+            iEnemyIndirectThreatInNearbyPlateau, iBestEnemyRange = M28Land.GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, true)
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
         if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false or (tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 5) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
             local iRangeThreshold = 65
             local iEnemyLongRangeThreat = 0
             local iSearchRange = 300
-            local iBestEnemyRange = 0
             local iCurDFThreat, iCurIFThreat
 
             local iLowerThreatFactorDist = 180
@@ -15602,6 +15606,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after increasing for firebase in tPlateauAndZone '..repru(tPlateauAndZone)..'='..iEnemyLongRangeThreat) end
                 end
             end
+
             --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                 local bHaveMobileLRThreatNearby = false
@@ -15656,9 +15661,9 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 if iLongRangeFurtherAwayThreat <= 8000 and bHaveLowMass and tLZTeamData[M28Map.refbBaseInSafePosition] then iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat * 0.1 end
             end
 
-
-            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat..'; iHighestIndividiualLongRangeThreat='..iHighestIndividiualLongRangeThreat..'; Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat) end
-            if iEnemyLongRangeThreat >= 750 or iLongRangeFurtherAwayThreat >= 750 or iHighestIndividiualLongRangeThreat > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or iNearbyEnemyFixedShieldThreat > 0 then
+            iEnemyLongRangeThreat = iEnemyLongRangeThreat + iEnemyIndirectThreatInNearbyPlateau
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat..'; iHighestIndividiualLongRangeThreat='..iHighestIndividiualLongRangeThreat..'; Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat..'; iEnemyIndirectThreatInNearbyPlateau which is included in LR threat='..iEnemyIndirectThreatInNearbyPlateau) end
+            if iEnemyLongRangeThreat >= 750 or iLongRangeFurtherAwayThreat >= 750 or iHighestIndividiualLongRangeThreat > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or iNearbyEnemyFixedShieldThreat > 0 or iEnemyIndirectThreatInNearbyPlateau > 0 then
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
 
                     --Increase long range threat based on enemy T2 arti within 175 of our midpoint

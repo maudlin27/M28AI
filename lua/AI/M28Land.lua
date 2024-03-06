@@ -1316,6 +1316,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
     end
 
     --Record nearest enemy structure if this land zone is large enough and has no enemies (for performance reasons - dont want to risk doing this calculation on tiny zones/mini plateaus near an enemy base), and currently planned use is only for indirect fire units as a backup target
+    tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Will check for nearby enemy structures if no enemies in this LZ, iPlateau='..iPlateau..'; iLandZOne='..iLandZone..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Total segment count='..tLZData[M28Map.subrefLZTotalSegmentCount]..'; Segment size='..M28Map.iLandZoneSegmentSize..'; is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZData[M28Map.subrefLZTotalSegmentCount] >= 150 / M28Map.iLandZoneSegmentSize then
         M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
@@ -1333,6 +1334,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                         local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
                         if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] = true
                             local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tEnemyStructures))) end
                             if M28Utilities.IsTableEmpty(tEnemyStructures) == false then
@@ -2890,6 +2892,57 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, bGetIndirectThreatInstead)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNearestEnemyInOtherPlateau'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint]) --redundancy
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        local iClosestEnemyDist = 10000
+        local oClosestEnemy
+        local iCurDist
+        local iEnemyIFThreat = 0
+        local iEnemyBestRange = 0
+        for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; Distance='..tSubtable[M28Map.subrefiDistance]..'; iEntry='..iEntry) end
+            if tSubtable[M28Map.subrefiDistance] >= 170 and (iEntry >= 7 or tSubtable[M28Map.subrefiDistance] >= 320 or (bGetIndirectThreatInstead and tSubtable[M28Map.subrefiDistance] >= 200)) then break end
+            if not(iPlateau == tSubtable[M28Map.subrefiPlateauOrPond]) and not(tSubtable[M28Map.subrefbIsWaterZone]) then --water zones dont track indirect fire threat, and in any event battleships and cruisers outrange t2 arti and mobile t3 arti (which is what this might be used for)
+                --Have a nearby land zone in a different plateau, check if there are enemy units in this LZ and (if so) if any of them are structures
+                local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
+                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        if bGetIndirectThreatInstead then
+                            iEnemyIFThreat = iEnemyIFThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
+                            iEnemyBestRange = math.max(iEnemyBestRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0))
+                        else
+                            for iUnit, oUnit in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                                    if iCurDist <= iClosestEnemyDist then
+                                        oClosestEnemy = oUnit
+                                        iClosestEnemyDist = iCurDist
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; this is the closest unit for now, will cycle through any remaining') end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for enemy units in nearby different plateau, oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nli')..'; iEnemyIFThreat='..iEnemyIFThreat..'; bGetIndirectThreatInstead='..tostring(bGetIndirectThreatInstead or false)) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        if bGetIndirectThreatInstead then return iEnemyIFThreat, iEnemyBestRange
+        else
+            return oClosestEnemy
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -5305,17 +5358,36 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
 
         --Indirect special 'bombardment' type logic against nearby different plateaus
-        if M28Utilities.IsTableEmpty(tIndirectUnits) == false and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) then
-            local tOrderPosition = tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition()
-            for iUnit, oUnit in tIndirectUnits do
-                --Note - issue on maps like air wars - the range factors in height so if the target plateau is very far away it can lead to strange results
-                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderPosition) > oUnit[M28UnitInfo.refiIndirectRange] - 1 then
-                    M28Orders.IssueTrackedAggressiveMove(oUnit, tOrderPosition, 3, false, 'InPlBom', false)
-                else
-                    M28Orders.IssueTrackedGroundAttack(oUnit, tOrderPosition, 3, false, 'InPlAGBm', false, tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])
+        if M28Utilities.IsTableEmpty(tIndirectUnits) == false then
+            if M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) then
+                local tOrderPosition = tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition()
+                for iUnit, oUnit in tIndirectUnits do
+                    --Note - issue on maps like air wars - the range factors in height so if the target plateau is very far away it can lead to strange results
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderPosition) > oUnit[M28UnitInfo.refiIndirectRange] - 1 then
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, tOrderPosition, 3, false, 'InPlBom', false)
+                    else
+                        M28Orders.IssueTrackedGroundAttack(oUnit, tOrderPosition, 3, false, 'InPlAGBm', false, tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])
+                    end
+                end
+                tIndirectUnits = {}
+            elseif tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and iFriendlyBestMobileIndirectRange > 0 then
+                --Check for mobile units within range
+                local oNearestEnemyMobileUnit = GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam)
+                if oNearestEnemyMobileUnit then
+                    --Is this unit likely to be reachable by our best indirect fire range unit?
+                    local tOrderPosition = oNearestEnemyMobileUnit:GetPosition()
+                    local tPotentialFireFromPosition = M28Utilities.MoveInDirection(tOrderPosition, M28Utilities.GetAngleFromAToB(tOrderPosition, tLZData[M28Map.subrefMidpoint]), math.min(iFriendlyBestMobileIndirectRange, M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLZData[M28Map.subrefMidpoint])), true, false, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have enemy unit in nearby plateau, oNearestEnemyMobileUnit='..oNearestEnemyMobileUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyMobileUnit)..'; iOurBestIndirectRange='..iFriendlyBestMobileIndirectRange..'; tPotentialFireFromPosition='..repru(tPotentialFireFromPosition)..'; Island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialFireFromPosition) or 'nil')..'; This LZ island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                    if M28Utilities.IsTableEmpty(tPotentialFireFromPosition) == false and NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialFireFromPosition) == (tLZData[M28Map.subrefLZIslandRef] or NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])) then
+
+                        for iUnit, oUnit in tIndirectUnits do
+                            --Note - issue on maps like air wars - the range factors in height so if the target plateau is very far away it can lead to strange results
+                            M28Orders.IssueTrackedAggressiveMove(oUnit, tOrderPosition, 3, false, 'InPlMBom', false)
+                        end
+                        tIndirectUnits = {}
+                    end
                 end
             end
-            tIndirectUnits = {}
         end
 
         --Do we have adjacent zones wanting reinforcements?

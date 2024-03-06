@@ -281,10 +281,16 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if bDebugMessages == true then LOG(sFunctionRef..': Unit orders after update='..repru(oUnit[reftiLastOrders])..'; Last order='..repru(tLastOrder)..'; Is the last order a move order='..tostring(tLastOrder[subrefiOrderType] == refiOrderIssueMove)..'; Last order position='..repru(tLastOrder[subreftOrderPosition])..'; tLastOrder pos 2 of table='..repru(tLastOrder[2])..'; Dist between path1 nd last order position='..M28Utilities.GetDistanceBetweenPositions(tPath[1], (tLastOrder[subreftOrderPosition] or {0,0,0}))) end
+    local bMoveNotAttackMove = (oUnit[M28UnitInfo.refiCombatRange] or 0) <= 0
+    local iOrderType
+    if bMoveNotAttackMove then iOrderType = refiOrderIssueMove else iOrderType = refiOrderIssueAggressiveMove end
 
-    if (not(tLastOrder) or not(tLastOrder[subrefiOrderType] == refiOrderIssueMove) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if (not(tLastOrder) or not(tLastOrder[subrefiOrderType] == iOrderType) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         --Our last active order isn't to move to the first point in the path, so will be reissuing the path
         if bDebugMessages == true then LOG(sFunctionRef..'; Will reissue orders to move along the path based on the closest point') end
+
+
+
 
         --first decide on start point for the path - pick the point closest to the unit
         local iClosestDist = 10000
@@ -303,15 +309,23 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
 
         for iPath = iClosestPathRef, table.getn(tPath) do
             local tOrderPosition = {tPath[iPath][1], tPath[iPath][2], tPath[iPath][3]}
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            IssueMove({oUnit}, tOrderPosition)
+            if bMoveNotAttackMove then
+                IssueMove({oUnit}, tOrderPosition)
+            else
+                IssueAggressiveMove({oUnit}, tOrderPosition)
+            end
         end
         --Make the unit go to the first point on the path as its last order
         local tOrderPosition = {tPath[1][1], tPath[1][2], tPath[1][3]}
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        IssueMove({oUnit}, tOrderPosition)
+        if bMoveNotAttackMove then
+            IssueMove({oUnit}, tOrderPosition)
+        else
+            IssueAggressiveMove({oUnit}, tOrderPosition)
+        end
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
