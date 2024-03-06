@@ -8841,7 +8841,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         local oNonM28UnitToAssistInstead
         local iCategoryToSearch
         if iActionToAssign == refActionAssistNavalFactory then
-            iCategoryToSearch = M28UnitInfo.refCategoryNavalSurface - categories.TECH1 - categories.TECH2
+            iCategoryToSearch = categories.NAVAL + M28UnitInfo.refCategoryExperimentalLevel * categories.MOBILE - categories.TECH1 - categories.TECH2
             if M28Map.iMapSize >= 1024 then iClosestDist = 225
             else iClosestDist = 175 --Tried with 125 but was a bit too short
             end
