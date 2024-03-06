@@ -861,7 +861,7 @@ function UpdateUnitPreviousZones(oUnit, iPlateau, iLandZone)
     local sFunctionRef = 'UpdateUnitPreviousZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId == 'url0402' then bDebugMessages = true end
+
 
     oUnit[M28UnitInfo.refbUnitStuckAlternating] = false
     if not(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam]) then
