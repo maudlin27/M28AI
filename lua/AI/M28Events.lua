@@ -1991,7 +1991,6 @@ function OnReclaimStarted(oEngineer, oReclaim)
 
         if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
             M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)
-            M28Chat.SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming', 'Great, now I have to deal with my so called teammates reclaiming my units, thanks a lot '..oEngineer:GetAIBrain().Nickname, 0, 100000)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
