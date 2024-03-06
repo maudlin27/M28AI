@@ -235,7 +235,6 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
     end
     --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01071' then LOG('IssueTrackedMove: Time='..GetGameTimeSeconds()..'; reprs of tLastOrder='..reprs(tLastOrder)..'; tOrderPosition='..repru(tOrderPosition)..'; iDistanceToReissueOrder='..iDistanceToReissueOrder..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false)..'; sOptionalOrderDesc='..(sOptionalOrderDesc or 'nil')..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
     if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
-        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual04011' and GetGameTimeSeconds() >= 30*60+50 then M28Utilities.ErrorHandler('Audit trail', true, true) end
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
