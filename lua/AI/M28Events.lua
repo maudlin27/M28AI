@@ -483,6 +483,33 @@ function OnUnitDeath(oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                             if oUnit:GetFractionComplete() == 1 then
                                 M28Economy.UpdateGrossIncomeForUnit(oUnit, true) --Dont fork thread
+                                --Dropped units - flag that this island is dangerous if were dropped recently
+                                if oUnit[M28Air.refiLastIslandDrop] and oUnit[M28Air.refiTimeLastDropped] and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 90 then
+                                    local iTeam = oUnit:GetAIBrain().M28Team
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime] = {} end
+                                    --Check we dont still have factories or signif structures here
+                                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) < 1000 and (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < 100 then
+                                        local bHaveCompletedFactory = false
+                                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                            local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            if M28Utilities.IsTableEmpty(tFactories) == false then
+                                                for iFactory, oFactory in tFactories do
+                                                    if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                                                        bHaveCompletedFactory = true
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if not(bHaveCompletedFactory) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Recording that island '..(oUnit[M28Air.refiLastIslandDrop] or 'nil')..' is dangerous as we just had a previously dropped unit die here') end
+                                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiLastIslandDrop]] = GetGameTimeSeconds()
+                                        end
+                                    end
+                                end
+
+
                                 if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                                     M28Engineer.ClearEngineerTracking(oUnit)
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
@@ -2117,6 +2144,10 @@ function OnTransportUnload(oUnit, oTransport, bone)
     if M28Utilities.bM28AIInGame then
         if M28UnitInfo.IsUnitValid(oTransport) and oTransport:GetAIBrain().M28AI then
             oTransport[M28Air.refiTransportTimeSpentWaiting] = 0
+            if oTransport[M28Air.refiTargetIslandForDrop] then
+                oUnit[M28Air.refiLastIslandDrop] = oTransport[M28Air.refiTargetIslandForDrop]
+                oUnit[M28Air.refiTimeLastDropped] = GetGameTimeSeconds()
+            end
         end
     end
 end
