@@ -3361,6 +3361,48 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local bGivenCombatUnitsOrders = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat..'; bRunFromEnemyAir='..tostring(bRunFromEnemyAir)..'; bSuicideIntoFatboy='..tostring(bSuicideIntoFatboy)) end
+    --If we have a fatboy in our available combat units, then do getunitsaroundpoint to check for signficant threats that might not be in an adjacent zone, and then add them as direct fire units against this zone so they get incorporated into checks for nearby enemies
+    local tUnitsNearFatboyInFurtherAwayZones
+    if iFriendlyBestMobileDFRange >= 90 then
+        --Get fatboy closest to enemy base
+        local tFriendlyFatboys = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tAvailableCombatUnits)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly fatboys empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyFatboys) == false)) end
+        if M28Utilities.IsTableEmpty(tFriendlyFatboys) == false then
+            local oClosestFatboyToEnemy
+            if not(tFriendlyFatboys[2]) then
+                oClosestFatboyToEnemy = tFriendlyFatboys[1]
+            else
+                oClosestFatboyToEnemy = M28Utilities.GetNearestUnit(tFriendlyFatboys, tLZTeamData[M28Map.reftClosestEnemyBase])
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestFatboyToEnemy='..oClosestFatboyToEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyToEnemy)) end
+            if oClosestFatboyToEnemy then
+                local tAllDangerousCombatNearFatboy = oClosestFatboyToEnemy:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser, oClosestFatboyToEnemy:GetPosition(), (oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0), 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': is tAllDangerousCombatNearFatboy empty='..tostring(M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy))..'; Fatboy range='..(oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0)) end
+                if M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy) == false then
+                    local tbAdjacentLZ = {}
+                    tUnitsNearFatboyInFurtherAwayZones = {}
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        tbAdjacentLZ[iAdjLZ] = true
+                    end
+                    tbAdjacentLZ[iLandZone] = true
+                    for iEnemy, oEnemy in tAllDangerousCombatNearFatboy do
+                        if bDebugMessages == true and M28UnitInfo.IsUnitValid(oEnemy) then LOG(sFunctionRef..': Have dangerous enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Assigned plateau and LZ='..repru(oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])..'; Adjacent LZs='..repru(tbAdjacentLZ)..'; Assigned WZ='..(oEnemy[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')) end
+                        if not(tbAdjacentLZ[oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
+                            if M28UnitInfo.IsUnitValid(oEnemy) then
+                                if oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = true
+                                elseif oEnemy[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] = true
+                                end
+                                table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oEnemy)
+                                table.insert(tUnitsNearFatboyInFurtherAwayZones, oEnemy)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy to table of nearest DF units and to units near fatboy in further away zones') end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
 
     --If enemy has units in this or adjacent LZ, then decide what to do
     if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and (bSuicideIntoFatboy or not(bRunFromFirebase) and not(bRunFromEnemyAir)) then
@@ -3611,6 +3653,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if not(oNearestEnemyToMidpoint) and bSuicideIntoFatboy and oClosestFatboyInIslandToSuicideInto then oNearestEnemyToMidpoint = oClosestFatboyInIslandToSuicideInto end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished checking adjacent water zones for enemy units, iClosestDist='..iClosestDist..'; oNearestEnemyToMidpoint='..(oNearestEnemyToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint) or 'nil')) end
             end
+            if not(oNearestEnemyToMidpoint) and M28Utilities.IsTableEmpty(tUnitsNearFatboyInFurtherAwayZones) == false then
+                for iUnit, oUnit in tUnitsNearFatboyInFurtherAwayZones do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        oNearestEnemyToMidpoint = oUnit
+                    end
+                end
+            end
             if not(oNearestEnemyToMidpoint) then
                 if bDebugMessages == true then LOG(sFunctionRef..': LZ has flagged it has enemies here or in adjacent LZ but couldnt find any; iPlateau='..iPlateau..'; LZ='..iLandZone) end
                 tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = false
@@ -3819,6 +3870,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                                 for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
                                     AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust)
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(tUnitsNearFatboyInFurtherAwayZones) == false then
+                                for iEnemy, oEnemy in tUnitsNearFatboyInFurtherAwayZones do
+                                    table.insert(tNearbyAdjacentEnemies, oEnemy)
                                 end
                             end
                             iEnemyCombatThreat = iEnemyCombatThreat + M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)
@@ -5860,17 +5916,53 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 end
 
 function RetreatOtherUnits(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tOtherUnitsToRetreat)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RetreatOtherUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
     local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
     local iCurTime = math.floor(GetGameTimeSeconds())
+    local bConsiderKitingRetreat = tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
+    local oNearestEnemyCombatToRallyPoint
     for iUnit, oUnit in tOtherUnitsToRetreat do
         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-        if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+        --Fatboy (and megalith although wouldnt expect megalith to use this function) - consider retreating slowly instead of running around, and also retreating in opposite direction to the nearest enemy (instead of going to the rally point)
+        if bConsiderKitingRetreat and (oUnit[M28UnitInfo.refiCombatRange] or 0) > 30 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+            if not(oNearestEnemyCombatToRallyPoint) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                oNearestEnemyCombatToRallyPoint = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tAmphibiousRallyPoint)
+            end
+            if oNearestEnemyCombatToRallyPoint then
+                local iCurDist = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyCombatToRallyPoint:GetPosition(), oUnit:GetPosition())
+                if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] and iCurDist >= math.max(10, (oUnit[M28UnitInfo.refiCombatRange] or 0) - 5) then
+                    --Want to consider retreating
+                    local iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
+                    if iBackupDist > 3 then
+                        local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyCombatToRallyPoint:GetPosition())
+                        local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
+                        local tRetreatLocationToUse
+                        if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) >= 145 then --i.e. 70 degree section where will go with rally point instead of opposite direction
+                            tRetreatLocationToUse = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                        else
+                            local tPotentialRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, iBackupDist - 3, true, nil, M28Map.bIsCampaignMap)
+                            if M28Utilities.IsTableEmpty(tPotentialRetreatLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialRetreatLocation) == iPlateau then
+                                tRetreatLocationToUse = {tPotentialRetreatLocation[1], tPotentialRetreatLocation[2], tPotentialRetreatLocation[3]}
+                            else
+                                tRetreatLocationToUse = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try backing up for fatboy or similar unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tRetreatLocationToUse='..repru(tRetreatLocationToUse)..'; oNearestEnemyCombatToRallyPoint='..oNearestEnemyCombatToRallyPoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyCombatToRallyPoint)) end
+                        M28Orders.IssueTrackedMove(oUnit, tRetreatLocationToUse, 3, false, 'SpFBlsRetr')
+                    end
+                end
+            end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 10, false, 'AOtRet')
         else
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'OtRet', false)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
@@ -6025,6 +6117,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()..'; Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount]='..M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount]..'; Is unit paused='..tostring(oUnit[M28UnitInfo.refbPaused] or false)..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oUnit))..'; is oUnit[refbShieldIsDisabled] nil='..tostring(oUnit[M28UnitInfo.refbShieldIsDisabled] == nil)) end
                                         if not(oUnit[M28UnitInfo.refbEasyBrain]) and iMaxShield > 0 and iCurShield < iMaxShield * (0.35 + iShieldPercentageAdjust) and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * (iShieldPercentageAdjust + 0.05)) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to retreat') end
                                             table.insert(tOtherUnitsToRetreat, oUnit)
                                             RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
                                             --Redundancy for rare cases where a units shield can be disabled from a transfer
@@ -6227,7 +6320,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                             if not(iCurUnitThreat) then iCurUnitThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }) end
                                             iCurIndirectThreat = iCurIndirectThreat + iCurUnitThreat
                                             if iCurIndirectThreat > tLZTeamData[M28Map.subrefLZIndirectThreatWanted] then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Just increased our indirect threat for oUnit='..oUnit.UnitId..M27UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitThreat='..iCurUnitThreat..'; iCurIndirectThreat after increase='..iCurIndirectThreat..'; tLZTeamData[M28Map.subrefLZIndirectThreatWanted]='..(tLZTeamData[M28Map.subrefLZIndirectThreatWanted] or 'nil')) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Just increased our indirect threat for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitThreat='..iCurUnitThreat..'; iCurIndirectThreat after increase='..iCurIndirectThreat..'; tLZTeamData[M28Map.subrefLZIndirectThreatWanted]='..(tLZTeamData[M28Map.subrefLZIndirectThreatWanted] or 'nil')) end
                                                 bConsiderAdjacentIndirect = false
                                                 --if not(bConsiderAdjacentDF) and not(bConsiderAdjacentMAA) then break end
                                             end
