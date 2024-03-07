@@ -172,8 +172,13 @@ function GetBombTarget(weapon, projectile)
                 return target.tpos
             end
         end
-    elseif not(projectile) and weapon.GetCurrentTarget then
-        if weapon:GetCurrentTarget().GetPosition then return weapon:GetCurrentTarget():GetPosition() end
+    elseif not(projectile) then
+        if weapon.GetCurrentTarget then
+            if weapon:GetCurrentTarget().GetPosition then return weapon:GetCurrentTarget():GetPosition() end
+        end
+        if weapon.GetCurrentTargetPos then
+            if weapon:GetCurrentTargetPos() then return weapon:GetCurrentTargetPos() end
+        end
     end
     return nil
 end

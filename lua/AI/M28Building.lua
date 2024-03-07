@@ -4122,3 +4122,26 @@ function ConsiderFiringFirstLoadedNukeOnTeam(iTeam)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function RecordNukeTarget(iTeam, tLaunchLocation)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordNukeTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then
+        if not(M28Team.tTeamData[iTeam]) then M28Team.tTeamData[iTeam] = {} end
+        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {}
+    end
+    local iCurTime = math.floor(GetGameTimeSeconds())
+    local iCycleCount = 0
+    while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
+        iCycleCount = iCycleCount - 0.0001
+        iCycleCount = iCycleCount + 1
+        if iCycleCount >= 20 then
+            M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
+        end
+    end
+    M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

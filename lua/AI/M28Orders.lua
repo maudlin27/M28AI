@@ -1159,9 +1159,9 @@ function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissue
         oUnit:SetPaused(false)
     end
     local iTeam = oUnit:GetAIBrain().M28Team
-    if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
-    M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tOrderPosition
-
+    import('/mods/M28AI/lua/AI/M28Building.lua').RecordNukeTarget(iTeam, tOrderPosition)
+    --if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
+    --M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tOrderPosition
 
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

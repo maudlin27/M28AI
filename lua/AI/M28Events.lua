@@ -917,7 +917,7 @@ function OnWeaponFired(oWeapon)
             end
         end
 
-
+        if oWeapon.unit.UnitId and EntityCategoryContains(M28UnitInfo.refCategorySML, oWeapon.unit.UnitId) then bDebugMessages = true end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
         local oUnit = oWeapon.unit
@@ -957,6 +957,7 @@ function OnWeaponFired(oWeapon)
                 end
 
                 --Consider dodging
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider dodging logic and recording non-M28 nuke target locations, weapon.DamageType='..(oWeapon.DamageType or 'nil')..'; oWeapon.Blueprint.DamageType='..(oWeapon.Blueprint.DamageType or 'nil')..'; Weapon label='..(oWeapon.Label or 'nil')..'; reprs of oWeapon='..reprs(oWeapon)) end
                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and (oWeapon.Label == 'GroundMissile') then
                     --Corsairs dont trigger the onbombfired event normally hence why we have this
                     if bDebugMessages == true then
@@ -966,6 +967,19 @@ function OnWeaponFired(oWeapon)
 
                     ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
                 else
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and oWeapon.Blueprint.DamageType == 'Nuke' then
+                        --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit brain='..oUnit:GetAIBrain().Nickname..'; GetCurrentTarget()='..reprs(oWeapon:GetCurrentTarget())..'; GetCurrentTargetPos='..reprs(oWeapon:GetCurrentTargetPos())) end
+                        if not(oUnit:GetAIBrain().M28AI) and oWeapon.GetCurrentTargetPos then
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            local tCurrentTarget = oWeapon:GetCurrentTargetPos()
+                            if M28Utilities.IsTableEmpty(tCurrentTarget) == false then
+                                M28Building.RecordNukeTarget(iTeam, tCurrentTarget)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Target of weapon='..repru(tCurrentTarget)) end
+                            end
+                        end
+                    end
                     --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
                     ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
