@@ -917,7 +917,7 @@ function OnWeaponFired(oWeapon)
             end
         end
 
-        if oWeapon.unit.UnitId and EntityCategoryContains(M28UnitInfo.refCategorySML, oWeapon.unit.UnitId) then bDebugMessages = true end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
         local oUnit = oWeapon.unit
@@ -969,7 +969,6 @@ function OnWeaponFired(oWeapon)
                 else
                     if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and oWeapon.Blueprint.DamageType == 'Nuke' then
                         --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit brain='..oUnit:GetAIBrain().Nickname..'; GetCurrentTarget()='..reprs(oWeapon:GetCurrentTarget())..'; GetCurrentTargetPos='..reprs(oWeapon:GetCurrentTargetPos())) end
                         if not(oUnit:GetAIBrain().M28AI) and oWeapon.GetCurrentTargetPos then
                             local iTeam = oUnit:GetAIBrain().M28Team
