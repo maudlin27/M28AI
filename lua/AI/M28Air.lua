@@ -2585,12 +2585,20 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local iAdjacentGroundAAMax = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.15 --Even if we want to consider attacking adjacent zones, thsi is the max groundAA to permit
 
     --Update if we have air control and/or are far behind on air
-    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.75 then
+    local iFarBehindFactor = 0.75
+    local iAirControlFactor = 1.2
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 25000 then
+        local iEnemyThreatOverThreshold = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] - 25000
+        iFarBehindFactor = math.min(0.9, 0.75 + iEnemyThreatOverThreshold / 1000)
+        iAirControlFactor = math.min(1.4, iEnemyThreatOverThreshold / 1000)
+    end
+
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iFarBehindFactor then
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = false
     end
 
-    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 1.2 < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iAirControlFactor < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = true
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
     end
