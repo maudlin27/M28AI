@@ -1032,8 +1032,8 @@ function OnWeaponFired(oWeapon)
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
                             if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max((oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100), (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) end
-                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() --For an SMD this will effectively mean we think the SMD isnt loaded anymore; below acts as a basic check to approximate scenarios where SMD has been around a while (ideally if improving on this would just use a dif variable to refiTimeOfLastCheck so can track the actual values wanted)
-                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and oUnit:GetNukeSiloAmmoCount() >= 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 end
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed --For an SMD this will effectively mean we think the SMD isnt loaded anymore; below acts as a basic check to approximate scenarios where SMD has been around a while (ideally if improving on this would just use a dif variable to refiTimeOfLastCheck so can track the actual values wanted)
+                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and oUnit:GetNukeSiloAmmoCount() >= 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 - M28Building.iTimeForSMDToBeConstructed end
                             oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
 
@@ -1546,16 +1546,27 @@ function OnConstructed(oEngineer, oJustBuilt)
 
 
 
-            --M28 specific
-            if oJustBuilt:GetAIBrain().M28AI then
-                if not(oJustBuilt.M28OnConstructedCalled) then
+            if not(oJustBuilt.M28OnConstructedCalled) then
+                oJustBuilt.M28OnConstructedCalled = true
+
+                --Both M28 and Non-M28 where not already run onconstructioncalled:
+                --SMD - update with more accurate estimate of time when built
+                if oJustBuilt[M28UnitInfo.refiTimeOfLastCheck] and EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
                     local sFunctionRef = 'OnConstructed'
                     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+                    oJustBuilt[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just built SMD, oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                end
 
+                --M28 specific
+                if oJustBuilt:GetAIBrain().M28AI then
+                    local sFunctionRef = 'OnConstructed'
+                    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-                    oJustBuilt.M28OnConstructedCalled = true
                     if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
                     local aiBrain = oJustBuilt:GetAIBrain()
                     local iTeam = aiBrain.M28Team
@@ -1798,9 +1809,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
-                            end
-                            --Clear engineers that just built this
+                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                        end
+                        --Clear engineers that just built this
 
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                         if not(M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat]) then
@@ -1957,62 +1968,50 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         end
                     end
-
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 else
-                    --M28 unit has finished construction, but we have alreayd called the main onconstruction event - have any special logic here that we want to run every time (e.g. for the engineers that have just completed construction)
+                    --Non-M28 only units
 
-                    --Commented out below as engineers get cleared when the first one completes construction, so will have wall building logic as part of that
-                    --[[if EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) and oJustBuilt:GetFractionComplete() == 1 and oEngineer:GetAIBrain().M28 then
-                        --Build T1 walls around T1 PD
-                        local aiBrain = oEngineer:GetAIBrain()
-                        local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
-                        if sWallBP then
-                            local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
-                            if tWallBuildLocation then
-                                M28Orders.IssueTrackedBuild(oEngineer, tWallBuildLocation, sWallBP, false, 'Wall')
-                                M28Engineer.TrackEngineerAction(oEngineer, M28Engineer.refActionBuildWall, true, 1)
-                            end
-                        end
-                    end--]]
-                end
-            else
-                --Non-M28 only units
-
-                --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
-                if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
-                    local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
-                    if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-                    oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
-                    if iPlateau and not(iLandZone) then
-                        --May be on water
-                        local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
-                        local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
-                        if iWaterZone then
-                            if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
-                            oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = iWaterZone
-                        end
-                    end
-                    --[[if (iPlateau or 0) > 0 then
+                    --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
+                    if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
+                        local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
                         if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                         oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
-                    end--]]
-                end
-                --Tracking of under construction experimentals
-                if oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] then
-                    local iTeam = oJustBuilt:GetAIBrain().M28Team
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
-                        for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
-                            if oRecordedUnit == oJustBuilt then
-                                table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
-                                break
+                        if iPlateau and not(iLandZone) then
+                            --May be on water
+                            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
+                            local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                            if iWaterZone then
+                                if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+                                oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = iWaterZone
                             end
                         end
+                        --[[if (iPlateau or 0) > 0 then
+                            if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
+                            oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
+                        end--]]
                     end
-                    oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] = false
+                    --Tracking of under construction experimentals
+                    if oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] then
+                        local iTeam = oJustBuilt:GetAIBrain().M28Team
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
+                            for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy] do
+                                if oRecordedUnit == oJustBuilt then
+                                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy], iRecordedUnit)
+                                    break
+                                end
+                            end
+                        end
+                        oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] = false
+                    end
+
                 end
 
+            else
+                --M28 unit has finished construction, but we have alreayd called the main onconstruction event - have any special logic here that we want to run where this isn't the first time onconstructed has been called?
+                --(note - wall building logic - engineers get cleared when the first one completes construction, so will have wall building logic as part of that, so no need to go here)
             end
+
+            --Logic to run every time whether have called onconstruction or not
             --Upgrade tracking (even if have run this already)
             if oEngineer.GetAIBrain and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
                 if oJustBuilt:GetAIBrain().M28AI or (M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI) then

@@ -1428,11 +1428,16 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
                         local iTimeAssumedConstructed
-                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
-                        --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
-                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 - 180 * oUnit:GetWorkProgress()
-                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 45 * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
+                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240 - M28Building.iTimeForSMDToBeConstructed
+                            --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
+                        elseif oUnit:GetFractionComplete() == 1 then
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed - 240 * oUnit:GetWorkProgress()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are recording a constructed SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+                        else
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are recording an underconstruction SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Fraction complete='..oUnit:GetFractionComplete()..'; Time='..GetGameTimeSeconds()) end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just registered oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for team '..iTeam..' at time='..GetGameTimeSeconds()..'; SMD fraction complete='..oUnit:GetFractionComplete()..'; oUnit[M28UnitInfo.refiTimeOfLastCheck]='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                         --Unpause any paused SMD
                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
