@@ -3147,7 +3147,11 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     else
                         if oUnit[M28UnitInfo.refiAntiNavyRange] > 0 then
                             --We dont outrange the enemy, but we do have other units that do
-                            table.insert(tOutrangedCombatUnits, oUnit)
+                            if EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
+                            else
+                                table.insert(tOutrangedCombatUnits, oUnit)
+                            end
                         end
                     end
                 end
