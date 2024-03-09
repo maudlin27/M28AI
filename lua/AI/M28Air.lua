@@ -27,7 +27,7 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     subreftPlateauAndLandZonesInPath = 'M28APathPlatLZ' --if are any
     subreftWaterZonesInPath = 'M28APathWZ'
 tDistanceAdjustXZ = {} --Used for gunships to space out
-iMinimumASFCountPostGifting = 20 --if we give asfs to a teammate we want to maintain this number for basic defence
+iMinimumASFCountPostGifting = 18 --if we give asfs to a teammate we want to maintain this number for basic defence
 iExtraTicksToWaitBetweenAirCycles = 0 --Set by ConsiderSlowdownForHighUnitCount; E.g. if want to run air logic once every 2s then set this to 10 (since normal air logic is run within 1s)
 
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
