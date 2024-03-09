@@ -1912,15 +1912,20 @@ function SendUnitReclaimedMessage(oEngineer, oReclaim)
         'Hey ' .. oEngineer:GetAIBrain().Nickname .. ', quit reclaiming my units!',
         'You\’re reclaiming my unit ' .. oEngineer:GetAIBrain().Nickname .. '? You know I’m on the same team as you right?',
         'Just be warnted ' .. oEngineer:GetAIBrain().Nickname .. ', if you keep reclaiming my units, I have more apm for a reclaim war!',
+        oEngineer:GetAIBrain().Nickname..' stop reclaiming my units, I don\'t like toxic teammates.',
+        'No need to be greedy by reclaiming my units '..oEngineer:GetAIBrain().Nickname,
     }
     local sBlueprintDesc
     local oBP
     if oReclaim.GetBlueprint then oBP = oReclaim:GetBlueprint() sBlueprintDesc = LOC(oBP.Description) end
-    if sBlueprintDesc then table.insert(tsPotentialMessages, 'Why are you reclaiming my '..sBlueprintDesc..' '..oEngineer:GetAIBrain().Nickname..'?') end
+    if sBlueprintDesc then
+        table.insert(tsPotentialMessages, 'Why are you reclaiming my '..sBlueprintDesc..' '..oEngineer:GetAIBrain().Nickname..'?')
+        table.insert(tsPotentialMessages, 'Why would you reclaim my '..sBlueprintDesc..' '..oEngineer:GetAIBrain().Nickname..'? There I was thinking we could be friends.')
+    end
 
     local iRand = math.random(1, table.getn(tsPotentialMessages))
     if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming', tsPotentialMessages[iRand], 0, 100000, false)
+    SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming'..oEngineer:GetAIBrain():GetArmyIndex(), tsPotentialMessages[iRand], 0, 100000, false)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

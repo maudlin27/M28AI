@@ -856,6 +856,48 @@ end
     M28Utilities.ErrorHandler('To add code')
 end--]]
 
+function UpdateUnitPreviousZones(oUnit, iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateUnitPreviousZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    oUnit[M28UnitInfo.refbUnitStuckAlternating] = false
+    if not(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam]) then
+        oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam] = {}
+    end
+    table.insert(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam], 1, {iPlateau, iLandZone})
+    if oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam][8] then
+        if oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam][9] then
+            table.remove(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam], 9)
+        end
+
+        --Check if we have been alternating between the same two zones
+        local tiPlateauOrZeroAndZones = {}
+        local iUniqueCount = 0
+        for iEntry, tPlateauOrZeroAndZone in  oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam] do
+            if not(tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]]) then
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]] = {}
+            end
+            if not(tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]]) then
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] = 0
+                iUniqueCount = iUniqueCount + 1
+            else
+                tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] = tiPlateauOrZeroAndZones[tPlateauOrZeroAndZone[1]][tPlateauOrZeroAndZone[2]] + 1
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUniqueCount='..iUniqueCount..'; tiPlateauOrZeroAndZones='..repru(tiPlateauOrZeroAndZones)..'; oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam]='..repru(oUnit[M28UnitInfo.reftRecentPlateauAndZoneByTeam])..'; Time since unit last retreated='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastTriedRetreating] or -100)..'; Time='..GetGameTimeSeconds()) end
+        if iUniqueCount <= 3 then --if only 3 dif zones then chances are we have been alternating
+            if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastTriedRetreating] or -100) >= 30 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit is stuck alternating between zones so will flag accordingly') end
+                oUnit[M28UnitInfo.refbUnitStuckAlternating] = true
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function RecordUnitInLandZone()  end --DONE TO HELP LOCATE
 function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemyAirUnit)
     --If unit already has a land zone assigned then remove this
@@ -976,6 +1018,8 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                             oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
                         end
                     end
+                    --Update table of previous entries
+                    UpdateUnitPreviousZones(oUnit, iPlateau, iLandZone)
                     if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                         M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                     end
@@ -1081,6 +1125,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
                     oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
                 end
             end
+            UpdateUnitPreviousZones(oUnit, 0, iWaterZone)
 
             if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                 M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
@@ -1383,11 +1428,16 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
                         local iTimeAssumedConstructed
-                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240
-                        --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
-                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 - 180 * oUnit:GetWorkProgress()
-                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 45 * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
+                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240 - M28Building.iTimeForSMDToBeConstructed
+                            --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
+                        elseif oUnit:GetFractionComplete() == 1 then
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed - 240 * oUnit:GetWorkProgress()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are recording a constructed SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+                        else
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed * oUnit:GetFractionComplete() --I.e. assume enemy will be able to build SMD missile c.45s sooner than would expect if it's at 99% complete
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are recording an underconstruction SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Fraction complete='..oUnit:GetFractionComplete()..'; Time='..GetGameTimeSeconds()) end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just registered oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for team '..iTeam..' at time='..GetGameTimeSeconds()..'; SMD fraction complete='..oUnit:GetFractionComplete()..'; oUnit[M28UnitInfo.refiTimeOfLastCheck]='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                         --Unpause any paused SMD
                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
@@ -1831,7 +1881,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             else
                                 if bDebugMessages == true then LOG(sFunctionRef..': Failed to find a plateau or zone to position '..repru(oUnit:GetPosition())..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
-                                    M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used')
+                                    M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used, unless fighting RNG and they have offmap units')
                                     M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
                                 end
                             end

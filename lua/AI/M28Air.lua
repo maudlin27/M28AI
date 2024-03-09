@@ -27,7 +27,7 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     subreftPlateauAndLandZonesInPath = 'M28APathPlatLZ' --if are any
     subreftWaterZonesInPath = 'M28APathWZ'
 tDistanceAdjustXZ = {} --Used for gunships to space out
-iMinimumASFCountPostGifting = 20 --if we give asfs to a teammate we want to maintain this number for basic defence
+iMinimumASFCountPostGifting = 18 --if we give asfs to a teammate we want to maintain this number for basic defence
 iExtraTicksToWaitBetweenAirCycles = 0 --Set by ConsiderSlowdownForHighUnitCount; E.g. if want to run air logic once every 2s then set this to 10 (since normal air logic is run within 1s)
 
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
@@ -45,6 +45,8 @@ tiRecentExpBomberTargets = {} --when an experimental bomber fires, then will tra
     refoTransportUnitTryingToLoad = 'M28TrUnLd' --When a unit is given an order to load into a transport directly,  it gets recorded against this for the transport
     refiTargetIslandForDrop = 'M28TrnTgIsl' --Target island for a transport to drop
     refiTargetZoneForDrop = 'M28TrnTgLZ' --target zone for a transport to drop (e.g. it may be dropping the same island its currently on but further away)
+    refiLastIslandDrop = 'M28ALstIsD' --When a unit is dropped by a transport, it should be assigned the island ref the transport was trying to drop to
+    refiTimeLastDropped = 'M28ATimLstD' --Time that a unit was last dropped by a living transport
     refoPriorityTargetOverride = 'M28NvxTOvrd' --e.g. used against novax satellite, for if want to add logic similar to M27 where attacks on high value targets are coordinated
     refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
     refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
@@ -2023,7 +2025,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering air staging unit '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..'; Is tCargo empty='..tostring(M28Utilities.IsTableEmpty(tCargo))..'; bCargoReadyToRelease='..tostring(bCargoReadyToRelease)..'; Is oAirStaging[reftAssignedRefuelingUnits] empty='..tostring(M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]))) end
                     if bCargoReadyToRelease then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
                         M28Orders.ReleaseStoredUnits(oAirStaging, false, 'ASUnl', false)
                         --Dont clear unit status as should happen automatically in next cycle; dont consider sending units to it this cycle
                     else
@@ -2585,12 +2587,20 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local iAdjacentGroundAAMax = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.15 --Even if we want to consider attacking adjacent zones, thsi is the max groundAA to permit
 
     --Update if we have air control and/or are far behind on air
-    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.75 then
+    local iFarBehindFactor = 0.75
+    local iAirControlFactor = 1.2
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 25000 then
+        local iEnemyThreatOverThreshold = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] - 25000
+        iFarBehindFactor = math.min(0.9, 0.75 + iEnemyThreatOverThreshold / 1000)
+        iAirControlFactor = math.min(1.4, iEnemyThreatOverThreshold / 1000)
+    end
+
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iFarBehindFactor then
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = false
     end
 
-    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 1.2 < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iAirControlFactor < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = true
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
     end

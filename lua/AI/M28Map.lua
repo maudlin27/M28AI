@@ -227,6 +227,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             refoNearestStructureInOtherPlateauIfNoEnemiesHere = 'NearSPl' --If dealing with a large enough land zone, this will record here the closest enemy structure in another plateau near to this land zone, if there is one
+            refbEnemiesInNearbyPlateau = 'EnNrPl' --true if a nearby plateau has enemies in it - works imilsarly to refoNearestStructureInOtherPlateauIfNoEnemiesHere, and is intended so can do more detailed calc for mobile units if relevant
 
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefTThreatEnemyCombatTotal = 'ECTotal'
