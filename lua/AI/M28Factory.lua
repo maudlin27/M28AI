@@ -3092,6 +3092,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
             end
             local iMinEngisWanted = math.max(5, math.min(15, aiBrain[M28Economy.refiGrossMassBaseIncome] / (1.5 * aiBrain[M28Economy.refiOurHighestFactoryTechLevel])))
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to reduce min engis wanted, tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; iFactoryTechLevel='..iFactoryTechLevel) end
+            if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and bHaveLowMass then
+                iMinEngisWanted = iMinEngisWanted - 1
+                if M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 3000 and iFactoryTechLevel >= 3 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Nearby enemy threats and we dont have amny gunships and are at t3 so will try building ag unship first') end
+                    iMinEngisWanted = -iMinEngisWanted - 1
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': iMinEngisWanted='..iMinEngisWanted..'; iEngisOfTechInZone='..iEngisOfTechInZone..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; iBPWanted='..iBPWanted..'; iFactoryTechLevel='..iFactoryTechLevel..'; M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Nmber of T3 engis being built in zone='..M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3)) end
             if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < iMinEngisWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < iMinEngisWanted + 5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0))
                     or (iEngisOfTechInZone < 50 and iBPWanted / 10 > iEngisOfTechInZone and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.06 or iEngisOfTechInZone < math.max(6, iMinEngisWanted)) and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) <= math.min(2, iBPWanted * 0.2 / M28Engineer.tiBPByTech[3]))) then
