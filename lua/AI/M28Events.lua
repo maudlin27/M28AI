@@ -1242,7 +1242,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
                 --Track special game ender logic buildings
                 if oEngineer[M28Building.reftArtiTemplateRefs] then
-                    if bDebugMessages == true then LOG(sFunctionRef..': We have construction being built by engi with arti template ref, so will copy over engineer arti template ref') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have construction being built by engi with arti template ref, so will copy over engineer arti template ref, oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])) end
                     oConstruction[M28Building.reftArtiTemplateRefs] =  {oEngineer[M28Building.reftArtiTemplateRefs][1], oEngineer[M28Building.reftArtiTemplateRefs][2], oEngineer[M28Building.reftArtiTemplateRefs][3]}
 
                     local tLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oConstruction:GetAIBrain().M28Team]
@@ -1264,8 +1264,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                     end
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
                             if not(bAlreadyRecorded) then
                                 table.insert(tTemplateRef[M28Map.subrefGEShieldUnits], oConstruction)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of shield units') end
                             else
                                 if bDebugMessages == true then LOG(sFunctionRef..': Wont record shield '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' against arti template as it was already recorded') end
                             end

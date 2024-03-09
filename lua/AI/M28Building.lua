@@ -1598,7 +1598,7 @@ function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier 
 function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
     --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
@@ -3982,7 +3982,7 @@ function GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, tLauncherPosition
     return tTarget
 end
 
-function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone)
+function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
     --Called from the gameender template logic
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorShieldsForCycling'
