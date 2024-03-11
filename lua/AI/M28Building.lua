@@ -2359,7 +2359,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             if tTarget then
                                 if bDebugMessages == true then
                                     M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Giving order to fire nuke at tTarget='..repru(tTarget)..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; Is SMD blocking target='..tostring(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0))) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Giving order to fire nuke at tTarget='..repru(tTarget)..'; Launcher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owend by brain '..oLauncher:GetAIBrain().Nickname..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; Is SMD blocking target='..tostring(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0))..'; Time='..GetGameTimeSeconds()) end
                                 end
                                 M28Orders.IssueTrackedNukeMissileLaunch(oLauncher, tTarget, 2, false, 'Nuke', false)
                                 --[[M28Orders.IssueTrackedClearCommands(oLauncher)
