@@ -145,6 +145,9 @@ function IssueTrackedClearCommands(oUnit)
         M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
     end
 
+    --AirAA tracking
+    if oUnit[M28Air.refoAirAACurTarget] then oUnit[M28Air.refoAirAACurTarget] = nil end
+
     --Clear orders:
     if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
     --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual030918' and GetGameTimeSeconds() >= 142 then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
