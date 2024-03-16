@@ -839,7 +839,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
 
 
     M28Orders.IssueTrackedMove(oUnitToRun, tPotentialRunPosition, math.min(8, iDistanceToRun * 0.25), false, 'RunE'..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy))
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Just tried to give move order for oUnitToRun='..oUnitToRun.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRun)..' from cur position '..repru(oUnitToRun:GetPosition())..' to position '..repru(tPotentialRunPosition)..' due to enemy '..(oEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemy) or 'nil')..' which is at last known position '..repru(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iDistanceToRun='..(iDistanceToRun or 'nil')..'; Angle to run location='..M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), tPotentialRunPosition)..'; Angle from unit ot enemy='..M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), oEnemy:GetPosition())..'; Actual last order position='..repru(oUnitToRun[M28Orders.reftiLastOrders][oUnitToRun[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Unit order count='..(oUnitToRun[M28Orders.refiOrderCount] or 'nil')..'; GameTime='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Just tried to give move order for oUnitToRun='..oUnitToRun.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRun)..' from cur position '..repru(oUnitToRun:GetPosition())..' to position '..repru(tPotentialRunPosition)..' due to enemy '..(oEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemy) or 'nil')..' which is at last known position '..repru(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iDistanceToRun='..(iDistanceToRun or 'nil')..'; Angle to run location='..M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), tPotentialRunPosition)..'; Angle from unit ot enemy='..M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), oEnemy:GetPosition())..'; Actual last order position='..repru(oUnitToRun[M28Orders.reftiLastOrders][oUnitToRun[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Unit order count='..(oUnitToRun[M28Orders.refiOrderCount] or 'nil')..'; GameTime='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -848,7 +848,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds()) end
@@ -886,12 +886,17 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             --if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
             table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.subrefTEnemyUnits])
         end
+        local bFriendlyCombatInAdjZone = false
+        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 50 then bFriendlyCombatInAdjZone = true end
 
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemies in iAdjLZ='..iAdjLZ..'; enemy combat total='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 0 then
                     table.insert(tEnemyUnitTablesToConsider, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+                end
+                if not(bFriendlyCombatInAdjZone) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] > 50 then
+                    bFriendlyCombatInAdjZone = true
                 end
             end
         end
@@ -907,8 +912,14 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
         local oEnemyToRunFrom
         local oPrevEnemyToRunFrom
-        local iRunThreshold = 30 --If get this close to being in range of an enemy should try to run
-        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.max(5000, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 4) then iRunThreshold = 20 end
+        local iRunThreshold --If get this close to being in range of an enemy should try to run
+
+        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.max(5000, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 4) then iRunThreshold = 15
+        elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 200 then iRunThreshold = 17
+        elseif bFriendlyCombatInAdjZone then iRunThreshold = 20
+        else iRunThreshold = 27
+        end
+
         local iAttackThreshold = 35
         if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this LZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         local oEnemyToConsiderAttacking
@@ -942,8 +953,17 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
                                     if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Actual dist using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())..'; Is unit visible='..tostring(M28UnitInfo.CanSeeUnit(oScout:GetAIBrain(), oUnit))..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')) end
                                     if bConsiderAttacking or (((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) and not(oUnit == oPrevEnemyToRunFrom)) then
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then iCurDist = iCurDist - (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0) end
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                            iCurDist = iCurDist - (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0)
+                                        elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryLandScout - M28UnitInfo.refCategoryCombatScout, oUnit.UnitId) and iCurDist < oUnit[M28UnitInfo.refiDFRange] + 2 and (not(bFriendlyCombatInAdjZone) or M28UnitInfo.GetUnitHealthPercent(oScout) < 0.5) then
+                                                --This means we should be far less likely to run from UEF and Aeon land scouts if we arent yet in range of them (and sometimes even if we are slightly in range)
+                                                iCurDist = iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                            else
+                                                iCurDist = iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                            end
+                                        end
                                         if iCurDist < iClosestDangerousEnemy and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout * categories.TECH3 - categories.SERAPHIM, oUnit.UnitId))  then
                                             oClosestDangerousEnemy = oUnit
                                             iClosestDangerousEnemy = iCurDist
