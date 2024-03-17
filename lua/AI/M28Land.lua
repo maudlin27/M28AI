@@ -3425,6 +3425,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
     end
 
+    local bIgnoreEnemiesInThisZone = false
+    local tbAdjacentZoneEnemiesToIgnoreByZone = {}
+    local bConsiderEnemiesInAtLeastOneAdjacentZone = true
+    --Only consider if we have a fairly large force for our tech level; in which case will only send a small part of our army to deal with the enemy
+    if iAvailableCombatUnitThreat >= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+        --Consider this zone first (no point ignoring enemies in adj zone if wont be ignoring in this zone); no cap as we will just send a smaller (but still large enough) force to deal with enemy threats if ignoring
+        if iAvailableCombatUnitThreat >= tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and iAvailableCombatUnitThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) * 6 then
+            bIgnoreEnemiesInThisZone = true
+            --Record which units in adjacent zones we should ignore
+            bConsiderEnemiesInAtLeastOneAdjacentZone = false
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if iAvailableCombatUnitThreat >= (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 10 and iAvailableCombatUnitThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) * 6 then
+                    tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] = true
+                else
+                    bConsiderEnemiesInAtLeastOneAdjacentZone = true
+                end
+            end
+        end
+    end
 
     --If enemy has units in this or adjacent LZ, then decide what to do
     if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and (bSuicideIntoFatboy or not(bRunFromFirebase) and not(bRunFromEnemyAir)) then
@@ -3518,17 +3538,22 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if not(tEnemyEngineers) then tEnemyEngineers = {} end
             for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                 --Add ACUs as potential high priority targets if they are on land
-                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.CanSeeUnit(M28Team.GetFirstActiveM28Brain(iTeam), oUnit) then table.insert(toEnemyACUsInZone, oUnit) end
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
-                if iCurDist < iClosestDist then
-                    iClosestDist = iCurDist
-                    oNearestEnemyToMidpoint = oUnit
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.CanSeeUnit(M28Team.GetFirstActiveM28Brain(iTeam), oUnit) then
+                    table.insert(toEnemyACUsInZone, oUnit)
+                    if not(oNearestEnemyToMidpoint) then oNearestEnemyToMidpoint = oUnit iClosestDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition())) end
                 end
-                if iCurDist < iClosestStructureDist and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
-                    iClosestStructureDist = iCurDist
-                    oNearestEnemyStructureToMidpoint = oUnit
+                if not(bIgnoreEnemiesInThisZone) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        oNearestEnemyToMidpoint = oUnit
+                    end
+                    if iCurDist < iClosestStructureDist and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
+                        iClosestStructureDist = iCurDist
+                        oNearestEnemyStructureToMidpoint = oUnit
+                    end
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then table.insert(tSkirmisherEnemies, oUnit) end
                 end
-                if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then table.insert(tSkirmisherEnemies, oUnit) end
             end
         end
         if M28Utilities.IsTableEmpty(toEnemyACUsInZone) == false and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000 then
@@ -3562,7 +3587,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to search adjacent land zones for enemies closer to the midpoint; bOnlyCheckForStructure='..tostring(bOnlyCheckForStructure)..'; oNearestEnemyToMidpoint='..(oNearestEnemyToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint) or 'nil')..'; oNearestEnemyStructureToMidpoint='..(oNearestEnemyStructureToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint) or 'nil')) end
         local bEnemyHasFixedShieldsInThisOrAdjacentZone = false
         if (tLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then bEnemyHasFixedShieldsInThisOrAdjacentZone = true end
-        if not(oNearestEnemyToMidpoint) or not(oNearestEnemyStructureToMidpoint) then
+
+        if not(oNearestEnemyToMidpoint) or not(oNearestEnemyStructureToMidpoint) or (bIgnoreEnemiesInThisZone and bConsiderEnemiesInAtLeastOneAdjacentZone) then
             local iModifiedHighestEnemyValue
             if iAvailableCombatUnitThreat >= 300 then
                 iModifiedHighestEnemyValue = (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) + (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
