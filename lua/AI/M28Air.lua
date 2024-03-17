@@ -1084,6 +1084,8 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
             local iBackupSidewaysDistance = 70 --For land zones - in addition to checking adjacent zones will also check this far away
             local iSidewaysSegmentDistance = math.ceil(iSidewaysDistance / M28Map.iLandZoneSegmentSize)
             local iSidewaysPlateauOrZero, iSidewaysZone
+            local bIncludeMinorPlateaus = true
+            if M28Map.iPlateauCount >= 500 then bIncludeMinorPlateaus = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; iSearchDistance='..iSearchDistance..'; iSidewaysSegmentDistance='..iSidewaysSegmentDistance..'; iAngleStartToEnd='..iAngleStartToEnd..'; iMaxCycle='..iMaxCycle) end
             if iSearchDistance > 0 then
                 for iCycle = 0, iMaxCycle, 1 do
@@ -1093,7 +1095,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                         LOG(sFunctionRef..': tPositionAlongPath='..repru(tPositionAlongPath)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLandZone='..(iCurLandZone or 'nil')..'; Waterzonebyposition='..(M28Map.GetWaterZoneFromPosition(tPositionAlongPath) or 'nil'))
                         M28Utilities.DrawLocation(tPositionAlongPath)
                     end
-                    if (iCurPlateau or 0) > 0 then
+                    if (iCurPlateau or 0) > 0 and (bIncludeMinorPlateaus or not(M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefbMinorPlateau])) then
                         if (iCurLandZone or 0) > 0 then
                             if not(tiLandZonesByPlateau[iCurPlateau]) then tiLandZonesByPlateau[iCurPlateau] = {} end
                             tiLandZonesByPlateau[iCurPlateau][iCurLandZone] = true
@@ -1171,10 +1173,10 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                         local tNearbySideways = M28Utilities.MoveInDirection(tPositionAlongPath, iAngleStartToEnd + iSidewaysAngleAdjust, iBackupSidewaysDistance, true, false, false)
                         if M28Conditions.IsLocationInPlayableArea(tNearbySideways) then
                             if bDebugMessages == true then LOG(sFunctionRef..': tPositionAlongPath='..repru(tPositionAlongPath)..'; Angle='..iAngleStartToEnd + iSidewaysAngleAdjust..'; iBackupSidewaysDistance='..iBackupSidewaysDistance..'; tNearbySideways='..repru(tNearbySideways)..'; Playable area='..repru(M28Map.rMapPlayableArea)) end
-                            local iSidewaysPlateauOrZero, iSidewaysZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNearbySideways)
+                            iSidewaysPlateauOrZero, iSidewaysZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNearbySideways)
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking sideways points, iSidewaysAngleAdjust='..iSidewaysAngleAdjust..'; iSidewaysPlateauOrZero='..(iSidewaysPlateauOrZero or 'nil')..'; iSidewaysZone='..(iSidewaysZone or 'nil')) end
                             --Only include land zones (as water zones are much larger)
-                            if iSidewaysPlateauOrZero > 0 and (iSidewaysZone or 0) > 0 then
+                            if (iSidewaysPlateauOrZero or 0) > 0 and (iSidewaysZone or 0) > 0 and (bIncludeMinorPlateaus or not(M28Map.tAllPlateaus[iSidewaysPlateauOrZero][M28Map.subrefbMinorPlateau])) then
                                 if not(tiLandZonesByPlateau[iSidewaysPlateauOrZero]) then tiLandZonesByPlateau[iSidewaysPlateauOrZero] = {} end
                                 tiLandZonesByPlateau[iSidewaysPlateauOrZero][iSidewaysZone] = true
                             end
@@ -1394,8 +1396,10 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
         tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] = {}
         local tTableToSort = {}
         --Add all land zones in the map
+        local bIncludeMinorPlateaus = true
+        if M28Map.iPlateauCount >= 2000 then bIncludeMinorPlateaus = false end
         for iPlateau, tPlateauData in M28Map.tAllPlateaus do
-            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false and (bIncludeMinorPlateaus or not(tPlateauData[M28Map.subrefbMinorPlateau])) then
                 --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
                 for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
                     table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPlateau, [M28Map.subrefiLandOrWaterZoneRef] = iLandZone, [M28Map.subrefbIsWaterZone] = false, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tStartMidpoint)})

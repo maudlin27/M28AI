@@ -91,6 +91,7 @@ tPathingPlateauAndLZOverride = {} --Global, Pathing override where no plateau re
 tbTempConsideredLandPathingForLZ = {} --Global, used to track if we have considered land pathing for this LZ as part of the initial LZ setup
 tNearestPlateauOrZeroAndZoneSegmentOverride = {} --Global, [x] is segmentx, [y] is segmenty, returns the Plateau (0 if water zone) and land/water zone reference to use; closest is based on straight line dist
 
+iPlateauCount = 0
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus (not currently incorporated):
 reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
@@ -100,6 +101,8 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
 
 --subrefs for tables
 --tAllPlateaus[iPlateau] subrefs
+    subrefbMinorPlateau = 'M28PlatMin' --true if an inconsequential plateau (i.e. no mexes, and a small area of land)
+    subrefiMinorCycleRef = 'M28PlatMnC' --number from 1 to 10, to denote the 'cycle' in which to update zones in this plateau if it is a minor plateau (so it is updated 10% as often as a non-minor plateau)
     subrefPlateauMexes = 'M28PlateauMex' --[x] = mex count, returns mex position
     subrefPlateauMinXZ = 'M28PlateauMinXZ' --{x,z} min values
     subrefPlateauMaxXZ = 'M28PlateauMaxXZ' --{x,z} max values - i.e. can create a rectangle covering entire plateau using min and max xz values
@@ -4110,6 +4113,37 @@ function RecordWaterZonePatrolPaths()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+local function RecordMinorPlateaus()
+    local bIsMinor
+    iPlateauCount = 0
+    local iCurPlateauCycle = 0
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        iPlateauCount = iPlateauCount + 1
+        iCurPlateauCycle = iCurPlateauCycle + 1
+        if iCurPlateauCycle > 10 then iCurPlateauCycle = 1 end
+        bIsMinor = false
+        if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) == 0 and (tPlateauSubtable[subrefLandZoneCount] <= 5 and tPlateauSubtable[subrefPlateauMaxRadius] <= 50 and (tPlateauSubtable[subrefLandZoneCount] <= 2 or tPlateauSubtable[subrefPlateauMaxRadius] <= 25)) then
+            bIsMinor = true
+        end
+        tPlateauSubtable[subrefbMinorPlateau] = bIsMinor
+        if bIsMinor then
+            tPlateauSubtable[subrefiMinorCycleRef] = iCurPlateauCycle
+        end
+    end
+    if iPlateauCount >= 2000 then
+        local oFirstM28Brain
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.M28AI and not(oBrain.M28IsDefeated) then
+                oFirstM28Brain = oBrain
+                break
+            end
+        end
+        if oFirstM28Brain then
+            M28Chat.SendMessage(oFirstM28Brain, 'MinorPlateau', 'This map has a lot of cliffs :(', 120, 100000, false, true)
+        end
+    end
+end
+
 local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
@@ -4165,6 +4199,7 @@ local function SetupLandZones()
     RecordAdjacentLandZones()
     RecordMassStorageLocationsForEachLandZone()
     RecordLandZonePatrolPaths()
+    RecordMinorPlateaus()
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished LZ patrol paths, sys time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     --Use below if want to highlight a particular plateua at this stage:
@@ -7056,7 +7091,7 @@ function SetupMap()
     --Send a message warning players this could take a while - moved to M28Overseer
     --[[for iBrain, oBrain in ArmyBrains do
         if oBrain.M28AI then
-            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
+            M28Chat.SendMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
         end
     end--]]
 
