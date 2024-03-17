@@ -162,7 +162,7 @@ function GetNearestEnemyBrain(aiBrain)
         end
         if not(oNearestBrain) then
             M28Utilities.ErrorHandler('Couldnt find a nearest brain to aiBrain='..aiBrain.Nickname)
-            if GetGameTimeSeconds() <= 10 then M28Chat.SendForkedMessage(aiBrain, 'NoEnemies', 'Unable to identify any enemies for '..(aiBrain.Nickname or 'a brain')..', M28 may not function properly', 0, 10000, false) end
+            if GetGameTimeSeconds() <= 10 then M28Chat.SendMessage(aiBrain, 'NoEnemies', 'Unable to identify any enemies for '..(aiBrain.Nickname or 'a brain')..', M28 may not function properly', 0, 10000, false) end
             M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] = true
             --Set the nearest enemy as the furthest away other brain (even if it isnt an enemy) - i.e. if do as furthest enemy then more likely to have units passing enemy units
             local iFurthestDist = 0
@@ -409,7 +409,7 @@ function M28BrainCreated(aiBrain)
         --LOG('M28 in game 3')
 
         --Send a message warning players this could take a while
-        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
+        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)

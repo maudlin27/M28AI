@@ -4670,7 +4670,7 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
         local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
 
         function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
-                        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
             sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory,  nil,            nil,        bOptionalGetCheapest, nil,                          false)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
@@ -4703,10 +4703,14 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
-        --Build t1 arti if have nearby DF enemies in this zone
+        --Build df units or t1 arti if have nearby DF enemies in this zone or nearby
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 500 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Will get t1 arti') end
+            local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental, oFactory:GetPosition(), 45, 'Enemy')
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get t1 arti if nearby enemies or stalling mass, otherwise will get percies, is tNearbyEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemies))..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) end
+            if M28Utilities.IsTableEmpty(tNearbyEnemies) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH3, false) then return sBPIDToBuild end
+            end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1, true) then return sBPIDToBuild end
         end
 
@@ -4723,6 +4727,16 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Have too little MAA in zone will try and get more') end
             if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
         end
+
+        --If enemy threat in-range then build percies (the above builder covers t1 arti when enemy is really close)
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+            local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental, oFactory:GetPosition(), 130, 'Enemy')
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get percies if enemies nearby, is tNearbyEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemies))..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) end
+            if M28Utilities.IsTableEmpty(tNearbyEnemies) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH3, false) then return sBPIDToBuild end
+            end
+        end
+
 
         --Build MAA if need it in adjacent zone, and also check if we want to build mobile shields
         iCurrentConditionToTry = iCurrentConditionToTry + 1
