@@ -2255,14 +2255,18 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
     local tExistingThreatAssignedByUnitRef = {}
     for iAAUnit, oAirAA in tInCombatUnits do
         --Update move orders
-        TargetUnitWithAirAA(oAirAA, oAirAA[refoAirAACurTarget])
+        if M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]) then
+            TargetUnitWithAirAA(oAirAA, oAirAA[refoAirAACurTarget])
 
-        if bReturnTableOfAssignedThreat then
-            --Update assigned threat values
-            sUnitRef = oAirAA[refoAirAACurTarget].EntityId
-            if sUnitRef then
-                tExistingThreatAssignedByUnitRef[sUnitRef] = (tExistingThreatAssignedByUnitRef[sUnitRef] or 0) + M28UnitInfo.GetAirThreatLevel({ oAirAA }, false, true, false, true, true, true)
+            if bReturnTableOfAssignedThreat then
+                --Update assigned threat values
+                sUnitRef = oAirAA[refoAirAACurTarget].EntityId
+                if sUnitRef then
+                    tExistingThreatAssignedByUnitRef[sUnitRef] = (tExistingThreatAssignedByUnitRef[sUnitRef] or 0) + M28UnitInfo.GetAirThreatLevel({ oAirAA }, false, true, false, true, true, true)
+                end
             end
+        else
+            oAirAA[refoAirAACurTarget] = nil
         end
     end
     if bReturnTableOfAssignedThreat then

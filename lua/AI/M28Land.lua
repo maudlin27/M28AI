@@ -5812,7 +5812,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                         for iCurUnit = table.getn(tIndirectUnits), 1, -1 do
                             if tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign then
-                                iCurAssignedThreat = iCurAssignedThreat + tDFUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
+                                iCurAssignedThreat = iCurAssignedThreat + tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
                                 M28Orders.IssueTrackedMove(tIndirectUnits[iCurUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZIF'..iLandZone..'To'..iOtherLZ, false)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Assigned DF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                 table.remove(tIndirectUnits, iCurUnit)
