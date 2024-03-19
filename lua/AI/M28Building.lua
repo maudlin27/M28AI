@@ -1620,6 +1620,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
         if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= iTimeToWaitBetweenLaunches then
             if bDebugMessages == true then LOG(sFunctionRef..': we tried firing recently so will do a delayed launch instead') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            --LOG('Forked consideration of launching missile Delay3')
             DelayedConsiderLaunchingMissile(oLauncher, iTimeToWaitBetweenLaunches - (GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile]), true, true)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         else
@@ -2353,6 +2354,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     WaitSeconds(1)
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                     tTarget = nil
+                                    --LOG('Forked consideration of launching missile 1')
                                     ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                                 end
                             end
@@ -2403,6 +2405,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         WaitSeconds(10)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have waited 10s, will now reconsider launching the missile, time='..GetGameTimeSeconds()) end
+                        --LOG('Forked consideration of launching missile 2')
                         ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                     end
                 end
@@ -2989,6 +2992,7 @@ function JustFiredMissile(oLauncher)
             if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
             if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
             if iMissiles > 0 then
+                --LOG('consideration of launching missile 3')
                 ConsiderLaunchingMissile(oLauncher)
             end
             --Track SML launchers who have recently fired
@@ -3505,6 +3509,7 @@ function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait, bCheckIfStil
             if not(bOnlyConsiderIfNotFiredRecently) or GetGameTimeSeconds() - (oLauncher[M28UnitInfo.refiLastWeaponEvent] or -100) > iSecondsToWait then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider launching a missile') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                --LOG('consideration of launching missile 4')
                 ConsiderLaunchingMissile(oLauncher)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
@@ -4124,6 +4129,7 @@ function ConsiderFiringFirstLoadedNukeOnTeam(iTeam)
     if oSMLToConsiderFiring then
         if bDebugMessages == true then LOG(sFunctionRef..': Will consider firing nuke launcher='..oSMLToConsiderFiring.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMLToConsiderFiring)) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        --LOG('consideration of launching missile 5')
         ConsiderLaunchingMissile(oSMLToConsiderFiring)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
@@ -4142,10 +4148,11 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
     local iCurTime = math.floor(GetGameTimeSeconds())
     local iCycleCount = 0
     while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
-        iCycleCount = iCycleCount - 0.0001
+        iCurTime = iCurTime - 0.0001
         iCycleCount = iCycleCount + 1
         if iCycleCount >= 20 then
             M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
+            break
         end
     end
     M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }

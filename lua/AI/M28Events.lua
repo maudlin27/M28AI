@@ -1188,6 +1188,7 @@ function OnMissileBuilt(self, weapon)
 
             if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to consider launching a missile') end
+                --LOG('Forked consideration of launching missile 6')
                 ForkThread(M28Building.ConsiderLaunchingMissile, self, weapon)
             end
         end
@@ -2410,6 +2411,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if oUnit:GetFractionComplete() == 1 then
                         if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
                             --put here as extra redundancy since the 'unpause unit on transfer' code which has something similar didnt fix an issue with a loaded yolona being transferred not then firing
+                            --LOG('Forked consideration of launching missile Delay5')
                             ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 15, true)
                         end
 
@@ -3031,6 +3033,7 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                     if M28Utilities.IsTableEmpty(tMissileLaunchers) == false then
                         local iCurMissiles
                         for iLauncher, oLauncher in tMissileLaunchers do
+                            --LOG('Forked consideration of launching missile Delay6')
                             M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
                         end
                     end
