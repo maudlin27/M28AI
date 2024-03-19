@@ -9860,6 +9860,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
             iBPWanted = 240
+            if bHaveLowPower then iBPWanted = 60 end
             if iHighestCompleteExperimentalInZone > 0 and (iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete or iHighestCompleteExperimentalInZone >= 0.6) then
                 --Assist the experimental
                 AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildExperimental, 1, iBPWanted)
@@ -9938,7 +9939,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)
         if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3) then
-            iBPWanted = 150
+            iBPWanted = 100
             if not(bHaveLowPower) then iBPWanted = 200
                 if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iBPWanted = 400 end
             end
@@ -10850,6 +10851,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             else
                 iBPWanted = math.min(500, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 14 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 25)
             end
+            if bHaveLowPower then iBPWanted = math.min(120, iBPWanted * 0.5) end
             if bDebugMessages == true then LOG(sFunctionRef..': BP want to assist under construction experimental='..iBPWanted) end
             --Assist the experimental
             AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildExperimental, 1, iBPWanted)
@@ -13230,18 +13232,20 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             else
                 --Build land experimental if enemy base is pathable by land from here and we have high gross mass, and we have a high % stored or low mod dist
-                if bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 6 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.1)) then
-                    --If we have stalled power recently then build power, otherwise get experimental
-                    if bWantMorePower and (bHaveLowPower or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100 <= 30) then
-                        HaveActionToAssign(refActionBuildPower, 3, 60, nil, false, true)
-                    else
-                        if bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9) then
-                            if (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 0) == (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or -1) and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 350) then
-                                AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildLandExperimental,3, 60, nil, false, true)
-                                --HaveActionToAssign(refActionBuildLandExperimental, 3, 60, nil, false, true)
-                            else
-                                AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildExperimental, 3, 60, nil, false, true)
-                                --HaveActionToAssign(refActionBuildExperimental, 3, 60, nil, false, true)
+                if not(bHaveLowPower) then
+                    if bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 6 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.1)) then
+                        --If we have stalled power recently then build power, otherwise get experimental
+                        if bWantMorePower and (bHaveLowPower or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100 <= 30) then
+                            HaveActionToAssign(refActionBuildPower, 3, 60, nil, false, true)
+                        else
+                            if bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9) then
+                                if (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 0) == (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or -1) and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 350) then
+                                    AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildLandExperimental,3, 60, nil, false, true)
+                                    --HaveActionToAssign(refActionBuildLandExperimental, 3, 60, nil, false, true)
+                                else
+                                    AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iTeam, tLZData, refActionBuildExperimental, 3, 60, nil, false, true)
+                                    --HaveActionToAssign(refActionBuildExperimental, 3, 60, nil, false, true)
+                                end
                             end
                         end
                     end
@@ -14320,6 +14324,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         elseif bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
             iBPWanted = iBPWanted * 0.7
         end
+        if bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
         iBPWanted = math.max(5, iBPWanted)
         if iBPWanted < 200 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
             --Do we need more BP to keep up with enemy?
@@ -15866,7 +15871,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
                         else
-                            HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted * 0.5)
+                            HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted * 0.65)
                         end
                     elseif M28Utilities.IsTableEmpty(toT2ArtiWantingShields) == false and iT2ArtiCount >= 2 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false then
                         if table.getn(toT2ArtiWantingShields) >= 4 or iT2ArtiCount >= 6 then iBPWanted = 240
