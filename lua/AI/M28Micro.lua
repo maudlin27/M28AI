@@ -527,7 +527,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
             if iTimeUntilImpact > 0.8 then
                 for iTarget, oTarget in tUnitsToConsiderDodgeFor do
-                    if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oUnit.UnitId == 'uel0103' then bDebugMessages = true end
                     bCancelDodge = false
                     if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeapon.Blueprint.Damage..'; Target health='..oTarget:GetHealth()) end
                     --Does the shot do enough damage that we want to try and doge it?
