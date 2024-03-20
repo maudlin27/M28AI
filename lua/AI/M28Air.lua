@@ -655,8 +655,13 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                 --Our target is relatively close, if we are not an airAA unit then treat as in combat if we have an attack order
                 if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
                     if oUnit[refoAirAACurTarget] then
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAirScout, oUnit[refoAirAACurTarget].UnitId) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
+                        else
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
                         --Treat as in combat if nearby enemy air to the target; not sure if below code is actually used?
                     elseif tOrderTarget then
                         local iPlateau, iLandZone, iWaterZone

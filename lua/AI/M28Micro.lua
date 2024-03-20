@@ -522,6 +522,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             local iTimeUntilImpact = iDistToTarget / iShotSpeed
             local bCancelDodge = false
             local iHoverMaxTimeToRun
+
             if iMaxTimeToRun < 1.1 then iHoverMaxTimeToRun = 1.1 end
             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
             if iTimeUntilImpact > 0.8 then
@@ -529,7 +530,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     bCancelDodge = false
                     if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeapon.Blueprint.Damage..'; Target health='..oTarget:GetHealth()) end
                     --Does the shot do enough damage that we want to try and doge it?
-                    if oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.01 then
+                    if oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and (oWeapon.Blueprint.WeaponCategory == 'Artillery' or oWeapon.Blueprint.WeaponCategory == 'Missile') and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.005) then
                         --Do we think we can dodge the shot?
                         --If we are a large unit then only dodge if will be a while for the shot to hit
                         local oBP = oTarget:GetBlueprint()

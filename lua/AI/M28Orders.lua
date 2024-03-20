@@ -1119,6 +1119,7 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         local iCurMissiles = oUnit:GetTacticalSiloAmmoCount()
         if (iCurMissiles or 0) >= 2 then
             --Reconsider launching a missile in 11s if we have 2+ missiles loaded (partial redundancy since firing a missile only causes the logic to trigger as a 1-off)
+            --LOG('Forked consideration of launching missile Delay1')
             ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 11)
         end
     end
@@ -1150,6 +1151,7 @@ function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissue
 
     IssueNuke({oUnit}, tOrderPosition)
     oUnit[M28Building.refiTimeLastFiredMissile] = GetGameTimeSeconds()
+    --LOG('Forked consideration of launching missile Delay2')
     ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 10, true, true)
 
     oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
