@@ -15804,7 +15804,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Time='..GetGameTimeSeconds()) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
@@ -15972,11 +15972,32 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                         if M28Utilities.IsTableEmpty(tT2Arti) == false then
-                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti) --Will be 60% of mass cost per getcombatthreatrating
+                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti) --for reference, combat threat will be 60% of mass cost per getcombatthreatrating
+                            --If enemy has T2 arti near here, then reduce D2 arti threat by 50% of any Arti that are more than 130 away from the enemy T2 arti
+                            local tNearestEnemyArtiPosition
+                            if tLZTeamData[M28Map.subrefLZbCoreBase] and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and table.getn(tT2Arti) < math.min(10, math.max(4, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 2.5)) then
+                                local iClosestArtiDist = 200 --No point considering t2 arti further away than this
+                                local iCurArtiDist
+                                for iEnemyArti, oEnemyArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                                    if M28UnitInfo.IsUnitValid(oEnemyArti) then
+                                        iCurArtiDist = M28Utilities.GetDistanceBetweenPositions(oEnemyArti:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                                        if iCurArtiDist < iClosestArtiDist then
+                                            iClosestArtiDist = iCurArtiDist
+                                            tNearestEnemyArtiPosition = oEnemyArti:GetPosition()
+                                        end
+                                    end
+                                end
+                            end
                             for iArti, oArti in tT2Arti do
                                 if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
                                 if oArti[M28Building.refbUnitWantsShielding] and M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) and (oArti[refiFailedShieldConstructionCount] or 0) <= 1 then
                                     table.insert(toT2ArtiWantingShields, oArti)
+                                end
+                                if tNearestEnemyArtiPosition then
+                                    --Reduce threat by 50% if arti is far away from closest enemy arti
+                                    if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), tNearestEnemyArtiPosition) > math.max(125, (oArti[M28UnitInfo.refiIndirectRange] or 0) + math.max((oArti[M28UnitInfo.refiIndirectAOE] or 0), 5)) then
+                                        iT2ArtiThreat = iT2ArtiThreat - (oArti[M28UnitInfo.refiUnitMassCost] or 0) * 0.6
+                                    end
                                 end
                             end
                         end
