@@ -5345,30 +5345,51 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             --MML synchronisation logic
             if (bConsiderSpecialMMLLogic or bEnemyHasFixedShieldsInThisOrAdjacentZone) and M28Utilities.IsTableEmpty(tMMLForSynchronisation) == false then
                 --Get table of enemy shields and TMD to consider targeting
-                local tTMDAndShields = {}
-                function IncludeTMDAndShieldsInZone(iAdjLZ, iOverridePlateau)
+                local tPriorityMMLTargets = {}
+                local bConsiderMultipleTargets = false
+                function IncludeTMDAndShieldsInZone(iAdjLZ, iOverridePlateau, iSearchCategory)
                     local tAdjLZTeamData
                     if iAdjLZ == iLandZone and not(iOverridePlateau) then tAdjLZTeamData = tLZTeamData else tAdjLZTeamData = M28Map.tAllPlateaus[(iOverridePlateau or iPlateau)][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
                     if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                        local tZoneTMDAndShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                        local tZoneTMDAndShields = EntityCategoryFilterDown(iSearchCategory, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty(tZoneTMDAndShields) == false then
                             for iTMDOrShield, oTMDOrShield in tZoneTMDAndShields do
-                                if oTMDOrShield:GetFractionComplete() >= 0.3 and M28UnitInfo.IsUnitValid(oTMDOrShield) and not(oTMDOrShield:IsUnitState('Attached')) then
-                                    table.insert(tTMDAndShields, oTMDOrShield)
+                                if oTMDOrShield:GetFractionComplete() >= 0.3 and M28UnitInfo.IsUnitValid(oTMDOrShield) and not(oTMDOrShield:IsUnitState('Attached')) and (oTMDOrShield:GetFractionComplete() >= 0.5 or (oTMDOrShield[M28UnitInfo.refiUnitMassCost] or 0) >= 300) then
+                                    table.insert(tPriorityMMLTargets, oTMDOrShield)
                                 end
                             end
                         end
                     end
                 end
-                IncludeTMDAndShieldsInZone(iLandZone)
+
+                local iPrioritySearchCategory = M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield
+                local iMMLMassValue = M28UnitInfo.GetMassCostOfUnits(tMMLForSynchronisation)
+                if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
+                    bConsiderMultipleTargets = true
+                    iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
+                    if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
+                        iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
+                    end
+                end
+                IncludeTMDAndShieldsInZone(iLandZone, nil, iPrioritySearchCategory)
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                        IncludeTMDAndShieldsInZone(iAdjLZ)
+                        IncludeTMDAndShieldsInZone(iAdjLZ, nil, iPrioritySearchCategory)
                     end
                 end
                 if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                     for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
-                        IncludeTMDAndShieldsInZone(tPlateauAndZone[2], tPlateauAndZone[1])
+                        IncludeTMDAndShieldsInZone(tPlateauAndZone[2], tPlateauAndZone[1], iPrioritySearchCategory)
+                    end
+                end
+                --Add upgrading enemy ACUs that are near this zone midpoint (will also have a check later on based on ACUs in this specific zone; benefit of below though is it covers adjacent zones)
+                if M28Utilities.IsTableEmpty(tPriorityMMLTargets) or table.getn(tPriorityMMLTargets) <= iMMLMassValue / 1200 then
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                            if M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading') and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 120 then
+                                table.insert(tPriorityMMLTargets, oACU)
+                            end
+                        end
                     end
                 end
 
@@ -5378,17 +5399,22 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local iClosestPotentialTarget
                 local iCurTargetDist
                 local tMMLWithNearbyTargets = {}
-                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tTMDAndShields empty='..tostring(M28Utilities.IsTableEmpty(tTMDAndShields))) end
+                local toAlreadyCoveredTargets = {}
+                local tiAssignedInRangeThreatByEntity = {}
+                local iDistThresholdForInRange = 5
+
+
+                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tPriorityMMLTargets empty='..tostring(M28Utilities.IsTableEmpty(tPriorityMMLTargets))) end
                 for iUnit, oUnit in tMMLForSynchronisation do
                     if bDebugMessages == true then LOG(sFunctionRef..': Is MML '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' close to enemy DF units='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false))..'; oUnit[M28UnitInfo.refiIndirectRange]='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; iIndirectRunFigureSynchronisation='..iIndirectRunFigureSynchronisation..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; oUnit[M28UnitInfo.refiIndirectRange]='..oUnit[M28UnitInfo.refiIndirectRange]) end
                     --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                                                   iDistThreshold,                 iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange,                                                                                        oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
                     if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iIndirectRunFigureSynchronisation, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)), nil,                        oUnit)) then
-                        if M28Utilities.IsTableEmpty(tTMDAndShields) then --redundancy - hopefully only scenario we get here is if there is 1 part-complete TMD/shield that is <30% complete
+                        if M28Utilities.IsTableEmpty(tPriorityMMLTargets) then --redundancy - hopefully only scenario we get here is if there is 1 part-complete TMD/shield that is <30% complete
                             M28Orders.IssueTrackedAggressiveMove(oUnit, (oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oNearestEnemyToMidpoint:GetPosition()), math.max(15, (iIndirectDistanceInsideRangeThreshold or 15)), false, 'I2KAMve'..iLandZone)
                         else
                             --Get the closest TMD/shield to this MML, and then decide whether to attack it or not (for performance reasons stop as soon as we have a target within TML range
                             iClosestPotentialTarget = 100000
-                            for iTarget, oTarget in tTMDAndShields do
+                            for iTarget, oTarget in tPriorityMMLTargets do
                                 iCurTargetDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTarget:GetPosition())
                                 if iCurTargetDist < iClosestPotentialTarget then
                                     iClosestPotentialTarget = iCurTargetDist
@@ -5396,11 +5422,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     if iClosestPotentialTarget < oUnit[M28UnitInfo.refiIndirectRange] then break end
                                 end
                             end
+                            if not(oClosestPotentialTarget) and M28Utilities.IsTableEmpty(toAlreadyCoveredTargets) == false then
+                                for iTarget, oTarget in toAlreadyCoveredTargets do
+                                    iCurTargetDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTarget:GetPosition())
+                                    if iCurTargetDist < iClosestPotentialTarget then
+                                        iClosestPotentialTarget = iCurTargetDist
+                                        oClosestPotentialTarget = oTarget
+                                        if iClosestPotentialTarget < oUnit[M28UnitInfo.refiIndirectRange] then break end
+                                    end
+                                end
+                            end
                             if not(oClosestPotentialTarget) then
                                 M28Utilities.ErrorHandler('Somehow dont have a target for MML')
                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'I2KAMve'..iLandZone)
                             else
-                                if iClosestPotentialTarget - 5 > oUnit[M28UnitInfo.refiIndirectRange] then
+                                if iClosestPotentialTarget - iDistThresholdForInRange > oUnit[M28UnitInfo.refiIndirectRange] then
                                     --Still a bit of distance until we are in range; attack move if we are far away, but do a normal move if we are almost in range
                                     --First check if another target (e.g. upgrading ACU) we should focus fire on first though, if it's significnatly closer than the nearest shield or TMD
                                     local oInRangeUpgradingACU
@@ -5421,9 +5457,22 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         M28Orders.IssueTrackedMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchM'..iLandZone)
                                     end
                                 else
-                                    --Can attack the unit itself
+                                    --Can attack the unit itself as either in range or almost in range
                                     M28Orders.IssueTrackedGroundAttack(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchGA', false)
                                     table.insert(tMMLWithNearbyTargets, oUnit)
+                                    if bConsiderMultipleTargets then
+                                        tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] = (tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] or 0) + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                                        if tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] >= math.max(1000, M28UnitInfo.GetUnitMaxHealthIncludingShield(oUnit) * oUnit:GetFractionComplete() * 0.4) then
+                                            --Remove unit from the priority target table and add to the 'other' table
+                                            for iEntry, oEntry in  tPriorityMMLTargets do
+                                                if oEntry == oClosestPotentialTarget then
+                                                    table.insert(toAlreadyCoveredTargets, oEntry)
+                                                    table.remove(tPriorityMMLTargets, iEntry)
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end

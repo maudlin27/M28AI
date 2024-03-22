@@ -1135,6 +1135,15 @@ function GetUnitHealthPercent(oUnit)
     return oUnit:GetHealth() / oUnit:GetMaxHealth()
 end
 
+function GetUnitMaxHealthIncludingShield(oUnit)
+    --Returns unit max health; includes shield max health if unit is constructed
+    local iMaxShield = 0
+    if oUnit.MyShield and oUnit:GetFractionComplete() == 1 then
+        iMaxShield = oUnit.MyShield:GetMaxHealth()
+    end
+    return (iMaxShield + oUnit:GetMaxHealth())
+end
+
 function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     --Returns 0, 0 if unit has no shield, or 0, [max shield] if it has a shield but it is depleted
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
