@@ -3857,6 +3857,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             local bConsiderSpecialMMLLogic = false --if true then will consider synchronising MML shots and adjusting who they will target from the default
             local tMMLForSynchronisation = {}
+            local bOnlyRetreatIndirectIfEnemyDFAlmostInRange = false --if true (e.g. dealing with t2 arti and dont want T3 mobile arti to run from low level enemy threats) then indirect fire units should only run from nearest enemy if it is almost in range of them
             if iFriendlyBestMobileIndirectRange > 0 then
                 local iAvailableMMLThreat = 0
                 local tFriendlyMML = EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tAvailableCombatUnits)
@@ -3865,6 +3866,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 bConsiderSpecialMMLLogic = M28Conditions.DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iFriendlyBestMobileIndirectRange, iEnemyBestDFRange, iAvailableMMLThreat, oClosestUnitFromAllFirebases)
+                if iAvailableCombatUnitThreat >= 2500 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and iFriendlyBestMobileIndirectRange >= 40 then
+                    --How much available DF threat do we have?
+                    local iRoughAvailableDFThreat = 0
+                    for iUnit, oUnit in tAvailableCombatUnits do
+                        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - M28UnitInfo.refCategorySkirmisher, oUnit.UnitId) then
+                            iRoughAvailableDFThreat = iRoughAvailableDFThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                            if iRoughAvailableDFThreat >= 1000 then
+                                bOnlyRetreatIndirectIfEnemyDFAlmostInRange = true
+                                break
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iRoughAvailableDFThreat (to max of 1k)='..iRoughAvailableDFThreat..'; bOnlyRetreatIndirectIfEnemyDFAlmostInRange='..tostring(bOnlyRetreatIndirectIfEnemyDFAlmostInRange)) end
+                end
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if should move blocked units, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..';  tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Enemy DF structure='..(tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0)..'; Enemy DF mobile='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iFriendlyBestMobileDFRange='..(iFriendlyBestMobileDFRange or 'nil')..'; Enemy best DF range='..iEnemyBestDFRange..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..'; iEnemyBestStructureDFRange='..(iEnemyBestStructureDFRange or 'nil')..'; Enemy structure threat indirect='..(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 'nil')..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; subrefiNearbyEnemyLongRangeThreat='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)) end
@@ -4368,16 +4383,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         else
                                             iIndirectDistanceInsideRangeThreshold = iIndirectRunFigureNormal
                                             if oUnit[M28UnitInfo.refbWeaponUnpacks] then iIndirectDistanceInsideRangeThreshold = iIndirectDistanceInsideRangeThreshold + iIndirectRunFigureDeployedAdjust end
+                                            if bOnlyRetreatIndirectIfEnemyDFAlmostInRange then iIndirectDistanceInsideRangeThreshold = math.max(iIndirectDistanceInsideRangeThreshold + 10, ((oUnit[M28UnitInfo.refiIndirectRange] or 0) - iEnemyBestDFRange)) end
 
 
                                             if bDebugMessages == true then
-                                                LOG(sFunctionRef..': Have Indirect unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that outranges the enemy (our IF range='..oUnit[M28UnitInfo.refiIndirectRange]..'; Enemy best DF range='..iEnemyBestDFRange..'), WIll list every unit in the nearest DF enemies and their distance to us; our position='..repru(oUnit:GetPosition()))
+                                                LOG(sFunctionRef..': Have Indirect unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that outranges the enemy (our IF range='..oUnit[M28UnitInfo.refiIndirectRange]..'; Enemy best DF range='..iEnemyBestDFRange..'), WIll list every unit in the nearest DF enemies and their distance to us; our position='..repru(oUnit:GetPosition())..'; Do we have a valid shield assigned='..tostring(oUnit[refoAssignedMobileShield] or false))
                                                 for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
                                                     LOG(sFunctionRef..': oEnemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is '..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; distance based on last known position='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())..'; oEnemy DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Enemy Indirect range='..(oEnemy[M28UnitInfo.refiIndirectRange] or 'nil'))
                                                 end
                                             end
+                                            local iDistThreshold
+                                            if bOnlyRetreatIndirectIfEnemyDFAlmostInRange then
+                                                iDistThreshold = math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2))
+                                                if M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield]) then iDistThreshold = iDistThreshold - 5 end
+                                            else
+                                                iDistThreshold = math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 10, oUnit[M28UnitInfo.refiIndirectRange] - 2))
+                                                if M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield]) then iDistThreshold = iDistThreshold - 5 end
+                                            end
                                             --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                              iDistThreshold,                                                                                                                                                          iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure)
-                                            if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 10, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false                  , nil,                  nil,                                oUnit, math.min(iEnemyBestDFRange + 4.5, oUnit[M28UnitInfo.refiIndirectRange] - 2))) then
+                                            if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iDistThreshold, iTeam, false                  , nil,                  nil,                                oUnit, math.min(iEnemyBestDFRange + 4.5, oUnit[M28UnitInfo.refiIndirectRange] - 2))) then
                                                 --Issue specific attack if there is a structure in range due to issue where MMLs dont fire at certain buildings (such as PD) that are in range until getting close
                                                 if bDebugMessages == true then
                                                     if oNearestEnemyStructureToMidpoint then
@@ -4947,8 +4971,18 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         else
                                             iIndirectDistanceInsideRangeThreshold = iIndirectRunFigureNormal
                                             if oUnit[M28UnitInfo.refbWeaponUnpacks] then iIndirectDistanceInsideRangeThreshold = iIndirectDistanceInsideRangeThreshold + iIndirectRunFigureDeployedAdjust end
+                                            if bOnlyRetreatIndirectIfEnemyDFAlmostInRange then iIndirectDistanceInsideRangeThreshold = math.max(iIndirectDistanceInsideRangeThreshold + 10, ((oUnit[M28UnitInfo.refiIndirectRange] or 0) - iEnemyBestDFRange)) end
 
-                                            if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 10, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false)) then
+                                            local iDistThreshold
+                                            if bOnlyRetreatIndirectIfEnemyDFAlmostInRange then
+                                                iDistThreshold = math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2))
+                                                if M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield]) then iDistThreshold = iDistThreshold - 5 end
+                                            else
+                                                iDistThreshold = math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectDistanceInsideRangeThreshold, math.min(iEnemyBestDFRange + 10, oUnit[M28UnitInfo.refiIndirectRange] - 2))
+                                                if M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield]) then iDistThreshold = iDistThreshold - 5 end
+                                            end
+
+                                            if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iDistThreshold, iTeam, false)) then
                                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'I2KAMve'..iLandZone)
                                                 end
@@ -5586,6 +5620,34 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
                 if iMaxThreatToAssign > 0 then iMaxThreatToAssign = math.max(iMaxThreatToAssign, 60) end
+                --T2+ indirect fire units - focus on nearby enemy T2 arti if there is any
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                    for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
+                        local oCurUnit = tAvailableCombatUnits[iCurUnit]
+                        if (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) >= 45 then
+                            local oNearestT2Arti, iCurArtiDist
+                            local iNearestT2Arti = 160 --Ignore T2 arti further away than this
+                            for iT2Arti, oT2Arti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                                iCurArtiDist = M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), oCurUnit:GetPosition())
+                                if iCurArtiDist <= iNearestT2Arti then
+                                    iNearestT2Arti = iCurArtiDist
+                                    oNearestT2Arti = oT2Arti
+                                end
+                            end
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Negligible enemy threat in this and adjacent zones but enemy has nearby t2 arti, oNearestT2Arti='..(oNearestT2Arti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestT2Arti) or 'nil')..'; iNearestT2Arti='..iNearestT2Arti..'; IF unit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(iNearestT2Arti)..'; IF range='..(oCurUnit[M28UnitInfo.refiIndirectRange] or 0)) end
+                            if oNearestT2Arti then
+                                if iNearestT2Arti <= (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) + 5 then
+                                    M28Orders.IssueTrackedGroundAttack(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAG', false, oNearestT2Arti)
+                                else
+                                    M28Orders.IssueTrackedAggressiveMove(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAM', false)
+                                end
+                                table.remove(tAvailableCombatUnits, iCurUnit)
+                            end
+                        end
+                    end
+                end
+
                 if oEnemyToFocusOn then
                     local iCurAssignedThreat = 0
                     for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
