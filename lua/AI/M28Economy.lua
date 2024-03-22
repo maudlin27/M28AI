@@ -2020,20 +2020,23 @@ function ManageEnergyStalls(iTeam)
                                             elseif iCategoryRef == M28UnitInfo.refCategoryPersonalShield or iCategoryRef == M28UnitInfo.refCategoryFixedShield or iCategoryRef == M28UnitInfo.refCategoryMobileLandShield then
                                                 --Dont disable shield if unit has enemies nearby
                                                 if (oUnit[M28Building.reftArtiTemplateRefs] or (M28UnitInfo.IsUnitShieldEnabled(oUnit) and M28Utilities.IsTableEmpty(oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDangerousToLand, oUnit:GetPosition(), 40, 'Enemy')) == false)) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Shield has enemies nearby so wont pause it') end
                                                     bApplyActionToUnit = false
                                                 end
                                             elseif bConsideringFactory then
-                                                --Dont want to pause an HQ upgrade since it will give us better power
-                                                if (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit) then
+                                                --Dont want to pause an HQ upgrade since it will give us better power, unless we already have access to that tech for the factory brain owner
+                                                if (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or (not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit.UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId)) or oUnit:GetAIBrain()[refiOurHighestFactoryTechLevel] <= M28UnitInfo.GetUnitTechLevel(oUnit))) then
                                                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                         if oUnit == oFactory then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with an upgrading factory, bConsideringHQ='..tostring(bConsideringHQ)..'; wont pause this factorys upgrade as it would give us a higher tech that could give us more power') end
                                                             bApplyActionToUnit = false
                                                             break
                                                         end
                                                     end
                                                 end
                                                 if bApplyActionToUnit then
-                                                    if oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) then
+                                                    if oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) and (oUnit[M28Orders.refiOrderCount] or 0) <= 1 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit last order was to build an engineer so dont want to pause it as more engieneers might help us recover from a power stall by building more power') end
                                                         bApplyActionToUnit = false
                                                     elseif bStopPausingIfGotToFactoriesAndHaveSomeEnergy and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and not(oUnit:IsUnitState('Upgrading')) then
                                                         bApplyActionToUnit = false

@@ -4150,7 +4150,7 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
     while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
         iCurTime = iCurTime - 0.0001
         iCycleCount = iCycleCount + 1
-        if iCycleCount >= 20 then
+        if iCycleCount >= 30 then
             M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
             break
         end

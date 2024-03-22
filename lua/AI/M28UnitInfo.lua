@@ -176,7 +176,7 @@ refCategoryPD = categories.STRUCTURE * categories.DIRECTFIRE
 refCategoryT3PD = refCategoryPD * categories.TECH3
 refCategoryTMD = categories.STRUCTURE * categories.ANTIMISSILE - categories.SILO * categories.TECH3 --Not perfect but should pick up most TMD without picking up SMD
 refCategoryFixedShield = categories.SHIELD * categories.STRUCTURE
-refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH2
+refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH2 - categories.TACTICALMISSILEPLATFORM
 refCategoryFixedT3Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3
 refCategoryExperimentalArti = categories.EXPERIMENTAL * categories.ARTILLERY - categories.MOBILE * categories.UEF
 refCategorySML = categories.NUKE * categories.SILO
@@ -1133,6 +1133,15 @@ end
 
 function GetUnitHealthPercent(oUnit)
     return oUnit:GetHealth() / oUnit:GetMaxHealth()
+end
+
+function GetUnitMaxHealthIncludingShield(oUnit)
+    --Returns unit max health; includes shield max health if unit is constructed
+    local iMaxShield = 0
+    if oUnit.MyShield and oUnit:GetFractionComplete() == 1 then
+        iMaxShield = oUnit.MyShield:GetMaxHealth()
+    end
+    return (iMaxShield + oUnit:GetMaxHealth())
 end
 
 function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
