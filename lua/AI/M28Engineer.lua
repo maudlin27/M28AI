@@ -1181,6 +1181,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     if sBlueprintToBuild == nil then
         if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get blueprint to build, but unable to find one') end
     else
+
+
         if iOptionalEngineerAction then
             tiLastBuildingSizeFromActionForTeam[oEngineer:GetAIBrain().M28Team][iOptionalEngineerAction] = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
         end
@@ -1323,7 +1325,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             end
         else
             --Get adjacency location if we want adjacency
-            if iCatToBuildBy or oUnitToBuildBy then
+            if oUnitToBuildBy or (iCatToBuildBy and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or not(sBlueprintToBuild) or not(EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1, sBlueprintToBuild)) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(sBlueprintToBuild))) >= 2)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': About to get potential adjacency locations, sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)) end
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
@@ -1507,7 +1509,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local aiBrain = oEngineer:GetAIBrain()
     local bBuildTowardsHydro = false
     local tLocationToBuildTowards
-    local iDistWantedTowardsLocationAwayFromArti = 40
+    local tLocationsToBuildAwayFrom
+    local iMinDistMarginOfError = 60
+    local iMinDistToBuildAwayFrom = 120 + iNewBuildingRadius + iMinDistMarginOfError --i.e. distance to build away from enemy T2 arti; 10 is to allow for building size
+
     local tiClosestDistByPriorityAndCount --[x] is the priority before adjusting for this, returns {iDistance, iCount} where iCount is the number of times this has been updated (as need to increase priority by this to ensure we have a greater uplift than a further away distance)
     local bTryOtherLocationsIfNoneBuildableImmediately = false
     local bTryAndBuildAtlantis = false
@@ -1516,11 +1521,28 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local iTeam = oEngineer:GetAIBrain().M28Team
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    local tArtiPositionToBuildAwayFrom
+    local tArtiPositionsToBuildAwayFrom
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
         --Get average position of enemy T2 arti and build away from here
-        tArtiPositionToBuildAwayFrom = M28Utilities.GetAverageOfUnitPositions(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
+        tArtiPositionsToBuildAwayFrom = {}
+        table.insert(tArtiPositionsToBuildAwayFrom, M28Utilities.GetAverageOfUnitPositions(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))
+        if table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) > 1 then
+            local iClosestArti = 300
+            local oClosestArti
+            local iCurArtiDist
+            for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                iCurArtiDist = M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), (tTargetLocation or tLZData[M28Map.subrefMidpoint]))
+                if iCurArtiDist < iClosestArti then
+                    iClosestArti = iCurArtiDist
+                    oClosestArti = oArti
+                end
+            end
+            if oClosestArti and M28Utilities.GetDistanceBetweenPositions(tArtiPositionsToBuildAwayFrom[1], oClosestArti:GetPosition()) >= 6 then
+                table.insert(tArtiPositionsToBuildAwayFrom, oClosestArti:GetPosition())
+            end
+        end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build away from enemy T2 arti, Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; tArtiPositionsToBuildAwayFrom='..repru(tArtiPositionsToBuildAwayFrom)..'; Does enemy have units in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
     if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintToBuild) then bTryAndBuildAtlantis = true end
 
     if GetGameTimeSeconds() <= 10 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBlueprintToBuild) then
@@ -1567,13 +1589,21 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         --Build towards the midpoing except for certain unit categories
         if not(EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
             if (iLandZone or 0) > 0 and iPlateau > 0 then
-                if tArtiPositionToBuildAwayFrom then
-                    tLocationToBuildTowards = M28Utilities.MoveInDirection(tArtiPositionToBuildAwayFrom, M28Utilities.GetAngleFromAToB(tArtiPositionToBuildAwayFrom, tLZData[M28Map.subrefMidpoint]), 128 + iDistWantedTowardsLocationAwayFromArti + 25, true, false, true)
+                if tArtiPositionsToBuildAwayFrom then
+                    tLocationToBuildTowards = nil
+                    tLocationsToBuildAwayFrom = {}
+                    for iEntry, tPosition in tArtiPositionsToBuildAwayFrom do
+                        table.insert(tLocationsToBuildAwayFrom, tPosition)
+                    end
+                    bAvoidArti = true
+
+
+                    --[[M28Utilities.MoveInDirection(tArtiPositionToBuildAwayFrom, M28Utilities.GetAngleFromAToB(tArtiPositionToBuildAwayFrom, tLZData[M28Map.subrefMidpoint]), 128 + iDistWantedTowardsLocationAwayFromArti + 25, true, false, true)
                     if tLocationToBuildTowards then
                         bAvoidArti = true
                     else
                         tLocationToBuildTowards = tLZData[M28Map.subrefMidpoint]
-                    end
+                    end--]]
                 else
                     tLocationToBuildTowards = tLZData[M28Map.subrefMidpoint]
                 end
@@ -1583,6 +1613,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     if tLocationToBuildTowards then tiClosestDistByPriorityAndCount = {} end
 
     local bCheckForStorageAdjacency = EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild)
+    local iClosestLocationToAvoidDist
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
     --local tiTopThreeLocationRefs = {}
@@ -1691,23 +1722,29 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
 
 
-                    --Build towards hydro adjust or away from enemy T2 arti
+                    --Build towards hydro adjust
                     if tLocationToBuildTowards then
                         local iCurDistTowardsBuildTowards = M28Utilities.GetDistanceBetweenPositions(tCurLocation, tLocationToBuildTowards)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))..'; bAvoidArti='..tostring(bAvoidArti or false)..'; iDistWantedTowardsLocationAwayFromArti='..(iDistWantedTowardsLocationAwayFromArti or 'nil')) end
-                        if bAvoidArti then
-                            if iCurDistTowardsBuildTowards <= iDistWantedTowardsLocationAwayFromArti then
-                                iCurPriority = iCurPriority + 5
-                            elseif iCurDistTowardsBuildTowards <= (iDistWantedTowardsLocationAwayFromArti + 30) and M28Utilities.GetDistanceBetweenPositions(tCurLocation, tArtiPositionToBuildAwayFrom) >= 150 then
-                                iCurPriority = iCurPriority + 4
-                            end
-                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))..'; bAvoidArti='..tostring(bAvoidArti or false)) end
                         if iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000) then
                             tiClosestDistByPriorityAndCount[iCurPriority] = {iCurDistTowardsBuildTowards, (tiClosestDistByPriorityAndCount[iCurPriority][2] or 0) + 1}
                             iCurPriority = iCurPriority + tiClosestDistByPriorityAndCount[iCurPriority][2] * 0.1
                             if bBuildTowardsHydro then iCurPriority = iCurPriority + 1 end
                             if bDebugMessages == true then LOG(sFunctionRef..': Increased priority due to being the closest for this base level to hydro or zone midpoint, iCurPriority after uplift='..iCurPriority) end
                         end
+                    elseif tLocationsToBuildAwayFrom then
+                        iClosestLocationToAvoidDist = 100000
+                        for iEntry, tAvoidLocation in tLocationsToBuildAwayFrom do
+                            iClosestLocationToAvoidDist = math.min(iClosestLocationToAvoidDist, M28Utilities.GetDistanceBetweenPositions(tCurLocation, tAvoidLocation))
+                        end
+
+                        if iClosestLocationToAvoidDist >= iMinDistToBuildAwayFrom then
+                            iCurPriority = iCurPriority + 6 + 2 * (iMinDistToBuildAwayFrom - iCurDistance) / iMinDistToBuildAwayFrom
+
+                        elseif iClosestLocationToAvoidDist >= iMinDistToBuildAwayFrom -  iMinDistMarginOfError then
+                            iCurPriority = iCurPriority + 4
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Trying to build within iMinDistToBuildAwayFrom='..iMinDistToBuildAwayFrom..' of locations, iClosestLocationToAvoidDist='..iClosestLocationToAvoidDist..'; iMinDistMarginOfError='..iMinDistMarginOfError..'; Was this location far enough away='..tostring(iClosestLocationToAvoidDist >= iMinDistToBuildAwayFrom)) end
                     end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Not within max range, so will just try and pick the closest location within range') end
@@ -1997,7 +2034,6 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
             end
         end
     else
-
         --Adjust the search range and record key info needed for the search
         local tEngineerPosition = oEngineer:GetPosition()
         tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)
