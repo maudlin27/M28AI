@@ -767,6 +767,21 @@ function HaveLowPower(iTeam)
     return bHaveLowPower
 end
 
+function GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, iCategoryWanted)
+    local iCount = 0
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        local tUnitsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+            for iUnit, oUnit in tUnitsOfCategory do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                    iCount = iCount + 1
+                end
+            end
+        end
+    end
+    return iCount
+end
+
 function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
         --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
