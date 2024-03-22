@@ -5634,7 +5634,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     oNearestT2Arti = oT2Arti
                                 end
                             end
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Negligible enemy threat in this and adjacent zones but enemy has nearby t2 arti, oNearestT2Arti='..(oNearestT2Arti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestT2Arti) or 'nil')..'; iNearestT2Arti='..iNearestT2Arti..'; IF unit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(iNearestT2Arti)..'; IF range='..(oCurUnit[M28UnitInfo.refiIndirectRange] or 0)) end
                             if oNearestT2Arti then
                                 if iNearestT2Arti <= (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) + 5 then

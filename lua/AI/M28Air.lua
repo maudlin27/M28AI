@@ -4356,7 +4356,6 @@ function ManageGunships(iTeam, iAirSubteam)
                 tNearbyEnemyAirAA = M28Team.GetFirstActiveM28Brain(iTeam):GetUnitsAroundPoint(M28UnitInfo.refCategoryAirAA + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryRestorer, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), 70, 'Enemy')
 
                 if M28Utilities.IsTableEmpty(tNearbyEnemyAirAA) == false then
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before getunitsaroundpoint='..iEnemyAirAAThreatNearGunship..'; Threat from getunitsaroundpoint='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false)) end
                     iEnemyAirAAThreatNearGunship = math.max(iEnemyAirAAThreatNearGunship, M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false))
                 end
