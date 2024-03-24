@@ -755,7 +755,7 @@ function RemoveAssignedAttacker(oTarget, oOldBomber)
 end
 
 
-function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRecordInTorpBomberWaterZoneList)
+function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRecordInTorpBomberWaterZoneList, bLowHealthThresholdDueToSnipeTarget)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetAvailableLowFuelAndInUseAirUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -782,6 +782,10 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             iLowFuelThreshold = 0
             iLowHealthThreshold = 0
         end
+    end
+    if bLowHealthThresholdDueToSnipeTarget then
+        iLowFuelThreshold = math.min(iLowFuelThreshold, 0.05)
+        iLowHealthThreshold = math.min(iLowHealthThreshold, 0.1)
     end
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
@@ -4318,10 +4322,10 @@ function ManageGunships(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+    if (M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][1]) and M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][1]:GetHealth() <= 1000) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false or (M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][2]) and M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][2]:GetHealth() <= 1000) then bDebugMessages = true end
 
-    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL)
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
+    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
 
     local tViaFromRallyPoint --if we use this and via from front gunship we will avoid significant groundAA (where these are specified)
@@ -4612,6 +4616,12 @@ function ManageGunships(iTeam, iAirSubteam)
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': About to look for targets for g unships, iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iDistToSupport='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iOurGunshipThreat='..iOurGunshipThreat..'; HaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
+        function AddUnitToTargetsTable(oUnit, bNotCheckedValid)
+            if not(bNotCheckedValid) or (M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                table.insert(tEnemyGroundOrGunshipTargets, oUnit)
+                table.insert(tNewlyAddedEnemies, oUnit)
+            end
+        end
         function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck, bDetailedAACheckOverride)
             --Campaign specific-  check this is within the playable area first
             tNewlyAddedEnemies = {}
@@ -4690,8 +4700,8 @@ function ManageGunships(iTeam, iAirSubteam)
                                         bReplaceOnFirstValidUnit = false
                                         bDontLookForMoreTargets = true
                                     end
-                                    table.insert(tEnemyGroundOrGunshipTargets, oUnit)
-                                    table.insert(tNewlyAddedEnemies, oUnit)
+                                    AddUnitToTargetsTable(oUnit)
+
                                 end
                             end
                         end
@@ -4703,8 +4713,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                     if tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 1.25 < iOurGunshipThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.CYBRAN, tEnemyGunships)) == false then
                                         for iUnit, oUnit in  tEnemyGunships do
                                             if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
-                                                table.insert(tEnemyGroundOrGunshipTargets, oUnit)
-                                                table.insert(tNewlyAddedEnemies, oUnit)
+                                                AddUnitToTargetsTable(oUnit)
                                             end
                                         end
                                     end
@@ -4739,15 +4748,28 @@ function ManageGunships(iTeam, iAirSubteam)
         end
         --Snipe target
         local bUsingSnipePriority = false
-        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+        local iClosestSnipeTarget = 100000
+        if not(bRetreatFromAhwassa) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+            local iAvailableGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true)
+            if not(tNewlyAddedEnemies) then tNewlyAddedEnemies = {} end
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
                 local iTargetPlateauOrZero, iTargetLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                 local tbPlateauAndZoneAdded = {}
                 if (iTargetPlateauOrZero or 0) > 0 and (iTargetLZOrWZ or 0) > 0 then
                     if not(tbPlateauAndZoneAdded[iTargetPlateauOrZero]) then tbPlateauAndZoneAdded[iTargetPlateauOrZero] = {} end
                     if not(tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ]) then
-                        AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateauOrZero, iTargetLZOrWZ, 0, false, nil,nil,true)
-                        tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy snipe target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Will add all enemy ground units in P'..iTargetPlateauOrZero..'Z'..iTargetLZOrWZ..'; Unit health='..oUnit:GetHealth()..'; iAvailableGunshipThreat='..iAvailableGunshipThreat) end
+                        local iAvailableGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true)
+                        if oUnit:GetHealth() < iOurGunshipThreat then
+                            --Just add the ACU as a target
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will just add the enemy ACU as a snipe target') end
+                            AddUnitToTargetsTable(oUnit, true)
+                        else
+                            tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ] = true
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateauOrZero, iTargetLZOrWZ, 0, false, nil,nil,true)
+                        end
+
+                        iClosestSnipeTarget = math.min(iClosestSnipeTarget, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontGunship:GetPosition()))
                     end
                 end
             end
@@ -4756,67 +4778,72 @@ function ManageGunships(iTeam, iAirSubteam)
         end
 
         --Emergency response - first include any ground threats in a start position and (if none) adjacent to a start position
-        local tiFriendlyStartPositionPlateauAndZones = {}
-        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-            local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
-            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
-            if (iCurPlateauOrZero or 0) > 0 then
-                if (iCurLZOrWZ or 0) == 0 then
-                    iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
-                    if (iCurLZOrWZ or 0) > 0 then
-                        iCurPlateauOrZero = 0
+        if not(iClosestSnipeTarget) or iClosestSnipeTarget >= 200 then
+            local tiFriendlyStartPositionPlateauAndZones = {}
+            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+                iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+                if (iCurPlateauOrZero or 0) > 0 then
+                    if (iCurLZOrWZ or 0) == 0 then
+                        iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
+                        if (iCurLZOrWZ or 0) > 0 then
+                            iCurPlateauOrZero = 0
+                        end
+                    end
+                end
+                if (iCurLZOrWZ or 0) > 0 then
+                    if not(iClosestSnipeTarget) or M28Utilities.GetDistanceBetweenPositions(tStartPoint, oFrontGunship:GetPosition()) < iClosestSnipeTarget + 25 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
+                        table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
+                        --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
+                        AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
                     end
                 end
             end
-            if (iCurLZOrWZ or 0) > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
-                table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
-                --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
-            end
-        end
-        local bAlwaysInclAdjToStart = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]
-        if not(bAlwaysInclAdjToStart) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) < iOurGunshipThreat * 0.1 then bAlwaysInclAdjToStart = true end
-        if M28Utilities.IsTableEmpty(tiFriendlyStartPositionPlateauAndZones) == false then
-            for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
-                --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false, nil, nil, true)
-            end
-            if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
-                --Consider land zones adjacent to a land start position provided the zone midpoint is within 25% of the closest base (since we aren't doing an AirAA check), and the enemy doesnt have a large airaa force near us
-                for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
-                    if tiPlateauAndZone[1] > 0 then
-                        local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
-                        if not(bRetreatFromAhwassa) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and iEnemyAirAAThreatNearGunship < math.min(iOurGunshipThreat * 0.25, iMaxEnemyAirAA) then
-                            local iCurDistToBase
-                            for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
 
-                                --Land zone
-                                local tAdjLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
-                                    iCurDistToBase = M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZData[M28Map.subrefMidpoint])
-                                    if bAlwaysInclAdjToStart or tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 220 then
-                                        --Check actual % dist to base
-                                        if bAlwaysInclAdjToStart or tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 100 or iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]) <= 0.275 then
-                                            AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], iAdjLZ, 3, false)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enem ytargets empty after checking iAdjLZ='..iAdjLZ..'='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; iCurDistToBase='..iCurDistToBase..'; % of dist from friendl yto enemy='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase])..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; bAlwaysInclAdjToStart='..tostring(bAlwaysInclAdjToStart or false)) end
-                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Actual % is too far, iCurDistToBase='..iCurDistToBase..'; tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Actual %='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]))
+            local bAlwaysInclAdjToStart = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]
+            if not(bAlwaysInclAdjToStart) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) < iOurGunshipThreat * 0.1 then bAlwaysInclAdjToStart = true end
+            if M28Utilities.IsTableEmpty(tiFriendlyStartPositionPlateauAndZones) == false and (not(iClosestSnipeTarget) or iClosestSnipeTarget >= 400) then
+                for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
+                    --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
+                    AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false, nil, nil, true)
+                end
+                if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
+                    --Consider land zones adjacent to a land start position provided the zone midpoint is within 25% of the closest base (since we aren't doing an AirAA check), and the enemy doesnt have a large airaa force near us
+                    for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
+                        if tiPlateauAndZone[1] > 0 then
+                            local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
+                            if not(bRetreatFromAhwassa) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and iEnemyAirAAThreatNearGunship < math.min(iOurGunshipThreat * 0.25, iMaxEnemyAirAA) then
+                                local iCurDistToBase
+                                for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+
+                                    --Land zone
+                                    local tAdjLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
+                                        iCurDistToBase = M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZData[M28Map.subrefMidpoint])
+                                        if bAlwaysInclAdjToStart or tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 220 then
+                                            --Check actual % dist to base
+                                            if bAlwaysInclAdjToStart or tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 100 or iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]) <= 0.275 then
+                                                AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], iAdjLZ, 3, false)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enem ytargets empty after checking iAdjLZ='..iAdjLZ..'='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; iCurDistToBase='..iCurDistToBase..'; % of dist from friendl yto enemy='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase])..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; bAlwaysInclAdjToStart='..tostring(bAlwaysInclAdjToStart or false)) end
+                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Actual % is too far, iCurDistToBase='..iCurDistToBase..'; tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Actual %='..iCurDistToBase / M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZTeamData[M28Map.reftClosestEnemyBase]))
+                                            end
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Midpoint is too far away, iCurDistToBase='..iCurDistToBase)
                                         end
-                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Midpoint is too far away, iCurDistToBase='..iCurDistToBase)
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Wont consider iAdjLZ='..iAdjLZ..' as a high priority since tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent])
                                     end
-                                elseif bDebugMessages == true then LOG(sFunctionRef..': Wont consider iAdjLZ='..iAdjLZ..' as a high priority since tAdjLZTeamData[M28Map.refiModDistancePercent]='..tAdjLZTeamData[M28Map.refiModDistancePercent])
                                 end
                             end
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for enemies in LZ adjacent to core zone, is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; if empty then will move on to Checking if too great an enemy threat in zone ghunships are in now (or adjacent to it), IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / 3, iMaxEnemyAirAA))) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for enemies in LZ adjacent to core zone, is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; if empty then will move on to Checking if too great an enemy threat in zone ghunships are in now (or adjacent to it), IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / 3, iMaxEnemyAirAA))) end
         end
 
         local bConsiderIgnoringEnemiesInLowValueZones = false --if set to true then will look for more zones in case there is a high value wone we can target
-        if not(bRetreatFromAhwassa) then
+        if not(bRetreatFromAhwassa) and (not(iClosestSnipeTarget) or iClosestSnipeTarget >= 400) then
             --if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
             --Consider enemy experimental near start position
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
