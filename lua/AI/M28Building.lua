@@ -513,7 +513,7 @@ function TMDJustBuilt(oTMD)
     local sFunctionRef = 'TMDJustBuilt'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD) == 'urb420112' then bDebugMessages = true end
 
     local oTMDBrain = oTMD:GetAIBrain()
     local iTMDTeam = oTMDBrain.M28Team
@@ -580,7 +580,7 @@ function TMDJustBuilt(oTMD)
             end
         end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile TML empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML]))) end
     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML]) then
         for iMobileTML, oMobileTML in M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML] do
             if M28Conditions.IsTableOfUnitsStillValid(oMobileTML[reftUnitsInRangeOfThisTML]) then
@@ -595,6 +595,11 @@ function TMDJustBuilt(oTMD)
             end
             oMobileTML[refbTMDBuiltSinceLastChecked] = true
         end
+    end
+
+    --Reevaluate all units in the zone flagged as wanting TMD, due to issue where in some cases the unit would be recorded against the LZ despite loads of TMD covering it
+    if M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTMDTeam, tTMDZoneTeamData[M28Map.reftUnitsWantingTMD])
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1015,6 +1020,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
     local iTMDInRange, iUnitPlateau, iUnitLandZone
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam) end
     for iUnit, oUnit in tUnits do
+        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'urb230110' then bDebugMessages = true else bDebugMessages = false end
         --Does the unit need TMD coverage?
         iTMDInRange = 0
         if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
@@ -1129,10 +1135,10 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))) end
+    if iOptionalLandZone == 1 and GetGameTimeSeconds() >= 22*60+40 and M28Utilities.IsTableEmpty(tExistingTMD) == false then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         local iExistingValidTMD = table.getn(tExistingTMD)
 
