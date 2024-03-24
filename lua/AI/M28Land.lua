@@ -3341,9 +3341,29 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
     end
 
-    local bSuicideIntoFatboy = false
-    local oClosestFatboyInIslandToSuicideInto
-    if iAvailableCombatUnitThreat >= 5000 and iFriendlyBestMobileDFRange > 15 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] >= 1000 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+    local bSuicideIntoFatboyOrACU = false
+    local oClosestFatboyOrACUInIslandToSuicideInto
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
+        local iCurACUDist
+        local iClosestACUDist = 150 --Wont try and suicide if are further away than this
+        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
+            if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
+                --Require enemy health to be < 2*our available combat threat, or sub-1k
+                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 150 then bDebugMessages = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to charge into enemy ACU, ACU health='..oACU:GetHealth()..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Dist to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                if oACU:GetHealth() < math.max(1000, iAvailableCombatUnitThreat * 2) then
+                    iCurACUDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                    if iCurACUDist <= iClosestACUDist then
+                        oClosestFatboyOrACUInIslandToSuicideInto = oACU
+                        bSuicideIntoFatboyOrACU = true
+                        iClosestACUDist = iCurACUDist
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if there is an ACU we should try and snipe, bSuicideIntoFatboyOrACU='..tostring(bSuicideIntoFatboyOrACU)..'; oClosestFatboyOrACUInIslandToSuicideInto='..(oClosestFatboyOrACUInIslandToSuicideInto.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyOrACUInIslandToSuicideInto) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    end
+    if not(oClosestFatboyOrACUInIslandToSuicideInto) and iAvailableCombatUnitThreat >= 5000 and iFriendlyBestMobileDFRange > 15 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] >= 1000 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
         local tEnemyFatboy = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats])
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy fatboy empty='..tostring(M28Utilities.IsTableEmpty(tEnemyFatboy))) end
         if M28Utilities.IsTableEmpty(tEnemyFatboy) == false then
@@ -3356,20 +3376,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                         if iCurDist < iClosestDistToMidpoint then
                             iClosestDistToMidpoint = iCurDist
-                            oClosestFatboyInIslandToSuicideInto = oUnit
+                            oClosestFatboyOrACUInIslandToSuicideInto = oUnit
                         end
                     end
                 end
             end
-            if oClosestFatboyInIslandToSuicideInto then
+            if oClosestFatboyOrACUInIslandToSuicideInto then
                 --Cycle through available DF units (if we have any)
                 local tT3PlusDF = EntityCategoryFilterDown(categories.DIRECTFIRE - categories.TECH1 - categories.TECH2, tAvailableCombatUnits)
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of T3PlusDF units empty='..tostring(M28Utilities.IsTableEmpty(tT3PlusDF))) end
                 if M28Utilities.IsTableEmpty(tT3PlusDF) == false then
-                    local oClosestFriendlyDFUnitToFatboy = M28Utilities.GetNearestUnit(tT3PlusDF, oClosestFatboyInIslandToSuicideInto:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyDFUnitToFatboy) or 'nil')..'; oClosestFatboyInIslandToSuicideInto='..oClosestFatboyInIslandToSuicideInto.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyInIslandToSuicideInto)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyInIslandToSuicideInto:GetPosition())..'; oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 'nil')) end
-                    if oClosestFriendlyDFUnitToFatboy and M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyInIslandToSuicideInto:GetPosition()) <= math.max(25 + iFriendlyBestMobileDFRange, 35 + (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0)) then
-                        bSuicideIntoFatboy = true
+                    local oClosestFriendlyDFUnitToFatboy = M28Utilities.GetNearestUnit(tT3PlusDF, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyDFUnitToFatboy) or 'nil')..'; oClosestFatboyOrACUInIslandToSuicideInto='..oClosestFatboyOrACUInIslandToSuicideInto.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyOrACUInIslandToSuicideInto)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition())..'; oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 'nil')) end
+                    if oClosestFriendlyDFUnitToFatboy and M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) <= math.max(25 + iFriendlyBestMobileDFRange, 35 + (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0)) then
+                        bSuicideIntoFatboyOrACU = true
                     end
                 end
             end
@@ -3380,7 +3400,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     local bGivenCombatUnitsOrders = false
 
-    if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat..'; bRunFromEnemyAir='..tostring(bRunFromEnemyAir)..'; bSuicideIntoFatboy='..tostring(bSuicideIntoFatboy)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat..'; bRunFromEnemyAir='..tostring(bRunFromEnemyAir)..'; bSuicideIntoFatboyOrACU='..tostring(bSuicideIntoFatboyOrACU)) end
     --If we have a fatboy in our available combat units, then do getunitsaroundpoint to check for signficant threats that might not be in an adjacent zone, and then add them as direct fire units against this zone so they get incorporated into checks for nearby enemies
     local tUnitsNearFatboyInFurtherAwayZones
     local iDFMassInFatboyRange = 0
@@ -3447,7 +3467,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     end
 
     --If enemy has units in this or adjacent LZ, then decide what to do
-    if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and (bSuicideIntoFatboy or not(bRunFromFirebase) and not(bRunFromEnemyAir)) then
+    if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and (bSuicideIntoFatboyOrACU or not(bRunFromFirebase) and not(bRunFromEnemyAir)) then
         --Cloaked units - flag we want spy plane if we have any land experimentals
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if have nearby cloaked enemy units if we have a large threat, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Is table of cloaked enemy units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]))..'; iDFMassInFatboyRange='..iDFMassInFatboyRange) end
         if iAvailableCombatUnitThreat >= 10000 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
@@ -3700,7 +3720,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
                 end
-                if not(oNearestEnemyToMidpoint) and bSuicideIntoFatboy and oClosestFatboyInIslandToSuicideInto then oNearestEnemyToMidpoint = oClosestFatboyInIslandToSuicideInto end
+                if not(oNearestEnemyToMidpoint) and bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then oNearestEnemyToMidpoint = oClosestFatboyOrACUInIslandToSuicideInto end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished checking adjacent water zones for enemy units, iClosestDist='..iClosestDist..'; oNearestEnemyToMidpoint='..(oNearestEnemyToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint) or 'nil')) end
             end
             if not(oNearestEnemyToMidpoint) and M28Utilities.IsTableEmpty(tUnitsNearFatboyInFurtherAwayZones) == false then
@@ -3757,6 +3777,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         function GetManualAttackTargetIfWantManualAttack(oUnit, oOptionalPrimaryTarget)
             local oManualAttackTarget
             if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToMidpoint))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oUnit:GetPosition())) end
+            --ACU snipe target that are in range of
+            if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat, oUnit.UnitId))) then
+                --Are we almost 5 within range of the ACU/fatboy target, and it is an ACU (as for a fatboy t might be good to get close so we are under the shield)? if so then have as manual attack target
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist to oClosestFatboyOrACUInIslandToSuicideInto='..M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]) end
+                if M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) - 5 then
+                    return oClosestFatboyOrACUInIslandToSuicideInto
+                end
+            end
+
             --Note - in some cases the nearest enemy unit to the midpoint may be much further away than our units, if our units are from an adjacent zone or have just entered the cur zone, therefore if dealing with an experimental friendly unit want to do more detailed check of all nearby enemy units
             if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), (oOptionalPrimaryTarget or oNearestEnemyToMidpoint)) then --and (EntityCategoryContains(categories.EXPERIMENTAL + categories.TECH3, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                 --Nearest enemy is inside our range, is there another high value target that we should target?
@@ -4485,14 +4514,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if M28Utilities.IsTableEmpty(tOutrangedCombatUnits) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have outranged combat units, bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits or false)) end
                     --Consider still attacking if we have a large threat for our outranged combat units
-                    if not(bAttackWithOutrangedDFUnits) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.3 then
-                        local iOutrangedThreat = M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)
-                        local iLRThreat = iAvailableCombatUnitThreat - iOutrangedThreat
-                        if iOutrangedThreat > 4 * GetEnemyCombatThreatInAdjacentZones() or (iOutrangedThreat > GetEnemyCombatThreatInAdjacentZones() * 1.15 and iOutrangedThreat >= math.min(2000, iLRThreat * 3.5) and (iOutrangedThreat > 2 * iLRThreat or iOutrangedThreat > math.max(5000, iLRThreat)))  then
-                            if bDebugMessages == true then LOG(sFunctionRef..': We have enough short range threat to attack with it') end
-                            bAttackWithOutrangedDFUnits = true
+                    if not(bAttackWithOutrangedDFUnits) then
+                        if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then bAttackWithOutrangedDFUnits = true end
+                        if not(bAttackWithOutrangedDFUnits) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.3 then
+                            local iOutrangedThreat = M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)
+                            local iLRThreat = iAvailableCombatUnitThreat - iOutrangedThreat
+                            if iOutrangedThreat > 4 * GetEnemyCombatThreatInAdjacentZones() or (iOutrangedThreat > GetEnemyCombatThreatInAdjacentZones() * 1.15 and iOutrangedThreat >= math.min(2000, iLRThreat * 3.5) and (iOutrangedThreat > 2 * iLRThreat or iOutrangedThreat > math.max(5000, iLRThreat)))  then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have enough short range threat to attack with it') end
+                                bAttackWithOutrangedDFUnits = true
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Revisited decision on whether to attack depending on threat of outranged combat units vs overall threat, iOutrangedThreat='..iOutrangedThreat..'; iLRThreat='..iLRThreat..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits or false)) end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Revisited decision on whether to attack depending on threat of outranged combat units vs overall threat, iOutrangedThreat='..iOutrangedThreat..'; iLRThreat='..iLRThreat..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits or false)) end
                     end
                     if bAttackWithOutrangedDFUnits then
                         for iUnit, oUnit in tOutrangedCombatUnits do
@@ -4669,7 +4701,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             else
                 --SCENARIO 2 - we dont outrange enemy with DF, but have slightly more threat than them, or have nowhere left to run
                 local bAttackWithEverything = false
-                if bSuicideIntoFatboy and oClosestFatboyInIslandToSuicideInto then bAttackWithEverything = true
+                if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then bAttackWithEverything = true
                 elseif tLZTeamData[M28Map.subrefLZbCoreBase] and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false or M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits) >= 2500) then
                     --Attack with everything if enemy has any units in core zone, or close to core zone
                     if bDebugMessages == true then LOG(sFunctionRef..': Core base, so attack if enemies here, is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
@@ -5021,9 +5053,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                     end
                                 else
-                                    if bSuicideIntoFatboy and oClosestFatboyInIslandToSuicideInto then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will move to nearest fatboy='..oClosestFatboyInIslandToSuicideInto.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyInIslandToSuicideInto)..' with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                        M28Orders.IssueTrackedMove(oUnit, oClosestFatboyInIslandToSuicideInto:GetPosition(), 6, false, 'SuicFB'..iLandZone)
+                                    if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will move to nearest fatboy='..oClosestFatboyOrACUInIslandToSuicideInto.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyOrACUInIslandToSuicideInto)..' with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                        M28Orders.IssueTrackedMove(oUnit, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), 6, false, 'SuicFB'..iLandZone)
                                     elseif bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
                                         M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAWE'..iLandZone)
                                     else
@@ -5664,7 +5696,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to run from firebase or long range enemy threat, bRunFromFirebase='..tostring(bRunFromFirebase)..'; Nearby enemy long range threat='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)..'; Zone combat total='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; bGivenCombatUnitsOrders='..tostring(bGivenCombatUnitsOrders)) end
     if not(bGivenCombatUnitsOrders) and M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
-        if (not(bSuicideIntoFatboy) or not(oClosestFatboyInIslandToSuicideInto)) and (bRunFromFirebase or bRunFromEnemyAir or ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > math.max(100, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > iAvailableCombatUnitThreat * 2 and not(bIgnoreEnemiesInThisZone and not(bConsiderEnemiesInAtLeastOneAdjacentZone))))) then
+        if (not(bSuicideIntoFatboyOrACU) or not(oClosestFatboyOrACUInIslandToSuicideInto)) and (bRunFromFirebase or bRunFromEnemyAir or ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > math.max(100, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > iAvailableCombatUnitThreat * 2 and not(bIgnoreEnemiesInThisZone and not(bConsiderEnemiesInAtLeastOneAdjacentZone))))) then
             for iUnit, oUnit in tAvailableCombatUnits do --Only retreat units from this LZ
                 if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                     --If we have recently been given a short range target, or are almost in range of the target, then we may have moved into this zone temporarily, in which case continue with attacking the target
@@ -5700,9 +5732,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
 
             --DF units - suicide into fatboy if was one
-            if M28Utilities.IsTableEmpty(tDFUnits) == false and bSuicideIntoFatboy and oClosestFatboyInIslandToSuicideInto then
+            if M28Utilities.IsTableEmpty(tDFUnits) == false and bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then
                 for iUnit, oUnit in tDFUnits do
-                    M28Orders.IssueTrackedMove(oUnit, oClosestFatboyInIslandToSuicideInto:GetPosition(), 6, false, 'LRFBSuic'..iLandZone)
+                    M28Orders.IssueTrackedMove(oUnit, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), 6, false, 'LRFBSuic'..iLandZone)
                 end
                 tDFUnits = {}
             end

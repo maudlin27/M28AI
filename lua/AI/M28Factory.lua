@@ -25,7 +25,7 @@ local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against fac
 refiTimeSinceLastFailedToGetOrder = 'M28FactoryTimeFailedToGetOrder' --Against factory, gametimeseconds that factory failed to find anything to do
 refbWantNextUnitToBeEngineer = 'M28FacNxtUEng' --true if want next unit to be an engineer
 --NOTE: Also have a blueprint blacklist in the landsubteam data - see M28Team
-
+iMassForSnipePerLevel = 800 --i.e. want to build 800 mass of bombers per the factory tech level
 --Factory types (used by subteams)
 refiFactoryTypeLand = 1
 refiFactoryTypeAir = 2
@@ -43,6 +43,7 @@ refbActiveDelayedCheck = 'M28FAcDC' --true if we are running code to consider if
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
+refiTotalMassForSnipe = 'M28FacMassSnp' --If we have a snipe target, then will build bombers as a priority from air factories and track amount of mass in bombers spent to avoid building too many against the same ACU target
 
 --Variables against brain
 refiHighestFactoryBuildCount = 'M28FacBrTotBC' --against aiBrain, Highest build count of a factory
@@ -835,7 +836,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --If this is a support factory or T1 factory then only consider upgrading if we have spare idle factories in this LZ, subject to how many factories we have
         local bConsiderUpgrading = true
         if iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId)) then
-            if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
+            if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
                 local iUpgradingLandFactories = 0
                 local iAvailableLandFactories = 0
                 local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -1034,7 +1035,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Priority engineers as we are being prevented from upgrading
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory) then
+    if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
@@ -3012,7 +3013,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     end
 
     function ConsiderUpgrading()
-        if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
+        if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
@@ -3066,6 +3067,20 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.95 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
             if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA) <= 2) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+            end
+        end
+
+        --Snipe target if not stalling power
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+            local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
+            if oACUToSnipe then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low power sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
+                    return sBPIDToBuild
+                end
             end
         end
 
@@ -3137,16 +3152,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
-        --Air snipe - build bombers
-        iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and snipe enemy so will get bombers') end
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
-        end
-
         --Priority engineers as we are being prevented from upgrading
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory) then
+        if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
@@ -3271,9 +3279,23 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
+        --Snipe target
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
+            local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
+            if oACUToSnipe then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
+                    return sBPIDToBuild
+                end
+            end
+        end
+
         --Priority engineers as we are being prevented from upgrading
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory) then
+        if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
@@ -4017,7 +4039,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     function ConsiderUpgrading()
-        if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
+        if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild

@@ -266,7 +266,7 @@ function UpdateZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWa
 end
 
 function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnitsToHaveBuilt)
-    --e.g. intended for upgrading factory HQs, subject to CheckIfNeedMoreEngineersBeforeUpgrading
+    --e.g. intended for upgrading factory HQs, subject to CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FindAndUpgradeUnitOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -278,8 +278,8 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
         local tUnsafeUnitsOfCategory = {}
         local iCurPlateau, iCurLZ
         for iUnit, oUnit in tUnitsOfCategory do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit))) end
-            if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit))) end
+            if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit)) then
                 if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
                     if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then
                         --Are we in a safe land zone?

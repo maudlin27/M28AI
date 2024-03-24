@@ -2311,10 +2311,22 @@ function GetMexesNotNearPlayerStartingZone()
     return iMexesNotInStartZone
 end
 
-function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
+function GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
+        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
+            if M28UnitInfo.IsUnitValid(oACU) then
+                if (oACU[M28Factory.refiTotalMassForSnipe] or 0) < M28Factory.iMassForSnipePerLevel * M28UnitInfo.GetUnitTechLevel(oFactory) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFactory:GetPosition()) <= math.min(750, math.max(400, M28Map.iMapSize)) then
+                    return oACU
+                end
+            end
+        end
+    end
+end
+
+function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
     --Returns true if we want more engineers (e.g. for more power or nearby unclaimed mexes) before upgrading
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'CheckIfNeedMoreEngineersBeforeUpgrading'
+    local sFunctionRef = 'CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -2401,6 +2413,14 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
                         end
                     end
                 end
+            end
+        end
+        if not(bWantMoreEngineers) and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toActiveSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+            local oACUToSnipe = GetNearbyACUForAirFacBomberSnipe(oFactory, aiBrain.M28Team)
+
+            if oACUToSnipe then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreEngineers='..tostring(bWantMoreEngineers or false)) end --here since lower down means not a factory

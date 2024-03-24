@@ -2686,7 +2686,7 @@ function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontChe
         for iUnit, oUnit in tPotentialUnits do
             if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 then
                 --Extra check for factories
-                if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
+                if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit)) then
                     local bUnitIsHighestTechFactoryForOptionalCount = false
                     if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
                     else
