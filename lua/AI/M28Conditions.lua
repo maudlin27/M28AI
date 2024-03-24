@@ -2802,3 +2802,34 @@ function HaveEngineersOrFactoriesInZone(tLZOrWZTeamData)
     end
     return false
 end
+
+
+function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iMassValue, iOptionalSearchCategory, tOptionalAdditionalUnits)
+    --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
+    --iMassValue - if >= this in mass then returns true, otherwise returns false
+    local iCumulativeUnitValue = 0
+    function ConsiderUnitTable(tUnits)
+        if M28Utilities.IsTableEmpty(tUnits) == false then
+            local tUnitTable
+            if iOptionalSearchCategory then tUnitTable = EntityCategoryFilterDown(iOptionalSearchCategory, tUnits)
+            else tUnitTable = tUnits
+            end
+            if M28Utilities.IsTableEmpty(tUnitTable) == false then
+                for iUnit, oUnit in tUnitTable do
+                    if M28UnitInfo.IsUnitValid(oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint) <= iSearchDistance then
+                        iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                        if iCumulativeUnitValue >= iMassValue then return true end
+                    end
+                end
+            end
+        end
+    end
+    ConsiderUnitTable(tLZTeamData[M28Map.subrefTEnemyUnits])
+    if tOptionalAdditionalUnits then  ConsiderUnitTable(tOptionalAdditionalUnits) end
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            ConsiderUnitTable(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+        end
+    end
+    return false
+end
