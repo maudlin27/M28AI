@@ -653,6 +653,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
     end
     if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
         --Do we have an existing enhancement that needs removing before we can get teh upgrade?
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeLastIssuedACUEnhancementOrder] = GetGameTimeSeconds() end
         local sEnhancementOverride
         local tEnhancements = oUnit:GetBlueprint().Enhancements
 

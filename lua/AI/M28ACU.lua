@@ -2962,8 +2962,10 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                         if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
                             --Are we safe to get the upgrade here? if not then retreat
                             if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname) end
-                                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
+                                if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname) end
+                                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
+                                end
                             else
                                 M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runc')
                             end
@@ -4238,7 +4240,9 @@ function GetACUOrder(aiBrain, oACU)
                                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
                                                                                         if M28Conditions.SafeToUpgradeUnit(oACU) then
                                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
-                                                                                            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
+                                                                                            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
+                                                                                                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
+                                                                                            end
                                                                                         else
                                                                                             --Retreat
                                                                                             local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
@@ -4787,7 +4791,9 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                                 bGivenOrder = true
                                 if M28Conditions.SafeToUpgradeUnit(oACU) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU Eng Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeWanted='..(sUpgradeWanted or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted))) end
-                                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUEUpr')
+                                    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
+                                        M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUEUpr')
+                                    end
                                 else
                                     --Retreat
                                     local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
