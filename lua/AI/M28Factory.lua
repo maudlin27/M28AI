@@ -2985,7 +2985,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         bSaveMassDueToEnemyFirebaseOrOurExperimental = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     end
 
-
+    if iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 10000 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false) .. '; Time since a factory in this LZ last built something=' .. GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bHaveLowPower=' .. tostring(bHaveLowPower)..'; brain='..oFactory:GetAIBrain().Nickname)
@@ -3445,23 +3445,23 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
             end
 
-            --Priority AirAA if need to support ahwassa
+            --Priority AirAA if need to support ahwassa or exp gunship/czar
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if iFactoryTechLevel == 3 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Priority AirAA for experimental bomber, our bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; Our AirAA threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 1.25) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Priority AirAA for experimental bomber or other exp air, our bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; Our AirAA threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; Our AirAA threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 1.25) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= math.max(22500, math.min(40000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 1.3))) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
-                elseif M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 10000 then
-                    --Are we building an ahwassa that is 50%+ constructed?
-                    local tAhwassaInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of ahwassa in zone empty='..tostring(M28Utilities.IsTableEmpty(tAhwassaInZone))) end
-                    if M28Utilities.IsTableEmpty(tAhwassaInZone) == false then
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 then
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 30000 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 10000) then
+                    --Are we building an ahwassa, czar or soulripper that is 25%+ constructed?
+                    local tAirExpInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get AirAA to support under construction experimental air, Is table of ahwassa/exp air in zone empty='..tostring(M28Utilities.IsTableEmpty(tAirExpInZone))) end
+                    if M28Utilities.IsTableEmpty(tAirExpInZone) == false then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 15000) then
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
                         else
                             local bPartwayDone = false
-                            for iUnit, oUnit in tAhwassaInZone do
-                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.5 then
+                            for iUnit, oUnit in tAirExpInZone do
+                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.4 then
                                     bPartwayDone = true
                                     break
                                 end
@@ -3471,11 +3471,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             end
                         end
                     end
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Number of experimentals under construction in other zones='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)) end
-                        if M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL) > 0 then
-                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
-                        end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Number of 30%+ completion experimentals under construction in other zones='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)) end
+                    if M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL, 0.3) > 0 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
                     end
                 end
             end
