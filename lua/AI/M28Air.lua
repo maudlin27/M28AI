@@ -637,7 +637,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
         if iDistToTarget < 100 then
             local iDistThreshold = 100
             if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
-                iDistThreshold = 35
+                iDistThreshold = 30
                 if oUnit[refoAirAACurTarget].UnitId then
                     if EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oUnit[refoAirAACurTarget].UnitId) then
                         iDistThreshold = 55
