@@ -1549,8 +1549,55 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RecordNearbyEnemyLandFactory(oUnit, iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordNearbyEnemyLandFactory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
---TO HELP WITH LOCATING - use AssignUnitToLandZoneOrPond
+    local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil')) end
+    if (iPlateau or 0) > 0 and (iZone or 0) > 0 then
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        --Update adjacent zones to record this as being nearby
+        --How close is this to our base, and is it on the same plateau?
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZData[M28Map.subrefMidpoint])) end
+        if tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZData[M28Map.subrefMidpoint]) <= 275 then
+            if not(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) then tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs] = {} end
+            table.insert(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs], oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of adj land zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                local tbZonesConsidered = {}
+                tbZonesConsidered[iZone] = true
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    if not(tbZonesConsidered[iAdjLZ]) then
+                        tbZonesConsidered[iAdjLZ] = true
+                        local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                        if not(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) then tAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs] = {} end
+                        table.insert(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs], oUnit)
+                        if M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iSecondAdjLZ in tAdjLZData[M28Map.subrefLZAdjacentLandZones] do
+                                if not(tbZonesConsidered[iSecondAdjLZ]) then
+                                    tbZonesConsidered[iSecondAdjLZ] = true
+                                    local tSecondAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iSecondAdjLZ]
+                                    local tSecondAdjLZTeamData = tSecondAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if not(tSecondAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) then tSecondAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs] = {} end
+                                    table.insert(tSecondAdjLZTeamData[M28Map.subrefoNearbyEnemyLandFacs], oUnit)
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished recording factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against nearby zones, tbZonesConsidered='..repru(tbZonesConsidered)..'; iPlateau='..iPlateau..'; Time='..GetGameTimeSeconds()) end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
+--TO HELP WITH LOCATING - use AssignUnitToLandZoneOrPond instead
 function RecordUnitInPlateauLandZoneOrPond()  end
 ---@param aiBrain userdata
 ---@param oUnit userdata
@@ -1627,6 +1674,10 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
                                 tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] = (tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] or 0) + 1
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy land factory against nearby zones depending on if it is close to a friendly base') end
+                                RecordNearbyEnemyLandFactory(oUnit, aiBrain.M28Team)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
