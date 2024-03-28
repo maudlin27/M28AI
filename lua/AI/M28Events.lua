@@ -934,6 +934,7 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if oWeapon.OverChargeWeapon or oWeapon.unit.UnitId == 'xsl0001' then bDebugMessages = true end
 
         if not(M28Map.bWaterZoneInitialCreation) then
             while GetGameTimeSeconds() < 5 do
@@ -946,7 +947,7 @@ function OnWeaponFired(oWeapon)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; Time='..GetGameTimeSeconds()) end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
 
@@ -1013,6 +1014,7 @@ function OnWeaponFired(oWeapon)
 
                 --Update overcharge tracking
                 if oWeapon.GetBlueprint and oWeapon.GetBlueprint and not(oWeapon:BeenDestroyed()) and oWeapon:GetBlueprint().Overcharge then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Overcharge weapon has just fired') end
                     oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
                     if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
                         --Get another order immediately rather than waiting (means we dont have to try and queue orders up for ACU logic)

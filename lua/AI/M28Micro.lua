@@ -527,10 +527,11 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
             if iTimeUntilImpact > 0.8 then
                 for iTarget, oTarget in tUnitsToConsiderDodgeFor do
+                    if oTarget.UnitId == 'xsl0001' and GetGameTimeSeconds() >= 10*60+50 then bDebugMessages = true end
                     bCancelDodge = false
                     if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeapon.Blueprint.Damage..'; Target health='..oTarget:GetHealth()) end
                     --Does the shot do enough damage that we want to try and doge it?
-                    if oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and (oWeapon.Blueprint.WeaponCategory == 'Artillery' or oWeapon.Blueprint.WeaponCategory == 'Missile') and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.005) then
+                    if oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and ((oWeapon.Blueprint.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.0035)) or (oWeapon.Blueprint.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeapon.Blueprint.Damage / oTarget:GetHealth() >= 0.006)))) then
                         --Do we think we can dodge the shot?
                         --If we are a large unit then only dodge if will be a while for the shot to hit
                         local oBP = oTarget:GetBlueprint()
@@ -545,15 +546,20 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                         --Dont cancel upgrade/teleport
                                         bCancelDodge = true
                                     elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
-
-                                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                                        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-                                        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing dodge time drastically as have ACU that can overcharge enemies in range but it also wants to dodge a shot; will cancel if damage is very low that are dodging. oWeapon.Blueprint.Damage='..oWeapon.Blueprint.Damage) end
-                                            if oWeapon.Blueprint.Damage <= 100 then
-                                                bCancelDodge = true
-                                            else
-                                                iMaxTimeToRun = math.min(0.8, iMaxTimeToRun) --(M27 uses 0.9; if set too low then ACU may not actually move)
+                                        --If we have units we can hit then cancel
+                                        if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
+                                            bCancelDodge = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will cancel dodge as we can overcharge instead, time since last overcharge='..(GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0))..'; Brain energy stored='..oTarget:GetAIBrain():GetEconomyStored('ENERGY')) end
+                                        else
+                                            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                                            local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+                                            if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Reducing dodge time drastically as have ACU that can overcharge enemies in range but it also wants to dodge a shot; will cancel if damage is very low that are dodging. oWeapon.Blueprint.Damage='..oWeapon.Blueprint.Damage) end
+                                                if oWeapon.Blueprint.Damage <= 100 then
+                                                    bCancelDodge = true
+                                                else
+                                                    iMaxTimeToRun = math.min(0.8, iMaxTimeToRun) --(M27 uses 0.9; if set too low then ACU may not actually move)
+                                                end
                                             end
                                         end
                                     end
