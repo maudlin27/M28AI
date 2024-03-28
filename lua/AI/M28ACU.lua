@@ -40,6 +40,7 @@ refbUseACUAggressively = 'M28ACUUseAggress' --Against ACU
 reftSpecialObjectiveMoveLocation = 'M28ACUObjMoveLoc' --If has a value, ACU will move here
 refbACUHasTeleport = 'M28ACUHasTel' --true if ACU has teleport (will assume it also has good gun upgrade) - used to impact on telesnipe logic
 refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on getting teleport upgrade on the ACU
+refbPlanningToGetShield = 'M28ACUPlanningShield' --nil if haven't considered whether to get shield or not yet; true if planning on getting shield/equivalent upgrade on the ACU
 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
@@ -1132,29 +1133,75 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     elseif M28Team.iPlayersAtGameStart >= 4 and M28Map.iMapSize >= 512 then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 1 then
-                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation'}
+            if oACU[refiUpgradeCount] >= 2 then
+                if oACU[refbPlanningToGetShield] == nil then
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                        oACU[refbPlanningToGetShield] = true
+                    end
+                elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
+                    oACU[refbPlanningToGetShield] = true
+                end
+                if oACU[refbPlanningToGetShield] then
+                    oACU[reftPreferredUpgrades] = {'Shield', 'ResourceAllocation'}
+                else
+                    oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
+                end
+            elseif oACU[refiUpgradeCount] >= 1 then
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
             else
                 oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation'}
+            if oACU[refiUpgradeCount] >= 1 then
+                if oACU[refbPlanningToGetShield] == nil then
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                        oACU[refbPlanningToGetShield] = true
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
+                        oACU[refbPlanningToGetShield] = true
+                    end
+                end
+                if oACU[refbPlanningToGetShield] then
+                    oACU[reftPreferredUpgrades] = {'StealthGenerator'}
+                    if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
+                else
+                    oACU[reftPreferredUpgrades] = {'ResourceAllocation'}
+                end
+            else
+                oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation'}
+            end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            if oACU[refiUpgradeCount] >= 2 then
+                if oACU[refbPlanningToGetShield] == nil then
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                        oACU[refbPlanningToGetShield] = true
+                    end
+                elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
+                    oACU[refbPlanningToGetShield] = true
+                end
+                if oACU[refbPlanningToGetShield] then
+                    oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                else
+                    oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
+                end
+            else
+                oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
+            end
         end
     else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
-            --FAF upcoming balance patch expected 15th July to introduce nano upgrade for Cybran
+            --FAF balance patch expected 15th July 2023 to introduce nano upgrade for Cybran
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'DamageStabilization'}
         end
     end
 
