@@ -4034,7 +4034,6 @@ function GetACUOrder(aiBrain, oACU)
                                         --Is the rally point taking us further away from this?
                                         local iRallyPointDist = M28Utilities.GetDistanceBetweenPositions(oClosestEnemyExp:GetPosition(), tRallyPoint)
                                         local iAngleFromACUToExp = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oClosestEnemyExp:GetPosition())
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want ACU to run from enemy EXP, oClosestEnemyExp='..oClosestEnemyExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyExp)..'; iClosestEnemyExp='..iClosestEnemyExp..'; iAngleFromACUToExp='..iAngleFromACUToExp..'; iRallyPointDist='..iRallyPointDist..'; Angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
                                         if iRallyPointDist <= 30 + iClosestEnemyExp and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint) <= 30 or M28Utilities.GetAngleDifference(iAngleFromACUToExp, M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)) <= 110) then
                                             local tAltRallyPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToExp-180, 15, true, true, true)

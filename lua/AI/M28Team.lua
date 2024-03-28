@@ -1551,7 +1551,7 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
 end
 
 function RecordNearbyEnemyLandFactory(oUnit, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordNearbyEnemyLandFactory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1676,7 +1676,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
                                 tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] = (tTeamData[aiBrain.M28Team][iEnemyT3MAAActiveCount] or 0) + 1
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy land factory against nearby zones depending on if it is close to a friendly base') end
                                 RecordNearbyEnemyLandFactory(oUnit, aiBrain.M28Team)
                             end

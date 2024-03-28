@@ -934,7 +934,6 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if oWeapon.OverChargeWeapon or oWeapon.unit.UnitId == 'xsl0001' then bDebugMessages = true end
 
         if not(M28Map.bWaterZoneInitialCreation) then
             while GetGameTimeSeconds() < 5 do

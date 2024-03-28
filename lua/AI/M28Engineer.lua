@@ -9680,7 +9680,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     iCurPriority = iCurPriority + 1
     --If have adjacent waterzone that has unbuilt mexes and has no engineers (incl traveling engineers) then also send engineer here
@@ -10027,7 +10026,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
-        bDebugMessages = true
         local iEngineersTravelingHere
         local iEngineersPresentHere
         local iMaxEngineersWanted
@@ -10412,33 +10410,37 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
                 if bDebugMessages == true then LOG(sFunctionRef..': We have an active HQ upgrade so will assist this') end
             else
-                --We need a priority upgrade
-                local tExistingT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory * categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                if M28Utilities.IsTableEmpty(tExistingT1LandFactories) == false then
-                    --Get factory with lowest fraction complete
-                    local oFactoryToUpgrade
-                    local iLowestWorkProgress = 1
-                    local iLowestLandWorkProgress = 1
-                    local oBackupFactory
-                    for iFactory, oFactory in tExistingT1LandFactories do
-                        if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() then
-                            if (oFactory:GetWorkProgress() or 0) < iLowestLandWorkProgress then
-                                if oFactory:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
-                                    oFactoryToUpgrade = oFactory
-                                    iLowestLandWorkProgress = (oFactory:GetWorkProgress() or 0)
-                                elseif oFactory:GetWorkProgress() < iLowestWorkProgress then
-                                    oBackupFactory = oFactory
-                                    iLowestWorkProgress = (oFactory:GetWorkProgress() or 0)
+                --We need a priority upgrade, unless it is early game and the ACU is unupgraded and isnt trying to upgrade
+                if GetGameTimeSeconds() >= 5.5*60/M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oNearestEnemyACU and (oNearestEnemyACU:IsUnitState('Upgrading') or (oNearestEnemyACU[M28ACU.refiUpgradeCount] or 0) > 0)) then
+                    local tExistingT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory * categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tExistingT1LandFactories) == false then
+                        --Get factory with lowest fraction complete
+                        local oFactoryToUpgrade
+                        local iLowestWorkProgress = 1
+                        local iLowestLandWorkProgress = 1
+                        local oBackupFactory
+                        for iFactory, oFactory in tExistingT1LandFactories do
+                            if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() then
+                                if (oFactory:GetWorkProgress() or 0) < iLowestLandWorkProgress then
+                                    if oFactory:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+                                        oFactoryToUpgrade = oFactory
+                                        iLowestLandWorkProgress = (oFactory:GetWorkProgress() or 0)
+                                    elseif oFactory:GetWorkProgress() < iLowestWorkProgress then
+                                        oBackupFactory = oFactory
+                                        iLowestWorkProgress = (oFactory:GetWorkProgress() or 0)
+                                    end
                                 end
                             end
                         end
+                        if not(oFactoryToUpgrade) then oFactoryToUpgrade = oBackupFactory end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have searched for t1 land factories to upgrade, is oFactoryToUpgrade valid='..tostring(M28UnitInfo.IsUnitValid(oFactoryToUpgrade))) end
+                        if oFactoryToUpgrade then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Doign priority upgrade for oFactoryToUpgrade='..oFactoryToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactoryToUpgrade)..' due to appraoching enemy ACU') end
+                            M28Economy.UpgradeUnit(oFactoryToUpgrade, true)
+                        end
                     end
-                    if not(oFactoryToUpgrade) then oFactoryToUpgrade = oBackupFactory end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have searched for t1 land factories to upgrade, is oFactoryToUpgrade valid='..tostring(M28UnitInfo.IsUnitValid(oFactoryToUpgrade))) end
-                    if oFactoryToUpgrade then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Doign priority upgrade for oFactoryToUpgrade='..oFactoryToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactoryToUpgrade)..' due to appraoching enemy ACU') end
-                        M28Economy.UpgradeUnit(oFactoryToUpgrade, true)
-                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wont do priority land fac upgrade just yet as havent built lots of engineers and enemy ACU isnt upgraded') end
                 end
             end
         else
@@ -12907,7 +12909,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
         HaveActionToAssign(refActionReclaimArea, 1, 5, {true, nil})
     end
-    bDebugMessages = false
 
 
     --TMD - TML (including mobile ACUs with TML upgrade)

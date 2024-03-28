@@ -3387,7 +3387,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
             if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
                 --Require enemy health to be < 2*our available combat threat, or sub-1k
-                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 150 then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to charge into enemy ACU, ACU health='..oACU:GetHealth()..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Dist to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
                 if oACU:GetHealth() < math.max(1000, iAvailableCombatUnitThreat * 2) then
                     iCurACUDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])

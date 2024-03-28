@@ -513,7 +513,7 @@ function TMDJustBuilt(oTMD)
     local sFunctionRef = 'TMDJustBuilt'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD) == 'urb420112' then bDebugMessages = true end
+
 
     local oTMDBrain = oTMD:GetAIBrain()
     local iTMDTeam = oTMDBrain.M28Team
@@ -1020,7 +1020,6 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
     local iTMDInRange, iUnitPlateau, iUnitLandZone
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam) end
     for iUnit, oUnit in tUnits do
-        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'urb230110' then bDebugMessages = true else bDebugMessages = false end
         --Does the unit need TMD coverage?
         iTMDInRange = 0
         if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
@@ -1137,7 +1136,6 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
 
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-    if iOptionalLandZone == 1 and GetGameTimeSeconds() >= 22*60+40 and M28Utilities.IsTableEmpty(tExistingTMD) == false then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         local iExistingValidTMD = table.getn(tExistingTMD)
@@ -4113,6 +4111,11 @@ end
 function ConsiderFiringFirstLoadedNukeOnTeam(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderFiringFirstLoadedNukeOnTeam'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Called when an SMD has just been killed; wait 2 ticks in case the SMD was just being transferred
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(2)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local oSMLToConsiderFiring
