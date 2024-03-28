@@ -381,6 +381,7 @@ function M28BrainCreated(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; bInitialSetup='..tostring(bInitialSetup or false)..'; Is campaign AI='..tostring(aiBrain.CampaignAI or false)..'; Cheat enabled='..tostring(aiBrain.CheatEnabled or false)..'; Time='..GetGameTimeSeconds()) end
 
     aiBrain.M28AI = true
+    M28Utilities.bM28AIInGame = true
     table.insert(tAllActiveM28Brains, aiBrain)
 
     --Set cheat mult if this is campaign (which doesnt allow in game options)

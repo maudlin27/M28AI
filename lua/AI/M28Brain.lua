@@ -26,6 +26,7 @@ NewAIBrain = Class(StandardBrain) {
         StandardBrain.OnCreateAI(self)
         --LOG('M28AI brain class OnCreateAI triggered, brain nickname='..self.Nickname)
         self.M28AI = true
+        import('/mods/M28AI/lua/AI/M28Utilities.lua').bM28AIInGame = true
         ForkThread(M28Events.OnCreateBrain, self, planName, false)
     end,
 
