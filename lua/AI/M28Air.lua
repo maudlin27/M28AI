@@ -617,7 +617,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
         return false
     else
         local iDistToTarget, tOrderTarget
-
+        if tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId == 'ura0103' then bDebugMessages = true end
         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
             if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
                 tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
@@ -634,12 +634,13 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in combat, iDistToTarget='..iDistToTarget..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; Time='..GetGameTimeSeconds()) end
         if iDistToTarget < 100 then
             local iDistThreshold = 100
             if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
                 iDistThreshold = 30
                 if oUnit[refoAirAACurTarget].UnitId then
-                    if EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oUnit[refoAirAACurTarget].UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTransport - categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
                         iDistThreshold = 55
                     elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
                         iDistThreshold = 70
@@ -648,6 +649,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
             elseif EntityCategoryContains(categories.TECH1, oUnit.UnitId) then iDistThreshold = 50
             elseif EntityCategoryContains(categories.TECH2, oUnit.UnitId) then iDistThreshold = 65
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iDistThreshold='..iDistThreshold) end
             if iDistToTarget > iDistThreshold then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
@@ -797,6 +799,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local iTeam = oBrain.M28Team
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
+                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ura01021' and oUnit:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 5*60+30 then bDebugMessages = true end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -2235,6 +2238,7 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
             if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
         else
             M28Orders.IssueTrackedMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAAM', false)
+            oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] = oEnemyUnit
         end
         oAirAA[refoAirAACurTarget] = oEnemyUnit
 
@@ -3126,6 +3130,35 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             --Have a land zone - check for groundAA
                             if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land or water zone near start position, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Brain start position='..oBrain.Nickname..'; Start pos='..repru(M28Map.GetPlayerStartPosition(oBrain))) end
                             AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
+                        end
+                    end
+                end
+
+                --Early game - protect expansions we have recently dropped from air to ground attack similarly to if it was a core base (stop checking for htis once we have reached T3 or 10m into the game)
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to defend recently dropped locations, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone])..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+                if GetGameTimeSeconds() <= 600 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
+                    for iDropPlateauOrZero, tSubtable in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone] do
+                        --Only consider land zones
+                        if iDropPlateauOrZero > 0 then
+                            --Have we dropped here in the last 3 minutes?
+                            for iDropLandOrWaterZone, iTimeOfDrop in tSubtable do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering drop plateau='..iDropPlateauOrZero..'; iDropLandOrWaterZone='..iDropLandOrWaterZone..'; Time since last drop='..GetGameTimeSeconds() - iTimeOfDrop) end
+                                if GetGameTimeSeconds() - iTimeOfDrop <= 240 then
+                                    --Do we have friendly engineers or factories in this zone?
+                                    local tDropLZData = M28Map.tAllPlateaus[iDropPlateauOrZero][M28Map.subrefPlateauLandZones][iDropLandOrWaterZone]
+                                    local tLZTeamData = tDropLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                        local tFriendlyFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if bDebugMessages == true then LOG(sFunctionRef..': is table of friendly facs and engis empty='..tostring(M28Utilities.IsTableEmpty( tFriendlyFactoriesAndEngineers))) end
+                                        if M28Utilities.IsTableEmpty( tFriendlyFactoriesAndEngineers) == false then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will add enemy air units in this zone as a high priority, bConsiderAdjacentZones='..tostring(bConsiderAdjacentZones or false)..'; iStartPositionGroundAAThreshold='..iStartPositionGroundAAThreshold) end
+                                            AddEnemyAirInWaterZoneIfNoAA(iDropLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -6664,9 +6697,9 @@ function ManageTransports(iTeam, iAirSubteam)
                     if not(bGetMoreEngis) then
                         oUnit[refiTransportTimeSpentWaiting] = 0
                         --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
-                        M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
                         oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
-                        oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo or iWaterZoneToTravelTo
+                        oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo or iWaterZoneToTravelTo --must set before calling the transportunload order
+                        M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
                         --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just tried to send order for transport to go to iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..iLandZoneToTravelTo..'; LZ midpoint='..repru(tLZOrWZData[M28Map.subrefMidpoint])) end
                         if bTravelToSameIsland then

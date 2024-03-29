@@ -933,10 +933,30 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTransportUnload({oUnit}, tOrderPosition)
+        --LOG('Given transport unload order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..';  oUnit[M28Air.refiTargetZoneForDrop]='..( oUnit[M28Air.refiTargetZoneForDrop] or 'nil')..'; Unit owner='..oUnit:GetAIBrain().Nickname..'; Audit trail') M28Utilities.ErrorHandler('Audit trail', true, true)
         if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit[M28Air.refiTargetZoneForDrop] and oUnit:GetAIBrain().M28AI then
-            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tOrderPosition, true, oUnit:GetAIBrain().M28Team)
-            tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] = (tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) + 1
-            M28Utilities.DelayChangeVariable(tLZOrWZTeamData, M28Map.refiTransportRecentUnloadCount, -1, 600, nil, nil, nil, nil, true)
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tOrderPosition)
+            local tLZOrWZData, tLZOrWZTeamData
+            if (iLandOrWaterZone or 0) > 0 then
+                local iTeam = oUnit:GetAIBrain().M28Team
+                local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
+                if iPlateauOrZero == 0 then
+                    --Water zone
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone], M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone], M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] = (tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) + 1
+                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero]) then
+                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone] = {} end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero] = {}
+                end
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero][iLandOrWaterZone] = GetGameTimeSeconds()
+                --LOG('Just recorded a drop order for iAirSubteam='..iAirSubteam..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds())
+                M28Utilities.DelayChangeVariable(tLZOrWZTeamData, M28Map.refiTransportRecentUnloadCount, -1, 600, nil, nil, nil, nil, true)
+            end
         end
     end
     if M28Config.M28ShowUnitNames and oUnit[reftiLastOrders][1] and (not(oUnit[M28UnitInfo.refbSpecialMicroActive]) or bOverrideMicroOrder) then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
