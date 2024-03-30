@@ -1898,7 +1898,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 720 and oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -2492,7 +2492,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 8 and oACU[refiUpgradeCount] >= 2 then bDebugMessages = true end
     local iLZToMoveTo
     local iTeam = oACU:GetAIBrain().M28Team
     local iAdjLZ
@@ -2500,7 +2500,16 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     local iHighValueDistanceThreshold = 175
     local iLowerPriorityDistanceThreshold = 300
     --Increase distance if ACU has upgrade and is near-full health, and we and enemy lack T3
-    if (oACU[refiUpgradeCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 then iLowerPriorityDistanceThreshold = iLowerPriorityDistanceThreshold + 100 end
+    if (oACU[refiUpgradeCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3) or (not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and oACU[refiUpgradeCount] >= 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare')) and not(oACU:HasEnhancement('ResourceAllocation') and not(oACU:HasEnhancement('ResourceAllocationAdvanced')) and (oACU[refiUpgradeCount] >= 3 or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth() >= 4000) or oACU:GetHealth() >= 15000)))) then
+        iLowerPriorityDistanceThreshold = iLowerPriorityDistanceThreshold + 100
+        --Increase by another 50 if we are less than half map size and all indicators are ok
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        if bDebugMessages == true then LOG(sFunctionRef..': Increased lower priority distance threshold, iLowerPriorityDistanceThreshold='..iLowerPriorityDistanceThreshold..'; will consider if want to increase further, upgradecount='..oACU[refiUpgradeCount]..'; In core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Highest enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Highest enemy air tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; Map size='..M28Map.iMapSize) end
+        if tLZTeamData[M28Map.subrefLZbCoreBase] and oACU[refiUpgradeCount] >= 2 and iLowerPriorityDistanceThreshold < math.min(475, M28Map.iMapSize * 0.6) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+            if bDebugMessages == true then LOG(sFunctionRef..': Increased lower priority dist by a further 50') end
+            iLowerPriorityDistanceThreshold = iLowerPriorityDistanceThreshold + 50
+        end
+    end
     local iLastPathedZoneTravelDist
     local iRecentLandZoneRef
     local iSecondsToIgnoreZonesRecentlyRunFrom = 30
@@ -3665,7 +3674,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-
+    if GetGameTimeSeconds() >= 720 and oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -4257,8 +4266,13 @@ function GetACUOrder(aiBrain, oACU)
                                                         if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
                                                             --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                                                             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-                                                                M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
+                                                                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Although it is quite dangerous for ACUs we wont flag that it is very dangerous just yet due to full share') end
+                                                                else
+                                                                    bDebugMessages = true
+                                                                    M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
+                                                                end
                                                             end
                                                         end
 

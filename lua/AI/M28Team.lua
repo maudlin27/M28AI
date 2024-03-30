@@ -1637,6 +1637,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                         if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                             if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
                                 tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                             end
@@ -1646,10 +1647,27 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
                             if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
-                                tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
+                                --Exception if this is only the first sniperbot and we have multiple friendly ACUs
+                                if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
+                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
+                                    else
+                                        bDebugMessages = true
+                                        tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true') end
+                                    end
+                                end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
-                                tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
+                                local iTeam = aiBrain.M28Team
+                                if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
+                                else
+                                    bDebugMessages = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
+                                    tTeamData[iTeam][refbDangerousForACUs] = true
+                                end
                             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                                 --check not already in table of enemy aCUs and add to this table
                                 local bInTableAlready = false
