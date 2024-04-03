@@ -1898,7 +1898,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 720 and oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -2492,7 +2492,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    if oACU:GetAIBrain():GetArmyIndex() == 8 and oACU[refiUpgradeCount] >= 2 then bDebugMessages = true end
+
     local iLZToMoveTo
     local iTeam = oACU:GetAIBrain().M28Team
     local iAdjLZ
@@ -3674,7 +3674,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if GetGameTimeSeconds() >= 720 and oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -4269,7 +4269,6 @@ function GetACUOrder(aiBrain, oACU)
                                                                 if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Although it is quite dangerous for ACUs we wont flag that it is very dangerous just yet due to full share') end
                                                                 else
-                                                                    bDebugMessages = true
                                                                     M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
                                                                 end

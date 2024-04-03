@@ -617,7 +617,6 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
         return false
     else
         local iDistToTarget, tOrderTarget
-        if tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId == 'ura0103' then bDebugMessages = true end
         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
             if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
                 tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
@@ -799,7 +798,6 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local iTeam = oBrain.M28Team
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
-                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ura01021' and oUnit:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 5*60+30 then bDebugMessages = true end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -3135,7 +3133,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 end
 
                 --Early game - protect expansions we have recently dropped from air to ground attack similarly to if it was a core base (stop checking for htis once we have reached T3 or 10m into the game)
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to defend recently dropped locations, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone])..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
                 if GetGameTimeSeconds() <= 600 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
                     for iDropPlateauOrZero, tSubtable in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone] do
@@ -3154,7 +3151,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': is table of friendly facs and engis empty='..tostring(M28Utilities.IsTableEmpty( tFriendlyFactoriesAndEngineers))) end
                                         if M28Utilities.IsTableEmpty( tFriendlyFactoriesAndEngineers) == false then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will add enemy air units in this zone as a high priority, bConsiderAdjacentZones='..tostring(bConsiderAdjacentZones or false)..'; iStartPositionGroundAAThreshold='..iStartPositionGroundAAThreshold) end
-                                            AddEnemyAirInWaterZoneIfNoAA(iDropLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
+                                            AddEnemyAirInLandZoneIfNoAA(iDropPlateauOrZero, iDropLandOrWaterZone, bConsiderAdjacentZones, iAASearchType, iStartPositionGroundAAThreshold)
                                         end
                                     end
                                 end
@@ -8092,4 +8089,62 @@ end
 function RemoveFirstExpBomberTarget(iDelayBeforeRemoving)
     WaitSeconds(iDelayBeforeRemoving)
     if tiRecentExpBomberTargets[1] then table.remove(tiRecentExpBomberTargets, 1) end
+end
+
+function EnemyT1BomberTracker(oBomber, iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'EnemyT1BomberTracker'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --For the first 15m track enemy t1 bomber and get nearby engineers to the target
+    if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; reprs='..reprs(oBomber)) end
+    --For simplicity will just do a square (not as accurate but avoids neeidng to do moveindirection multiple times)
+    --bomber has range of 40; allowing for targeting of enemies within slightly shorter dist than this, and speed of bomber and delay in unit response, go with 30 min 60 max which equals 45 average
+    local iAvDist = 45
+    --[[local iMinDist = 30
+    local iMaxDist = 60
+    local iWidth = 20
+    local iAvDist = (iMinDist + iMaxDist)*0.5--]]
+    local iRadius = 20
+
+    local iCurFacingDirection
+    while M28UnitInfo.IsUnitValid(oBomber) and GetGameTimeSeconds() <= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 do
+        --Get bomber facing direction, and then get any friendly engineers in this area
+        iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
+        local tMidpoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingDirection, iAvDist)
+        local rPotentialTargetRect = M28Utilities.GetRectAroundLocation(tMidpoint, iRadius)
+        local tUnitsInRect = GetUnitsInRect(rPotentialTargetRect)
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Checking if have units in rPotentialTargetRect='..repru(rPotentialTargetRect)..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber))
+            M28Utilities.DrawRectangle(rPotentialTargetRect)
+        end
+        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+            local tEngisInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer - categories.AIR, tUnitsInRect)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy engineers near bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tEngisInArea))) end
+            if M28Utilities.IsTableEmpty(tEngisInArea) == false then
+                for iEngi, oEngi in tEngisInArea do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' owned by '..oEngi:GetAIBrain().Nickname..' on team '..oEngi:GetAIBrain().M28Team..' - is special micro active='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)..'; Backup dist='..(oEngi:GetBlueprint().Physics.BackUpDistance or 'nil')) end
+                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam then
+                        --Have an M28AI engineer on our team that is near to the enemy t1 bomber; if special micro isn't active then have the engi move towards the bomber and flag a 'special micro flag that can be ignored if want to dodge shot'
+                        if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) or oEngi[M28UnitInfo.refbLowerPriorityMicroActive] then
+                            local iCurBackupDist = oEngi:GetBlueprint().Physics.BackUpDistance
+                            if (iCurBackupDist or 0) > 0 then
+                                local iEngiFacingDist =  M28UnitInfo.GetUnitFacingAngle(oEngi)
+                                local tPotentialMoveLocation = M28Utilities.MoveInDirection(oEngi:GetPosition(), iEngiFacingDist - 180, iCurBackupDist - 1) --tried with -0.5 but engi would turn around instead of moving there
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to backup, iEngiFacingDist='..iEngiFacingDist..'; tPotentialMoveLocation='..repru(tPotentialMoveLocation)..'; Engi position='..repru(oEngi:GetPosition())..'; Plateau of tPotentialMoveLocation='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) or 'nil')..'; Engi plateau='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngi:GetPosition()) or 'nil')) end
+                                if M28Utilities.IsTableEmpty(tPotentialMoveLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngi:GetPosition()) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will move in opposite direction of engi cur facing dist, as a backup move, as there is an appraoching bomber (so hopefully it is easier to dodge the bomber shot when dodge bomb micro triggers), Time='..GetGameTimeSeconds()) end
+                                    M28Orders.IssueTrackedMove(oEngi, tPotentialMoveLocation, 1.25, false, 'PreemDodB', true)
+                                    M28Micro.TrackTemporaryUnitMicro(oEngi, 2, nil, true) --will reduce by 0.001ish as part of the function
+                                end
+                            end
+                        end
+                    end
+                end
+                end
+            end
+
+            WaitSeconds(1)
+        end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

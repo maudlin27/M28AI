@@ -1511,7 +1511,6 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     if bTryToBuildAtTarget then
         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, true, true, true) then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': We can build at the target location so will build here') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return tTargetLocation
@@ -1523,7 +1522,6 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         tAltNearTargetLocation = {tTargetLocation[1] + iAdjZ, 0, tTargetLocation[3] + iAdjZ}
                         tAltNearTargetLocation[2] = GetSurfaceHeight(tAltNearTargetLocation[1], tAltNearTargetLocation[3])
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, nil, nil, nil, false, true, true, true) then
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': We can build right by the target location so will build here') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return tTargetLocation
@@ -12639,10 +12637,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iFactoryAction = refActionBuildLandFactory
     end--]]
         iBPWanted = 10
-        if bExistingFactoryIsComplete then iBPWanted = 5 end
+        if bExistingFactoryIsComplete and bHaveLowMass then iBPWanted = 5 end
+        --If we have dropped engineerz in this zone then prioritise the first land fac more
+        if not(bExistingFactoryIsComplete) and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 100) and M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateau][iLandZone] then iBPWanted = 15 end
         local iMaxTechLevelIfAny
         if iExistingFactory == 0 then iMaxTechLevelIfAny = 1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Want a land facotry, iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted..'; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want a land facotry, iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted..'; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; bExistingFactoryIsComplete='..tostring(bExistingFactoryIsComplete or false)) end
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750 and M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
             HaveActionToAssign(refActionBuildAirFactory, 1, iBPWanted, iMaxTechLevelIfAny)
         else
@@ -12654,26 +12654,27 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     if (bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.15) then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
-        iBPWanted = 5
 
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-            iBPWanted = 10
-            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
-            end
-            if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then
-                iBPWanted = iBPWanted * 1.5
-                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.075 then
-                    iBPWanted = iBPWanted * 1.5
-                end
-            end
-        end
         --Have 1 engi search for high value wrecks
         HaveActionToAssign(refActionReclaimArea, 1, 5, { false, 50 })
-        --Then have 1-2 engis search for reclaim generally
+        --Then have 1-2 engis search for reclaim generally if we dont have unclaimed mexes
         iCurPriority = iCurPriority + 1
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
-
+        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] then
+            iBPWanted = 5
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                iBPWanted = 10
+                if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                    iBPWanted = math.max(15, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]])
+                end
+                if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 3000 then
+                    iBPWanted = iBPWanted * 1.5
+                    if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.075 then
+                        iBPWanted = iBPWanted * 1.5
+                    end
+                end
+            end
+            HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
+        end
     else
         iCurPriority = iCurPriority + 1
     end

@@ -1637,12 +1637,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                         if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                             if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
                                 tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                             end
                         end
-                        --Enemy based logic
+                        --Enemy based logic (first time considering)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply enemy based logic to the unit for the first time it is recognised, IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
                         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
                             if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
@@ -1652,7 +1651,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
-                                        bDebugMessages = true
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true') end
                                     end
@@ -1664,7 +1662,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
                                 else
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
                                     tTeamData[iTeam][refbDangerousForACUs] = true
                                 end
@@ -1697,6 +1694,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy land factory against nearby zones depending on if it is close to a friendly base') end
                                 RecordNearbyEnemyLandFactory(oUnit, aiBrain.M28Team)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
+                                --UEF and Cybran bombers - activate special tracking if low lifetime count
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
+                                    ForkThread(M28Air.EnemyT1BomberTracker, oUnit, aiBrain.M28Team)
+                                end
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni

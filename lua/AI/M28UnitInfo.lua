@@ -79,6 +79,7 @@ refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against t
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
+refbLowerPriorityMicroActive = 'M28UnitLowerPriMicroAct' --true if the specialmicro has been flagged as lower priority
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
 refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled

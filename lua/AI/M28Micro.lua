@@ -342,7 +342,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                     end
 
                                     if not(bDontTryAndDodge) then
-                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
+                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbLowerPriorityMicroActive]) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will move in a circle as micro is already active') end
                                             MoveInCircleTemporarily(oUnit, iTimeToRun)
                                         else
@@ -419,7 +419,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         local tUnitsToConsiderDodgeFor = {}
         function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
-            if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+            if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
                 if EntityCategoryContains(categories.AIR + categories.STRUCTURE, oCurUnit.UnitId) then
                     --Do nothing
                 elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
@@ -651,14 +651,21 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar)
+function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
+    --bLowerPriorityMicro - if true then this will be ignored by 'higher priority micro'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TrackTemporaryUnitMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+    if bLowerPriorityMicro then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = true
+    else
+        if oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil end
+    end
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iSecondsActiveFor
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iSecondsActiveFor='..iSecondsActiveFor) end
@@ -680,6 +687,7 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
             if bDebugMessages == true then LOG(sFunctionRef..': Have reset flag') end
             oUnit[refbMicroResetChecker] = nil
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil
             if sAdditionalTrackingVar then
                 oUnit[sAdditionalTrackingVar] = false
             end
