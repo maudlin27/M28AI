@@ -8130,7 +8130,7 @@ function EnemyT1BomberTracker(oBomber, iTeam)
             if M28Utilities.IsTableEmpty(tEngisInArea) == false then
                 for iEngi, oEngi in tEngisInArea do
                     if bDebugMessages == true then LOG(sFunctionRef..': Engi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' owned by '..oEngi:GetAIBrain().Nickname..' on team '..oEngi:GetAIBrain().M28Team..' - is special micro active='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)..'; Backup dist='..(oEngi:GetBlueprint().Physics.BackUpDistance or 'nil')) end
-                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam then
+                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam and not(oEngi:GetAIBrain().M28Easy) then
                         --Have an M28AI engineer on our team that is near to the enemy t1 bomber; if special micro isn't active then have the engi move towards the bomber and flag a 'special micro flag that can be ignored if want to dodge shot'
                         if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) or oEngi[M28UnitInfo.refbLowerPriorityMicroActive] then
                             local iCurBackupDist = oEngi:GetBlueprint().Physics.BackUpDistance
