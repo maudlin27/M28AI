@@ -3522,7 +3522,10 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
     local bCheckForReclaim
     if (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0) >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35)) then
-        bCheckForReclaim = true
+        --If we lack a land factory, it's the first 12m, a land zone, and it's not a mexless zone that hasnt been dropped recently, then check for reclaim in the build range of the engineer and reclaim it if it's available
+        if GetGameTimeSeconds() > 720 or bIsWaterZone or ((tLZData[M28Map.subrefLZMexCount] or 0) == 0 and not(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrPond][iLandZone])) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory) > 0 or tLZData[M28Map.subrefLZMexCount] == (tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]) then
+            bCheckForReclaim = true
+        end
     end
 
     if tEngineers then

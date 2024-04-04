@@ -2061,6 +2061,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
         --M28 specific
         if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI then
             --Was the engineer reclaiming an area? if so check if still nearby reclaim
+            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Is table of units reclaiming the now reclaimed wreck empty='..tostring(M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]))) end
             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
                 --Only keep reclaiming if we dont have lots of mass
                 if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7 then
