@@ -6021,7 +6021,7 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
 end
 
 function UpdateTransportLocationShortlist(iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportLocationShortlist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -6132,12 +6132,16 @@ function UpdateTransportLocationShortlist(iTeam)
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) == false then
         local bTooMuchThreatOrEngisTraveling
         local iMexesAlreadyBuiltOn = 0
+        local iZonesWithSignificantThreat = 0
+        local iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis
 
         for iPlateau, tIslands in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] do
+            bHaveAZoneWithSignificantThreat = false
+            iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = 0
             for iEntry, iIsland in tIslands do
                 --Have we not had a recent failed drop?
                 bDontHaveLocationInPlayableArea = not(bDontCheckPlayableArea)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iIsland='..iIsland..' in iPlateau '..iPlateau..'; Time of last failed drop='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iIsland] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering the iIsland='..iIsland..' in iPlateau '..iPlateau..'; Time of last failed drop='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iIsland] or 'nil')) end
                 if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iIsland] or -600) >= 300 then --at least 5m since we last attempted a drop
                     iRecentDropCount = 0
                     --Cycle through every land zone on island and check if enemy has large threat (>600) indicating an ACU is present or isgnificant army, or we have engineers traveling here or already on the island (and unattached)
@@ -6150,27 +6154,48 @@ function UpdateTransportLocationShortlist(iTeam)
                         iRecentDropCount = iRecentDropCount + (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0)
                         iMexesAlreadyBuiltOn = iMexesAlreadyBuiltOn + tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..' in the island, enemy threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy engineers traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]))..'; iMexesAlreadyBuiltOn='..iMexesAlreadyBuiltOn) end
-                        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': we already have engineers traveling here so will abort') end
                             bTooMuchThreatOrEngisTraveling = true
                             break
+                        elseif tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 then
+                            if (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) >= 100 then
+                                iZonesWithSignificantThreat = iZonesWithSignificantThreat + 1
+                            end
                         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             --(we already checked for factories earlier so this is partially a redundancy, as well as expanding to include engineers
                             local tEngineersAndFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             if M28Utilities.IsTableEmpty(tEngineersAndFactories) == false then
                                 for iUnit, oUnit in tEngineersAndFactories do
                                     if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() >= 1 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': we already have engineers or factories here') end
                                         bTooMuchThreatOrEngisTraveling = true
                                         break
                                     end
                                 end
                             end
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
+                        else
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
                         end
                         if bTooMuchThreatOrEngisTraveling then break end
                     end
+                    if iZonesWithSignificantThreat > 0 then
+                        if iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis == 0 then
+                            bTooMuchThreatOrEngisTraveling = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': All zones have significant enemy threat') end
+                        elseif iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis < iZonesWithSignificantThreat * 6 then
+                            --If there are lots of zones without significant enemy threat then still consider
+                            bTooMuchThreatOrEngisTraveling = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enoguh zones have threat relative to zones without threat that we dont want to drop, iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis='..iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis..'; iZonesWithSignificantThreat='..iZonesWithSignificantThreat) end
+                        end
+                    end
+
                     if not(bTooMuchThreatOrEngisTraveling) and iMexesAlreadyBuiltOn >= M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][iIsland] then bTooMuchThreatOrEngisTraveling = true end
                     if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchThreatOrEngisTraveling='..tostring(bTooMuchThreatOrEngisTraveling)) end
                     if not(bTooMuchThreatOrEngisTraveling) and iRecentDropCount < 3 then --note this probably is effectively 1 less than the value noted, since if the transport is given the order to unload then that location is removed from the shortlist it will potentially cancel its unload order
                         if not(bDontHaveLocationInPlayableArea) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding iIsland='..iIsland..' in plateau '..iPlateau..' to the transport shortlist') end
                             table.insert(tShortlist, {iPlateau, iIsland})
                         end
                     end

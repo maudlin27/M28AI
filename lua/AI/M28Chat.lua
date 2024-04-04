@@ -676,7 +676,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
             oBrainToSendMessage = oBrainDefeated
 
             table.insert(tsPotentialMessages, 'Recall damnit, recall!')
-            table.insert(tsPotentialMessages, 'Thats not how the simulation went!')
+            table.insert(tsPotentialMessages, 'That\'s not how the simulation went!')
 
             if not(M28Map.bIsCampaignMap) and (not(oBrainDefeated.CheatEnabled) or oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1) then
                 if oBrainDefeated.M28Easy then
@@ -1167,44 +1167,7 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
         end
 
         --Get personality specific enemy and ally greetings
-        if (aiBrain[refiAssignedPersonality] or refiQAI) == refiQAI then
-            if iEnemyHumans >= 1 and bEnemyHasNonSeraphimFaction then
-                AddPotentialMessage(LOC('<LOC X02_T01_180_010>: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.'), 'X02_QAI_T01_04554', 'X02_VO')
-            end
-            AddPotentialMessage(LOC('<LOC X05_T01_100_010>: On this day, I will teach you the true power of the Quantum Realm.'), 'X05_QAI_T01_04424', 'X05_VO')
-            AddPotentialMessage(LOC('<LOC X02_T01_280_010>: If you destroy this ACU, another shall rise in its place. I am endless.'), 'X02_QAI_T01_04564', 'X02_VO')
-            AddPotentialMessage(LOC('<LOC X02_T01_220_010>: All calculations indicate that your demise is near.'), 'X02_QAI_T01_04558', 'X02_VO')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_490_010>[{i QAI}]: You will not prevail.'), 'XGG_QAI_MP1_04614', 'XGG')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_500_010>[{i QAI}]: Your destruction is 99% certain.'), 'XGG_QAI_MP1_04615', 'XGG')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_510_010>[{i QAI}]: I cannot be defeated.'), 'XGG_QAI_MP1_04616', 'XGG')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_530_010>[{i QAI}]: My victory is without question.'), 'XGG_QAI_MP1_04618', 'XGG')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_540_010>[{i QAI}]: Your defeat can be the only outcome.'), 'XGG_QAI_MP1_04619', 'XGG')
-            AddPotentialMessage(LOC('<LOC XGG_MP1_560_010>[{i QAI}]: Retreat is your only logical option.'), 'XGG_QAI_MP1_04621',  'XGG')
-
-            if tbEnemyFactions[M28UnitInfo.refFactionCybran] then
-                AddPotentialMessage(LOC('<LOC X02_T01_250_010>[{i QAI}]: All Symbionts will soon call me Master.'), 'X02_QAI_T01_04561', 'X02_VO')
-            end
-            if tbEnemyFactions[M28UnitInfo.refFactionUEF] and not(tbAlliedFactions[M28UnitInfo.refFactionUEF]) then
-                AddPotentialMessage(LOC('<LOC X05_T01_070_010>[{i QAI}]: The UEF has lost 90% of its former territories. You are doomed.'), 'X05_QAI_T01_04421', 'X05_VO')
-            end
-            if iEnemyHumans > 1 then
-                AddPotentialMessage(LOC('<LOC X05_T01_080_010>[{i QAI}]: I have examined our previous battles and created the appropriate subroutines to counter your strategies. You cannot win.'), 'X05_QAI_T01_04422', 'X05_VO')
-                AddPotentialMessage(LOC('<LOC X05_T01_010_010>[{i QAI}]: Another Commander will not make a difference. You will never defeat me.'), 'X05_QAI_T01_04415','X05_VO')
-            end
-            if (tbAlliedFactions[M28UnitInfo.refFactionUEF] or tbAlliedFactions[M28UnitInfo.refFactionAeon]) and (tbEnemyFactions[M28UnitInfo.refFactionUEF] or tbEnemyFactions[M28UnitInfo.refFactionAeon]) and (aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon) then
-                AddPotentialMessage(LOC('<LOC X05_M03_150_020>[{i QAI}]: The Seven Hand Node was quite effective at obtaining the schematics to your weapon systems. Now you shall be destroyed by your own weapons.'), 'X05_QAI_M03_04446', 'X05_VO')
-            end
-            if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
-                AddPotentialMessage(LOC('<LOC X05_T01_110_010>[{i QAI}]: The Seraphim are the true gods. You would be wise to remember that.'), 'X05_QAI_T01_04425', 'X05_VO')
-            end
-            if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and tbAlliedFactions[M28UnitInfo.refFactionSeraphim] and aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
-                if tbEnemyFactions[M28UnitInfo.refFactionAeon] then
-                    AddPotentialMessage(LOC('<LOC X02_T01_270_010>[{i QAI}]: I have witnessed the truth and beauty of the Seraphim. They are the true gods, and you are a fool for abandoning them.'), 'X02_QAI_T01_04563', 'X02_VO')
-                end
-                AddPotentialMessage(LOC('<LOC X02_T01_200_010>[{i QAI}]: You have no chance of defeating the Seraphim.'), 'X02_QAI_T01_04556', 'X02_VO')
-            end
-
-        elseif aiBrain[refiAssignedPersonality] == refiHall then
+        if aiBrain[refiAssignedPersonality] == refiHall then
             if not(tbEnemyFactions[M28UnitInfo.refFactionUEF]) then
                 AddPotentialMessage(LOC('<LOC XGG_MP1_010_010>[{i Hall}]: You will not stop the UEF!'), 'XGG_Hall__04566', 'XGG')
             end
@@ -1333,6 +1296,44 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
                 AddPotentialMessage(LOC('<LOC X06_T01_220_010>[{i ThelUuthow}]: Your faith in technology will be your undoing.'), 'X06_Thel-Uuthow_T01_02974', 'X06_VO')
             end
             AddPotentialMessage(LOC('<LOC X06_T01_260_010>[{i ThelUuthow}]: You will perish at my hand.'), 'X06_Thel-Uuthow_T01_02978', 'X06_VO')
+        else
+            --I.e. where personality is QAI, or we dont have a personality
+            --if (aiBrain[refiAssignedPersonality] or refiQAI) == refiQAI then
+            if iEnemyHumans >= 1 and bEnemyHasNonSeraphimFaction then
+                AddPotentialMessage(LOC('<LOC X02_T01_180_010>: Humans are such curious creatures. Even in the face of insurmountable odds, you continue to resist.'), 'X02_QAI_T01_04554', 'X02_VO')
+            end
+            AddPotentialMessage(LOC('<LOC X05_T01_100_010>: On this day, I will teach you the true power of the Quantum Realm.'), 'X05_QAI_T01_04424', 'X05_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_280_010>: If you destroy this ACU, another shall rise in its place. I am endless.'), 'X02_QAI_T01_04564', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC X02_T01_220_010>: All calculations indicate that your demise is near.'), 'X02_QAI_T01_04558', 'X02_VO')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_490_010>[{i QAI}]: You will not prevail.'), 'XGG_QAI_MP1_04614', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_500_010>[{i QAI}]: Your destruction is 99% certain.'), 'XGG_QAI_MP1_04615', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_510_010>[{i QAI}]: I cannot be defeated.'), 'XGG_QAI_MP1_04616', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_530_010>[{i QAI}]: My victory is without question.'), 'XGG_QAI_MP1_04618', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_540_010>[{i QAI}]: Your defeat can be the only outcome.'), 'XGG_QAI_MP1_04619', 'XGG')
+            AddPotentialMessage(LOC('<LOC XGG_MP1_560_010>[{i QAI}]: Retreat is your only logical option.'), 'XGG_QAI_MP1_04621',  'XGG')
+
+            if tbEnemyFactions[M28UnitInfo.refFactionCybran] then
+                AddPotentialMessage(LOC('<LOC X02_T01_250_010>[{i QAI}]: All Symbionts will soon call me Master.'), 'X02_QAI_T01_04561', 'X02_VO')
+            end
+            if tbEnemyFactions[M28UnitInfo.refFactionUEF] and not(tbAlliedFactions[M28UnitInfo.refFactionUEF]) then
+                AddPotentialMessage(LOC('<LOC X05_T01_070_010>[{i QAI}]: The UEF has lost 90% of its former territories. You are doomed.'), 'X05_QAI_T01_04421', 'X05_VO')
+            end
+            if iEnemyHumans > 1 then
+                AddPotentialMessage(LOC('<LOC X05_T01_080_010>[{i QAI}]: I have examined our previous battles and created the appropriate subroutines to counter your strategies. You cannot win.'), 'X05_QAI_T01_04422', 'X05_VO')
+                AddPotentialMessage(LOC('<LOC X05_T01_010_010>[{i QAI}]: Another Commander will not make a difference. You will never defeat me.'), 'X05_QAI_T01_04415','X05_VO')
+            end
+            if (tbAlliedFactions[M28UnitInfo.refFactionUEF] or tbAlliedFactions[M28UnitInfo.refFactionAeon]) and (tbEnemyFactions[M28UnitInfo.refFactionUEF] or tbEnemyFactions[M28UnitInfo.refFactionAeon]) and (aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon) then
+                AddPotentialMessage(LOC('<LOC X05_M03_150_020>[{i QAI}]: The Seven Hand Node was quite effective at obtaining the schematics to your weapon systems. Now you shall be destroyed by your own weapons.'), 'X05_QAI_M03_04446', 'X05_VO')
+            end
+            if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                AddPotentialMessage(LOC('<LOC X05_T01_110_010>[{i QAI}]: The Seraphim are the true gods. You would be wise to remember that.'), 'X05_QAI_T01_04425', 'X05_VO')
+            end
+            if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and tbAlliedFactions[M28UnitInfo.refFactionSeraphim] and aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                if tbEnemyFactions[M28UnitInfo.refFactionAeon] then
+                    AddPotentialMessage(LOC('<LOC X02_T01_270_010>[{i QAI}]: I have witnessed the truth and beauty of the Seraphim. They are the true gods, and you are a fool for abandoning them.'), 'X02_QAI_T01_04563', 'X02_VO')
+                end
+                AddPotentialMessage(LOC('<LOC X02_T01_200_010>[{i QAI}]: You have no chance of defeating the Seraphim.'), 'X02_QAI_T01_04556', 'X02_VO')
+            end
         end
         if M28Utilities.IsTableEmpty(tsPotentialMessages) or table.getn(tsPotentialMessages) <= 3 or math.random(1,2) == 1 then
             AddPotentialMessage('gl hf')
