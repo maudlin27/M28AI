@@ -16,6 +16,7 @@ local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local NavUtils = import("/lua/sim/navutils.lua")
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -48,18 +49,33 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
         if iFacingAngleWanted >= 360 then iFacingAngleWanted = iFacingAngleWanted - 360 end
 
         local iTurnRate = (oBP.Physics.TurnRate or 90)
+        local iBackupDist = (oBP.Physics.BackUpDistance or 0)
         local iTimeToTurn
-        if iTurnRate <= 0 then iTimeToTurn = 0 else iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate end
+        local bBackupInsteadOfTurning = false
         local iDistToBomb = M28Utilities.GetDistanceBetweenPositions(tPositionToRunFrom, oUnit:GetPosition())
-        if iDistToBomb * 2 / iUnitSpeed <= iTimeToTurn then
-            iFacingAngleWanted = iCurFacingDirection
-            iDistanceToMove = iDistanceToMove + iDistToBomb
+        if iBackupDist >= 4 then
+            bBackupInsteadOfTurning = true
+            iTimeToTurn = 0
+            if M28Utilities.GetAngleDifference(iCurFacingDirection, iFacingAngleWanted) <= 90 then
+                iFacingAngleWanted = iCurFacingDirection
+            else
+                iFacingAngleWanted = iCurFacingDirection + 180
+                if iFacingAngleWanted >= 360 then iFacingAngleWanted = iFacingAngleWanted - 360 end
+            end
+            iDistanceToMove = iDistanceToMove + math.min(iDistToBomb, iDistanceToMove * 0.5)
+        else
+            if iTurnRate <= 0 then iTimeToTurn = 0 else iTimeToTurn = math.abs(iFacingAngleWanted - iCurFacingDirection) / iTurnRate end
+            if iDistToBomb * 2 / iUnitSpeed <= iTimeToTurn then
+                iFacingAngleWanted = iCurFacingDirection
+                iDistanceToMove = iDistanceToMove + iDistToBomb
+            end
         end
-        if iTimeToTurn > iTimeToRun then bMoveInStages = true end
+
+        if iTimeToTurn > iTimeToRun and not(bBackupInsteadOfTurning) then bMoveInStages = true end
 
         local tTempLocationToMove
 
-        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iCurFacingDirection='..iCurFacingDirection..'; iAngleFromUnitToBomb='..iAngleFromUnitToBomb..'; iFacingAngleWanted='..iFacingAngleWanted..'; tUnitStartPosition='..repru(oUnit:GetPosition())..'; tPositionToRunFrom='..repru(tPositionToRunFrom)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iCurFacingDirection='..iCurFacingDirection..'; iAngleFromUnitToBomb='..iAngleFromUnitToBomb..'; iFacingAngleWanted='..iFacingAngleWanted..'; tUnitStartPosition='..repru(oUnit:GetPosition())..'; tPositionToRunFrom='..repru(tPositionToRunFrom)..'; bBackupInsteadOfTurning='..tostring(bBackupInsteadOfTurning)) end
         M28Orders.IssueTrackedClearCommands(oUnit)
         TrackTemporaryUnitMicro(oUnit, iTimeToRun)
         tTempLocationToMove = oUnit:GetPosition()
@@ -113,21 +129,50 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                 iDistanceAlreadyMoved = M28Utilities.GetDistanceBetweenPositions(tTempLocationToMove, tPositionToRunFrom)
             end
         end
-
         --Should now be facing close to the right direction, so move further in this direction
 
-        local tNewTargetIgnoringGrouping = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, math.max(1, iDistanceToMove - iDistanceAlreadyMoved), true, false, true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to face the right direction, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; tUnitPosition='..repru(tUnitPosition)..'; iDistanceToMove='..iDistanceToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
-        if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oUnit.UnitId) then
-            M28Orders.IssueTrackedMove(oUnit, tNewTargetIgnoringGrouping, 0.25, true, 'TempGA', true)
-            if bDebugMessages == true then LOG(sFunctionRef..': Dodging bomb for air unit, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-        else
-            local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
-            if tNewTargetInSameGroup then
-                if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
 
-                M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
-                TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+        --If are backing up, then consider queuing up multiple move orders
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should backup, bBackupInsteadOfTurning='..tostring(bBackupInsteadOfTurning or false)) end
+        if bBackupInsteadOfTurning and iBackupDist - 1 > 0 and iDistanceToMove > iDistanceAlreadyMoved then
+            local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+            local iCurDistToMove
+            local bFirstTime = true
+            while iDistanceAlreadyMoved < iDistanceToMove do
+                iCurDistToMove = math.min(iBackupDist - 1, math.max(1, iDistanceToMove - iDistanceAlreadyMoved))
+                local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, iCurDistToMove + iDistanceAlreadyMoved, true, false, true)
+                if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tViaPoint) == iPlateauWanted then
+                    --Are we either an amphibious/hover unit, of a land unit on the same island, or a naval unit on the same pond
+                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.AIR, oUnit.UnitId)
+                            or (EntityCategoryContains(categories.LAND, oUnit.UnitId) and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tViaPoint))
+                            or (EntityCategoryContains(categories.NAVAL, oUnit.UnitId) and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tViaPoint)) then
+                        M28Orders.IssueTrackedMove(oUnit, tViaPoint, 0.25, true, 'BckupDodMv', true)
+                        iDistanceAlreadyMoved = iDistanceAlreadyMoved + iCurDistToMove
+                        if bFirstTime then TrackTemporaryUnitMicro(oUnit, iTimeToRun) bFirstTime = false end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Backing up to via point, iCurDistToMove='..iCurDistToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
+                    else
+                        --Abort
+                        break
+                    end
+                else
+                    break
+                end
+            end
+        end
+        if not(bBackupInsteadOfTurning) or iDistanceToMove < iDistanceAlreadyMoved then
+            local tNewTargetIgnoringGrouping = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, math.max(1, iDistanceToMove - iDistanceAlreadyMoved), true, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to face the right direction, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; tUnitPosition='..repru(tUnitPosition)..'; iDistanceToMove='..iDistanceToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
+            if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oUnit.UnitId) then
+                M28Orders.IssueTrackedMove(oUnit, tNewTargetIgnoringGrouping, 0.25, true, 'TempGA', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Dodging bomb for air unit, tNewTargetIgnoringGrouping='..repru(tNewTargetIgnoringGrouping)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+            else
+                local tNewTargetInSameGroup = M28Map.GetPositionAtOrNearTargetInPathingGroup(tUnitPosition, tNewTargetIgnoringGrouping, 0, 0, oUnit, true, false)
+                if tNewTargetInSameGroup then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Starting bomber dodge for unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tNewTargetInSameGroup='..repru(tNewTargetInSameGroup)) end
+
+                    M28Orders.IssueTrackedMove(oUnit, tNewTargetInSameGroup, 0.25, true, 'TempMA', true)
+                    TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+                end
             end
         end
     end
@@ -246,14 +291,15 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     local tBombTarget = GetBombTarget(oWeapon, projectile)
     if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
     if tBombTarget then
+        oBomber[M28UnitInfo.refiLastDodgeBombEvent] = GetGameTimeSeconds()
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end
-        local iTimeToRun = 1.75 --T1
-        if iBombSize > 2.5 then iTimeToRun = math.min(2.6, iTimeToRun + (iBombSize - 2.5) * 0.5) end
+        local iTimeToRun = 2.4 --T1, was 1.75 for v83 and earlier but it turned out to not be long enough for a t1 engi to dodge a t1 bomber
+        if iBombSize > 2.5 then iTimeToRun = math.min(2.9, iTimeToRun + (iBombSize - 2.5) * 0.5) end --increased the min to 2.9 as of v84
         if EntityCategoryContains(categories.TECH2, oBomber.UnitId) then
             iBombSize = 3
-            iTimeToRun = 1.95
-            if iBombSize > 3 then iTimeToRun = math.min(2.6, iTimeToRun + (iBombSize - 3) * 0.5) end
+            iTimeToRun = 2.4 --1.95 for v83 and earlier
+            if iBombSize > 3 then iTimeToRun = math.min(2.9, iTimeToRun + (iBombSize - 3) * 0.5) end --increased the min to 2.9 as of v84
         elseif EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
             iTimeToRun = 2.5
             --Consider recording for special asf suicide logic
@@ -261,7 +307,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
             ForkThread(M28Air.ConsiderRecordingStratBomberToSuicideInto, oBomber)
         end --Some t2 bombers do damage in a spread (cybran, uef)
         --local iTimeToRun = math.min(7, iBombSize + 1)
-        local iRadiusSize = iBombSize + 1
+        local iRadiusSize = iBombSize + 2.5 --was +1 for v83 and earlier, but found if an engi was running towards the bomb target already it wouldn't get picked up and would die
 
         local iBomberArmyIndex = oBomber:GetAIBrain():GetArmyIndex()
 
@@ -293,7 +339,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                 local oCurBrain
                 for iUnit, oUnit in tMobileLandAndGunshipsInArea do
                     if not(oUnit.Dead) and oUnit.GetUnitId and oUnit.GetPosition and oUnit.GetAIBrain then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; iTimeToRun='..iTimeToRun) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; refbLowerPriorityMicroActive='..tostring(oUnit[M28UnitInfo.refbLowerPriorityMicroActive] or false)..'; iTimeToRun='..iTimeToRun) end
                         oCurBrain = oUnit:GetAIBrain()
                         if oCurBrain.M28AI and not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and IsEnemy(oCurBrain:GetArmyIndex(), iBomberArmyIndex) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
@@ -342,7 +388,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                     end
 
                                     if not(bDontTryAndDodge) then
-                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
+                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(EntityCategoryContains(categories.AIR, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbLowerPriorityMicroActive]) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will move in a circle as micro is already active') end
                                             MoveInCircleTemporarily(oUnit, iTimeToRun)
                                         else
@@ -353,12 +399,17 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                     end
 
                                 else
-                                    --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
-                                    if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
-                                        if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
-                                            MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
-                                            oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                    --If we are already in the process of dodging then dont try dodging some more, unless our micro is about to expire
+                                    if oUnit[M28UnitInfo.refbSpecialMicroActive] and not(oUnit[M28UnitInfo.refbLowerPriorityMicroActive]) and (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) - GetGameTimeSeconds() > 0.5 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has recently tried dodging so dont want to give it another dodge order as it might end up not moving') end
+                                    else
+                                        --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
+                                        if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
+                                            if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
+                                                MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
+                                                oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                            end
                                         end
                                     end
                                 end
@@ -419,7 +470,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         local tUnitsToConsiderDodgeFor = {}
         function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
-            if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+            if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
                 if EntityCategoryContains(categories.AIR + categories.STRUCTURE, oCurUnit.UnitId) then
                     --Do nothing
                 elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
@@ -546,7 +597,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                         bCancelDodge = true
                                     elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
                                         --If we have units we can hit then cancel
-                                        if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
+                                        if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
                                             bCancelDodge = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will cancel dodge as we can overcharge instead, time since last overcharge='..(GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0))..'; Brain energy stored='..oTarget:GetAIBrain():GetEconomyStored('ENERGY')) end
                                         else
@@ -651,14 +702,21 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar)
+function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
+    --bLowerPriorityMicro - if true then this will be ignored by 'higher priority micro'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TrackTemporaryUnitMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+    if bLowerPriorityMicro then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = true
+    else
+        if oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil end
+    end
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iSecondsActiveFor
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iSecondsActiveFor='..iSecondsActiveFor) end
@@ -680,6 +738,7 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
             if bDebugMessages == true then LOG(sFunctionRef..': Have reset flag') end
             oUnit[refbMicroResetChecker] = nil
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil
             if sAdditionalTrackingVar then
                 oUnit[sAdditionalTrackingVar] = false
             end

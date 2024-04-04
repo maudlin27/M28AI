@@ -35,6 +35,7 @@ refClampStinger = 5
 
 --Variables against units;
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
+refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the onbombfired logic
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)
@@ -79,6 +80,7 @@ refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against t
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
+refbLowerPriorityMicroActive = 'M28UnitLowerPriMicroAct' --true if the specialmicro has been flagged as lower priority
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
 refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled

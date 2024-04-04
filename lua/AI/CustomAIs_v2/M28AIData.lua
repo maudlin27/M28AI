@@ -5,7 +5,7 @@ AI = {
         {
             key = 'm28ai',
             name = '<LOC M28_0001>AI: M28',
-            rating = 900,
+            rating = 950,
             ratingCheatMultiplier = 0.0,
             ratingBuildMultiplier = 0.0,
             ratingOmniBonus = 0,
@@ -20,7 +20,7 @@ AI = {
         {
             key = 'm28aie',
             name = '<LOC M28_0002>AI: M28 Easy',
-            rating = 700,
+            rating = 750,
             ratingCheatMultiplier = 0.0,
             ratingBuildMultiplier = 0.0,
             ratingOmniBonus = 0,

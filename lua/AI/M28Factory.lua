@@ -659,6 +659,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
         bCanPathToEnemyWithLand = true
     end
+
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
     end
@@ -1749,13 +1750,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if GetGameTimeSeconds() >= 150 or iLifetimeEngineers >= 7 or M28Map.iMapSize < 512 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 3 or M28UnitInfo.GetUnitLifetimeCount(oFactory) >= 3 then
                     if iLifetimeLandCombat < math.max(5, iLifetimeEngineers) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) then
                         --Larger maps need to be careful we dont underbuild engineers early on
-
+                        --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
+                        local iCombatCategoryWanted
+                        if iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
+                            iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE
+                        else
+                            iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat
+                        end
                         if iLifetimeEngineers > 15 or not(tLZTeamData[M28Map.subrefTbWantBP]) or not(bHaveLowPower) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
-                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iCombatCategoryWanted) then return sBPIDToBuild end
                         else
                             local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             if M28Utilities.IsTableEmpty(tEngisInZone) == false and table.getn(tEngisInZone) > math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3) then
-                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iCombatCategoryWanted) then return sBPIDToBuild end
                             end
                         end
                     end
