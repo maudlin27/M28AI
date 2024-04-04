@@ -35,6 +35,7 @@ refClampStinger = 5
 
 --Variables against units;
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
+refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the onbombfired logic
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)

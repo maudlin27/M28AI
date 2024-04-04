@@ -827,7 +827,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit is already on its way to refuel so will treat as being in use, unit health percent='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Unit fuel percent='..oUnit:GetFuelRatio()..'; Dist to refuel target='..M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition())) end
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
                                 --Also update unit orders in case something has happened so next cycle it will try again
@@ -867,17 +868,20 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                         if iFuelPercent < iLowFuelThreshold then
                                             --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
                                             if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
                                                 bSendUnitForRefueling = true
                                             end
                                         else
                                             iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
                                             if iHealthPercent <= iLowHealthThreshold then
                                                 if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
                                                     bSendUnitForRefueling = true
                                                 end
                                             elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                                                 --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
                                                 if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
                                                     bSendUnitForRefueling = true
                                                 end
                                             end
@@ -886,6 +890,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                         --If have shield but its health is low then send for refueling
                                         local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
                                         if iMaxShield > 0 and iCurShield <= iMaxShield * 0.15 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit has low shield so will send to recharge') end
                                             bSendUnitForRefueling = true
                                         elseif iMaxShield == 0 then
                                             local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
@@ -897,6 +902,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                             if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
                                                 bSendUnitForRefueling = true
                                                 oUnit[M28UnitInfo.refbWantToHealUp] = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit low health so want it to try and heal up') end
                                             else
                                                 oUnit[M28UnitInfo.refbWantToHealUp] = nil
                                             end
@@ -2678,7 +2684,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 5*60+30 then bDebugMessages = true end
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -2854,10 +2860,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
                         --Add air units unless too much enemy AA
                         local bUseDetailedCheck = false
-                        if tWZTeamData[M28Map.subrefWZbCoreBase] then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone
+                        if tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone or mod dist is low
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': About to check for air units in a zone, iTeam='..iTeam..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
-                            LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil'))
+                            LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil')..'; Mod dist='..(tWZTeamData[M28Map.refiModDistancePercent] or 0)..'; bUseDetailedCheck='..tostring(bUseDetailedCheck or false))
                         end
                         if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
                             for iUnit, oUnit in (toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) do
@@ -8092,7 +8098,7 @@ function RemoveFirstExpBomberTarget(iDelayBeforeRemoving)
 end
 
 function EnemyT1BomberTracker(oBomber, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'EnemyT1BomberTracker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -8130,11 +8136,21 @@ function EnemyT1BomberTracker(oBomber, iTeam)
                             local iCurBackupDist = oEngi:GetBlueprint().Physics.BackUpDistance
                             if (iCurBackupDist or 0) > 0 then
                                 local iEngiFacingDist =  M28UnitInfo.GetUnitFacingAngle(oEngi)
-                                local tPotentialMoveLocation = M28Utilities.MoveInDirection(oEngi:GetPosition(), iEngiFacingDist - 180, iCurBackupDist - 1) --tried with -0.5 but engi would turn around instead of moving there
+                                local iAngleFromEngiToBomber = M28Utilities.GetAngleFromAToB(oEngi:GetPosition(), oBomber:GetPosition())
+                                local iAngleDifBetweenEngineerAndBomber = M28Utilities.GetAngleDifference(iEngiFacingDist, iAngleFromEngiToBomber)
+                                local tPotentialMoveLocation
+                                --want the engineer to move away from the bomber, either by moving forwards, or backwards (and would then hopefully move towards it via the normal dodge logic), since if the bomber is approaching us and is cybran/uef then the later missiles are moelikely to hit us
+                                if iAngleDifBetweenEngineerAndBomber >= 90 then
+                                    --Engi facing direction means it should move away from the bomber if going forwards
+                                    tPotentialMoveLocation = M28Utilities.MoveInDirection(oEngi:GetPosition(), iEngiFacingDist, iCurBackupDist - 1) --tried with -0.5 but engi would turn around instead of moving there
+                                else
+                                    --Engi facing direction means it should move away from the bomber if going backwards
+                                    tPotentialMoveLocation = M28Utilities.MoveInDirection(oEngi:GetPosition(), iEngiFacingDist - 180, iCurBackupDist - 1) --tried with -0.5 but engi would turn around instead of moving there
+                                end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to backup, iEngiFacingDist='..iEngiFacingDist..'; tPotentialMoveLocation='..repru(tPotentialMoveLocation)..'; Engi position='..repru(oEngi:GetPosition())..'; Plateau of tPotentialMoveLocation='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) or 'nil')..'; Engi plateau='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngi:GetPosition()) or 'nil')) end
                                 if M28Utilities.IsTableEmpty(tPotentialMoveLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngi:GetPosition()) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will move in opposite direction of engi cur facing dist, as a backup move, as there is an appraoching bomber (so hopefully it is easier to dodge the bomber shot when dodge bomb micro triggers), Time='..GetGameTimeSeconds()) end
-                                    M28Orders.IssueTrackedMove(oEngi, tPotentialMoveLocation, 1.25, false, 'PreemDodB', true)
+                                    M28Orders.IssueTrackedMove(oEngi, tPotentialMoveLocation, math.min(3, iCurBackupDist - 2), false, 'PreemDodB', true)
                                     M28Micro.TrackTemporaryUnitMicro(oEngi, 2, nil, true) --will reduce by 0.001ish as part of the function
                                 end
                             end

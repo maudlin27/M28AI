@@ -903,11 +903,13 @@ function OnBombFired(oWeapon, projectile)
         if oUnit and oUnit.GetUnitId then
             local sUnitID = oUnit.UnitId
 
-            if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())..'; Bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())..'; Bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; Time since last bomber event='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0))) end
             if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTorpBomber, sUnitID) then
                 --if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0) >= 2 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                end
 
                 --Ahwassa - micro the bomber
                 if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
@@ -991,8 +993,9 @@ function OnWeaponFired(oWeapon)
                         LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
                         if oWeapon:GetCurrentTarget().GetPosition then LOG(sFunctionRef..': Target of weapon='..repru(oWeapon:GetCurrentTarget():GetPosition())) end
                     end
-
-                    ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
+                    if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0) >= 2 then
+                        ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
+                    end
                 else
                     if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and oWeapon.Blueprint.DamageType == 'Nuke' then
                         --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
