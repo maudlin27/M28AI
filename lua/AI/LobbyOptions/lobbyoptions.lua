@@ -113,4 +113,24 @@ AIOpts = {
             },
         },
     },
+    {
+        default = 2,
+        label = "M28 Coop: Use M28Easy?",
+        help = "If M28 is being applied to hostile and/or allied campaign AI, this makes them use M28Easy logic (which disables most micro used by M28)",
+        key = 'CmM28Easy',
+        value_text = "",
+        value_help = "Use M28Easy logic, disabling most micro?",
+        values = {
+            {
+                text = 'Yes',
+                help = 'Apply M28Easy logic',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Use normal M28AI logic',
+                key = 2,
+            },
+        },
+    },
 }

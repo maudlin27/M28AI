@@ -2102,6 +2102,9 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         if ScenarioInfo.Options.CmApplyAiX == 1 then
             aiBrain.CheatEnabled = true
         end
+        if ScenarioInfo.Options.CmM28Easy == 1 then
+            aiBrain.M28Easy = true
+        end
         LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAiX='..(ScenarioInfo.Options.CmApplyAiX or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
