@@ -4069,7 +4069,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bMoveToStopPDConstruction = false
                 local bMoveTowardsEngineers = false
                 if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, checking if enemy engineers, Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat) end
-                if M28Utilities.IsTableEmpty(tEnemyEngineers) == false and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 100 and (iAvailableCombatUnitThreat or 0) >= math.min(40, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3) and (iAvailableCombatUnitThreat <= 1500 or GetGameTimeSeconds() <= 580) and GetEnemyCombatThreatInAdjacentZones() <= 500  then
+                if M28Utilities.IsTableEmpty(tEnemyEngineers) == false and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 100 and (iAvailableCombatUnitThreat or 0) >= math.min(40, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3) and iAvailableCombatUnitThreat <= 1500 and GetEnemyCombatThreatInAdjacentZones() <= 500  then
                     local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy PD empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPD))) end
                     if M28Utilities.IsTableEmpty(tEnemyPD) == false then
@@ -4092,7 +4092,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     else
                         --do we have engineers to attack instead?
-                        if iAvailableCombatUnitThreat <= 400 and (GetGameTimeSeconds() <= 580 or iAvailableCombatUnitThreat <= 300) then
+                        if iAvailableCombatUnitThreat <= 400 and iAvailableCombatUnitThreat <= 300 then
                             bMoveTowardsEngineers = true
                         end
                     end
@@ -4994,7 +4994,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         bAttackWithEverything = false
                     end
                 end
-                if iPlateau == 87 and iLandZone == 7 and GetGameTimeSeconds() >= 580 then bDebugMessages = true end
                 local bSuicideUnitsNearAMex = false
                 local tNearbyMexes
                 if not(bAttackWithEverything) and oNearestEnemyToMidpoint then
@@ -5012,7 +5011,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     --Suicide into mex logic
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to suicide mex, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; EnemyMobileDFTotal='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Ally mobile DF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; Ally mobile IF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Enemy best structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; Enemy structure mass='..(tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)..'; Is table of enemy mexes empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])))) end
-                    if not(bAttackWithEverything) and GetGameTimeSeconds() >= 580 and tLZData[M28Map.subrefLZMexCount] > 0 and iAvailableCombatUnitThreat >= math.min(100, (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)) and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    if not(bAttackWithEverything) and tLZData[M28Map.subrefLZMexCount] > 0 and iAvailableCombatUnitThreat >= math.min(100, (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)) and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
                             if iAvailableCombatUnitThreat >= (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] > (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 then
@@ -5425,7 +5424,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 if iClosestMex <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
                                                     M28Orders.IssueTrackedAttack(oUnit, oClosestMex, false, 'SuicMxAt')
                                                 else
-                                                    IssueTrackedAttackMove(oUnit, oClosestMex:GetPosition(), 2, false, 'SuicMxAM')
+                                                    if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                                        M28Orders.IssueTrackedAttackMove(oUnit, oClosestMex:GetPosition(), 2, false, 'SuicMxAM')
+                                                    end
                                                 end
                                             end
                                         end
