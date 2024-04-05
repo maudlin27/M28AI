@@ -1379,8 +1379,8 @@ function ManageMassStalls(iTeam)
                                                     end
                                                 end
                                             end
-                                            --SMD LOGIC - Check if already have 1 missile loaded before pausing
-                                        elseif iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
+                                            --SMD LOGIC - Check if already have 1 missile loaded before pausing (we know we are in a pause unit scenario from above condition)
+                                        elseif iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() == 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef .. ': Have SMD with at least 1 missile so will pause it')
                                             end
@@ -1979,8 +1979,8 @@ function ManageEnergyStalls(iTeam)
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs])))
                                             end
-                                            --SMD LOGIC - Check if already have 1 missile loaded before pausing
-                                            if iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
+                                            --SMD LOGIC - Check if already have 1 missile loaded before pausing (unless enemy has no nukes)
+                                            if iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() == 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                                                 if bDebugMessages == true then
                                                     LOG(sFunctionRef .. ': Have SMD with at least 1 missile so will pause it')
                                                 end

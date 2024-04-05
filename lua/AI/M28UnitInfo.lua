@@ -1712,8 +1712,8 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             oUnit[refbPaused] = bPauseNotUnpause
             --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled as was leading to false cases where unit was paused but this triggered
             --if oUnit[refbPaused] and not(oUnit:IsPaused()) then
-                --oUnit[refbPaused] = false
-                --if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
+            --oUnit[refbPaused] = false
+            --if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
             --end
             if bDebugMessages == true then LOG(sFunctionRef..': Will update table of paused units, iPausePriority='..(iPausePriority or 'nil')) end
             AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
