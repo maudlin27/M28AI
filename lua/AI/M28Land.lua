@@ -3829,6 +3829,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oUnit.UnitId) then
 
                     local iCategoryToSearch = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND
+                    --Ythotha - also consider enemy T3 land combat to try and avoid it constantly changing targets
+
                     --Below is if wanted to generalise, however concerned about riks of overkill
                     --[[
                     local iCategoryToSearch = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD
@@ -3841,6 +3843,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         iCategoryToSearch = iCategoryToSearch * categories.EXPERIMENTAL
                     end--]]
                     local tNearbyEnemiesOfCategory = EntityCategoryFilterDown(iCategoryToSearch, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                    local iClosestEnemyOfCategory = 10000
+                    local iCurDistOfCategory
                     if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Is tNearbyEnemiesOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory))) end
                     if M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory) == false then
                         local iCurHealth
@@ -3851,7 +3855,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iCurHealth = oEnemy:GetHealth()
                                 if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
                                 if iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
-                                    if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 2 then
+                                    iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                                    iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
+                                    if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] + 2 then
                                         iLowestHealth = iCurHealth
                                         oManualAttackTarget = oEnemy
                                         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting manual attack target to this enemy') end
@@ -3862,6 +3868,27 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; iLowestHealth='..iLowestHealth) end
+                        --Consider targeting T3 land for ythotha
+                        if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
+                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
+                                for iEnemy, oEnemy in tNearbyEnemiesOfCategory do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering ythotha t3 oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToMidpoint)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
+                                    if oEnemy:GetFractionComplete() == 1 then
+                                        if oEnemy:GetMaxHealth() >= 2000 and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
+                                            iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                                            iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
+                                            if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] then
+                                                iLowestHealth = iCurHealth
+                                                oManualAttackTarget = oEnemy
+                                                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting ythotha manual attack target to this enemy') end
+                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too far away for ythotha to target')
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
                         if oManualAttackTarget then
                             --Is nearest enemy to midpoitn a better target?
                             if not(oManualAttackTarget == oNearestEnemyToMidpoint) and EntityCategoryContains(iCategoryToSearch, oNearestEnemyToMidpoint.UnitId) and oNearestEnemyToMidpoint:GetFractionComplete() == 1 then
@@ -3874,6 +3901,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..':GetManualAttackTargetIfWantManualAttack - Finished checking if nearest enemy to midpoint is better target, oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; Nearest enemy to midpoint health='.. oNearestEnemyToMidpoint:GetHealth()) end
                             end
+                            --Include T3 land for manual attack targets for ythotha
                         end
                     end
                 end
