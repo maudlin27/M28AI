@@ -199,6 +199,7 @@ refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * c
 refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMonkeylord = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE - categories.SNIPER
 refCategoryMegalith = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE * categories.SNIPER
+refCategoryYthotha = refCategoryLandExperimental * categories.SERAPHIM * categories.BOT
 refCategoryMobileLand = categories.LAND * categories.MOBILE  - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryEngineer = categories.LAND * categories.MOBILE * categories.ENGINEER - categories.COMMAND - categories.FIELDENGINEER -categories.SUBCOMMANDER --Dont include sparkys as they cant build a lot of things, so just treat them as a combat unit that can reclaim
 refCategoryRASSACU = categories.SUBCOMMANDER * categories.RASPRESET + categories.SUBCOMMANDER * categories.SERAPHIM
@@ -1712,8 +1713,8 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             oUnit[refbPaused] = bPauseNotUnpause
             --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled as was leading to false cases where unit was paused but this triggered
             --if oUnit[refbPaused] and not(oUnit:IsPaused()) then
-                --oUnit[refbPaused] = false
-                --if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
+            --oUnit[refbPaused] = false
+            --if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
             --end
             if bDebugMessages == true then LOG(sFunctionRef..': Will update table of paused units, iPausePriority='..(iPausePriority or 'nil')) end
             AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)

@@ -1023,7 +1023,7 @@ end
 function ZoneWantsT1Spam(tLZTeamData, iTeam)
     if M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] then
         return true
-    elseif IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) and GetGameTimeSeconds() <= 15*60 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] <= 2 then
+    elseif IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) and GetGameTimeSeconds() <= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] <= 2 then
         return true
     end
 end

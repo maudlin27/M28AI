@@ -3169,6 +3169,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
+        --Torp bomber if LC is <=2 and enemy has torp threat
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and iFactoryTechLevel >= 2 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+        end
+
         --Approaching enemy experimental - build gunships or bombers even if have low power, provided we have more than a base level
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
@@ -3321,6 +3327,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     return sBPIDToBuild
                 end
             end
+        end
+
+        --Torp bomber if LC is <=2 and enemy has torp threat
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and iFactoryTechLevel >= 2 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
         end
 
         --Nearby enemy ground (gunship)
@@ -4244,6 +4256,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 --Lower threshold if enemy has better tech
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] then
                     iGrossMassThreshold = iGrossMassThreshold * 0.75
+                end
+                --Lower threshold if we have built 8+ units and are at T2 and in bombardment mode, and already have 5+ T2 surface naval units
+                if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and iFactoryTechLevel == 2 and oFactory[refiTotalBuildCount] >= 8 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2) >= 6 then
+                    iGrossMassThreshold = iGrossMassThreshold * 0.8
                 end
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)

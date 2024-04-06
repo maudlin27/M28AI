@@ -7069,10 +7069,10 @@ function GetNovaxTarget(aiBrain, oNovax)
     end
     local bHaveShieldsToCheck = not(M28Utilities.IsTableEmpty(tNotLowHealthNearbyShields))
 
-    function DoShieldsCoverUnit(oTargetUnit, oOptionalShieldToIgnore, bUseDetailedShieldCheck)
+    function DoShieldsCoverUnit(oTargetUnit, oOptionalShieldToIgnore, bUseDetailedShieldCheck, iOptionalThresholdOverride)
         local tPosition = oTargetUnit:GetPosition()
         if bUseDetailedShieldCheck or EntityCategoryContains(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield, oTargetUnit.UnitId) then
-            local bUnderFixedShield = M28Logic.IsTargetUnderShield(aiBrain, oTargetUnit, iShieldHealthThreshold, false, true, false, true)
+            local bUnderFixedShield = M28Logic.IsTargetUnderShield(aiBrain, oTargetUnit, iOptionalThresholdOverride or iShieldHealthThreshold, false, true, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Will use istargetundershield function for this unit, bUnderFixedShield='..tostring(bUnderFixedShield or false)) end
             if bUnderFixedShield then
                 return true
@@ -7212,6 +7212,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         if M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]) then table.insert(tEnemyUnits, oNovax[refoNovaxLastTarget]) end
 
         local iFractionComplete
+        local toUnshieldedNearbyFixedShields = {}
         for iUnit, oUnit in tEnemyUnits do
             --Ignore units that are mobile and attached, or underwater
             if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
@@ -7252,6 +7253,13 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iCurDPSMod = iCurDPSMod + (oUnitBP.Defense.RegenRate or 0)
                     iTimeToTarget = math.max(0, M28Utilities.GetDistanceBetweenPositions(oNovax:GetPosition(), oUnit:GetPosition()) - iRange) / iSpeed
                     iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+
+                    if iMaxShield >= 6000 and iCurShield == 0 and oUnit:GetHealth() < 1000 then
+                        if not(DoShieldsCoverUnit(oUnit, oUnit, true, 100)) then
+                            table.insert(toUnshieldedNearbyFixedShields, oUnit)
+                            iCurValue = iCurValue * 2
+                        end
+                    end
 
                     iTimeToKillTarget = (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod)
                     if iMaxShield == 0 and not (EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
@@ -7328,6 +7336,66 @@ function GetNovaxTarget(aiBrain, oNovax)
                 end
             end
         end
+        if oTarget and M28Utilities.IsTableEmpty(toUnshieldedNearbyFixedShields) == false and not(oTarget.MyShield) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering switching from actual best target to a vulnerable nearby shield') end
+            local iClosestShieldDist = 10000
+            local iCurShieldDist
+            for iUnit, oUnit in toUnshieldedNearbyFixedShields do
+                iCurShieldDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
+                if iCurShieldDist < iClosestShieldDist then
+                    iClosestShieldDist = iCurShieldDist
+                    oTarget = oUnit
+                    if bDebugMessages == true then LOG(sFunctionRef..': Switching target to oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                end
+            end
+        end
+
+        --If shields have recently dropped to T3 arti and the unit is far enough away that it wont have been considered from the above, then consider targeting (unless we are already targeting a fixed shield or ACU)
+        local oNearestRecentlyFailedShield
+        local iNearestRecentlyFailedShieldDist = 100000
+        if (not(oTarget) or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + categories.COMMAND + M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oTarget.UnitId))) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+            local tiUnitsToRemove = {}
+            local iCurDist
+            local bAdjustValueForDistance = false
+            local iPriorityShieldSearchDist = math.max(iMediumSearchRange * 2, 150)
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering fixed shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health of shield='..oUnit.MyShield:GetHealth()..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Do shields cover this shield='..tostring((DoShieldsCoverUnit(oUnit, oUnit)))..'; iBestTargetValue='..iBestTargetValue) end
+                if oUnit.MyShield and oUnit.MyShield:GetHealth() >= 3000 then
+                    table.insert(tiUnitsToRemove, iUnit)
+                elseif oUnit:GetFractionComplete() == 1 then
+                    --Is the unit outside of the search range from above, but still close enoguh that we want to consider?
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
+                    if iCurDist < iNearestRecentlyFailedShieldDist and oUnit.MyShield:GetHealth() == 1 then
+                        iNearestRecentlyFailedShieldDist = iCurDist
+                        oNearestRecentlyFailedShield = oUnit
+                    end
+                    if iCurDist > iMediumSearchRange and iCurDist < iPriorityShieldSearchDist then
+                        --Is the unit covered by another shield?
+                        if not (DoShieldsCoverUnit(oUnit, oUnit)) then
+                            iMassFactor = GetUnitTypeMassWeighting(oUnit)
+                            iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
+                            --Want to get the closest recently dropped sheidl (in case more than one)
+                            if bAdjustValueForDistance then iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Recently dropped shield iCurValue='..iCurValue) end
+                            if iCurValue > iBestTargetValue then
+                                if not(bAdjustValueForDistance) then
+                                    bAdjustValueForDistance = true
+                                    iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist))
+                                end
+                                iBestTargetValue = iCurValue
+                                oTarget = oUnit
+                            end
+                        end
+                    end
+                    -- iMediumSearchRange
+                end
+            end
+            if M28Utilities.IsTableEmpty(tiUnitsToRemove) == false then
+                for iCurEntry = table.getn(tiUnitsToRemove), 1, -1 do
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], iCurEntry)
+                end
+            end
+        end
 
         --Consider ignoring closest target and focusing on something furhter away if we dont have a high value target
         local bConsiderFurtherAwayMexes = false
@@ -7369,10 +7437,14 @@ function GetNovaxTarget(aiBrain, oNovax)
                 end
             end
 
+            if oNearestRecentlyFailedShield and oTarget and iClosestTarget * 2 > iNearestRecentlyFailedShieldDist then
+                oTarget = oNearestRecentlyFailedShield
+            end
+
             if bDebugMessages == true then LOG(sFunctionRef..': oTarget after searching for nearby mexes='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; iClosestTarget='..(iClosestTarget or 'nil')) end
 
             --If enemy has fatboys then consider targeting one of these if the zone lacks enemy fixed shields
-            if iClosestTarget >= 100 then
+            if iClosestTarget >= 100 and (iClosestTarget >= 350 or not(oTarget) or not(oTarget == oNearestRecentlyFailedShield)) then
 
                 if (not(oTarget) or M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
                     local tFatboysToConsider
@@ -7398,6 +7470,10 @@ function GetNovaxTarget(aiBrain, oNovax)
                     end
                 end
 
+            end
+            if not(oTarget) and oNearestRecentlyFailedShield and iNearestRecentlyFailedShieldDist < 500 then
+                oTarget = oNearestRecentlyFailedShield
+                iClosestTarget = iNearestRecentlyFailedShieldDist
             end
 
             if not (oTarget) or iClosestTarget >= 500 then

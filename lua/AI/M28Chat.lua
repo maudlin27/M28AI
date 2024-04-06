@@ -1164,6 +1164,17 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
         end
         if iEnemyHumans >= 2 then
             AddPotentialMessage('Time to separate the wheat from the chaff')
+            if iEnemyHumans >= 3 and iAllyHumans == 0 then AddPotentialMessage('Your lack of coordination shall be your undoing') end
+            if iEnemyHumans > iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] and math.max(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier], M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier]) == 1 then
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
+                    AddPotentialMessage('So, you didn\'t feel like you could take us on in equal fight?')
+                else
+                    AddPotentialMessage('So, you didn\'t feel like you could take me on in equal fight?')
+                end
+            end
+        end
+        if iEnemyHumans < iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
+            AddPotentialMessage('You\'re outnumbered, you should retreat while you still can')
         end
 
         --Get personality specific enemy and ally greetings
@@ -1341,15 +1352,25 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
         end
     end
     local oBrainToSendMessage = aiBrain
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')..'; Table size='..table.getn(tsPotentialMessages)) end
     --Have already waited 20s before getting to this point
     if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
-        local iRand = math.random(1, table.getn(tsPotentialMessages))
+        --Its likely just coincidence, but just incase, will add some randomness based on game settings
+        local iTableSize = table.getn(tsPotentialMessages)
+        local iRand = math.random(1, iTableSize)
+        local iRandomResetCycle = math.min(10, math.floor((math.random(2,3) + M28Team.iPlayersAtGameStart + aiBrain:GetArmyIndex()) * 0.5))
+        while iRandomResetCycle > 0 do
+            local iTempRand = math.random(1, iTableSize)
+            if bDebugMessages == true then LOG(sFunctionRef..': iTempRand='..iTempRand) end
+            iRandomResetCycle = iRandomResetCycle - 1
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Chosen message='..tsPotentialMessages[iRand]..'; new math.random result='..math.random(1,iTableSize)..'; and a second time='..math.random(1, iTableSize)..'; iTableSize='..iTableSize..'; random 4th time iwth iTableSize='..math.random(1, iTableSize)..'; random 5th time but with hardcoded 6 instead of variable='..math.random(1,6)..'; random 6th time iwth iTableSize='..math.random(1, iTableSize)) end
         --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
         SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Start', tsPotentialMessages[iRand], 20, 60, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
     end
     if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
         local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
+        if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Chosen team message='..tsPotentialTeamMessages[iRand]) end
         --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
         SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Team'..(aiBrain.M28Team or 1)..'Start', tsPotentialTeamMessages[iRand], 0, 60, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
     end
