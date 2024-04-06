@@ -1383,10 +1383,14 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                             if iPlateauOrZero == 0 and (iLandOrWaterZone or 0) > 0 then
                                 iPond = M28Map.tiPondByWaterZone[iLandOrWaterZone]
                                 tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            elseif (iPlateauOrZero or 0) > 0 and (iLandOrWaterZone or 0) > 0 then
+                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Struggled to find zone at first but now set LZData for P'..iPlateauOrZero..'Z'..iLandOrWaterZone) end
                             end
                         end
                     else
                         tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        if bDebugMessages == true then LOG(sFunctionRef..': setting LZData for P'..iPlateauOrZero..' LZ '..iLandOrWaterZone) end
                     end
                     local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
                     --Game-ender specific logic - use a larger build size
@@ -1510,7 +1514,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local aiBrain = oEngineer:GetAIBrain()
 
     if bTryToBuildAtTarget then
-        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, true, true, true) then
+        local iPlateauOrZero, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetLocation)
+        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
+        if bDebugMessages == true then LOG(sFunctionRef..': want to see if we can build at the target itself, CanBuildAtLocation='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true))) end
+        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true) then
             if bDebugMessages == true then LOG(sFunctionRef..': We can build at the target location so will build here') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return tTargetLocation
@@ -1519,9 +1526,9 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             for iAdjX = -iNewBuildingRadius, iNewBuildingRadius, iNewBuildingRadius do
                 for iAdjZ = -iNewBuildingRadius, iNewBuildingRadius, iNewBuildingRadius do
                     if not(iAdjX == 0) or not(iAdjZ == 0) then
-                        tAltNearTargetLocation = {tTargetLocation[1] + iAdjZ, 0, tTargetLocation[3] + iAdjZ}
+                        tAltNearTargetLocation = {tTargetLocation[1] + iAdjX, 0, tTargetLocation[3] + iAdjZ}
                         tAltNearTargetLocation[2] = GetSurfaceHeight(tAltNearTargetLocation[1], tAltNearTargetLocation[3])
-                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, nil, nil, nil, false, true, true, true) then
+                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, iPlateauOrZero, iZone, nil, false, true, true, true) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We can build right by the target location so will build here') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return tTargetLocation
@@ -1529,6 +1536,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': We cant find anywhere adjacent to the target to build the T2 pd so will revert to normal logic') end
         end
     end
 
@@ -7824,7 +7832,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 local bGetCheapest = false
                                 if GetGameTimeSeconds() <= 900 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 10 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and not(iActionToAssign == refActionBuildLandFactory) and not(iActionToAssign == refActionBuildAirFactory) and not(iActionToAssign == refActionBuildExperimental) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap]) then bGetCheapest = true
                                 end
-
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
                                 if iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
