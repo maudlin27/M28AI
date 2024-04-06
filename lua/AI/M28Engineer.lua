@@ -4765,6 +4765,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local bGivenOrder = false
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData
@@ -4879,10 +4880,10 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
             end
 
             local bConsiderBelowMinValueIfCantFindAny = true
-            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then bConsiderBelowMinValueIfCantFindAny = false end
+            if (bOnlyConsiderReclaimInRangeOfEngineer or (iMinIndividualValueOverride and iMinIndividualValueOverride >= 10)) or EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then bConsiderBelowMinValueIfCantFindAny = false end
             local iCurMinToUse = 0
             if not(bConsiderBelowMinValueIfCantFindAny) then iCurMinToUse = iMinReclaimIndividualValue end
-
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyReclaim empty='..tostring(tNearbyReclaim)..'; bConsiderBelowMinValueIfCantFindAny='..tostring(bConsiderBelowMinValueIfCantFindAny)..'; iCurMinToUse='..iCurMinToUse) end
             if M28Utilities.IsTableEmpty(tNearbyReclaim) == false then
                 local iNearestReclaim = 10000
                 local iNearestReclaimWithAnyValue = 10000
@@ -4941,7 +4942,8 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                         end
                     end
                 end
-                if not(oNearestReclaim) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through reclaim, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)) end
+                if not(oNearestReclaim) and bConsiderBelowMinValueIfCantFindAny then
                     oNearestReclaim = oNearestAnyValueReclaim
                     --Check this is in the same zone
                     if oNearestReclaim and bCheckTerrain then
