@@ -1430,9 +1430,12 @@ function ManageMassStalls(iTeam)
 
 
                                                                 function KillEngineer(oUnit)
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to kill engineer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                                                    M28Orders.IssueTrackedKillUnit(oUnit)
-                                                                    iKillCount = iKillCount + 1
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to kill engineer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; unless it is T3 and there is a T1 or T2 engi we can kill instead in the same zone') end
+                                                                    local oEngiToKill = GetBestEngiToKill(oUnit)
+                                                                    if M28UnitInfo.GetUnitTechLevel(oEngiToKill) == 1 and oBrain[refiOurHighestFactoryTechLevel] > 1 then iKillCount = iKillCount + 0.5
+                                                                    else iKillCount = iKillCount + 1
+                                                                    end
+                                                                    M28Orders.IssueTrackedKillUnit(oEngiToKill)
                                                                     if iKillCount >= 2 then
                                                                         bConsiderReclaimingEngineer = false
                                                                     end
@@ -2722,4 +2725,63 @@ function JustBuiltT2PlusPowerOrExperimentalInZone(oPGen)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBestEngiToKill(oUnit)
+    --If we are planning on killing oUnit, and it is T3, and we have T1 or T2 engis in the esame area, then consider switching to killing the T1/T2 unit instead
+    --returns either oUnit, or the replacement engineer
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBestEngiToKill'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+    if iUnitTechLevel == 1 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return oUnit
+    else
+        --Dealing with T3 engineer, is there a T1/T2 in the same zone?
+        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+        local iSearchCategory
+        if iUnitTechLevel == 2 then iSearchCategory = M28UnitInfo.refCategoryEngineer * categories.TECH1
+        else iSearchCategory = M28UnitInfo.refCategoryEngineer * categories.TECH1 + M28UnitInfo.refCategoryEngineer * categories.TECH2
+        end
+        local tT1AndT2EngisInZone = EntityCategoryFilterDown(iSearchCategory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty( tT1AndT2EngisInZone) == false then
+            --The higher the priority number the less important the task
+            local iLowestPriorityEngineer = -1000
+            local iPrimaryBuilderPriorityAdjust = -500
+            local iNoPriorityReplacement = 400
+            local iTech1PriorityAdjust = 50 --i.e. treats t1 engi as having +50 to priority value
+            local oLowestPriorityEngineer
+            local iCurPriority
+            local iOrigFaction = M28UnitInfo.GetUnitFaction(oUnit)
+            local iCurFaction
+            bDebugMessages = true
+            for iEngi, oEngi in tT1AndT2EngisInZone do
+                if M28UnitInfo.IsUnitValid(oEngi) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering possible replacement engi, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Engi state='..M28UnitInfo.GetUnitState(oEngi)..'; Assigned priority='..(oEngi[M28Engineer.refiAssignedActionPriority] or 'nil')..'; Is primary builder='..tostring(oEngi[M28Engineer.refbPrimaryBuilder] or false)) end
+                    if not(oEngi:IsUnitState('Reclaiming')) then
+                        iCurPriority = (oEngi[M28Engineer.refiAssignedActionPriority] or iNoPriorityReplacement)
+                        if oEngi[M28Engineer.refbPrimaryBuilder] then
+                            iCurPriority = iCurPriority + iPrimaryBuilderPriorityAdjust
+                        end
+                        if iUnitTechLevel == 3 and M28UnitInfo.GetUnitTechLevel(oEngi) == 1 then iCurPriority = iCurPriority + iTech1PriorityAdjust end
+                        if iCurPriority > iLowestPriorityEngineer then
+                            --If it is for a different faction then check we have a factory of the new faction in this zone or higher tech engi before we kill the engi
+                            iCurFaction = M28UnitInfo.GetUnitFaction(oEngi)
+                            if iCurFaction == iOrigFaction or (iCurFaction and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory * M28UnitInfo.ConvertFactionToCategory(iCurFaction) + M28UnitInfo.refCategoryEngineer * categories.TECH3 * M28UnitInfo.ConvertFactionToCategory(iCurFaction), tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+                                iLowestPriorityEngineer = iCurPriority
+                                oLowestPriorityEngineer = oEngi
+                            end
+                        end
+                    end
+                end
+            end
+            if oLowestPriorityEngineer then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return oLowestPriorityEngineer
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return oUnit
 end
