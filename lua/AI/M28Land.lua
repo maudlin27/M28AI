@@ -3010,7 +3010,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 64 and iLandZone == 2 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
@@ -3845,10 +3845,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local tNearbyEnemiesOfCategory = EntityCategoryFilterDown(iCategoryToSearch, tLZTeamData[M28Map.reftoNearestDFEnemies])
                     local iClosestEnemyOfCategory = 10000
                     local iCurDistOfCategory
+                    local iCurHealth
+                    local iLowestHealth = 10000000
                     if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Is tNearbyEnemiesOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory))) end
                     if M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory) == false then
-                        local iCurHealth
-                        local iLowestHealth = 10000000
+
                         for iEnemy, oEnemy in tNearbyEnemiesOfCategory do
                             if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToMidpoint)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
                             if oEnemy:GetFractionComplete() == 1 then
@@ -3867,42 +3868,61 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; iLowestHealth='..iLowestHealth) end
-                        --Consider targeting T3 land for ythotha
-                        if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
+                    end
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
+                    --Consider targeting T3 land for ythotha
+                    if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
+                        --If we alreayd have a target that is in range then stick with this if we are near it
+                        local iCurAngleDif
+                        local iClosestAngleDif = 1000
+                        local iYthothaAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+
+                        local oExistingAttackTarget = oUnit[M28Orders.reftiLastOrders][M28Orders.refiOrderCount][M28Orders.subrefoOrderUnitTarget]
+                        if M28UnitInfo.IsUnitValid(oExistingAttackTarget) and M28Utilities.GetDistanceBetweenPositions(oExistingAttackTarget:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 1 then
+                            --Record closest angle dif and reduce by 15 so we wont switch targets to another unit if it wouldnt be that much of an improvement
+                            iClosestAngleDif = math.max(0, M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oExistingAttackTarget:GetPosition())) - 15)
+                        end
+                        if iClosestAngleDif > 30 then --i.e. 45+ angle dif since we reduce it by 15 in the above step
                             local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tOtherPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(  tOtherPriorityTargets))) end
                             if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
-                                for iEnemy, oEnemy in tNearbyEnemiesOfCategory do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering ythotha t3 oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToMidpoint)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
+                                for iEnemy, oEnemy in tOtherPriorityTargets do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering ythotha t3 oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToMidpoint)..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Unit max health='..oEnemy:GetMaxHealth()..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Dist to us='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition())..'; Angle dif='..M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))..'; Closest dif='..iClosestAngleDif) end
                                     if oEnemy:GetFractionComplete() == 1 then
                                         if oEnemy:GetMaxHealth() >= 2000 and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
                                             iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
                                             iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
                                             if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] then
-                                                iLowestHealth = iCurHealth
-                                                oManualAttackTarget = oEnemy
-                                                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting ythotha manual attack target to this enemy') end
+                                                iCurAngleDif = M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))
+                                                if iCurAngleDif < iClosestAngleDif then
+                                                    iClosestAngleDif = iCurAngleDif
+                                                    oManualAttackTarget = oEnemy
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting ythotha manual attack target to this enemy') end
+                                                end
+
                                             elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too far away for ythotha to target')
                                             end
                                         end
                                     end
                                 end
                             end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Will stick with existing manual attack target')
                         end
-                        if oManualAttackTarget then
-                            --Is nearest enemy to midpoitn a better target?
-                            if not(oManualAttackTarget == oNearestEnemyToMidpoint) and EntityCategoryContains(iCategoryToSearch, oNearestEnemyToMidpoint.UnitId) and oNearestEnemyToMidpoint:GetFractionComplete() == 1 then
-                                if oNearestEnemyToMidpoint:GetHealth() < iLowestHealth and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 2 then
-                                    if M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToMidpoint) then
-                                        oManualAttackTarget = oNearestEnemyToMidpoint
-                                    else
-                                        oManualAttackTarget = nil
-                                    end
+                    end
+                    if oManualAttackTarget then
+                        --Is nearest enemy to midpoitn a better target?
+                        if not(oManualAttackTarget == oNearestEnemyToMidpoint) and EntityCategoryContains(iCategoryToSearch, oNearestEnemyToMidpoint.UnitId) and oNearestEnemyToMidpoint:GetFractionComplete() == 1 then
+                            if oNearestEnemyToMidpoint:GetHealth() < iLowestHealth and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 2 then
+                                if M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToMidpoint) then
+                                    oManualAttackTarget = oNearestEnemyToMidpoint
+                                else
+                                    oManualAttackTarget = nil
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..':GetManualAttackTargetIfWantManualAttack - Finished checking if nearest enemy to midpoint is better target, oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; Nearest enemy to midpoint health='.. oNearestEnemyToMidpoint:GetHealth()) end
                             end
-                            --Include T3 land for manual attack targets for ythotha
+                            if bDebugMessages == true then LOG(sFunctionRef..':GetManualAttackTargetIfWantManualAttack - Finished checking if nearest enemy to midpoint is better target, oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; Nearest enemy to midpoint health='.. oNearestEnemyToMidpoint:GetHealth()) end
                         end
+                        --Include T3 land for manual attack targets for ythotha
                     end
                 end
             end
@@ -6265,6 +6285,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if tRemainingLandUnits then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
                             if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                                --Campaign specific - send to main enemy campaign base
                                 if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(M28Team.GetEnemyMainCampaignBase(iTeam)) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Team.GetEnemyMainCampaignBase(iTeam)) == iPlateau then
                                     if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Team.GetEnemyMainCampaignBase(iTeam)) == tLZData[M28Map.subrefLZIslandRef] then
                                         for iUnit, oUnit in tRemainingLandUnits do
@@ -6288,53 +6309,31 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 if tbGivenIndexUnitOrder[iCurUnit] then table.remove(tRemainingLandUnits, iCurUnit) end
                                             end
                                         end
-                                        --Can we path to the enemy base with land? if so then send units to it
-                                        if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) then
-                                            if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase])) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Will send all land units to closest enemy base') end
-                                                for iUnit, oUnit in tRemainingLandUnits do
-                                                    M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
-                                                end
-                                                tRemainingLandUnits = nil
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                                    --Can we path to the enemy base with land? if so then send units to it
+                                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) then
+                                        if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase])) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will send all land units to closest enemy base') end
+                                            for iUnit, oUnit in tRemainingLandUnits do
+                                                M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
                                             end
+                                            tRemainingLandUnits = nil
                                         end
-                                        if tRemainingLandUnits then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
-                                            if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
-                                                if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(M28Team.GetEnemyMainCampaignBase(iTeam)) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Team.GetEnemyMainCampaignBase(iTeam)) == iPlateau then
-                                                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Team.GetEnemyMainCampaignBase(iTeam)) == tLZData[M28Map.subrefLZIslandRef] then
-                                                        for iUnit, oUnit in tRemainingLandUnits do
-                                                            M28Orders.IssueTrackedMove(oUnit, M28Team.GetEnemyMainCampaignBase(iTeam), 6, false, 'CmpEnB'..iLandZone)
-                                                        end
-                                                    else
-                                                        --Do we have any amphibious or hover units?
-                                                        local tbGivenIndexUnitOrder = {}
-                                                        for iUnit, oUnit in tRemainingLandUnits do
-                                                            if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
-                                                                tbGivenIndexUnitOrder[iUnit] = true
-                                                                M28Orders.IssueTrackedMove(oUnit, M28Team.GetEnemyMainCampaignBase(iTeam), 6, false, 'CmpHEnB'..iLandZone)
-                                                            end
-                                                        end
-                                                        if M28Utilities.IsTableEmpty(tbGivenIndexUnitOrder) == false then
-                                                            for iCurUnit = table.getn(tRemainingLandUnits), 1, -1 do
-                                                                if tbGivenIndexUnitOrder[iCurUnit] then table.remove(tRemainingLandUnits, iCurUnit) end
-                                                            end
-                                                        end
-
-                                                    end
+                                    end
+                                    if tRemainingLandUnits then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
+                                        if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                                            --Cant go to enemy base, so just follow land scouting path
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Follow land scouting path if we have one, is patrol path empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]))) end
+                                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                                                --Patrol the land zone
+                                                for iUnit, oUnit in tRemainingLandUnits do
+                                                    M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
                                                 end
-                                                if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
-                                                    --Cant go to enemy base, so just follow land scouting path
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Follow land scouting path if we have one, is patrol path empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]))) end
-                                                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
-                                                        --Patrol the land zone
-                                                        for iUnit, oUnit in tRemainingLandUnits do
-                                                            M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
-                                                        end
-                                                    else
-                                                        --Do nothing
-                                                    end
-                                                end
+                                            else
+                                                --Do nothing
                                             end
                                         end
                                     end

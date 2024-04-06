@@ -2247,9 +2247,10 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         else
             --tNonBombardmentRallyPoint = {tEnemyBase[1], tEnemyBase[2], tEnemyBase[3]}
             iDFMinRange = iOurBestDFRange
-            iIndirectMinRange = iOurBestIndirectRange
+            iIndirectMinRange = math.min(120, iOurBestIndirectRange)
             if bDebugMessages == true then LOG(sFunctionRef..': No mexes to consider so will just have the enemy base as the main bombardment target') end
         end
+
 
         --Get the target
         local tBombardmentMainTarget
@@ -2463,6 +2464,13 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                 end
             end
         end
+
+        --Set the min range for units such as destroyers on high health to be treated as main bombardment units
+        local iDFLowerMinRange =  iOurBestDFRange
+        if iOurBestDFRange > 60 and (bCheckForBuildingsToAttack or bCheckForDefences or (oClosestEnemyUnit and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestEnemyUnit:GetPosition(), tWZData[M28Map.subrefMidpoint]), 60, true)) == iPond)) then
+            iDFLowerMinRange = 60
+        end
+
         for iUnit, oUnit in tPotentialBombardmentUnits do
             bDontCheckIfTargetUnderwater = (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0
             if bDebugMessages == true then LOG(sFunctionRef .. ': Considering unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; is underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
@@ -2473,7 +2481,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                 if bCheckForDefences then
 
                     iDefencesHeadroom = 1000
-                    if oUnit:GetHealth() >= 2100 then
+                    if oUnit:GetHealth() >= 2100 and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.35 then
                         if M28Utilities.IsTableEmpty(tDefencesExclT2Arti) == false then
                             for iDefence, oDefence in tDefencesExclT2Arti do
                                 ConsiderRetreatingFromDefendingUnit(oUnit, oDefence)
@@ -2513,7 +2521,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
                     M28Orders.IssueTrackedMove(oUnit, tOurBase, 20, false, 'NBRetr')
                 else
-                    if (oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFMinRange or (oUnit[M28UnitInfo.refiIndirectRange] or 0) >= iIndirectMinRange then
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFMinRange or (oUnit[M28UnitInfo.refiIndirectRange] or 0) >= iIndirectMinRange or ((oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFLowerMinRange and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.5) then
                         --Attack-move to target, unless we already have a structure in range or our shot is blocked
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Checking if shot blocked for unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '. tBlockedShotBaseMoveLocation=' .. repru(tBlockedShotBaseMoveLocation) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil') .. '; oUnit[M28UnitInfo.refbLastShotBlocked]=' .. tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Time of last unblocked shot='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100))..'; Time since last refiLastWeaponEvent='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100)) end
 
