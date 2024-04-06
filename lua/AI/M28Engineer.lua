@@ -10444,7 +10444,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': We have an active HQ upgrade so will assist this') end
             else
                 --We need a priority upgrade, unless it is early game and the ACU is unupgraded and isnt trying to upgrade
-                if GetGameTimeSeconds() >= 5.5*60/M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oNearestEnemyACU and (oNearestEnemyACU:IsUnitState('Upgrading') or (oNearestEnemyACU[M28ACU.refiUpgradeCount] or 0) > 0)) then
+                if GetGameTimeSeconds() >= 330/M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryEngineer) >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oNearestEnemyACU and (oNearestEnemyACU:IsUnitState('Upgrading') or (oNearestEnemyACU[M28ACU.refiUpgradeCount] or 0) > 0)) then
                     local tExistingT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory * categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if M28Utilities.IsTableEmpty(tExistingT1LandFactories) == false then
                         --Get factory with lowest fraction complete
@@ -11347,7 +11347,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
 
                     --Campaign maps - further reduce amount earlier into the game
-                    if M28Map.bIsCampaignMap and iGroundAAThreatWanted >= 8000 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4) and (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= math.max(20000, 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) or GetGameTimeSeconds() <= 15 * 60) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(20, tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] / 1000)) then
+                    if M28Map.bIsCampaignMap and iGroundAAThreatWanted >= 8000 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4) and (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= math.max(20000, 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) or GetGameTimeSeconds() <= 900) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(20, tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] / 1000)) then
                         iGroundAAThreatWanted = math.min((iGroundAAThreatWanted - 8000) * 0.25 + 8000, 12000)
                     end
                 end

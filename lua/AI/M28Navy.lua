@@ -2428,7 +2428,6 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         local oBuildingToAttack
         local iDefencesHeadroom
         local bBlockedSoMove = false --If unit shot is blocked and it should be able to hit the mex then have it move to where we thought the shot would be able to hit from
-        if iWaterZone == 3 and GetGameTimeSeconds() >= 17*60+30 then bDebugMessages = true end
         local iBlockedAngleFromMexOrTarget
         local iBlockedDistanceFromMexOrTarget
         if tBlockedShotBaseMoveLocation then

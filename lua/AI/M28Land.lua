@@ -3010,7 +3010,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 64 and iLandZone == 2 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
@@ -3869,7 +3869,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
                     --Consider targeting T3 land for ythotha
                     if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
@@ -5466,7 +5465,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                             end
                                             if oClosestMex then
-                                                bDebugMessages = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will suicide unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' into oClosestMex='..oClosestMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestMex)) end
                                                 bUnitIsSuicidingIntoMex = true
                                                 if iClosestMex <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
