@@ -2755,7 +2755,7 @@ function GetBestEngiToKill(oUnit)
             local iCurPriority
             local iOrigFaction = M28UnitInfo.GetUnitFaction(oUnit)
             local iCurFaction
-            bDebugMessages = true
+
             for iEngi, oEngi in tT1AndT2EngisInZone do
                 if M28UnitInfo.IsUnitValid(oEngi) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering possible replacement engi, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Engi state='..M28UnitInfo.GetUnitState(oEngi)..'; Assigned priority='..(oEngi[M28Engineer.refiAssignedActionPriority] or 'nil')..'; Is primary builder='..tostring(oEngi[M28Engineer.refbPrimaryBuilder] or false)) end
