@@ -447,7 +447,7 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMassFactor after considering if will kill it='..iMassFactor..'; Unit max health='..iMaxHealth..'; CurHealth='..iCurHealth) end
                         --Is the target mobile and within 1 of the AOE edge? If so then reduce to 25% as it might move out of the wayif
                         if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and iAOE - 0.5 < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) then iMassFactor = iMassFactor * 0.25 end
-                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
+                        iTotalDamage = iTotalDamage + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() * iMassFactor
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..';refiUnitMassCost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
                     end
                 end
@@ -561,7 +561,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         else
 
             local oBlueprint = M28UnitInfo.GetBlueprintFromID(sBlueprint)
-            local iCurSize = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+            local iCurSize = math.min((oBlueprint.Physics.SkirtSizeX or 0), (oBlueprint.Physics.SkirtSizeZ or 0))
             local iCurSize = math.floor(iCurSize)
             if bDebugMessages == true then LOG(sFunctionRef..': iCurSize='..iCurSize..'; tiSizeAdjustFactors[iCurSize]='..(tiSizeAdjustFactors[iCurSize] or 'nil')..'; expected factor='..1 + (tiSizeAdjustFactors[iCurSize] or -0.35) * iDifBetweenSize8And2) end
 
@@ -583,7 +583,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
                         end
                     else
-                        iTotalDamage = iTotalDamage - (oUnit[M28UnitInfo.refiUnitMassCost] or 0) * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
+                        iTotalDamage = iTotalDamage - (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
                     end
                 end
             end
@@ -740,7 +740,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         --Increase mass factor for special category specified
                         if iOptionalSpecialCategoryDamageFactor and EntityCategoryContains(iOptionalSpecialCategory, oUnit.UnitId) then iMassFactor = iMassFactor * iOptionalSpecialCategoryDamageFactor end
 
-                        iTotalDamage = iTotalDamage + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete() * iMassFactor
+                        iTotalDamage = iTotalDamage + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() * iMassFactor
                         --Increase further for SML and SMD that might have a missile
                         if EntityCategoryContains(M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                             if oUnit:GetFractionComplete() == 1 then

@@ -486,7 +486,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tExperimentals) == false then
             for iUnit, oUnit in tExperimentals do
                 if oUnit:GetFractionComplete() < 1 then
-                    tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
+                    tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': Have under construction experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in Plateau '..iPlateau..' Zone '..iZone..'; will increase threat for this, fraction complete='..oUnit:GetFractionComplete()..'; structure threat after increase='..tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) end
                 end
             end
@@ -549,7 +549,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 if oUnit:GetFractionComplete() >= 0.9 then
                     iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
                     iThreatFactor = math.max(0.1, iCurShield /  iMaxShield)
-                    tLZTeamData[M28Map.subrefLZThreatEnemyShield] = tLZTeamData[M28Map.subrefLZThreatEnemyShield] + iThreatFactor * oUnit[M28UnitInfo.refiUnitMassCost]
+                    tLZTeamData[M28Map.subrefLZThreatEnemyShield] = tLZTeamData[M28Map.subrefLZThreatEnemyShield] + iThreatFactor * (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                 end
             end
         end
@@ -670,7 +670,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoTeammateFixedDF]) then
         local iAlliedFixedDF = 0
         for iUnit, oUnit in tLZTeamData[M28Map.subreftoTeammateFixedDF] do
-            iAlliedFixedDF = iAlliedFixedDF + oUnit[M28UnitInfo.refiUnitMassCost]
+            iAlliedFixedDF = iAlliedFixedDF + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
         end
         tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] + iAlliedFixedDF
         if bDebugMessages == true then LOG(sFunctionRef..': Increasing combat threat for zone '..iLandZone..' for DF by '..iAlliedFixedDF) end
@@ -678,7 +678,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoTeammateFixedAA]) then
         local iAlliedFixedAA = 0
         for iUnit, oUnit in tLZTeamData[M28Map.subreftoTeammateFixedAA] do
-            iAlliedFixedAA = iAlliedFixedAA + oUnit[M28UnitInfo.refiUnitMassCost]
+            iAlliedFixedAA = iAlliedFixedAA + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
         end
         tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] + iAlliedFixedAA
         if bDebugMessages == true then LOG(sFunctionRef..': Increasing AA allied threat for zone '..iLandZone..' by '..iAlliedFixedAA) end
@@ -3218,17 +3218,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if iMaxShield > 0 then
                                 bHaveFatboys = true
                                 if iCurShield > 0 then
-                                    iLRExpThreat = iLRExpThreat + oUnit[M28UnitInfo.refiUnitMassCost] * iCurShield / iMaxShield
+                                    iLRExpThreat = iLRExpThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iCurShield / iMaxShield
                                     if iCurShield < iMaxShield * 0.7 then bHaveDamagedFatboys = true end
                                 else bHaveDamagedFatboys = true
                                 end
                             else
-                                iLRExpThreat = iLRExpThreat + oUnit[M28UnitInfo.refiUnitMassCost] * M28UnitInfo.GetUnitHealthPercent(oUnit)
+                                iLRExpThreat = iLRExpThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28UnitInfo.GetUnitHealthPercent(oUnit)
                             end
                         end
                         --Include megalith in both LR and SR threats
                         if (oUnit[M28UnitInfo.refiDFRange] or 0) <= 80 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitId)) then
-                            iSRExpThreat = iSRExpThreat + oUnit[M28UnitInfo.refiUnitMassCost] * M28UnitInfo.GetUnitHealthPercent(oUnit)
+                            iSRExpThreat = iSRExpThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28UnitInfo.GetUnitHealthPercent(oUnit)
                             if not(bHaveSRExpNearFirebaseUnit) and oClosestUnitFromAllFirebases and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestUnitFromAllFirebases:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 10 then
                                 bHaveSRExpNearFirebaseUnit = true
                             end
@@ -3984,7 +3984,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iRoughAvailableDFThreat = 0
                     for iUnit, oUnit in tAvailableCombatUnits do
                         if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - M28UnitInfo.refCategorySkirmisher, oUnit.UnitId) then
-                            iRoughAvailableDFThreat = iRoughAvailableDFThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                            iRoughAvailableDFThreat = iRoughAvailableDFThreat + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                             if iRoughAvailableDFThreat >= 1000 then
                                 bOnlyRetreatIndirectIfEnemyDFAlmostInRange = true
                                 break
@@ -4585,7 +4585,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AIKRetr'..iLandZone)
                                                     end
                                                 else
-                                                    if iCurDistToDFEnemy <= math.max(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 8, oUnit[M28UnitInfo.refiCombatRange] - 10) then
+                                                    if iCurDistToDFEnemy <= math.max((oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0) + 8, (oUnit[M28UnitInfo.refiCombatRange] or 0) - 10) then
                                                         local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), 8, true, false, M28Map.bIsCampaignMap)
                                                         if tTemporaryRetreatLocation and NavUtils.GetLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) == tLZData[M28Map.subrefLZIslandRef] then
                                                             bTemporaryKiting = true
@@ -5701,7 +5701,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     M28Orders.IssueTrackedGroundAttack(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchGA', false)
                                     table.insert(tMMLWithNearbyTargets, oUnit)
                                     if bConsiderMultipleTargets then
-                                        tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] = (tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] or 0) + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                                        tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] = (tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] or 0) + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                                         if tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] >= math.max(1000, M28UnitInfo.GetUnitMaxHealthIncludingShield(oUnit) * oUnit:GetFractionComplete() * 0.4) then
                                             --Remove unit from the priority target table and add to the 'other' table
                                             for iEntry, oEntry in  tPriorityMMLTargets do
@@ -6657,7 +6657,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     else
                                         table.insert(tUnavailableUnitsInThisLZ, oUnit)
                                     end
-                                    iUnitMassCost = oUnit[M28UnitInfo.refiUnitMassCost]
+                                    iUnitMassCost = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                                     if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Wnat mobile shield for unit') end
@@ -8019,7 +8019,7 @@ function DontHaveJerichoAttackTarget(oJericho)
             for iUnit, oUnit in tEnemiesInRange do
                 --Non-attached on land near-built unit that isnt inside minimum range?
                 if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() >= 0.5 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oJericho:GetPosition()) >= iMinRange then
-                    iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
+                    iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                     if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurValue = iCurValue * 0.1 end
                     if iCurValue > iHighestValue then
                         if (M28UnitInfo.GetBuildingSize(oUnit.UnitId) or 0) <= 4 then iCurValue = iCurValue * 0.3 end
@@ -8080,7 +8080,7 @@ function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdju
             for iUnit, oUnit in tMobileLandLRThreat do
                 if M28UnitInfo.IsUnitValid(oUnit) then
                     --Only consider powerful units - e.g. fatboy
-                    iUnitBaseThreat = oUnit[M28UnitInfo.refiUnitMassCost] --want mass value since fatboy could regain its shield at any point
+                    iUnitBaseThreat = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) --want mass value since fatboy could regain its shield at any point
                     if bMinorZoneAdjustment then iUnitBaseThreat = iUnitBaseThreat * oUnit:GetFractionComplete() end
                     if iUnitBaseThreat >= 1000 then
                         --Only include if it can path to this zone

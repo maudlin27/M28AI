@@ -2717,13 +2717,17 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
             local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
             local iTicksToWait = 1
+            local iPausedTicksWaited = 0
 
             while not (bProceed) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(iTicksToWait)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 if bDontCheckCutsceneStatus or not(ScenarioInfo.OpEnded) then
-                    iTicksWaited = iTicksWaited + iTicksToWait
+                    if oFactory[M28UnitInfo.refbPaused] then iPausedTicksWaited = iPausedTicksWaited + 1
+                    else
+                        iTicksWaited = iTicksWaited + iTicksToWait
+                    end
                 end
                 if M28UnitInfo.IsUnitValid(oFactory) == false then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2759,6 +2763,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                             end
                         end
                     end
+                elseif iPausedTicksWaited >= 600 then
+                    M28Utilities.ErrorHandler('oFactory has waited more than 600 ticks where it has been flagged as being paused, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
                 end
             end
             if bProceed then

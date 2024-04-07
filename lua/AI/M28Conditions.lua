@@ -2832,7 +2832,7 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             if M28Utilities.IsTableEmpty(tUnitTable) == false then
                 for iUnit, oUnit in tUnitTable do
                     if M28UnitInfo.IsUnitValid(oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint) <= iSearchDistance then
-                        iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                        iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                         if iCumulativeUnitValue >= iMassValue then return true end
                     end
                 end

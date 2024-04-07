@@ -1932,12 +1932,28 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                     return true
                 else
                     --If not a core expansion, then check there is actually an enemy unit nearby (such that we are liekly going to be attacking)
-                    if tLZOrWZTeamData[M28Map.subrefLZCoreExpansion] or M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Utilities.GetNearestUnit(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU:GetPosition()):GetPosition()) <= 50 then
+                    if tLZOrWZTeamData[M28Map.subrefLZCoreExpansion] then
                         --Do nothing
                         if bDebugMessages == true then LOG(sFunctionRef..': Etiher core xpansion or closest DF unit is within 50 of us so we dont want to run as it may be better to attack instead') end
                     else
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
+                        local oNearestUnit
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            oNearestUnit = M28Utilities.GetNearestUnit(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU:GetPosition())
+                            if M28UnitInfo.IsUnitValid(oNearestUnit) then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestUnit:GetPosition()) <= 50 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Closest enmy unit is within 50 so dont want to run as it may be better to attack') end
+                                else
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                end
+                            else
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
+                        else
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
                     end
 
                 end
@@ -3108,7 +3124,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                         iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.6, math.max((iUnitHealth - 15000) * 0.3))
                     end
                 else
-                    iCurTargetValue = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
+                    iCurTargetValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before shield adjust='..iCurTargetValue) end
                 if iCurTargetValue > iHighestValueTarget then

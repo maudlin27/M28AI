@@ -126,6 +126,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
     refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
     reftEnemyLandExperimentals = 'M28TeamELandE'
+    reftEnemyAirExperimentals = 'M28AirExp'
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
     reftEnemySMD = 'M28TeamESMD'
@@ -223,6 +224,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
     reftiCoreZonesByPlateau = 'M28CZBPl' --[x] = plateau ref, [y] = LZ ref, returns true
     reftEnemyShieldsFailedToArti = 'M28SFlArt' --[x] = 1,2,3...x; returns the fixed shield unit
+    reftoVulnerableFatboys = 'M28FatB' --[x] = 1,2,3; returns the fatboy unit; fatboy gets recorded when it gets low on shields
+    refbActiveVulnerableFatboyMonitor = 'M28FatVMon' --true if have active thread for the team for vulnerable fatboys
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -269,7 +272,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 
 
 --Other variables dependent on above:
-tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite }
+tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite, [reftEnemyAirExperimentals] = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL }
 
 
 
@@ -604,6 +607,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemyNukeLaunchers] = {}
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
     tTeamData[iTotalTeamCount][reftEnemyMobileSatellites] = {}
+    tTeamData[iTotalTeamCount][reftEnemyAirExperimentals] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandAndZoneDropTime] = {}
@@ -1649,7 +1653,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
                                 --Exception if this is only the first sniperbot and we have multiple friendly ACUs
                                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
-                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
@@ -1713,7 +1717,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
-                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and oUnit[M28UnitInfo.refiUnitMassCost] >= 600 then
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
                                 AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
 
@@ -1893,7 +1897,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                     --Do nothing
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
                     --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead
-                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and oUnit[M28UnitInfo.refiUnitMassCost] >= 25 then
+                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 25 then
                         if not(M28Map.bIsCampaignMap) or (not(tTeamData[aiBrain.M28Team][rebTeamOnlyHasCampaignAI]) and not(oUnit[M28UnitInfo.refbIsReclaimTarget] == false)) then
                             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                             local bIncluded = false
@@ -4352,4 +4356,23 @@ function MonitorLeavingT1SpamMode(iTeam)
 
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorVulnerableFatboys(iTeam)
+    if not(tTeamData[iTeam][refbActiveVulnerableFatboyMonitor]) then
+        tTeamData[iTeam][refbActiveVulnerableFatboyMonitor] = true
+        local iCurShield, iMaxShield
+        while M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftoVulnerableFatboys]) do
+            for iCurFatboy = table.getn(tTeamData[iTeam][reftoVulnerableFatboys]), 1, -1 do
+                local oFatboy = tTeamData[iTeam][reftoVulnerableFatboys][iCurFatboy]
+                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oFatboy, true)
+                if (iCurShield >= 1500 and iCurShield / iMaxShield >= 0.6) or M28UnitInfo.IsUnitUnderwater(oFatboy) then
+                    table.remove(tTeamData[iTeam][reftoVulnerableFatboys], iCurFatboy)
+                    if M28Utilities.IsTableEmpty(tTeamData[iTeam][refbActiveVulnerableFatboyMonitor]) then break end
+                end
+            end
+            WaitSeconds(10)
+        end
+        tTeamData[iTeam][refbActiveVulnerableFatboyMonitor] = false
+    end
 end

@@ -141,7 +141,7 @@ refCategoryT3Power = categories.STRUCTURE * categories.ENERGYPRODUCTION * catego
 refCategoryMassStorage = categories.STRUCTURE * categories.MASSSTORAGE * categories.TECH1
 
 refCategoryEnergyStorage = categories.STRUCTURE * categories.ENERGYSTORAGE
-refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION * categories.MASSFABRICATION
+refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION
 refCategoryMassFab = categories.MASSFABRICATION * categories.STRUCTURE - categories.MASSEXTRACTION - categories.EXPERIMENTAL
 
 --Building - intel and misc
@@ -1295,7 +1295,11 @@ function GetUnitStrikeDamage(oUnit)
         end
         if iStrikeDamage == 0 then
             iStrikeDamage = 750 --Backup
-            M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+            --Nomads T2 gunship (which also has antinavy attack):
+            if sBP == 'xna0203' then iStrikeDamage = 120
+            else
+                M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+            end
         end
     elseif EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, sBP) then
         iStrikeDamage = GetSniperStrikeDamage(oUnit)
@@ -1441,7 +1445,7 @@ function RecordUnitRange(oUnit)
         --Special unit adjustments:
         --Seraphim sniperbot - want to enable long range if we own it
         if oUnit.GetAIBrain and oUnit:GetAIBrain().M28AI and EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
-            EnableLongRangeSniper(oUnit)
+            ForkThread(EnableLongRangeSniper, oUnit) --forked thread as in replay 22225087 April 2024 an error was caused by running this
             --LOG('Enabled long range on sniper, DFRange='..oUnit[refiDFRange]..'; Strike damage='..GetUnitStrikeDamage(oUnit))
         end
         --Fatboy - treat DF and indirect range as being the higher of its two ranges
@@ -1658,6 +1662,7 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
             local bRecordUnit = true
             local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
             if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': First time running so will setup variable, iTeam='..(iTeam or 'nil')..'; Unit='..(oUnit.UnitId or 'nil')..(GetUnitLifetimeCount(oUnit) or 'nil')) end
                 if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) then M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] = {} end
                 M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority] = {}
             else
@@ -2079,6 +2084,7 @@ function GetSniperStrikeDamage(oUnit)
 end
 
 function EnableLongRangeSniper(oUnit)
+    --CALL VIA FORK THREAD as workaround for Nomads error
     --If unit has a sniper weapon, then toggle it
     if oUnit.SetWeaponEnabledByLabel and not(oUnit[refbSniperRifleEnabled]) then
         local oBP = oUnit:GetBlueprint()
@@ -2093,7 +2099,7 @@ function EnableLongRangeSniper(oUnit)
         end
 
         if bHaveSniperWeapon then
-            oUnit:OnScriptBitSet(1)
+            oUnit:OnScriptBitSet(1) --NOTE: If playing using nomads this will cause an error (as at 2024-04-07)
             oUnit[refbSniperRifleEnabled] = true
             --LOG('Enabled sniperrifle on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
         end
@@ -2294,4 +2300,18 @@ end
 
 function DischargeShield(oShield)
     import("/lua/sim/commands/discharge-shields.lua").DischargeShields({ oShield }, true)
+end
+
+function GetUnitMassCost(oUnit)
+    if not(oUnit[refiUnitMassCost]) then
+        if IsUnitValid(oUnit) then
+            if not(oUnit[refiCombatRange]) then RecordUnitRange(oUnit) end
+            if not(oUnit[refiUnitMassCost]) then
+                oUnit[refiUnitMassCost] = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+            end
+        else
+            return 0
+        end
+    end
+    return (oUnit[refiUnitMassCost] or 0)
 end

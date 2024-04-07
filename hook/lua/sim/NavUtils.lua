@@ -5,7 +5,8 @@
 ---
 ---
 
-function GetTerrainLabel(layer, position)
+--GetTerrainLabel introduced into FAF at some point in 2023, so commented out as hook no longer necessary
+--[[function GetTerrainLabel(layer, position)
     -- check if generated
     if not NavGenerator.IsGenerated() then
         WarnNoNavMesh()
@@ -33,4 +34,4 @@ function GetTerrainLabel(layer, position)
     end
 
     return leaf.Label, nil
-end
+end--]]
