@@ -2685,7 +2685,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iTeam == 1 and GetGameTimeSeconds() >= 48*60+40 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -4983,7 +4983,6 @@ function ManageGunships(iTeam, iAirSubteam)
                             end
                         end
                     end
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy fatboy as gunship target. oClosestFatboy='..(oClosestFatboy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFatboy) or 'nil')..'; iClosestFatboy='..iClosestFatboy) end
                     if oClosestFatboy then
                         local iCurFatboyPlateau, iCurFatboyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestFatboy:GetPosition())
@@ -8081,7 +8080,7 @@ end
 
 function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
     --E.g. if enemy strat bomber fires a bomb, and we dont have it recorded as a 'suicide into' target, consider adding it
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderRecordingStratBomberToSuicideInto'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
