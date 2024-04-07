@@ -2725,7 +2725,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..aiBrain.Nickname..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..aiBrain.Nickname..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))) end
             --Land subteam - use aiBrain.M28LandSubteam
             local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
             local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
@@ -8681,7 +8681,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
     --returns two variables, the first is true/false if iLandZone has a queued experimental to build; the second is the number of other land zones for iTeam that have queued experimentals to build
     --Optional variables are all for if bOptionalReturnMassToCompleteOtherZoneUnderConstruction is true, except for iOptionalCategoryFilter
     --bOptionalReturnMassToCompleteOtherZoneUnderConstruction will return the amount of mass needed to complete all under construction experimentals in other zones
-    --iOptionalSearchRange Will only include those within iOptionalSearchRange
+    --iOptionalSearchRange Will only include those within iOptionalSearchRange; if 0 then will only include exp in this zone
     --iOptionalCategoryFilter - if specified, then will only count engineers who are building or are queued to build a unit meeting this category (will include everything if nil)
     --bOptionalClearEngineersInOtherZonesWithoutConstruction - if true, then will clear any engineers building an experimental in a dif zone to the one specified if it is only queued up for all those units and none have started construction
 
@@ -8784,7 +8784,8 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                     else
                         if not(iOptionalSearchRange) then
                             iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
-                        else
+                        elseif iOptionalSearchRange > 0 then
+
                             local tExpLZData = M28Map.tAllPlateaus[iAssignedPlateau][M28Map.subrefPlateauLandZones][iAssignedLZ]
                             if M28Utilities.GetDistanceBetweenPositions(tExpLZData[M28Map.subrefMidpoint], tBaseLZDataIfRelevant[M28Map.subrefMidpoint]) <= iOptionalSearchRange then
                                 iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
@@ -8797,7 +8798,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
         if bOptionalReturnMassToCompleteOtherZoneUnderConstruction and M28Utilities.IsTableEmpty(toUnderConstructionExperimentalsInOtherZonesByUnitRef) == false then
             local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
-                if not(iOptionalSearchRange) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange then
+                if not(iOptionalSearchRange) or (iOptionalSearchRange > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
                     iMassToComplete = iMassToComplete + oUnit[M28UnitInfo.refiUnitMassCost] * (1 - oUnit:GetFractionComplete())
                 end
             end
@@ -9079,8 +9080,10 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
     local sFunctionRef = 'AssignBuildExperimentalOrT3NavyAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --Check if a teammate has units nearby that we might want to assist instead
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..(iPlateau or 'nil')..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iActionToAssign='..(iActionToAssign or 'nil')..'; iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')..'; iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Is table of T3 navy and exp empty for our team (i.e. for nonM28 units)='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..(iPlateau or 'nil')..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iActionToAssign='..(iActionToAssign or 'nil')..'; iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')..'; iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Is table of T3 navy and exp empty for our team (i.e. for nonM28 units)='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]))..'; Is table of enemy air exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]))..'; Team airaa threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Enemy air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Do we have exp under construction in this zone='..tostring(GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, false, 0, nil, false) or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
         --Update the table
         local tUnits = M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]
@@ -9182,6 +9185,31 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
                     fnHaveActionToAssign(refActionBuildSecondLandFactory,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5) * 0.5, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to extend t3 stage so will build t3 land fac instead of experimental, iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Time='..GetGameTimeSeconds()) end
+            end
+            --Assist air fac if we lack air control, have <100 asf equivalent, enemy has an experimental air unit, and we dont have lots of mass; if we are building an experimental in this zone and arent stalling mass then wont trigger
+        elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]) == false and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < math.min(40000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and (M28Conditions.TeamHasLowMass(iTeam) or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.25))
+                --Additional condition - Either are stalling mass/no mass stored, or we aren't building an experimental in this zone
+                and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.01 or not(GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, false, 0, nil, false))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to prioritise building asfs as we lack air control, have low mass, and enemy has experimental air') end
+            local oFactoryToAssist
+            local tLandFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirHQ, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tLandFactoriesInZone) then tLandFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+            local iHighestTechLevel = 0
+            local iCurTechLevel
+            if M28Utilities.IsTableEmpty(tLandFactoriesInZone) == false then
+                for iHQ, oHQ in tLandFactoriesInZone do
+                    iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oHQ)
+                    if iCurTechLevel > iHighestTechLevel then
+                        oFactoryToAssist = oHQ
+                        iHighestTechLevel = iCurTechLevel
+                    end
+                end
+            end
+
+            if oFactoryToAssist then
+                fnHaveActionToAssign(refActionAssistAirFactory,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), oFactoryToAssist, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            else
+                fnHaveActionToAssign(refActionBuildAirFactory,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
             --do nothing

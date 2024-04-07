@@ -126,6 +126,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
     refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
     reftEnemyLandExperimentals = 'M28TeamELandE'
+    reftEnemyAirExperimentals = 'M28AirExp'
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
     reftEnemySMD = 'M28TeamESMD'
@@ -271,7 +272,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 
 
 --Other variables dependent on above:
-tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite }
+tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite, [reftEnemyAirExperimentals] = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL }
 
 
 
@@ -606,6 +607,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemyNukeLaunchers] = {}
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
     tTeamData[iTotalTeamCount][reftEnemyMobileSatellites] = {}
+    tTeamData[iTotalTeamCount][reftEnemyAirExperimentals] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandAndZoneDropTime] = {}
