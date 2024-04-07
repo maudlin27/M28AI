@@ -1987,7 +1987,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
-                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 then
+                        local aiBrain = oJustBuilt:GetAIBrain()
+                        if aiBrain[M28Economy.refbBuiltParagon] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
                             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                                 for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -2244,7 +2245,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
     --LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
         local sFunctionRef = 'OnCreate'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -2483,8 +2484,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                         M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
                         if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': we have just built a mex so will call logic relating to that') end
                             ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have just built a paragon, will call special paragon logic') end
                             ForkThread(M28Building.JustBuiltParagon, oUnit)
                             --Campaign specific - expand core zones for campaign AI
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ + categories.COMMAND, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then

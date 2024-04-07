@@ -3616,7 +3616,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
 end
 
 function JustBuiltParagon(oParagon)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'JustBuiltParagon'
 
     WaitTicks(1)

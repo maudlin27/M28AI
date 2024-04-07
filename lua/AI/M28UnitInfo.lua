@@ -141,7 +141,7 @@ refCategoryT3Power = categories.STRUCTURE * categories.ENERGYPRODUCTION * catego
 refCategoryMassStorage = categories.STRUCTURE * categories.MASSSTORAGE * categories.TECH1
 
 refCategoryEnergyStorage = categories.STRUCTURE * categories.ENERGYSTORAGE
-refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION * categories.MASSFABRICATION
+refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION
 refCategoryMassFab = categories.MASSFABRICATION * categories.STRUCTURE - categories.MASSEXTRACTION - categories.EXPERIMENTAL
 
 --Building - intel and misc
