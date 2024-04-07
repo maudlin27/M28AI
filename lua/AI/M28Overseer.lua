@@ -2333,7 +2333,7 @@ function ConsiderSlowdownForHighUnitCount()
             M28Land.iTicksPerLandCycle = math.min(11, math.max(11, 11 + (iM28Units-1500) / 200))
             M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
             M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s
-            M28Chat.SendMessage(oFirstM28Brain, 'Slowdown', 'Even my apm cant keep up with this many units!', 0, 1000000, false, true)
+            M28Chat.SendSlowdownModeMessage(oFirstM28Brain)
             if bDebugMessages == true then LOG(sFunctionRef..': Slowdown mode active, M28Land.iTicksPerLandCycle='..M28Land.iTicksPerLandCycle..'; M28Air.iExtraTicksToWaitBetweenAirCycles='..M28Air.iExtraTicksToWaitBetweenAirCycles) end
         else
             --Use default values
