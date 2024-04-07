@@ -1662,6 +1662,7 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
             local bRecordUnit = true
             local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
             if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': First time running so will setup variable, iTeam='..(iTeam or 'nil')..'; Unit='..(oUnit.UnitId or 'nil')..(GetUnitLifetimeCount(oUnit) or 'nil')) end
                 if not(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) then M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] = {} end
                 M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority][iPausePriority] = {}
             else
@@ -2083,6 +2084,7 @@ function GetSniperStrikeDamage(oUnit)
 end
 
 function EnableLongRangeSniper(oUnit)
+    --CALL VIA FORK THREAD as workaround for Nomads error
     --If unit has a sniper weapon, then toggle it
     if oUnit.SetWeaponEnabledByLabel and not(oUnit[refbSniperRifleEnabled]) then
         local oBP = oUnit:GetBlueprint()
@@ -2097,7 +2099,7 @@ function EnableLongRangeSniper(oUnit)
         end
 
         if bHaveSniperWeapon then
-            oUnit:OnScriptBitSet(1)
+            oUnit:OnScriptBitSet(1) --NOTE: If playing using nomads this will cause an error (as at 2024-04-07)
             oUnit[refbSniperRifleEnabled] = true
             --LOG('Enabled sniperrifle on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
         end
