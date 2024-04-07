@@ -33,6 +33,8 @@ iExtraTicksToWaitBetweenAirCycles = 0 --Set by ConsiderSlowdownForHighUnitCount;
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
 tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one full cycle
 tiRecentExpBomberTargets = {} --when an experimental bomber fires, then will trakc here
+iBaseLowHealthThreshold = 0.55
+iProjectileLowHealthThreshold = 0.52 --should always be equal or lower than iBaseLowHealthThreshold
 
 --Against units:
     reftAssignedRefuelingUnits = 'M28AirRefueling'
@@ -769,7 +771,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
     local tInUseUnits = {}
     local tSpecialLogicUnits = {}
     local iLowFuelThreshold = 0.25
-    local iLowHealthThreshold = 0.55
+    local iLowHealthThreshold = iProjectileLowHealthThreshold
     if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then
 
         local oFirstBrain
@@ -821,6 +823,22 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
 
                             end
 
+                            --Gunship projectile logic - update table/flag
+                            if oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] then
+                                local iTotalDamage = 0
+                                if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftoEnemyProjectiles]) == false then
+                                    for iCurProjectile = table.getn(oUnit[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
+                                        local oCurProjectile = oUnit[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
+                                        if oCurProjectile:BeenDestroyed() then
+                                            table.remove(oUnit[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
+                                        else
+                                            iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 0)
+                                        end
+                                    end
+                                end
+                                if iTotalDamage == 0 then oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] = false end
+                            end
+
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))) end
                             if oUnit:IsUnitState('Attached') then
                                 --Clear any orders it might have as it is refueling
@@ -828,7 +846,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is already on its way to refuel so will treat as being in use, unit health percent='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Unit fuel percent='..oUnit:GetFuelRatio()..'; Dist to refuel target='..M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition())) end
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
@@ -862,28 +880,33 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     bSendUnitForRefueling = false
                                     --Consider if want to send unit to refuel
                                     if not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oUnit.UnitId)) then
-                                        if oUnit.GetFuelRatio then
-                                            iFuelPercent = oUnit:GetFuelRatio()
-                                        else iFuelPercent = 1
-                                        end
-                                        if iFuelPercent < iLowFuelThreshold then
-                                            --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
-                                                bSendUnitForRefueling = true
-                                            end
+                                        if oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] then
+                                            bSendUnitForRefueling = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit is expecting to take damage from projectiles so will send for refueling') end
                                         else
-                                            iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
-                                            if iHealthPercent <= iLowHealthThreshold then
+                                            if oUnit.GetFuelRatio then
+                                                iFuelPercent = oUnit:GetFuelRatio()
+                                            else iFuelPercent = 1
+                                            end
+                                            if iFuelPercent < iLowFuelThreshold then
+                                                --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
                                                 if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
                                                     bSendUnitForRefueling = true
                                                 end
-                                            elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
-                                                --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
-                                                if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
-                                                    bSendUnitForRefueling = true
+                                            else
+                                                iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
+                                                if iHealthPercent <= iLowHealthThreshold then
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
+                                                        bSendUnitForRefueling = true
+                                                    end
+                                                elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
+                                                    --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
+                                                    if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
+                                                        bSendUnitForRefueling = true
+                                                    end
                                                 end
                                             end
                                         end

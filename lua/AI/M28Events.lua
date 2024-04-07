@@ -1143,12 +1143,53 @@ end
     end
 end--]]
 
---[[function ProjectileCreated(oProjectile, inWater)
-    if oProjectile.GetCurrentTargetPosition then
+function ProjectileCreated(oProjectile, inWater)
+    --[[if oProjectile.GetCurrentTargetPosition then
         LOG('TEMP TEST will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
+    end--]]
+    if oProjectile.GetTrackingTarget then
+        local oTarget = oProjectile:GetTrackingTarget()
+        --M28 target specific logic:
+        if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local sFunctionRef = 'ProjectileCreated'
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            --Gunships - consider retreating early
+            if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                if M28UnitInfo.IsUnitValid(oTarget) then
+                    if not(oTarget[M28UnitInfo.reftoEnemyProjectiles]) then
+                        oTarget[M28UnitInfo.reftoEnemyProjectiles] = {}
+                    end
+                    table.insert(oTarget[M28UnitInfo.reftoEnemyProjectiles], oProjectile)
+                    --Estimate total damage to be dealt
+                    local iTotalDamage = 0
+                    for iCurProjectile = table.getn(oTarget[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
+                        local oCurProjectile = oTarget[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
+                        if oCurProjectile:BeenDestroyed() then
+                            table.remove(oTarget[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
+                        else
+                            iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 'nil')
+                        end
+                    end
+
+                    local iCurHealth = oTarget:GetHealth()
+                    local iMaxHealth = oTarget:GetMaxHealth()
+                    if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
+                        oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
+                        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam)
+                        if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship for refueling') end
+                    end
+
+                    --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))
+                    if bDebugMessages == true then LOG(sFunctionRef..': projectile target='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; Cur projectile damage='..(oProjectile.DamageData.DamageAmount or 'nil')..'; iTotalDamage='..iTotalDamage..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; Time='..GetGameTimeSeconds()) end
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
     end
-end--]]
+end
 
 --[[function ProjectileFiredFromWeapon(oProjectile)
     if oProjectile.GetCurrentTargetPosition then

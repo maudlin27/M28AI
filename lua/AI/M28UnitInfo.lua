@@ -104,8 +104,10 @@ refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 refiTimeBetweenDFShots = 'M28DFTime'
 refiTimeBetweenIFShots = 'M28IFTime'
-
+reftoEnemyProjectiles = 'M28UntProj' --table of projectiles targeting the unit
+refbProjectilesMeanShouldRefuel = 'M28UnPrjRf' --true if we wanted the unit to refuel due to expected projectile damage
 refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
+
 
 --Weapon priorities
 refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
