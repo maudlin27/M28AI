@@ -8617,7 +8617,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
                 --Increase likelihood the build location we want is available
                 SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15)
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
-                    iCurMass = oUnit[M28UnitInfo.refiUnitMassCost] * oUnit:GetFractionComplete()
+                    iCurMass = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil')) end
                     if iCurMass and (iCurMass > iHighestMassValue or (oUnit[refiFailedShieldConstructionCount] or 0) < iLowestShieldAttempt) then
                         --Check we are likely to be able ot build a shield nearby
@@ -8799,7 +8799,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
             local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
                 if not(iOptionalSearchRange) or (iOptionalSearchRange > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
-                    iMassToComplete = iMassToComplete + oUnit[M28UnitInfo.refiUnitMassCost] * (1 - oUnit:GetFractionComplete())
+                    iMassToComplete = iMassToComplete + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * (1 - oUnit:GetFractionComplete())
                 end
             end
         end

@@ -1717,7 +1717,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
-                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and oUnit[M28UnitInfo.refiUnitMassCost] >= 600 then
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
                                 AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
 
@@ -1897,7 +1897,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                     --Do nothing
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
                     --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead
-                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and oUnit[M28UnitInfo.refiUnitMassCost] >= 25 then
+                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 25 then
                         if not(M28Map.bIsCampaignMap) or (not(tTeamData[aiBrain.M28Team][rebTeamOnlyHasCampaignAI]) and not(oUnit[M28UnitInfo.refbIsReclaimTarget] == false)) then
                             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                             local bIncluded = false

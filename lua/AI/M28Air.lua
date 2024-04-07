@@ -3802,7 +3802,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
 
 
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftWaterZonesHasFriendlyTorps] = {}
-    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber, true)
+    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber - M28UnitInfo.refCategoryGunship, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tBombersForRefueling, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, false, false, true)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
@@ -6802,7 +6802,7 @@ function ManageTransports(iTeam, iAirSubteam)
                             local tCurZoneData, tCurZoneTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': enemy AirAA threat in this zone='..(tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
                             if (tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 and (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.reftLZEnemyAirUnits]) == false then
-                                local iAirAAThreshold = math.max(10, ((oUnit[M28UnitInfo.refiUnitMassCost] or 0) - 60) * 0.3 * M28UnitInfo.GetUnitHealthPercent(oUnit))
+                                local iAirAAThreshold = math.max(10, ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) - 60) * 0.3 * M28UnitInfo.GetUnitHealthPercent(oUnit))
                                 if tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] > iAirAAThreshold then
 
                                     --Check for nearby enemy airaa units by distance
@@ -7252,7 +7252,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
-                    iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
+                    iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
                         if iFractionComplete < 0.2 or not(EntityCategoryContains(categories.SHIELD + categories.PERSONALSHIELD, oUnit.UnitId)) then
@@ -7405,7 +7405,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                             --Is the unit covered by another shield?
                             if not (DoShieldsCoverUnit(oUnit, oUnit)) then
                                 iMassFactor = GetUnitTypeMassWeighting(oUnit)
-                                iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
+                                iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iMassFactor
                                 --Want to get the closest recently dropped sheidl (in case more than one)
                                 if bAdjustValueForDistance then iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist)) end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Recently dropped shield iCurValue='..iCurValue) end

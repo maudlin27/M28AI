@@ -1295,7 +1295,11 @@ function GetUnitStrikeDamage(oUnit)
         end
         if iStrikeDamage == 0 then
             iStrikeDamage = 750 --Backup
-            M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+            --Nomads T2 gunship (which also has antinavy attack):
+            if sBP == 'xna0203' then iStrikeDamage = 120
+            else
+                M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+            end
         end
     elseif EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, sBP) then
         iStrikeDamage = GetSniperStrikeDamage(oUnit)
@@ -1441,7 +1445,7 @@ function RecordUnitRange(oUnit)
         --Special unit adjustments:
         --Seraphim sniperbot - want to enable long range if we own it
         if oUnit.GetAIBrain and oUnit:GetAIBrain().M28AI and EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
-            EnableLongRangeSniper(oUnit)
+            ForkThread(EnableLongRangeSniper, oUnit) --forked thread as in replay 22225087 April 2024 an error was caused by running this
             --LOG('Enabled long range on sniper, DFRange='..oUnit[refiDFRange]..'; Strike damage='..GetUnitStrikeDamage(oUnit))
         end
         --Fatboy - treat DF and indirect range as being the higher of its two ranges
@@ -2294,4 +2298,18 @@ end
 
 function DischargeShield(oShield)
     import("/lua/sim/commands/discharge-shields.lua").DischargeShields({ oShield }, true)
+end
+
+function GetUnitMassCost(oUnit)
+    if not(oUnit[refiUnitMassCost]) then
+        if IsUnitValid(oUnit) then
+            if not(oUnit[refiCombatRange]) then RecordUnitRange(oUnit) end
+            if not(oUnit[refiUnitMassCost]) then
+                oUnit[refiUnitMassCost] = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+            end
+        else
+            return 0
+        end
+    end
+    return (oUnit[refiUnitMassCost] or 0)
 end

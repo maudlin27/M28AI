@@ -1414,7 +1414,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
 
         function RecordIfUnitWantsShieldOrStealth(oUnit)
-            iUnitMassCost = oUnit[M28UnitInfo.refiUnitMassCost]
+            iUnitMassCost = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
             if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                 table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
             end

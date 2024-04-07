@@ -406,7 +406,7 @@ function CompareDifThreatCalculationsForTableOfUnits(toUnits)
     iThreatVal = 0
     for iCurCycle = 1, iCycleCount do
         for iUnit, oUnit in toUnits do
-            iThreatVal = iThreatVal + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+            iThreatVal = iThreatVal + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
         end
     end
     tiTimeByScenario[1] = GetSystemTimeSecondsOnlyForProfileUse()
