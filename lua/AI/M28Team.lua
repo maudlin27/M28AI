@@ -223,6 +223,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
     reftiCoreZonesByPlateau = 'M28CZBPl' --[x] = plateau ref, [y] = LZ ref, returns true
     reftEnemyShieldsFailedToArti = 'M28SFlArt' --[x] = 1,2,3...x; returns the fixed shield unit
+    reftoVulnerableFatboys = 'M28FatB' --[x] = 1,2,3; returns the fatboy unit; fatboy gets recorded when it gets low on shields
+    refbActiveVulnerableFatboyMonitor = 'M28FatVMon' --true if have active thread for the team for vulnerable fatboys
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -4352,4 +4354,23 @@ function MonitorLeavingT1SpamMode(iTeam)
 
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorVulnerableFatboys(iTeam)
+    if not(tTeamData[iTeam][refbActiveVulnerableFatboyMonitor]) then
+        tTeamData[iTeam][refbActiveVulnerableFatboyMonitor] = true
+        local iCurShield, iMaxShield
+        while M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftoVulnerableFatboys]) do
+            for iCurFatboy = table.getn(tTeamData[iTeam][reftoVulnerableFatboys]), 1, -1 do
+                local oFatboy = tTeamData[iTeam][reftoVulnerableFatboys][iCurFatboy]
+                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oFatboy, true)
+                if (iCurShield >= 1500 and iCurShield / iMaxShield >= 0.6) or M28UnitInfo.IsUnitUnderwater(oFatboy) then
+                    table.remove(tTeamData[iTeam][reftoVulnerableFatboys], iCurFatboy)
+                    if M28Utilities.IsTableEmpty(tTeamData[iTeam][refbActiveVulnerableFatboyMonitor]) then break end
+                end
+            end
+            WaitSeconds(10)
+        end
+        tTeamData[iTeam][refbActiveVulnerableFatboyMonitor] = false
+    end
 end

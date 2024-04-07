@@ -4956,6 +4956,46 @@ function ManageGunships(iTeam, iAirSubteam)
                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
                 end
 
+                local bCheckForAirAA = true
+                local iDistToStartCheckingForAirAA = 0
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
+                    bCheckForAirAA = false
+                    if not(M28Map.bIsCampaignMap) then
+                        iDistToStartCheckingForAirAA = 225
+                        if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iDistToStartCheckingForAirAA = 1000 end
+                    else iDistToStartCheckingForAirAA = 500
+                    end
+                end
+
+                local bMidpointPlayableOverride = M28Map.bIsCampaignMap
+
+                --Is there a vulnerable fatboy nearby?
+                if M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys]) then
+                    local iClosestFatboy = 300
+                    local iCurFatboyDist
+                    local oClosestFatboy
+                    for iFatboy, oFatboy in M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] do
+                        if not(M28UnitInfo.IsUnitUnderwater(oFatboy)) then
+                            iCurFatboyDist = M28Utilities.GetDistanceBetweenPositions(oFatboy:GetPosition(), oFrontGunship:GetPosition())
+                            if iCurFatboyDist < iClosestFatboy then
+                                oClosestFatboy = oFatboy
+                                iClosestFatboy = iCurFatboyDist
+                            end
+                        end
+                    end
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy fatboy as gunship target. oClosestFatboy='..(oClosestFatboy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFatboy) or 'nil')..'; iClosestFatboy='..iClosestFatboy) end
+                    if oClosestFatboy then
+                        local iCurFatboyPlateau, iCurFatboyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestFatboy:GetPosition())
+                        if iCurFatboyPlateau and iCurFatboyZone then
+                            --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurFatboyPlateau, iCurFatboyZone, iGunshipThreatFactorWanted * (1 + 0.3 * iClosestFatboy / 300), bCheckForAirAA, false, nil, bMidpointPlayableOverride)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to add units in the zone with the fatboy as targets, gunship factor expected to be the threshold='..iGunshipThreatFactorWanted * (1 + 0.3 * iClosestFatboy / 300)) end
+                        end
+                    end
+                end
+
+
                 if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorWanted, iMaxEnemyAirAA))) end
                 --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
                 local iSearchDistance = 60
@@ -4999,16 +5039,7 @@ function ManageGunships(iTeam, iAirSubteam)
                             if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxDefensiveRange = math.max(iMaxDefensiveRange, 1000) end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; bUseDefensively='..tostring(bUseDefensively)) end
-                            local bCheckForAirAA = true
-                            local iDistToStartCheckingForAirAA = 0
-                            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
-                                bCheckForAirAA = false
-                                if not(M28Map.bIsCampaignMap) then
-                                    iDistToStartCheckingForAirAA = 225
-                                    if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iDistToStartCheckingForAirAA = 1000 end
-                                else iDistToStartCheckingForAirAA = 500
-                                end
-                            end
+
                             RecordOtherLandAndWaterZonesByDistance(tGunshipLandOrWaterZoneData, tGunshipMidpoint)
                             if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local iGunshipThreatFactorWanted
@@ -5018,7 +5049,6 @@ function ManageGunships(iTeam, iAirSubteam)
                                 local iPostTargetMaxZoneCheck = 4
                                 local iLowValueZoneThreshold = math.min(4000, 0.1 * iOurGunshipThreat)
                                 local iHighestEnemyValueZone = 0
-                                local bMidpointPlayableOverride = M28Map.bIsCampaignMap
 
                                 for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                     --Once found a zone with targets, use that unless we have another zone where mex is under threat that we want to consider instaed
@@ -7353,47 +7383,57 @@ function GetNovaxTarget(aiBrain, oNovax)
         --If shields have recently dropped to T3 arti and the unit is far enough away that it wont have been considered from the above, then consider targeting (unless we are already targeting a fixed shield or ACU)
         local oNearestRecentlyFailedShield
         local iNearestRecentlyFailedShieldDist = 100000
-        if (not(oTarget) or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + categories.COMMAND + M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oTarget.UnitId))) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+        if (not(oTarget) or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + categories.COMMAND + M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oTarget.UnitId))) then
             local tiUnitsToRemove = {}
             local iCurDist
             local bAdjustValueForDistance = false
-            local iPriorityShieldSearchDist = math.max(iMediumSearchRange * 2, 150)
-            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering fixed shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health of shield='..oUnit.MyShield:GetHealth()..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Do shields cover this shield='..tostring((DoShieldsCoverUnit(oUnit, oUnit)))..'; iBestTargetValue='..iBestTargetValue) end
-                if oUnit.MyShield and oUnit.MyShield:GetHealth() >= 3000 then
-                    table.insert(tiUnitsToRemove, iUnit)
-                elseif oUnit:GetFractionComplete() == 1 then
-                    --Is the unit outside of the search range from above, but still close enoguh that we want to consider?
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
-                    if iCurDist < iNearestRecentlyFailedShieldDist and oUnit.MyShield:GetHealth() == 1 then
-                        iNearestRecentlyFailedShieldDist = iCurDist
-                        oNearestRecentlyFailedShield = oUnit
-                    end
-                    if iCurDist > iMediumSearchRange and iCurDist < iPriorityShieldSearchDist then
-                        --Is the unit covered by another shield?
-                        if not (DoShieldsCoverUnit(oUnit, oUnit)) then
-                            iMassFactor = GetUnitTypeMassWeighting(oUnit)
-                            iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
-                            --Want to get the closest recently dropped sheidl (in case more than one)
-                            if bAdjustValueForDistance then iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist)) end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Recently dropped shield iCurValue='..iCurValue) end
-                            if iCurValue > iBestTargetValue then
-                                if not(bAdjustValueForDistance) then
-                                    bAdjustValueForDistance = true
-                                    iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist))
+            local bAssignedPriorityShield = false
+
+            function ConsiderTableOfPriorityUnits(tTableOfUnits, iPriorityShieldSearchDist)
+                for iUnit, oUnit in tTableOfUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health of shield='..oUnit.MyShield:GetHealth()..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Do shields cover this shield='..tostring((DoShieldsCoverUnit(oUnit, oUnit)))..'; iBestTargetValue='..iBestTargetValue) end
+                    if oUnit.MyShield and oUnit.MyShield:GetHealth() >= 3000 then
+                        table.insert(tiUnitsToRemove, iUnit)
+                    elseif oUnit:GetFractionComplete() == 1 then
+                        --Is the unit outside of the search range from above, but still close enoguh that we want to consider?
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
+                        if iCurDist < iNearestRecentlyFailedShieldDist and oUnit.MyShield:GetHealth() == 1 then
+                            iNearestRecentlyFailedShieldDist = iCurDist
+                            oNearestRecentlyFailedShield = oUnit
+                        end
+                        if iCurDist > iMediumSearchRange and iCurDist < iPriorityShieldSearchDist then
+                            --Is the unit covered by another shield?
+                            if not (DoShieldsCoverUnit(oUnit, oUnit)) then
+                                iMassFactor = GetUnitTypeMassWeighting(oUnit)
+                                iCurValue = oUnit[M28UnitInfo.refiUnitMassCost] * iMassFactor
+                                --Want to get the closest recently dropped sheidl (in case more than one)
+                                if bAdjustValueForDistance then iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recently dropped shield iCurValue='..iCurValue) end
+                                if iCurValue > iBestTargetValue then
+                                    if not(bAdjustValueForDistance) then
+                                        bAdjustValueForDistance = true
+                                        iCurValue = iCurValue * (0.5 + (1-iCurDist / iPriorityShieldSearchDist))
+                                    end
+                                    iBestTargetValue = iCurValue
+                                    oTarget = oUnit
+                                    bAssignedPriorityShield = true
                                 end
-                                iBestTargetValue = iCurValue
-                                oTarget = oUnit
                             end
                         end
+                        -- iMediumSearchRange
                     end
-                    -- iMediumSearchRange
+                end
+                if M28Utilities.IsTableEmpty(tiUnitsToRemove) == false then
+                    for iCurEntry = table.getn(tiUnitsToRemove), 1, -1 do
+                        table.remove(tTableOfUnits, iCurEntry)
+                    end
                 end
             end
-            if M28Utilities.IsTableEmpty(tiUnitsToRemove) == false then
-                for iCurEntry = table.getn(tiUnitsToRemove), 1, -1 do
-                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], iCurEntry)
-                end
+            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+                ConsiderTableOfPriorityUnits(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], math.max(iMediumSearchRange * 2, 150))
+            end
+            if not(bAssignedPriorityShield) and (not(oTarget) or not(EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oTarget.UnitId))) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys]) then
+                ConsiderTableOfPriorityUnits(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys], math.max(iMediumSearchRange * 3, 350))
             end
         end
 

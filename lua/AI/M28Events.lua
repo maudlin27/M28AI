@@ -741,29 +741,65 @@ function OnShieldBubbleDamaged(self, instigator)
                 oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
             end
             --LOG('instigator='..reprs(instigator))
-            if M28UnitInfo.IsUnitValid(instigator) and instigator:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) and IsEnemy(oShield:GetAIBrain():GetArmyIndex(), instigator:GetAIBrain():GetArmyIndex()) then
-                if EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) then
-                    local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
-                    if (iShieldLandZone or 0) > 0 and iShieldPlateau > 0 then
-                        local tLZTeamData = M28Map.tAllPlateaus[iShieldPlateau][M28Map.subrefPlateauLandZones][iShieldLandZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
-                        tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
-                        local iMMLPlateau, iMMLZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(instigator:GetPosition())
-                        if (iMMLPlateau or 0) > 0 and (iMMLZone or 0) > 0 and not(iMMLZone == iShieldLandZone and iMMLPlateau == iShieldPlateau) then
-                            local tMMLLZTeamData = M28Map.tAllPlateaus[iMMLPlateau][M28Map.subrefPlateauLandZones][iMMLZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
-                            tMMLLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+            if M28UnitInfo.IsUnitValid(instigator) and instigator:GetAIBrain().M28AI and IsEnemy(oShield:GetAIBrain():GetArmyIndex(), instigator:GetAIBrain():GetArmyIndex()) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) then
+                        local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
+                        if (iShieldLandZone or 0) > 0 and iShieldPlateau > 0 then
+                            local tLZTeamData = M28Map.tAllPlateaus[iShieldPlateau][M28Map.subrefPlateauLandZones][iShieldLandZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
+                            tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                            local iMMLPlateau, iMMLZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(instigator:GetPosition())
+                            if (iMMLPlateau or 0) > 0 and (iMMLZone or 0) > 0 and not(iMMLZone == iShieldLandZone and iMMLPlateau == iShieldPlateau) then
+                                local tMMLLZTeamData = M28Map.tAllPlateaus[iMMLPlateau][M28Map.subrefPlateauLandZones][iMMLZone][M28Map.subrefLZTeamData][instigator:GetAIBrain().M28Team]
+                                tMMLLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                            end
+                            --LOG('Flagging that we have had missiles intercepted by TMD or shield for iShieldLandZone and MML zone, iShieldLandZone='..(iShieldLandZone or 'nil')..'; iMMLZone='..(iMMLZone or 'nil')..'; iMMLPlateau='..(iMMLPlateau or 'nil'))
                         end
-                        --LOG('Flagging that we have had missiles intercepted by TMD or shield for iShieldLandZone and MML zone, iShieldLandZone='..(iShieldLandZone or 'nil')..'; iMMLZone='..(iMMLZone or 'nil')..'; iMMLPlateau='..(iMMLPlateau or 'nil'))
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, instigator.UnitId) then
+                        --LOG('Cur shield health='..oShield.MyShield:GetHealth())
+                        if oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() <= 750 then
+                            --Record shield in table of recently failed shields for if we have a novax
+                            local iTeam = instigator:GetAIBrain().M28Team
+                            local bRecordedAlready
+                            if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+                                M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] = {}
+                            else
+                                for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                                    if oRecorded == oShield then
+                                        bRecordedAlready = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bRecordedAlready) then
+                                table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], oShield)
+                            end
+                        end
                     end
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, instigator.UnitId) then
-                    --LOG('Cur shield health='..oShield.MyShield:GetHealth())
-                    if oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() <= 750 then
-                        --Record shield in table of recently failed shields for if we have a novax
+                else
+                    --Fatboy specific; if changing threshold here then also change in team
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) and oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
                         local iTeam = instigator:GetAIBrain().M28Team
                         local bRecordedAlready
-                        if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
-                            M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] = {}
+                        if oShield.MyShield:GetHealth() <= 1250 then
+                            if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+                                M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] = {}
+                            else
+                                for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                                    if oRecorded == oShield then
+                                        bRecordedAlready = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bRecordedAlready) then
+                                table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], oShield)
+                            end
+                        end
+                        bRecordedAlready = false
+                        if not(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys]) then M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] = {}
                         else
-                            for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                            for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] do
                                 if oRecorded == oShield then
                                     bRecordedAlready = true
                                     break
@@ -771,7 +807,8 @@ function OnShieldBubbleDamaged(self, instigator)
                             end
                         end
                         if not(bRecordedAlready) then
-                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], oShield)
+                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys], oShield)
+                            ForkThread(M28Team.MonitorVulnerableFatboys,iTeam)
                         end
                     end
                 end
