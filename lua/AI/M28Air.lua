@@ -2685,7 +2685,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iTeam == 1 and GetGameTimeSeconds() >= 48*60+40 then bDebugMessages = true end
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -8081,13 +8081,13 @@ end
 
 function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
     --E.g. if enemy strat bomber fires a bomb, and we dont have it recorded as a 'suicide into' target, consider adding it
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderRecordingStratBomberToSuicideInto'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oBomber[refiAssignedSuicideASF]) then
         --Is bomber on our side of the map, or we have air control, or did ut kill a mex?
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' owned by brain '..oBomber:GetAIBrain().Nickname..'; bBomberKilledMex='..tostring(bBomberKilledMex or false)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' owned by brain '..oBomber:GetAIBrain().Nickname..'; bBomberKilledMex='..tostring(bBomberKilledMex or false)..'; Our AirAA='..M28Team.tTeamData[oBomber:GetAIBrain().M28Team][M28Team.subrefiOurAirAAThreat]..'; Time='..GetGameTimeSeconds()) end
         local iBomberTeam = oBomber:GetAIBrain().M28Team
         local bHaveNoM28Enemies = true
         local tbTeamsConsidered = {}
@@ -8103,14 +8103,15 @@ function ConsiderRecordingStratBomberToSuicideInto(oBomber, bBomberKilledMex)
                     if bBomberKilledMex then
                         bIncludeForAirSubteam = true
                     else
-                        --Is the bomber on our side of the map?
+                        --Is the bomber on our side of the map or about to go onto our side?
                         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oBomber:GetPosition(), true, oBrain.M28Team)
                         if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
                             bIncludeForAirSubteam = true
-                        elseif tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.65 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) < 800 and M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl] then
+                        elseif tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.65 and (((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) < 800 and M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl])) or
+                            (tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.6 and (M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiOurAirAAThreat] >= 10000 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.55 and M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiOurAirAAThreat] >= 5000 and M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oBomber), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) <= 50))) then
                             bIncludeForAirSubteam = true
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy groundAA='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)..'; Have air control='..tostring(M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl])) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy groundAA='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)..'; Have air control='..tostring(M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; bIncludeForAirSubteam='..tostring(bIncludeForAirSubteam)) end
                     end
                     if bIncludeForAirSubteam then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will add bomber to potential suicide targets') end
