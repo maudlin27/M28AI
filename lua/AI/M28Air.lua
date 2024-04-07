@@ -717,7 +717,7 @@ function AddAssignedAttacker(oTarget, oNewBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, About to add assigned strike damage to oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; oOldBomber='..(oNewBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNewBomber) or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if not(oNewBomber[M28UnitInfo.refiStrikeDamage]) then
         --Redundancy for campaign where presumably there's a slight delay in recording a unit that gets cheated in by the map script
         M28UnitInfo.RecordUnitRange(oNewBomber)
@@ -744,6 +744,7 @@ function RemoveAssignedAttacker(oTarget, oOldBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RemoveAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, About to remove assigned strike damage from oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; oOldBomber='..(oOldBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOldBomber) or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if not(oOldBomber[M28UnitInfo.refiStrikeDamage]) then
         M28Utilities.ErrorHandler('Bomber '..(oOldBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOldBomber) or 'nil')..' doesnt have any strike damage, will reset unit strike damage assignment')
         oTarget[refiStrikeDamageAssigned] = 0
@@ -3458,7 +3459,13 @@ function ApplyEngiHuntingBomberLogic(oUnit, iAirSubteam, iTeam)
             RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for targets in starting zone, is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
-            if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false and M28Utilities.IsTableEmpty(tEnemyTargets) then
+            if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for Engi hunter for units in bomber cur zone') end
+                AssignTorpOrBomberTargets(tBomberTable, tEnemyTargets, iAirSubteam, false, true)
+                tEnemyTargets = {}
+            end
+
+            if M28Utilities.IsTableEmpty(tBomberTable) == false and M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false and M28Utilities.IsTableEmpty(tEnemyTargets) then
                 local iSearchSize = 500
                 for iEntry, tPathingDetails in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     local iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
