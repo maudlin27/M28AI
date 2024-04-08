@@ -1918,7 +1918,7 @@ local function AssignRemainingSegmentsToLandZones()
 
                         iPlateauGroup = NavUtils.GetTerrainLabel(refPathingTypeHover, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
                         if iPlateauGroup then
-                            iLandPathingGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
+                            iLandPathingGroupWanted = (NavUtils.GetTerrainLabel(refPathingTypeLand, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] }) or (NavUtils.GetLabel(refPathingTypeLand, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] }) or iLandPathingGroupWanted))
                             if iLandPathingGroupWanted then
                                 break
                             end
@@ -1926,7 +1926,7 @@ local function AssignRemainingSegmentsToLandZones()
                     end
                     if not(iPlateauGroup) then
                         iPlateauGroup = NavUtils.GetLabel(refPathingTypeHover, tBasePosition)
-                        if not(iPlateauGroup) then
+                        if not(iPlateauGroup) or not(iLandPathingGroupWanted) then
                             M28Utilities.ErrorHandler('Unable to find a valid plateau at or near position for iBaseSegmentX='..iBaseSegmentX..';Z='..iBaseSegmentZ..'; will no longer want a land zone recording', true)
                             iLandPathingGroupWanted = nil
                         end
@@ -1939,7 +1939,7 @@ local function AssignRemainingSegmentsToLandZones()
                     local tiAdjacentSegmentsForSearchBySearchCount = {}
                     local iTotalSegmentsForAssignment = 1
                     tiAdjacentSegmentsForSearchBySearchCount[0] = {{iRevisedBaseSegmentX, iRevisedBaseSegmentZ, iLandPathingGroupWanted, iLandPathingGroupWanted, tBasePosition}}
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle thorugh adjacent segments to try and find a land zone that should assign this to, in same pathing group as iRevisedBaseSegmentX and Z, X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandPathingGroupWanted='..iLandPathingGroupWanted..'; tBasePosition='..repru(tBasePosition)..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iMaxSearchCycle='..iMaxSearchCycle) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle thorugh adjacent segments to try and find a land zone that should assign this to, in same pathing group as iRevisedBaseSegmentX and Z, X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandPathingGroupWanted='..(iLandPathingGroupWanted or 'nil')..'; tBasePosition='..repru(tBasePosition)..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iMaxSearchCycle='..iMaxSearchCycle) end
                     for iSearchCount = 1, iMaxSearchCycle + 1 do
                         tiAdjacentSegmentsForSearchBySearchCount[iSearchCount] = {}
                         bHadSomeEntries = false
@@ -2032,9 +2032,9 @@ local function AssignRemainingSegmentsToLandZones()
                                 if bDebugMessages == true then LOG(sFunctionRef..': Created new zone for this plateau, iLandZoneToUse='..iLandZoneToUse..'; will use this as the land zone') end
                             end
                         else
-                            if iPlateauGroup > 0 then
+                            if (iPlateauGroup or 0) > 0 then
                                 --We haven't created this LZ yet; have we created the plateau?
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will create a new land zone but first checking if we have this plateau recorded, is all plateaus nil for iPlateauGroup='..iPlateauGroup..'='..tostring(tAllPlateaus[iPlateauGroup] == nil)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will create a new land zone but first checking if we have this plateau recorded, is all plateaus nil for iPlateauGroup='..iPlateauGroup..'='..tostring(tAllPlateaus[iPlateauGroup] == nil)..'; Is tiLZEntryByNavUtilsRef nil='..tostring(tiLZEntryByNavUtilsRef == nil)..'; tAllPlateaus[iPlateauGroup][subrefLandZoneCount]='..(tAllPlateaus[iPlateauGroup][subrefLandZoneCount] or 'nil')) end
                                 if not(tAllPlateaus[iPlateauGroup]) then
                                     RecordMexlessPlateau(iPlateauGroup)
                                 end
@@ -2052,7 +2052,7 @@ local function AssignRemainingSegmentsToLandZones()
                             else
                                 M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group; Refer to log for base position and other details if logs are enabled')
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tBasePosition) or 'nil')..'; Amphibious plateau='..(NavUtils.GetTerrainLabel('Amphibious', tBasePosition) or 'nil'))
+                                    LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tBasePosition) or 'nil')..'; Amphibious plateau='..(NavUtils.GetTerrainLabel('Amphibious', tBasePosition) or 'nil')..'; Get label for hover='..(NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 'nil'))
                                     M28Utilities.DrawLocation(tBasePosition, 2)
                                 end
 
