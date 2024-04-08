@@ -760,7 +760,7 @@ end
 
 
 function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRecordInTorpBomberWaterZoneList, bLowHealthThresholdDueToSnipeTarget)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetAvailableLowFuelAndInUseAirUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -886,9 +886,10 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                         else
                                             if oUnit.GetFuelRatio then
                                                 iFuelPercent = oUnit:GetFuelRatio()
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit fuel ratio='..iFuelPercent) end
                                             else iFuelPercent = 1
                                             end
-                                            if iFuelPercent < iLowFuelThreshold then
+                                            if iFuelPercent < iLowFuelThreshold and iFuelPercent >= 0 then
                                                 --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
                                                 if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
@@ -2237,7 +2238,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
+                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
@@ -3349,7 +3350,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                             M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                         end
-                                    elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                    elseif ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                                         if M28UnitInfo.IsUnitValid(oUnit) then
                                             table.insert(tAirForRefueling, oUnit)
                                         end
@@ -3992,7 +3993,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
             for iUnit, oUnit in tAvailableBombers do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering idle torp bomber order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; rally point='..repru(tRallyPoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                     table.insert(tBombersForRefueling, oUnit)
                 else
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TpIdle', false)
@@ -5230,7 +5231,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
                         for iUnit, oUnit in tGunshipsNearFront do
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering idle gunship order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                            if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                            if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                                 table.insert(tGunshipsForRefueling, oUnit)
                             else
                                 M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'GSIdle', false)
@@ -5244,7 +5245,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         local bCurEntrySafe
 
                         for iUnit, oUnit in tGunshipsNotNearFront do
-                            if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                            if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                                 table.insert(tGunshipsForRefueling, oUnit)
                             else
                                 local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -5714,7 +5715,7 @@ function ManageAirScouts(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tScoutsWithNoDestination) == false then
                 for iUnit, oUnit in tScoutsWithNoDestination do
                     --If still have remaining available scouts send for refueling with lower threshold
-                    if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                    if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                         table.insert(tScoutsForRefueling, oUnit)
                     else
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'ASIdle', false)
