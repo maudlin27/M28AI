@@ -3561,6 +3561,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         local bIgnoreIfEnemyUnderwater = false
         local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
+            if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'uel020816' then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
             bWantEngiToRun = false
             bEngiIsUnavailable = false
@@ -3678,12 +3679,50 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
                                             end
                                         else
-                                            TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
-                                            M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
-                                            --Monitor every tick for the next 9 ticks to see if enemy gets in-range
                                             local oEnemyBP = oNearestReclaimableEnemy:GetBlueprint()
                                             local iDistanceUntilInRange = iEngiBuildDistance + math.min(oEnemyBP.Physics.SkirtSizeX, oEnemyBP.Physics.SkirtSizeZ) * 0.5
+                                            local bReclaimingNearbyCivilianWalls = false
+                                            if iNearestReclaimableEnemy > iDistanceUntilInRange and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestReclaimableEnemy.UnitId) and (iPlateauOrPond == 0 or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaimableEnemy:GetPosition()) == iPlateauOrPond) then
+                                                --If targeting a civilian building then check if are walls nearby and if so reclaim teh walls as they may be blocking our orders
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Brain of nearest reclaimable enemy='..(oNearestReclaimableEnemy:GetAIBrain().Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()))) end
+                                                if M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()) then
+                                                    local tMidpoint = M28Utilities.MoveInDirection(oEngineer:GetPosition(), M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition()), iNearestReclaimableEnemy * 0.5)
+                                                    local rRect = M28Utilities.GetRectAroundLocation(tMidpoint, math.min(15, iNearestReclaimableEnemy * 0.5))
+                                                    local tNearbyUnits = GetUnitsInRect(rRect)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+                                                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                                                        local tNearbyWalls = EntityCategoryFilterDown(M28UnitInfo.refCategoryWall, tNearbyUnits)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby walls empty='..tostring(M28Utilities.IsTableEmpty(tNearbyWalls))) end
+                                                        if M28Utilities.IsTableEmpty(tNearbyWalls) == false and table.getn(tNearbyWalls) >= 5 then
+                                                            local iNearestWall = 30 --dont move to reclaim walls further away than this (more of a redundancy as doubt would have a reclaim order anyway)
+                                                            local oNearestWall, iCurWallDist
+                                                            for iWall, oWall in tNearbyWalls do
+                                                                if not(oWall:GetAIBrain().M28Team == iTeam) then
+                                                                    iCurWallDist = M28Utilities.GetDistanceBetweenPositions(oWall:GetPosition(), oEngineer:GetPosition())
+                                                                    if iCurWallDist < iNearestWall then
+                                                                        iNearestWall = iCurWallDist
+                                                                        oNearestWall = oWall
+                                                                    end
+                                                                end
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': oNearestWall='..(oNearestWall.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestWall) or 'nil')) end
+                                                            if oNearestWall then
+                                                                bReclaimingNearbyCivilianWalls = true
+                                                                M28Orders.IssueTrackedReclaim(oEngineer, oNearestWall, false, 'RecCivWal')
+                                                            end
+                                                        end
+
+                                                    end
+                                                end
+                                            end
+                                            if not(bReclaimingNearbyCivilianWalls) then
+                                                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
+                                            end
+
+
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
+                                            --Monitor every tick for the next 9 ticks to see if enemy gets in-range
+
                                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to monitor reclaim distance, iDistanceUntilInRange='..iDistanceUntilInRange..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; Speed of us and them='..(oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed) end
                                             if iNearestReclaimableEnemy > iDistanceUntilInRange and iNearestReclaimableEnemy - iDistanceUntilInRange <= (oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed + 0.2 then
                                                 ForkThread(MonitorToReissueReclaimOrder, oEngineer, oNearestReclaimableEnemy, iDistanceUntilInRange, 9)
