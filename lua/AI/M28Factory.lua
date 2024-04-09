@@ -3995,7 +3995,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
-
+    if iFactoryTechLevel == 3 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])
@@ -4095,11 +4095,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iCombatCategory = M28UnitInfo.refCategoryFrigate
         elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships then
             iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
+        --If factory can build battlecruiser and we have none and LC is 0 then build instead of battleship
+        elseif oFactory:CanBuild('xes0307') and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) <= 1 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships])) then
+            iCombatCategory = M28UnitInfo.refCategoryBattlecruiser
         else
             iCombatCategory = M28UnitInfo.refCategoryBattleship
         end
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships)
+            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser))
         end
     end
 
