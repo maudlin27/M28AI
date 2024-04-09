@@ -1339,6 +1339,7 @@ function ManageMassStalls(iTeam)
                             end
                             for iUnit = iTotalUnits, 1, -1 do
                                 oUnit = tRelevantUnits[iUnit]
+                                if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel02081' and GetGameTimeSeconds() >= 13*60 and not(oUnit:IsUnitState('Attached')) then bDebugMessages = true else bDebugMessages = false end
                                 --for iUnit, oUnit in tRelevantUnits do
                                 bApplyActionToUnit = false
                                 iCurUnitMassUsage = 0
@@ -1351,7 +1352,7 @@ function ManageMassStalls(iTeam)
                                         end
                                     else
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
+                                            LOG(sFunctionRef .. ': About to consider pausing unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
                                         end
 
 
@@ -1398,6 +1399,7 @@ function ManageMassStalls(iTeam)
                                                         --Dont pause the last engi building power or GE Template, and also dont pause if are building PD/T2 Arti/Shield/Experimental and have a fraction complete of at least 70%
                                                         if oUnit[M28Engineer.refbPrimaryBuilder] and (iActionRef == M28Engineer.refActionBuildPower or iActionRef == M28Engineer.refActionBuildSecondPower or iActionRef == M28Engineer.refActionManageGameEnderTemplate) then
                                                             bApplyActionToUnit = false
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with primary builder that is building power or GE template so wont pause') end
                                                         elseif oUnit.GetFocusUnit then
                                                             local oFocusUnit = oUnit:GetFocusUnit()
                                                             if bDebugMessages == true then
@@ -1406,12 +1408,8 @@ function ManageMassStalls(iTeam)
                                                                 else LOG(sFunctionRef..': Focus unit for engineer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; UC='..M28Engineer.GetEngineerUniqueCount(oUnit)..' isnt valid') end
                                                             end
                                                             if M28UnitInfo.IsUnitValid(oFocusUnit) then
-                                                                if oFocusUnit:GetFractionComplete() >= 0.7 and oFocusUnit:GetFractionComplete() < 1 then
-                                                                    if EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryExperimentalLevel, oFocusUnit.UnitId) then
-                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont apply action to unit as it is PD/Arti/Experimental') end
-                                                                        bApplyActionToUnit = false
-                                                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Will apply action to focus unit as it isnt PD/Experimental level')
-                                                                    end
+                                                                if oFocusUnit:GetFractionComplete() >= 0.7 and oFocusUnit:GetFractionComplete() < 1 and EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryExperimentalLevel, oFocusUnit.UnitId) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply action to unit as it is PD/Arti/Experimental') end
                                                                 elseif iActionRef == M28Engineer.refActionBuildLandFactory and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oFocusUnit.UnitId) and oBrain[refiGrossMassBaseIncome] >= 1.4 then
                                                                     local tEngiZone, tEngiTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Are building al and fac, wont pause if not in core zone, tEngiTeamData[M28Map.subrefLZbCoreBase]='..tostring(tEngiTeamData[M28Map.subrefLZbCoreBase] or false)) end
