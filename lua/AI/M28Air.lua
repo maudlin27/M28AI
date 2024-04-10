@@ -7090,7 +7090,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     local sFunctionRef = 'GetNovaxTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 34*60 then bDebugMessages = true end
 
     local oTarget
     local iTeam = aiBrain.M28Team
@@ -7237,6 +7237,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         local iNearestShield, iCurShieldDistance, iNearestWater, tPossiblePosition, tPossibleShields, iACUSpeed, iCurAmphibiousGroup
 
         local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, iMediumSearchRange, 'Enemy')
+        if not(tEnemyUnits) then tEnemyUnits = {} end
         --GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, nil)
         local bIncreaseMAAWeighting = false
         if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) and (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 30000) then bIncreaseMAAWeighting = true end
@@ -7269,6 +7270,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         end
         local oUnitBP
         --Add current target to enemy units to be considered if it's still valid (wont worry about duplication); originally was essential when doing the 'include adjacent zone units' approach, but now is more of a redundancy for if the novax moves just too far away while circling a target
+        if bDebugMessages == true then LOG(sFunctionRef..'; Considering if last novax target still valid, oNovax[refoNovaxLastTarget]='..(oNovax[refoNovaxLastTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNovax[refoNovaxLastTarget]) or 'nil')..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]))) end
         if M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]) then table.insert(tEnemyUnits, oNovax[refoNovaxLastTarget]) end
 
         local iFractionComplete
@@ -7547,11 +7549,22 @@ function GetNovaxTarget(aiBrain, oNovax)
             end
 
             if not (oTarget) or iClosestTarget >= 500 then
+                --Prev target was closer and a mex or surface navy that isn't under shield coverage? (redundancy as shouldve already considered earlier)
+                if M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryNavalSurface, oNovax[refoNovaxLastTarget].UnitId) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oNovax[refoNovaxLastTarget]:GetPosition(), tPositionToSearchFrom)
+                    if iCurDist < iClosestTarget and not(M28UnitInfo.IsUnitUnderwater(oNovax[refoNovaxLastTarget])) and not(M28Logic.IsTargetUnderShield(aiBrain, oNovax[refoNovaxLastTarget], 2000, false, false, false, nil)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': setting oTarget to the novax last target for now, although will also consider enemy naval surface in a moment, iCurDist='..iCurDist) end
+                        oTarget = oNovax[refoNovaxLastTarget]
+                        iClosestTarget = iCurDist
+                    end
+                end
+
                 --Nearest surface naval unit
                 tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface, tPositionToSearchFrom, 1000, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef .. ': No high priority targets, will search for lower priority, first with surface naval units. Is table empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
                 if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
                     local iClosestDist = 10000
+                    if oTarget then iClosestDist = iClosestTarget end
                     for iUnit, oUnit in tEnemyUnits do
                         if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPositionToSearchFrom)
@@ -7574,6 +7587,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                         local oClosestUnshieldedUnit
                         local oClosestHighValueUnit
                         local iClosestHighValueUnit = 10000
+                        if oTarget then iClosestHighValueUnit = iClosestTarget oClosestHighValueUnit = oTarget end
                         local tNovaxPosition = oNovax:GetPosition()
                         for iUnit, oUnit in tEnemyUnits do
                             if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
