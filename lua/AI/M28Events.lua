@@ -1152,7 +1152,7 @@ function ProjectileCreated(oProjectile, inWater)
         local oTarget = oProjectile:GetTrackingTarget()
         --M28 target specific logic:
         if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
-            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'ProjectileCreated'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

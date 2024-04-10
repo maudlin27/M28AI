@@ -1339,7 +1339,6 @@ function ManageMassStalls(iTeam)
                             end
                             for iUnit = iTotalUnits, 1, -1 do
                                 oUnit = tRelevantUnits[iUnit]
-                                if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel02081' and GetGameTimeSeconds() >= 13*60 and not(oUnit:IsUnitState('Attached')) then bDebugMessages = true else bDebugMessages = false end
                                 --for iUnit, oUnit in tRelevantUnits do
                                 bApplyActionToUnit = false
                                 iCurUnitMassUsage = 0

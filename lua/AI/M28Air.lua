@@ -760,7 +760,7 @@ end
 
 
 function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRecordInTorpBomberWaterZoneList, bLowHealthThresholdDueToSnipeTarget)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetAvailableLowFuelAndInUseAirUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7090,7 +7090,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     local sFunctionRef = 'GetNovaxTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 34*60 then bDebugMessages = true end
+
 
     local oTarget
     local iTeam = aiBrain.M28Team
