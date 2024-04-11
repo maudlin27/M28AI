@@ -432,7 +432,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'urb03011' and GetGameTimeSeconds() >= 15*60+30 then bDebugMessages = true end
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -509,16 +509,20 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     end
     if not(iBaseCategoryWanted) then
         --We dont want indirect fire units, do we want MAA units?
-        if bDebugMessages == true then LOG(sFunctionRef..': Dont want indirect fire, do we want MAA? M28Map.subrefLZThreatAllyGroundAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; M28Map.subrefLZMAAThreatWanted='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont want indirect fire, do we want MAA? M28Map.subrefLZThreatAllyGroundAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; M28Map.subrefLZMAAThreatWanted='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; Is table of air units in this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]))..'; tLZTargetTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTargetTeamData[M28Map.subrefLZbCoreBase])..'; tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTargetTeamData[M28Map.reftoNearestDFEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoNearestDFEnemies]))..'; Team far behind on air='..tostring(M28Conditions.TeamIsFarBehindOnAir(iTeam))..'; tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]))..'; Core base or HQ='..tostring((tLZTargetTeamData[M28Map.subrefLZbCoreBase] or EntityCategoryContains(M28UnitInfo.refCategoryLandHQ - categories.TECH1, oFactory.UnitId)))..'; No enemy air in zone but are DF enemies='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]) and tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoNearestDFEnemies]) == false)..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 100='..tostring(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 100)..'; Total enemy air threat <10% of AA in this zone or we have air control='..tostring((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] * 10 or not(M28Conditions.TeamIsFarBehindOnAir(iTeam))))) end
         if not(bDontConsiderBuildingMAA) and (tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) < (tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] or 0) and ( (tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] or 0) - (tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) >= 5 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 0) < math.max(100, (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0), (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) * 0.15) or (tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) and (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false and (not(bDontConsiderBuildingMAA) or tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] > 0))) then
             --Dont get MAA if no enemy air units in this zone or adjacent zone, and the existing MAA threat is more than 50% of any mobile DF +IF threat
             local bStillWantMAA = true
             if (tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] or 0) < 30 and tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and (tLZTargetTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.25 < (tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) then
                 bStillWantMAA = false
                 --Also dont get MAA if this is a core base and enemy has no air units in this zone and no air to ground threat overall (will instead rely on adjacent zones that have flagged they want AA)
-            elseif tLZTargetTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]) and not(EntityCategoryContains(categories.TECH3, oFactory.UnitId)) then
+            elseif tLZTargetTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]) and (EntityCategoryContains(categories.TECH1 + categories.TECH2, oFactory.UnitId) or tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                 bStillWantMAA = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want MAA as dealing with core base and no air to ground threat') end
+                --Exception where imminent air to ground threat at core base and we already have some groundAA threat (equiv to 10%+ of enemy air to ground threat) or arent far behind on air
+            elseif (tLZTargetTeamData[M28Map.subrefLZbCoreBase] or EntityCategoryContains(M28UnitInfo.refCategoryLandHQ - categories.TECH1, oFactory.UnitId)) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftLZEnemyAirUnits]) and tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 100 and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoNearestDFEnemies]) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] * 10 or not(M28Conditions.TeamIsFarBehindOnAir(iTeam))) then
+                bStillWantMAA = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Pressing land threat so will forgo getting more MAA for now') end
             elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) then
                 local bNoAdjAirThreat = true
                 local iAdjDFAndIFThreat = (tTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + (tTargetLZData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)
@@ -553,7 +557,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 end
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': bStillWantMAA='..tostring(bStillWantMAA)..'; IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir])='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bStillWantMAA='..tostring(bStillWantMAA)..'; IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir])='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]))..'; LZ wants DF support='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsDFSupport])..'; Is table of nearby enemy DF units empyt='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoNearestDFEnemies]))) end
 
             if bStillWantMAA then
                 if M28Conditions.WantT3MAAInsteadOfT2(oFactory, iTeam) then
@@ -644,7 +648,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'urb03011' and GetGameTimeSeconds() >= 15*60+30 then bDebugMessages = true end
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
