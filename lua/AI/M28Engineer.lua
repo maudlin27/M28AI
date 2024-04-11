@@ -15513,7 +15513,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
+    if iLandZone == 4 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
@@ -15655,7 +15655,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
         if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
     end
 
-    --Adjust if likely to be on elevated ground and unable to hit the enemy as a result
+    --Adjust if likely to be on elevated ground and unable to hit the enemy as a result (move closer so are on edge of cliff); if the reverse (we are on lower ground) then move away
     if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove) end
     if tTargetLocation[2] > tNearestEnemy[2] + 1 and iDistToMove >= 35 then
         local iDistToCliff
@@ -15669,6 +15669,29 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
         end
         if iDistToCliff then
             tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove - iDistToCliff, true, false, true)
+        end
+    elseif tTargetLocation[2] < tNearestEnemy[2] - 1 then
+        local iDistFromMidpoint = M28Utilities.GetDistanceBetweenPositions(tLZMidpoint, tNearestEnemy)
+        if iDistFromMidpoint >= 35 then
+            local iIslandWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZMidpoint)
+            if iIslandWanted then
+                local iDistFromCliff
+                for iCurCliffAdjust = 15, 40, 5 do
+                    local tAltLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove + iCurCliffAdjust, true, false, true)
+                    if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tAltLocation) == iPlateau and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAltLocation) == iIslandWanted then
+                        local tPositionTowardsEnemy = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove + iCurCliffAdjust - 50, true, false, true)
+                        iDistFromCliff = iCurCliffAdjust
+                        if tAltLocation[2] > tPositionTowardsEnemy[2] - 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Build location would be much lower than enemy so want to build further back from enemy, at this point we think there is no longer such a height difference iCufCliffAdjust='..iCurCliffAdjust) end
+                            break
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': At iCurCliffAdjust='..iCurCliffAdjust..' the height dif is still too great, tAltLocation[2]='..tAltLocation[2]..'; tPositionTowardsEnemy[2]='..tPositionTowardsEnemy[2])
+                        end
+                    end
+                end
+                if iDistFromCliff then
+                    tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove + iDistFromCliff, true, false, true)
+                end
+            end
         end
     end
 
