@@ -9322,21 +9322,35 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         else iPowerMod = iPowerMod + (((ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 1) - 1) * 0.7)
         end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iPowerMod = iPowerMod + 1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': iPowerMod='..iPowerMod..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')..'; Brain='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')..'; Resource mod='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 'nil')) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 23 * iPowerMod then iMinTechLevelForPower = 1
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 * iPowerMod then iMinTechLevelForPower = 2
+        if iLandZone == 4 and GetGameTimeSeconds() >= 6*60+30 then bDebugMessages = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': iPowerMod='..iPowerMod..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')..'; Brain='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')..'; Resource mod='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 'nil')..'; iHighestTechInZone='..iHighestTechInZone..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)) end
+
+        local iPlayerCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 23 * iPowerMod * iPlayerCount then iMinTechLevelForPower = 1
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 * iPowerMod * iPlayerCount then
+            iMinTechLevelForPower = math.min(2, iHighestTechInZone)
+            if bDebugMessages == true then LOG(sFunctionRef..': We have enough gross energy that we can wait for this zones highest tech, iHighestTechInZone='..iHighestTechInZone) end
         else
             if bHaveLowPower and not(bHaveLowMass) then
                 iMinTechLevelForPower = iHighestTechInZone
+                if bDebugMessages == true then LOG(sFunctionRef..': Will set to highest tech in zone rather than on team') end
             else
                 iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+                if bDebugMessages == true then LOG(sFunctionRef..': Will base tech level for power on teach highest tech') end
+            end
+        end
+        if iMinTechLevelForPower > 1 and bHaveLowPower and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == iMinTechLevelForPower then
+            --Do we have at least 2 engis of the desired tech level in this zone? if not, then lower power requirements by 1 tier
+            if M28Utilities.IsTableEmpty(toAvailableEngineersByTech[iMinTechLevelForPower]) then
+                iMinTechLevelForPower = iMinTechLevelForPower - 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Lowering power tech required by 1 tier') end
             end
         end
 
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': iMinTechLevelForPower='..iMinTechLevelForPower..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
-
+    bDebugMessages = false
     --Active gameender template - want to always have 1 engi on duty as highest priority to avoid having orders cancelled
     iCurPriority = iCurPriority + 1
     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
