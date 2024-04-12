@@ -2750,10 +2750,25 @@ end
 
 function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactoryInZoneOverride)
     --Returns true if we want to prioritise building sniperbots as a counter to enemy land experimentals
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'PrioritiseSniperBots'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if GetGameTimeSeconds() >= 17*60 and tLZData == M28Map.tAllPlateaus[2][M28Map.subrefPlateauLandZones][2] then bDebugMessages = true end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Stat of code, time='..GetGameTimeSeconds())
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then LOG(sFunctionRef..': Enemy has land exp, is table of enemy mega and fatboy empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))))
+        else LOG(sFunctionRef..': Enemy has no land exp')
+        end
+    end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
         --Dont get if enemy has t2 arti near this zone
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nearby t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
-            if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoyrFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+            local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+            local iLandSubteam = aiBrain.M28LandSubteam
+            if bDebugMessages == true then LOG(sFunctionRef..': Number of T3 aeon and sera factories on team='..((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0)..'; Is table of aeon and sera factories in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))) end
+            if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
                 local bEnemyHasLandExpOnSameIsland = false
                 for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                     if M28UnitInfo.IsUnitValid(oUnit) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == (tLZData[M28Map.subrefLZIslandRef] or 0) then
@@ -2761,11 +2776,15 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
                         break
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasLandExpOnSameIsland='..tostring(bEnemyHasLandExpOnSameIsland or false)..'; LC sniperbot='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot)..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
                 if bEnemyHasLandExpOnSameIsland then
                     --We have access to Aeon/Seraphim tech, and enemy has land experimentals but not a megalith or fatboy; prioritise sniperbots if we have a build count of less than 20
-                    if GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot) <= 12 + 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    if GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot) <= 13 + 7 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         --If we arent far behind on air and enemy lacks much in the way of T3 MAA then dont prioritise sniperbots since air likely better
-                        if TeamIsFarBehindOnAir(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 20000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is team far behind on air='..tostring(TeamIsFarBehindOnAir(iTeam))..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; Enemy T3 MAA count='..M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount]) end
+                        if TeamIsFarBehindOnAir(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 20000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4) or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 5000 or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 12 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want sniperbots') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
                     end
@@ -2773,6 +2792,8 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Dont want sniperbots') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -2821,7 +2842,7 @@ end
 
 function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iMassValue, iOptionalSearchCategory, tOptionalAdditionalUnits)
     --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
-    --iMassValue - if >= this in mass then returns true, otherwise returns false
+        --iMassValue - if >= this in mass then returns true, otherwise returns false
     local iCumulativeUnitValue = 0
     function ConsiderUnitTable(tUnits)
         if M28Utilities.IsTableEmpty(tUnits) == false then

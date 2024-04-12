@@ -268,7 +268,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     subrefiLandCorePlateau = 'M28LSTPlateau' --Plateau number that the land subteam is based on
     subrefiLandCoreIsland = 'M28LSTIsland' --Island number that the land subteam is based on
     --subreftoFriendlyM28Brains = 'M28Brains' --Uses same ref as air subteam
-    subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
+    subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --LAND SUBTEAM data table; First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
     subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
 
 
