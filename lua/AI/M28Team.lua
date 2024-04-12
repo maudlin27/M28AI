@@ -29,6 +29,7 @@ bActiveTeamDeathChecker = false
 bRecordedAllPlayers = false
 iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
+tBrainIndexesRecordedAsEnemies = {} --[x] is the armyindex, returns true if we have recorded as an enemy for a team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
     --Subteam details
     subrefAirSubteamsInTeam = 'M28AirSubteamInT' --returns table of air subteam numbers in this team
@@ -563,7 +564,7 @@ function CreateNewTeam(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iTotalTeamCount == 2 then bDebugMessages = true end
 
 
     iTotalTeamCount = iTotalTeamCount + 1
@@ -636,8 +637,10 @@ function CreateNewTeam(aiBrain)
     local bHaveM28BrainInTeam = false
 
     local tbBrainsWithLandSubteam = {}
+    local bAlreadyRecordedBrain
 
     for iCurBrain, oBrain in ArmyBrains do
+        if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')) end
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
         ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
         --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
@@ -646,8 +649,17 @@ function CreateNewTeam(aiBrain)
             M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
         end--]]
 
-        if not(oBrain.M28Team) then
-            if oBrain == aiBrain or (IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain))) then
+        --if not(oBrain.M28Team) then
+        bAlreadyRecordedBrain = false
+        if oBrain == aiBrain or (IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain))) then
+            --Have we already recorded this as an ally?
+            if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains]) == false then
+                for iRecorded, oRecorded in tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] do
+                    if oRecorded == oBrain then bAlreadyRecordedBrain = true break end
+                end
+            end
+            if not(bAlreadyRecordedBrain) then
+
                 --Check we have the same enemies if this is a campaign AI
                 if oBrain.M28AI and oBrain.CampaignAI then bHaveCampaignM28AI = true end
                 local bHaveSameEnemies = true
@@ -705,14 +717,28 @@ function CreateNewTeam(aiBrain)
                     end
                     LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                 end
-            elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+            end
+        elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+            if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoEnemyBrains]) == false then
+                for iRecorded, oRecorded in tTeamData[iTotalTeamCount][subreftoEnemyBrains] do
+                    if oRecorded == oBrain then
+                        bAlreadyRecordedBrain = true break
+                    end
+                end
+            end
+            if not(bAlreadyRecordedBrain) then
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy brain '..oBrain.Nickname..' for team '..iTotalTeamCount..' at time='..GetGameTimeSeconds()) end
+                bDebugMessages = false
                 table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
+                tBrainIndexesRecordedAsEnemies[oBrain:GetArmyIndex()] = true
                 --Check if anyone on enemy team has omni
                 if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
                     tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
                 end
             end
         end
+        --end
     end
     if not(bHaveM28BrainInTeam) and aiBrain.M28AI then bHaveM28BrainInTeam = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Setup a team with team ref/iTotalTeamCount='..iTotalTeamCount..'; do we have M28 brain in this team='..tostring(bHaveM28BrainInTeam)) end

@@ -2848,3 +2848,47 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
     end
     return false
 end
+
+function ACULikelyToWantCombatUpgrade(oACU)
+    --used to decide if we want to go down combat path of upgrades for ACU
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ACULikelyToWantCombatUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if GetGameTimeSeconds() >= 8*60 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
+    if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
+        if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    elseif GetGameTimeSeconds() <= 1200 then
+        local aiBrain = oACU:GetAIBrain()
+        if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+            local iTeam = aiBrain.M28Team
+            if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
+                --How close is nearest enemy base to our nearest friendly base (dont want to do based on ACU position as ACU might retreat to get upgrade then the upgrade changes as a result of htis flag
+                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
+                if not(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
+                    tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                end
+                local iDistBetweenBases = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                if bDebugMessages == true then LOG(sFunctionRef..': iDistBetweenBases='..iDistBetweenBases..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Cur T3 mex='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)) end
+                if iDistBetweenBases <= 300 or (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iDistBetweenBases <= 500) then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) < 3 then
+                        --Check start LZ isnt in a safe position
+                        local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition])) end
+                        if not(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Likely we will want to use ACU in combat, returning true') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end

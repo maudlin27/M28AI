@@ -3564,7 +3564,7 @@ local function RecordTravelDistBetweenZonesOverTime()
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3574,17 +3574,18 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if GetGameTimeSeconds() >= 5 and (bMapLandSetupComplete or GetGameTimeSeconds() >= 10) then
             M28Utilities.ErrorHandler('Have been waiting too long for map setup to complete')
-        break
+            break
         end
     end
 
     local tEnemyBases = {}
     local tAllyBases = {}
     local tBrainsByIndex = {}
-
+    if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            tEnemyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()) end
+            table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
     end
@@ -3594,7 +3595,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         end
         return false
     end
-
+    bDebugMessages = true
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
@@ -3606,6 +3607,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     end
 
     if M28Utilities.IsTableEmpty(tEnemyBases) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Backup logic - will get the first active brain on the enemy team as the enmy base location') end
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
@@ -3637,29 +3639,49 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
 
     --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        bDebugMessages = true
         if M28Utilities.IsTableEmpty(tEnemyBases) == false then
             local iMaxDistToBaseWanted
             local iCurFriendlyDistToBase
             local bHaveCloserTeammate = false
+            local bHaveDangerousEnemyBase = false
             for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
-                if bDebugMessages == true then LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; Size of tEnemyBases='..table.getn(tEnemyBases)) end
+                bHaveDangerousEnemyBase = false
                 for iEntry, tEnemyBase in tEnemyBases do
                     bHaveCloserTeammate = false
                     iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tBaseFriendlyBase) - 10
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether we have a friendly base protecting iBaseFriendlyBase '..iBaseFriendlyBase..' from the enemy base iEntry='..iEntry) end
                     for iFriendlyBase, tCurFriendlyBase in tAllyBases do
                         if not(iBaseFriendlyBase == iFriendlyBase) then
                             iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  tCurFriendlyBase)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us, considering iFriendlyBase='..iFriendlyBase..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us for the enemy base with iEntry='..iEntry..', considering iFriendlyBase='..iFriendlyBase..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
                             if iCurFriendlyDistToBase <= iMaxDistToBaseWanted then
-                                bHaveCloserTeammate = true
-                                break
+                                local iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase), M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Closer teammate dist='..iCurFriendlyDistToBase..'; Angle from enemy to cur teammate base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase)..'; Angle from enemy to base friendly base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase)..'; iAngleDif='..iAngleDif..'; iMaxDistToBaseWanted - iCurFriendlyDistToBase='..(iMaxDistToBaseWanted - iCurFriendlyDistToBase)..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; Angle from base friendl yto cur friendly='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tCurFriendlyBase)..'; Angle from base friendly to enemy='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tEnemyBase)..'; Dist from base friendly to cur firendly='..M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, tCurFriendlyBase)) end
+                                if iAngleDif <= 50 and (iAngleDif <= 30 or (iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(100, iMaxDistToBaseWanted*0.25) and (iAngleDif <= 40 or iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(150, iMaxDistToBaseWanted*0.5)))) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We have a closer teammate for this enemy base with iEntry='..iEntry) end
+                                    if bDebugMessages == true and M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, {718.5, 25.416015625, 232.5}) <= 5 then
+                                        --Draw line from enemy base to the friendly base
+                                        ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tCurFriendlyBase, 1)
+                                        ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tBaseFriendlyBase, 3)
+                                    end
+                                    bHaveCloserTeammate = true
+                                    break
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': Angle dif not sufficient to treat as a safe base')
+                                end
                             end
                         end
                     end
-                    if not(bHaveCloserTeammate) then break end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finishing considering enemy base iEntry'..iEntry..' for the friendly base iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate or false)) end
+                    if not(bHaveCloserTeammate) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We dont have a friendly base protecting us from this enemy so will abort loop') end
+                        bHaveDangerousEnemyBase = true
+                        break
+                    end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, bHaveCloserTeammate='..tostring(bHaveCloserTeammate)..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; iTeam='..(iTeam or 'nil')) end
-                if bHaveCloserTeammate then
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate)..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; iTeam='..(iTeam or 'nil')..'; bHaveDangerousEnemyBase='..tostring(bHaveDangerousEnemyBase or false)) end
+                if bHaveCloserTeammate and not(bHaveDangerousEnemyBase) then
                     local tBaseLZOrWZData, tBaseLZOrWZTeamData = GetLandOrWaterZoneData(tBaseFriendlyBase, true, iTeam)
                     if tBaseLZOrWZData and not(tBaseLZOrWZTeamData) then
                         local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
@@ -3712,7 +3734,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                tEnemyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
         end
@@ -7227,6 +7249,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 local iLowestDist = 10000
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
+                    if not(bIsCampaignMap) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
                     for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                         iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget
