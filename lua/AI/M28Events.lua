@@ -1148,7 +1148,7 @@ function ProjectileCreated(oProjectile, inWater)
         LOG('TEMP TEST will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
     end--]]
-    if oProjectile.GetTrackingTarget then
+    if oProjectile.GetTrackingTarget and (not(oProjectile.BeenDestroyed) or not(oProjectile:BeenDestroyed())) then
         local oTarget = oProjectile:GetTrackingTarget()
         --M28 target specific logic:
         if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then

@@ -4042,9 +4042,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                                    if iRange >= iFriendlyBestMobileDFRange then
-                                        iEnemyBestRangeDFThreat = iEnemyBestRangeDFThreat + iThreat
+                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                                    for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                                        if iRange >= iFriendlyBestMobileDFRange then
+                                            iEnemyBestRangeDFThreat = iEnemyBestRangeDFThreat + iThreat
+                                        end
                                     end
                                 end
                             end

@@ -2812,7 +2812,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             if not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) then
                 local tNearbyEnemyLandCombat = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat - categories.TECH1, tLZOrWZData[M28Map.subrefMidpoint], 280, 'Enemy')
                 if M28Utilities.IsTableEmpty(tNearbyEnemyLandCombat) == false then
-                    local iNearbyMassThreat = M28Conditions.GetMassCostOfUnits(tNearbyEnemyLandCombat)
+                    local iNearbyMassThreat = M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyLandCombat)
                     if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMassThreat='..iNearbyMassThreat) end
                     if iNearbyMassThreat > math.max(5000, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) * 0.2) then
                         bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats = true
@@ -9262,6 +9262,25 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         --Build more land facs if not constructed any experimentals and are dealing with land zone, or if are Aeon or Seraphim, haven't built many sniperbots (or lots of t3 land), and enemy lacks fatboy or megalith
         local tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
         local aiBrain = ArmyBrains[tLZOrWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if not(aiBrain) then
+            M28Utilities.ErrorHandler('Dont have a closest brain index for P'..iPlateau..'Z'..iLandOrWaterZone..'; will use brain of first unit')
+            if M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits][1]) then
+                aiBrain = tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits][1]:GetAIBrain()
+            end
+            if not(aiBrain) then
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) then
+                    aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                else
+                    for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            aiBrain = oUnit:GetAIBrain()
+                            break
+                        end
+                    end
+                    if not(aiBrain) then aiBrain = M28Team.GetFirstActiveM28Brain(iTeam) end
+                end
+            end
+        end
         local bAreSeraOrAeon = false
         local bPrioritiseSniperBots = false
 
