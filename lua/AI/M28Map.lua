@@ -3564,7 +3564,7 @@ local function RecordTravelDistBetweenZonesOverTime()
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3595,7 +3595,6 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         end
         return false
     end
-    bDebugMessages = true
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
@@ -3639,7 +3638,6 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
 
     --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-        bDebugMessages = true
         if M28Utilities.IsTableEmpty(tEnemyBases) == false then
             local iMaxDistToBaseWanted
             local iCurFriendlyDistToBase

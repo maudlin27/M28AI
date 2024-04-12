@@ -2725,7 +2725,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
-            if iLandOrWaterZone == 40 or iLandOrWaterZone == 8 then bDebugMessages = true end
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..aiBrain.Nickname..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))) end
             --Land subteam - use aiBrain.M28LandSubteam
             local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
@@ -2885,7 +2884,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                             end
                                         end
                                         if iCurBaseFromEnemyDist > iCurBaseFromEnemyDist + 50 then
-                                            bDebugMessages = true
                                             bDeferForAnotherZoneOrLater = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have another zone that is further away from the enemy than this zone so want to not build a nuke here so that zone cna potentially build a nuke') end
                                         end
@@ -9193,7 +9191,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
     local sFunctionRef = 'AssignBuildExperimentalOrT3NavyAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandOrWaterZone == 2 and GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
+
 
     --Check if a teammate has units nearby that we might want to assist instead
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..(iPlateau or 'nil')..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iActionToAssign='..(iActionToAssign or 'nil')..'; iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')..'; iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Is table of T3 navy and exp empty for our team (i.e. for nonM28 units)='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]))..'; Is table of enemy air exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]))..'; Team airaa threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Enemy air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Do we have exp under construction in this zone='..tostring(GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, false, 0, nil, false) or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))) end
@@ -9405,7 +9403,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         else iPowerMod = iPowerMod + (((ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 1) - 1) * 0.7)
         end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iPowerMod = iPowerMod + 1 end
-        if iLandZone == 4 and GetGameTimeSeconds() >= 6*60+30 then bDebugMessages = true end
+
         if bDebugMessages == true then LOG(sFunctionRef..': iPowerMod='..iPowerMod..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')..'; Brain='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')..'; Resource mod='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 'nil')..'; iHighestTechInZone='..iHighestTechInZone..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)) end
 
         local iPlayerCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
@@ -9433,7 +9431,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': iMinTechLevelForPower='..iMinTechLevelForPower..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
-    bDebugMessages = false
     --Active gameender template - want to always have 1 engi on duty as highest priority to avoid having orders cancelled
     iCurPriority = iCurPriority + 1
     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
@@ -15596,7 +15593,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    if iLandZone == 4 then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)

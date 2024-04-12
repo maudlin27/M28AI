@@ -564,7 +564,6 @@ function CreateNewTeam(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iTotalTeamCount == 2 then bDebugMessages = true end
 
 
     iTotalTeamCount = iTotalTeamCount + 1
@@ -727,9 +726,7 @@ function CreateNewTeam(aiBrain)
                 end
             end
             if not(bAlreadyRecordedBrain) then
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy brain '..oBrain.Nickname..' for team '..iTotalTeamCount..' at time='..GetGameTimeSeconds()) end
-                bDebugMessages = false
                 table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
                 tBrainIndexesRecordedAsEnemies[oBrain:GetArmyIndex()] = true
                 --Check if anyone on enemy team has omni

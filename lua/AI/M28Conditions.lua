@@ -2754,7 +2754,6 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
     local sFunctionRef = 'PrioritiseSniperBots'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 17*60 and tLZData == M28Map.tAllPlateaus[2][M28Map.subrefPlateauLandZones][2] then bDebugMessages = true end
     if bDebugMessages == true then
         LOG(sFunctionRef..': Stat of code, time='..GetGameTimeSeconds())
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then LOG(sFunctionRef..': Enemy has land exp, is table of enemy mega and fatboy empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))))
@@ -2875,7 +2874,6 @@ function ACULikelyToWantCombatUpgrade(oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ACULikelyToWantCombatUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 8*60 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
     if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end

@@ -578,7 +578,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
             if iTimeUntilImpact > 0.8 then
                 for iTarget, oTarget in tUnitsToConsiderDodgeFor do
-                    if oTarget.UnitId == 'del0204' and M28UnitInfo.GetUnitLifetimeCount(oTarget) == 4 and GetGameTimeSeconds() >= 13*60+50 then bDebugMessages = true else bDebugMessages = false end
                     bCancelDodge = false
                     if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeapon.Blueprint.Damage..'; Target health='..oTarget:GetHealth()) end
                     --Does the shot do enough damage that we want to try and doge it?
@@ -643,7 +642,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oTarget.UnitId == 'del0204' and M28UnitInfo.GetUnitLifetimeCount(oTarget) == 4 and GetGameTimeSeconds() >= 13*60+50 then bDebugMessages = true else bDebugMessages = false end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
 
     M28Orders.UpdateRecordedOrders(oTarget)
@@ -686,7 +685,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
         end
     end
     --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
-    if GetGameTimeSeconds() >= 13*60+50 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) then
+    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) then
         local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
         if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then
             if bDebugMessages == true then LOG(sFunctionRef..': Increasing angle adjust as have a skirmisher, iAngleAdjust before increase='..iAngleAdjust..'; iAngleDifToDestination='..iAngleDifToDestination) end

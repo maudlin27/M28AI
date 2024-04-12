@@ -1100,7 +1100,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     local sFunctionRef = 'GetUpgradePathForACU'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 8*60 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
     local oBP = oACU:GetBlueprint()
 
@@ -3730,7 +3730,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if aiBrain:GetArmyIndex() == 4 and GetGameTimeSeconds() >= 9*60 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
