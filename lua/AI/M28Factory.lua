@@ -4020,7 +4020,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
     end
 
     local bConsiderBuildingShieldOrStealthBoats = true
@@ -4101,7 +4101,11 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if iCurFrigates >= 75 then bConsiderBuildingMoreCombat = false end
         if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
     elseif iFactoryTechLevel <= 2 then
-        if iCurFrigates < 75 and math.random(0, 1) == 1 then
+        local iCurDestroyer = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer)
+        local iCurCruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser)
+        local iCurT3Surface = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)
+
+        if iCurFrigates < 75 and not(aiBrain[M28Overseer.refbCloseToUnitCap]) and iCurDestroyer > 0 and iCurFrigates < iCurDestroyer * 4 + iCurCruiser * 2 + iCurT3Surface * 5 then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
             if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build frigates instead of destroyers') end
         else
@@ -4113,9 +4117,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iCurDestroyerAndBattlecruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser)
 
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
-        if iCurFrigates == 0 or iCurFrigates <= iCurDestroyerAndBattlecruiser and not (aiBrain[M28Overseer.refbCloseToUnitCap]) and iCurFrigates <= 75 then
+        local iOtherT2T3Surface = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface - categories.TECH1 - M28UnitInfo.refCategoryBattleship - M28UnitInfo.refCategoryDestroyer - M28UnitInfo.refCategoryBattlecruiser)
+        if not((aiBrain[M28Overseer.refbCloseToUnitCap])) and (iCurFrigates == 0 or (iCurFrigates <= 75 and iCurDestroyerAndBattlecruiser > 0 and iCurBattleships > 0 and iCurFrigates <= iCurDestroyerAndBattlecruiser * 4 + iCurBattleships * 5 + iOtherT2T3Surface * 2)) then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
-        elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships then
+        elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships * 2 + 2 then
             iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
         --If factory can build battlecruiser and we have none and LC is 0 then build instead of battleship
         elseif oFactory:CanBuild('xes0307') and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) <= 1 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships])) then
@@ -4124,7 +4129,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iCombatCategory = M28UnitInfo.refCategoryBattleship
         end
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser))
+            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser)..'; iOtherT2T3Surface='..iOtherT2T3Surface)
         end
     end
 
