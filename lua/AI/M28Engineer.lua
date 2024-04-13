@@ -15792,6 +15792,41 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                 end
             end
         end
+    else
+        --Consider if there is a cliff inbetween us and the enemy that is a higher height (even if the enemy itself is on the same height)
+        local iCliffDist
+        local iMaxSearchRange
+        if iDistToMove > 30 then iMaxSearchRange = 30 else iMaxSearchRange = math.floor(iDistToMove / 5)*5 - 5 end
+        if iMaxSearchRange >= 5 then
+            local iAngleFromBuildLocation = iAngleFromTargetToMidpoint + 180
+            if iAngleFromBuildLocation > 360 then iAngleFromBuildLocation = iAngleFromBuildLocation - 360 end
+            local iHeightThreshold = tTargetLocation[2] + 1
+            local iBlockingCliffDist
+            for iCurSearchDist = 5, iMaxSearchRange, 5 do
+                local tCliffCheckLocation = M28Utilities.MoveInDirection(tTargetLocation, iAngleFromBuildLocation, iCurSearchDist, false)
+                if tCliffCheckLocation[2] >= iHeightThreshold then
+                    iBlockingCliffDist = iCurSearchDist
+                    break
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking whether we have a blocking cliff so will try and move the PD back if we do, iBlockingCliffDist='..(iBlockingCliffDist or 'nil')) end
+            if iBlockingCliffDist then
+                --Move the PD back if possible
+                local iDistToMoveBack = math.min(30, 50 - iBlockingCliffDist)
+                local iIslandWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZMidpoint)
+                if iIslandWanted then
+                    for iDistAdjust = iDistToMoveBack, 5, -5 do
+                        local tAltLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove + iDistAdjust, true, false, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if alt location for iDistAdjust='..iDistAdjust..' is valid and not too far below the enemy, height dif to enemy='..(tAltLocation[2] or 0) - tNearestEnemy[2]..'; Island='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAltLocation) or 'nil')..'; iIslandWanted='..iIslandWanted) end
+                        if M28Utilities.IsTableEmpty(tAltLocation) == false and tAltLocation[2] - tNearestEnemy[2] >= -0.8 and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tAltLocation) == iPlateau and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAltLocation) == iIslandWanted then
+                            if bDebugMessages == true then LOG(sFunctionRef..': will set new target location to tAltLocation, tTargetLocation dist to tAltLocation='..M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tAltLocation)..'; iDistAdjust='..iDistAdjust) end
+                            tTargetLocation = {tAltLocation[1], tAltLocation[2], tAltLocation[3]}
+                            break
+                        end
+                    end
+                end
+            end
+        end
     end
 
 
