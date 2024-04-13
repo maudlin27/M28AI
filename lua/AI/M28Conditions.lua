@@ -2750,10 +2750,24 @@ end
 
 function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactoryInZoneOverride)
     --Returns true if we want to prioritise building sniperbots as a counter to enemy land experimentals
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'PrioritiseSniperBots'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Stat of code, time='..GetGameTimeSeconds())
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then LOG(sFunctionRef..': Enemy has land exp, is table of enemy mega and fatboy empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))))
+        else LOG(sFunctionRef..': Enemy has no land exp')
+        end
+    end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy,M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) then
         --Dont get if enemy has t2 arti near this zone
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nearby t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
-            if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoyrFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+            local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+            local iLandSubteam = aiBrain.M28LandSubteam
+            if bDebugMessages == true then LOG(sFunctionRef..': Number of T3 aeon and sera factories on team='..((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0)..'; Is table of aeon and sera factories in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))) end
+            if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
                 local bEnemyHasLandExpOnSameIsland = false
                 for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                     if M28UnitInfo.IsUnitValid(oUnit) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == (tLZData[M28Map.subrefLZIslandRef] or 0) then
@@ -2761,11 +2775,15 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
                         break
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasLandExpOnSameIsland='..tostring(bEnemyHasLandExpOnSameIsland or false)..'; LC sniperbot='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot)..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
                 if bEnemyHasLandExpOnSameIsland then
                     --We have access to Aeon/Seraphim tech, and enemy has land experimentals but not a megalith or fatboy; prioritise sniperbots if we have a build count of less than 20
-                    if GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot) <= 12 + 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    if GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot) <= 13 + 7 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         --If we arent far behind on air and enemy lacks much in the way of T3 MAA then dont prioritise sniperbots since air likely better
-                        if TeamIsFarBehindOnAir(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 20000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is team far behind on air='..tostring(TeamIsFarBehindOnAir(iTeam))..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; Enemy T3 MAA count='..M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount]) end
+                        if TeamIsFarBehindOnAir(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 20000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4) or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 5000 or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 12 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want sniperbots') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
                     end
@@ -2773,6 +2791,8 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Dont want sniperbots') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -2821,7 +2841,7 @@ end
 
 function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iMassValue, iOptionalSearchCategory, tOptionalAdditionalUnits)
     --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
-    --iMassValue - if >= this in mass then returns true, otherwise returns false
+        --iMassValue - if >= this in mass then returns true, otherwise returns false
     local iCumulativeUnitValue = 0
     function ConsiderUnitTable(tUnits)
         if M28Utilities.IsTableEmpty(tUnits) == false then
@@ -2846,5 +2866,48 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             ConsiderUnitTable(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
         end
     end
+    return false
+end
+
+function ACULikelyToWantCombatUpgrade(oACU)
+    --used to decide if we want to go down combat path of upgrades for ACU
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ACULikelyToWantCombatUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
+    if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
+        if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    elseif GetGameTimeSeconds() <= 1200 then
+        local aiBrain = oACU:GetAIBrain()
+        if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+            local iTeam = aiBrain.M28Team
+            if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
+                --How close is nearest enemy base to our nearest friendly base (dont want to do based on ACU position as ACU might retreat to get upgrade then the upgrade changes as a result of htis flag
+                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
+                if not(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
+                    tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                end
+                local iDistBetweenBases = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                if bDebugMessages == true then LOG(sFunctionRef..': iDistBetweenBases='..iDistBetweenBases..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Cur T3 mex='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)) end
+                if iDistBetweenBases <= 300 or (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iDistBetweenBases <= 500) then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) < 3 then
+                        --Check start LZ isnt in a safe position
+                        local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition])) end
+                        if not(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Likely we will want to use ACU in combat, returning true') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end

@@ -1131,20 +1131,25 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         end
-    elseif M28Team.iPlayersAtGameStart >= 4 and M28Map.iMapSize >= 512 then
+    elseif M28Team.iPlayersAtGameStart > 4 and M28Map.iMapSize >= 512 and (M28Team.iPlayersAtGameStart >= 8 or M28Map.iMapSize >= 768) then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             if oACU[refiUpgradeCount] >= 2 then
-                if oACU[refbPlanningToGetShield] == nil then
-                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+                    --Do nothing - have already decided what upgrade path to go down
+                else
+                    if oACU[refbPlanningToGetShield] == nil then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                            oACU[refbPlanningToGetShield] = true
+                        end
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
                         oACU[refbPlanningToGetShield] = true
                     end
-                elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
-                    oACU[refbPlanningToGetShield] = true
-                end
-                if oACU[refbPlanningToGetShield] then
-                    oACU[reftPreferredUpgrades] = {'Shield', 'ResourceAllocation'}
-                else
-                    oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
+                    --Also get shield if a good chance we will use ACU in combat for a while
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) then
+                        oACU[reftPreferredUpgrades] = {'Shield', 'ResourceAllocation'}
+                    else
+                        oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
+                    end
                 end
             elseif oACU[refiUpgradeCount] >= 1 then
                 oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
@@ -1152,54 +1157,89 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
-            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end
-        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 1 then
-                if oACU[refbPlanningToGetShield] == nil then
-                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
-                        oACU[refbPlanningToGetShield] = true
+            if oACU[refiUpgradeCount] >= 3 then
+                if oACU[refiUpgradeCount] >= 4 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+                    --Do nothing - already determined upgrade path
+                else
+                    if oACU[refbPlanningToGetShield] == nil then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                            oACU[refbPlanningToGetShield] = true
+                        end
                     elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
                         oACU[refbPlanningToGetShield] = true
                     end
+
+                    --Also get shield if a good chance we will use ACU in combat for a while
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) or oACU:HasEnhancement('Shield') or oACU:HasEnhancement('ShieldHeavy') then
+                        oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+                    else
+                        oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                    end
                 end
-                if oACU[refbPlanningToGetShield] then
-                    oACU[reftPreferredUpgrades] = {'StealthGenerator'}
-                    if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
+            else
+                oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            end
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] and not(oACU[reftPreferredUpgrades][3] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 3, 'FAF_CrysalisBeamAdvanced') end
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            if oACU[refiUpgradeCount] >= 1 then
+                if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+                    --Do nothing - already determined upgrade path
+                    if bDebugMessages == true then LOG(sFunctionRef..': Already determiend upgrade path as have 3+ upgrades') end
                 else
-                    oACU[reftPreferredUpgrades] = {'ResourceAllocation'}
+                    if oACU[refbPlanningToGetShield] == nil then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': ACU low enough health that we want to get a shield') end
+                            oACU[refbPlanningToGetShield] = true
+                        end
+                    elseif not(oACU[refbPlanningToGetShield]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then
+                        oACU[refbPlanningToGetShield] = true
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbPlanningToGetShield]='..tostring(oACU[refbPlanningToGetShield])) end
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) or oACU:HasEnhancement('SelfRepairSystem') then
+                        oACU[reftPreferredUpgrades] = {'StealthGenerator'}
+                        if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want stealth and nano for ACU') end
+                    else
+                        oACU[reftPreferredUpgrades] = {'ResourceAllocation'}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want RAS for ACU') end
+                    end
                 end
             else
                 oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation'}
+                if bDebugMessages == true then LOG(sFunctionRef..': Will start with default being gun and RAS') end
             end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
             if oACU[refiUpgradeCount] >= 2 then
-                if oACU[refbPlanningToGetShield] == nil then
-                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty( oACU[reftPreferredUpgrades]) == false then
+                    --Do nothing - already determined which path to go down
+                else
+                    if oACU[refbPlanningToGetShield] == nil then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                            oACU[refbPlanningToGetShield] = true
+                        end
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
                         oACU[refbPlanningToGetShield] = true
                     end
-                elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
-                    oACU[refbPlanningToGetShield] = true
-                end
-                if oACU[refbPlanningToGetShield] then
-                    oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
-                else
-                    oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) then
+                        oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                    else
+                        oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
+                    end
                 end
             else
                 oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
             end
         end
-    else
+        else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
-            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 3, 'FAF_CrysalisBeamAdvanced') end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
             --FAF balance patch expected 15th July 2023 to introduce nano upgrade for Cybran
-            if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
+            if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades],'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'DamageStabilization'}
         end
@@ -3728,7 +3768,7 @@ function GetACUOrder(aiBrain, oACU)
             if DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                 --Are we in a different LZ to core base, and have enemy threat or are on <60% health with less health than our upgrade progress?
-                if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+                if not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) or (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU))) then
                     local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
                     if iACUHealthPercent < 0.6 and (1 - iACUHealthPercent) + 0.1 > oACU:GetWorkProgress() then
                         --Do we no longer consider this location safe?
@@ -3740,7 +3780,17 @@ function GetACUOrder(aiBrain, oACU)
                         end
                     end
                 end
-
+            elseif tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
+                if iACUHealthPercent < 0.6 and (1 - iACUHealthPercent) + 0.1 > oACU:GetWorkProgress() then
+                    --Do we no longer consider this location safe?
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU health relatively low, iACUHealthPercent='..iACUHealthPercent..'; Work progress='..oACU:GetWorkProgress()..'; woudl it be safe to start an ugprade here='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
+                    if not(M28Conditions.SafeToUpgradeUnit(oACU)) and M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), oACU:GetPosition()) >= 35 then
+                        --Cancel upgrade
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
+                        M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CURun')
+                    end
+                end
             end
         end
     elseif oACU:IsUnitState('Teleporting') then

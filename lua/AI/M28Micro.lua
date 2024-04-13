@@ -667,8 +667,8 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local iAngleToDestination
     if tCurDestination then iAngleToDestination = M28Utilities.GetAngleFromAToB(oTarget:GetPosition(), tCurDestination)
     else
-    iAngleToDestination = iCurFacingAngle
-    tCurDestination = oTarget:GetPosition()
+        iAngleToDestination = iCurFacingAngle
+        tCurDestination = oTarget:GetPosition()
     end
 
     local oBP = oTarget:GetBlueprint()
@@ -677,15 +677,24 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local iUnitSize = oBP.SizeX + oBP.SizeZ
     local iAngleAdjust = math.max(15, oBP.Physics.TurnRate * 0.3)
     if iUnitSize >= 2 then
-    if iUnitSize >= 4 then iAngleAdjust = iAngleAdjust * 2.5
-    else iAngleAdjust = iAngleAdjust * 1.75
+        if iUnitSize >= 4 then iAngleAdjust = iAngleAdjust * 2.5
+        else iAngleAdjust = iAngleAdjust * 1.75
+        end
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oTarget.UnitId) then
+            iAngleAdjust = math.min(iAngleAdjust, 30)
+        end
     end
-    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oTarget.UnitId) then
-    iAngleAdjust = math.min(iAngleAdjust, 30)
+    --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
+    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) then
+        local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
+        if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Increasing angle adjust as have a skirmisher, iAngleAdjust before increase='..iAngleAdjust..'; iAngleDifToDestination='..iAngleDifToDestination) end
+            iAngleAdjust = math.max(iAngleAdjust, iAngleDifToDestination * 0.7)
+        end
     end
-    end
+
     if M28Utilities.GetAngleDifference(iCurFacingAngle + iAngleAdjust, iAngleToDestination) > M28Utilities.GetAngleDifference(iCurFacingAngle - iAngleAdjust, iAngleToDestination) then
-    iAngleAdjust = iAngleAdjust * -1
+        iAngleAdjust = iAngleAdjust * -1
     end
 
     local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iCurFacingAngle + iAngleAdjust, iDistanceToRun, true, false, true)
@@ -695,9 +704,9 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
     --Also send an order to go to the destination that we had before
     if bAttackMove then
-    M28Orders.IssueTrackedAttackMove(oTarget, tCurDestination, 0.25, true, 'MiDod2', true)
+        M28Orders.IssueTrackedAttackMove(oTarget, tCurDestination, 0.25, true, 'MiDod2', true)
     else
-    M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
+        M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

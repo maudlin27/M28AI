@@ -1167,9 +1167,9 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
             if iEnemyHumans >= 3 and iAllyHumans == 0 then AddPotentialMessage('Your lack of coordination shall be your undoing') end
             if iEnemyHumans > iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] and math.max(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier], M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier]) == 1 then
                 if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
-                    AddPotentialMessage('So, you didn\'t feel like you could take us on in equal fight?')
+                    AddPotentialMessage('So, you didn\'t feel like you could take us on in an equal fight?')
                 else
-                    AddPotentialMessage('So, you didn\'t feel like you could take me on in equal fight?')
+                    AddPotentialMessage('So, you didn\'t feel like you could take me on in an equal fight?')
                 end
             end
         end
@@ -1948,6 +1948,24 @@ function SendUnitReclaimedMessage(oEngineer, oReclaim)
     local iRand = math.random(1, table.getn(tsPotentialMessages))
     if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     SendMessage(oReclaim:GetAIBrain(), 'Ally reclaiming'..oEngineer:GetAIBrain():GetArmyIndex(), tsPotentialMessages[iRand], 0, 100000, false)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SendSlowdownModeMessage(oBrainToSendMessage)
+    local sFunctionRef = 'SendSlowdownModeMessage'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tsPotentialMessages = {
+        'Even my apm cant keep up with this many units!',
+        'I have too many units to handle, I\'m going to have to take things at a slower pace',
+        'I hope your cpu can keep up with this many units',
+        'Engaging protocols for handling large unit numbers',
+        'I\'m all worn out managing this many units, I think I\'ll take things a bit slower now',
+    }
+    local iRand = math.random(1, table.getn(tsPotentialMessages))
+    if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Will send message if it hasnt already been sent, message='..(tsPotentialMessages[iRand] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    SendMessage(oBrainToSendMessage, 'Slowdown', tsPotentialMessages[iRand], 0, 1000000, false, true)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
