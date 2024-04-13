@@ -4083,6 +4083,21 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     function ConsiderUpgrading()
         if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
+            --Dont upgrade T1 naval fac if it's our highest naval tech and we already have an active naval fac upgrade of this faction or are about to overflow mass
+            if iFactoryTechLevel == aiBrain[M28Economy.refiOurHighestNavalFactoryTech] and aiBrain:GetEconomyStoredRatio('MASS') < 0.85 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                local bUpgradingHQElsewhere = false
+                local iFactionWanted = M28UnitInfo.GetUnitFaction(oFactory)
+                local tUpgradingNavalHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs])
+                if M28Utilities.IsTableEmpty(tUpgradingNavalHQs) == false then
+                    for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                        if M28UnitInfo.IsUnitValid(oHQ) and oHQ:GetAIBrain() == aiBrain and M28UnitInfo.GetUnitFaction(oHQ) == iFactionWanted and M28UnitInfo.GetUnitTechLevel(oHQ) >= iFactoryTechLevel then
+                            return nil
+                        end
+                    end
+                end
+            end
+
+
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
