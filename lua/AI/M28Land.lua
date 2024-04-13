@@ -4823,7 +4823,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if M28Utilities.GetDistanceBetweenPositions(oTargetToManuallyAttack:GetPosition(), oSRUnit:GetPosition()) > oSRUnit[M28UnitInfo.refiDFRange] - 5 then
                                             M28Orders.IssueTrackedMove(oSRUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpSRM'..iLandZone)
                                         else
-                                            DoManualAttack(oUnit, oTargetToManuallyAttack, 'ExpSRA')
+                                            DoManualAttack(oSRUnit, oTargetToManuallyAttack, 'ExpSRA')
                                         end
 
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oSRUnit.UnitId) then

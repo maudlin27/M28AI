@@ -2053,7 +2053,7 @@ function GetUnitAirStagingSize(oUnit)
     end
 end
 
-function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
+function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontReleaseHealedUnits)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OrderUnitsToRefuel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2097,9 +2097,11 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering air staging unit '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..'; Is tCargo empty='..tostring(M28Utilities.IsTableEmpty(tCargo))..'; bCargoReadyToRelease='..tostring(bCargoReadyToRelease)..'; Is oAirStaging[reftAssignedRefuelingUnits] empty='..tostring(M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]))) end
                     if bCargoReadyToRelease then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
-                        M28Orders.ReleaseStoredUnits(oAirStaging, false, 'ASUnl', false)
-                        --Dont clear unit status as should happen automatically in next cycle; dont consider sending units to it this cycle
+                        if not(bDontReleaseHealedUnits) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
+                            M28Orders.ReleaseStoredUnits(oAirStaging, false, 'ASUnl', false)
+                            --Dont clear unit status as should happen automatically in next cycle; dont consider sending units to it this cycle
+                        end
                     else
                         if M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]) == false then
                             --Remove any invalid units or units whose order isn't to refuel
@@ -2186,6 +2188,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                             else
                                 tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] - iCurSize
                             end
+                            bDebugMessages = false
                         else
                             table.insert(tUnitsUnableToRefuel, oAirUnit)
                         end

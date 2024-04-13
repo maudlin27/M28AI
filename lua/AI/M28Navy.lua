@@ -3805,7 +3805,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
                     --Scenario 3 - want to retreat (but only retreat units from this WZ)
                     bWantReinforcements = true
-                    if not(bAntiTorpLauncherMode) then
+                    if not(bAntiTorpLauncherMode) and M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false then
                         local tSubRallyPoint
                         local sMessage
                         local bConsiderAmphibiousRally = true

@@ -1178,7 +1178,7 @@ function ProjectileCreated(oProjectile, inWater)
                     local iMaxHealth = oTarget:GetMaxHealth()
                     if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
                         oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
-                        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam)
+                        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
                         if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship for refueling') end
                     end
 
