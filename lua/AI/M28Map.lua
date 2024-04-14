@@ -279,6 +279,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
             subrefiTimeOfMMLFiringNearTMDOrShield = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
+            subrefiTimeOfLastCombatRetreat = 'LZTimLstRetr' --Gametimeseconds that combat units in this LZ wanted to retreat
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
             refiTimeOfLastIndirectFirebaseAttack = 'LZIndFBAtc' --gametimeseconds that we last attacked a firebase in this zone with indirect units
