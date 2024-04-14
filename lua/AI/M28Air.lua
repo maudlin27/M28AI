@@ -7855,7 +7855,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                         if tFirstZoneWithTargetsMidpoint then
                                             iZonesConsideredAfterFirstTarget = iZonesConsideredAfterFirstTarget + 1
                                             if iZonesConsideredAfterFirstTarget >= 6 then
-                                                if iZonesConsideredAfterFirstTarget >= 20 or tSubtable[M28Map.subrefiDistance] - iDistFromFirstZoneToBomber >= 90 then
+                                                if iZonesConsideredAfterFirstTarget >= 20 or (tSubtable[M28Map.subrefiDistance] or 0) - (iDistFromFirstZoneToBomber or 50) >= 90 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Already considered '..(iZonesConsideredAfterFirstTarget - 1)..' zones after the first, dist threshold vs dist from first zone to bomber='..tSubtable[M28Map.subrefiDistance] - iDistFromFirstZoneToBomber..' so will stop searching for more, dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
                                                     break
                                                 end
@@ -7893,7 +7893,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                                     tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
                                                 end
                                                 tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
-                                                iDistFromFirstZoneToBomber = tSubtable[M28Map.subrefiDistance]
+                                                iDistFromFirstZoneToBomber = (tSubtable[M28Map.subrefiDistance] or M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, oBomber:GetPosition()))
                                                 --tiFirstPlateauAndZone = {tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef]}
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
                                             end
