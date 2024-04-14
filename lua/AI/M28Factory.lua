@@ -2397,11 +2397,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if not (bHaveLowMass) and (not (bSaveMassDueToEnemyFirebaseOrOurExperimental) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45) then
             --Is there a relatively nearby enemy?
-
             local bEnemiesRelativelyNear = tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
             if not (bEnemiesRelativelyNear) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                    local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if tAltLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                         bEnemiesRelativelyNear = true
                         break
                     end
@@ -2422,9 +2422,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 else
-                    if bCanPathToEnemyWithLand and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH1) <= 60 then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then
-                            return sBPIDToBuild
+                    if bCanPathToEnemyWithLand then
+                        local iCurT1Arti = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH1)
+                        if iCurT1Arti <= 60 then
+                            local iCurTanks = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDFTank)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurT1Arti='..iCurT1Arti..'; iCurTanks='..iCurTanks) end
+                            if iCurT1Arti < iCurTanks * 0.5 or not(EntityCategoryContains(categories.AEON, oFactory.UnitId)) then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then
+                                    return sBPIDToBuild
+                                end
+                            end
+                        end
+                        --Upgrade to T2 if we have no active land fac upgrades instead
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider upgrading if we have no active land fac upgrades in this zone') end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade') end
+                            if ConsiderUpgrading() then return sBPIDToBuild end
                         end
                     end
                 end
@@ -4020,7 +4033,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
     end
 
     local bConsiderBuildingShieldOrStealthBoats = true
@@ -4083,6 +4096,21 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     function ConsiderUpgrading()
         if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
+            --Dont upgrade T1 naval fac if it's our highest naval tech and we already have an active naval fac upgrade of this faction or are about to overflow mass
+            if iFactoryTechLevel == aiBrain[M28Economy.refiOurHighestNavalFactoryTech] and aiBrain:GetEconomyStoredRatio('MASS') < 0.85 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                local bUpgradingHQElsewhere = false
+                local iFactionWanted = M28UnitInfo.GetUnitFaction(oFactory)
+                local tUpgradingNavalHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs])
+                if M28Utilities.IsTableEmpty(tUpgradingNavalHQs) == false then
+                    for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                        if M28UnitInfo.IsUnitValid(oHQ) and oHQ:GetAIBrain() == aiBrain and M28UnitInfo.GetUnitFaction(oHQ) == iFactionWanted and M28UnitInfo.GetUnitTechLevel(oHQ) >= iFactoryTechLevel then
+                            return nil
+                        end
+                    end
+                end
+            end
+
+
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
             return sBPIDToBuild
@@ -4101,7 +4129,11 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if iCurFrigates >= 75 then bConsiderBuildingMoreCombat = false end
         if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
     elseif iFactoryTechLevel <= 2 then
-        if iCurFrigates < 75 and math.random(0, 1) == 1 then
+        local iCurDestroyer = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer)
+        local iCurCruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser)
+        local iCurT3Surface = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)
+
+        if iCurFrigates < 75 and not(aiBrain[M28Overseer.refbCloseToUnitCap]) and iCurDestroyer > 0 and iCurFrigates < iCurDestroyer * 4 + iCurCruiser * 2 + iCurT3Surface * 5 then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
             if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build frigates instead of destroyers') end
         else
@@ -4113,9 +4145,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iCurDestroyerAndBattlecruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser)
 
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
-        if iCurFrigates == 0 or iCurFrigates <= iCurDestroyerAndBattlecruiser and not (aiBrain[M28Overseer.refbCloseToUnitCap]) and iCurFrigates <= 75 then
+        local iOtherT2T3Surface = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface - categories.TECH1 - M28UnitInfo.refCategoryBattleship - M28UnitInfo.refCategoryDestroyer - M28UnitInfo.refCategoryBattlecruiser)
+        if not((aiBrain[M28Overseer.refbCloseToUnitCap])) and (iCurFrigates == 0 or (iCurFrigates <= 75 and iCurDestroyerAndBattlecruiser > 0 and iCurBattleships > 0 and iCurFrigates <= iCurDestroyerAndBattlecruiser * 4 + iCurBattleships * 5 + iOtherT2T3Surface * 2)) then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
-        elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships then
+        elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships * 2 + 2 then
             iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
         --If factory can build battlecruiser and we have none and LC is 0 then build instead of battleship
         elseif oFactory:CanBuild('xes0307') and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) <= 1 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships])) then
@@ -4124,7 +4157,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iCombatCategory = M28UnitInfo.refCategoryBattleship
         end
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser))
+            LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser)..'; iOtherT2T3Surface='..iOtherT2T3Surface)
         end
     end
 

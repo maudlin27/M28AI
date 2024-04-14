@@ -193,8 +193,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
         subrefTotalSignificantMassReclaim = 'RecSigM' --Total mass recalim that is at least the value of iSignificantMassThreshold individually
+        subrefHighestIndividualReclaim = 'RecHighS' --Highest individual reclaim in the zone itself
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+        subrefLastComprehensiveReclaimRefresh = 'CmRecTim' --time we last refreshed every segment with mass in the zone
         subrefiTimeFailedToGetReclaim = 'RecTmFl' --Gametimeseconds that engineers failed to be given an order to reclaim something when on reclaimorder duty for this land or water zone (same ref for both types of zone)
 
         --Land scout/intel related
@@ -1187,6 +1189,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalSignificantMassReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHighestIndividualReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
@@ -7504,7 +7507,8 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone)
+function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone, bUpdateAllReclaimSegmentsWithMass)
+    --bUpdateAllReclaimSegmentsWithMass - optional, kif true, then when updating will update the reclaim value in each reclaim segment; i.e. set this to true if we try reclaiming in an area and expect to have reclaim but dont
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RefreshLandOrWaterZoneReclaimValue'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -7517,21 +7521,31 @@ function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bI
         tLZOrWZData = tAllPlateaus[iPlateauOrPond][subrefPlateauLandZones][iLandOrWaterZone]
     end
     tLZOrWZData[subrefLastReclaimRefresh] = GetGameTimeSeconds()
+    if bUpdateAllReclaimSegmentsWithMass then tLZOrWZData[subrefLastComprehensiveReclaimRefresh] = GetGameTimeSeconds() end
     local iMassReclaim = 0
     local iEnergyReclaim = 0
     local iSignificantMassReclaim = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
+    local iHighestIndividualReclaim = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
     if M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]) == false then
         for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
+            local tCurReclaimArea = tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]]
+            if bUpdateAllReclaimSegmentsWithMass then
+                if (tCurReclaimArea[refReclaimTotalMass] or 0) > 0 then
+                    UpdateReclaimDataNearSegments(tSegmentXZ[1], tSegmentXZ[2], 0)
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]..'; Total significant mass in segment='..(tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalSignificantMass] or 'nil')..'; Energy='..(tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy] or 0)) end
-            iMassReclaim = iMassReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass] or 0)
-            iEnergyReclaim = iEnergyReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy] or 0)
-            iSignificantMassReclaim = iSignificantMassReclaim + (tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalSignificantMass] or 0)
+            iMassReclaim = iMassReclaim + (tCurReclaimArea[refReclaimTotalMass] or 0)
+            iEnergyReclaim = iEnergyReclaim + (tCurReclaimArea[refSegmentReclaimTotalEnergy] or 0)
+            iSignificantMassReclaim = iSignificantMassReclaim + (tCurReclaimArea[refReclaimTotalSignificantMass] or 0)
+            if tCurReclaimArea[refReclaimHighestIndividualMassReclaim] > iHighestIndividualReclaim then iHighestIndividualReclaim = tCurReclaimArea[refReclaimHighestIndividualMassReclaim] end
         end
     end
     tLZOrWZData[subrefTotalMassReclaim] = iMassReclaim
     tLZOrWZData[subrefTotalSignificantMassReclaim] = iSignificantMassReclaim
     tLZOrWZData[subrefLZTotalEnergyReclaim] = iEnergyReclaim
+    tLZOrWZData[subrefHighestIndividualReclaim] = iHighestIndividualReclaim
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
 

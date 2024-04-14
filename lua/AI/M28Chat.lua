@@ -1173,8 +1173,21 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to include outnumbered message, iEnemyHumans='..iEnemyHumans..'; iAllyHumans='..iAllyHumans..'; Active brain count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount]) end
         if iEnemyHumans < iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
-            AddPotentialMessage('You\'re outnumbered, you should retreat while you still can')
+            --Check the most brains on a team
+            local tiBrainsByTeam = {}
+            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                tiBrainsByTeam[oBrain.M28Team] = (tiBrainsByTeam[oBrain.M28Team] or 0) + 1
+            end
+            local iHighestCount = 0
+            for iTeam, iCount in tiBrainsByTeam do
+                iHighestCount = math.max(iCount, iHighestCount)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iHighestCount='..iHighestCount..'; Our team count='..iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount]) end
+            if iHighestCount < iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
+                AddPotentialMessage('You\'re outnumbered, you should retreat while you still can')
+            end
         end
 
         --Get personality specific enemy and ally greetings
