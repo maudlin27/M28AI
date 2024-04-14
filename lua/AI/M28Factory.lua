@@ -432,7 +432,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'uab01012' and GetGameTimeSeconds() >= 260 then bDebugMessages = true end
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -648,7 +648,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'uab01012' and GetGameTimeSeconds() >= 260 then bDebugMessages = true end
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -2397,11 +2397,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if not (bHaveLowMass) and (not (bSaveMassDueToEnemyFirebaseOrOurExperimental) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45) then
             --Is there a relatively nearby enemy?
-
             local bEnemiesRelativelyNear = tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
             if not (bEnemiesRelativelyNear) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                    local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if tAltLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                         bEnemiesRelativelyNear = true
                         break
                     end
@@ -2422,9 +2422,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 else
-                    if bCanPathToEnemyWithLand and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH1) <= 60 then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then
-                            return sBPIDToBuild
+                    if bCanPathToEnemyWithLand then
+                        local iCurT1Arti = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH1)
+                        if iCurT1Arti <= 60 then
+                            local iCurTanks = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDFTank)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurT1Arti='..iCurT1Arti..'; iCurTanks='..iCurTanks) end
+                            if iCurT1Arti < iCurTanks * 0.5 or not(EntityCategoryContains(categories.AEON, oFactory.UnitId)) then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then
+                                    return sBPIDToBuild
+                                end
+                            end
+                        end
+                        --Upgrade to T2 if we have no active land fac upgrades instead
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider upgrading if we have no active land fac upgrades in this zone') end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade') end
+                            if ConsiderUpgrading() then return sBPIDToBuild end
                         end
                     end
                 end
