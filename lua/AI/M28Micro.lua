@@ -616,6 +616,19 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                 elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
                                     --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
                                     iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
+                                    --Dont dodge at all if we have fired recently and the damage isn't massive
+                                    if GetGameTimeSeconds() >= 29*60 then
+                                        if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeapon.Blueprint.Damage <= 4000 then
+                                            bCancelDodge = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Target is an experimental that has fired recently and the damage isnt massive so we dont want to dodge, weapon damage='..(oWeapon.Blueprint.Damage or 'nil')) end
+                                        else
+                                            local tLastOrder = oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                                            if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeapon.Blueprint.Damage <= 4000) then
+                                                bCancelDodge = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' was trying to attack an enemy exp or ACU, targets target='..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; so will cancel dodge') end
+                                            end
+                                        end
+                                    end
                                 end
 
                                 if not(bCancelDodge) then
