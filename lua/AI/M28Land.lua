@@ -3948,7 +3948,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                             local tNearbyEnemyExperimentals = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange] + 2, 'Enemy')
                             if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentals) == false then
-                                bDebugMessages = true
                                 for iEnemy, oEnemy in tNearbyEnemyExperimentals do
                                     if oEnemy:GetFractionComplete() == 1 then
                                         iCurHealth = oEnemy:GetHealth()
@@ -6705,7 +6704,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandZone == 20 and GetGameTimeSeconds() >= 25*60+37 then bDebugMessages = true end
+
 
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]

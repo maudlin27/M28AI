@@ -1173,7 +1173,6 @@ function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptional
                 end
             end
         end
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to include outnumbered message, iEnemyHumans='..iEnemyHumans..'; iAllyHumans='..iAllyHumans..'; Active brain count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount]) end
         if iEnemyHumans < iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
             --Check the most brains on a team
