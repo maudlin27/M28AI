@@ -2315,6 +2315,7 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
         end
     end
     if bReturnTableOfAssignedThreat then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tExistingThreatAssignedByUnitRef
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -8425,10 +8426,11 @@ function EnemyT1BomberTracker(oBomber, iTeam)
                         end
                     end
                 end
-                end
             end
-
-            WaitSeconds(1)
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
