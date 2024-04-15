@@ -1438,8 +1438,10 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
         for iEntry, iAltLZ in M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] do
             if bDebugMessages == true then LOG(sFunctionRef..': Looking for rally point for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; Considering iAltLZ='..iAltLZ..'; Travel distance to here='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ) or 'nil')) end
             if iAltLZ == iLandZone then
-                iClosestLZRef = iAltLZ
-                break
+                if not(iClosestLZRef) then
+                    iClosestLZRef = iAltLZ
+                    --break
+                end
             else
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZIslandRef] == iBaseIsland then
                     iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ) or iClosestDist + 1)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
