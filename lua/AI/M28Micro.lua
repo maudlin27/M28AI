@@ -595,6 +595,9 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
                                         --Dont cancel upgrade/teleport
                                         bCancelDodge = true
+                                    --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
+                                    elseif oTarget:IsUnitState('Moving') and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0) <= 2 and oWeapon.Blueprint.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.STRUCTURE, oUnit.UnitId) and oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition], oTarget:GetPosition()) >= 5 then
+                                        bCancelDodge = true
                                     elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
                                         --If we have units we can hit then cancel
                                         if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
