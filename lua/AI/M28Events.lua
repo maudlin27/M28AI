@@ -629,7 +629,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
             if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
-            if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))..'; Unit DF range pre upgrade='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
