@@ -776,9 +776,9 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
+function ForkedMoveInCircleOld(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
     --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedMoveInCircle'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -845,6 +845,81 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
             if iLoopCount == 1 then iTempDistanceAwayToMove = iDistanceAwayToMove + iInitialDistanceAdj end
             tTempLocationToMove = M28Utilities.MoveInDirection(tUnitStartPosition, iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
             M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'MiCirc1', true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(iTicksBetweenOrders)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if not(bDontTreatAsMicroAction) and not((oUnit[M28UnitInfo.refiGameTimeMicroStarted] == iStartTime and GetGameTimeSeconds() - iStartTime < iTimeToRun)) then bTimeToStop = true end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
+    --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedMoveInCircle'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local refbActiveCircleMicro = 'M28MicroActiveCircleMicro'
+
+    if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Unit has active circle micro='..tostring(oUnit[refbActiveCircleMicro] or false)) end
+    if not(oUnit[refbActiveCircleMicro]) then
+
+        --KEY CONFIG SETTINGS: (these will work sometimes but not always against an aeon strat)
+        local iInitialAngleAdj = 15
+        local iInitialDistanceAdj = -1
+        local iDistanceAwayToMove = (iCircleSizeOverride or 2)
+        local iAngleMaxSingleAdj = 120
+        local iTicksBetweenOrders = (iTickWaitOverride or 1) --prev 4
+
+        if iDistanceAwayToMove > oUnit:GetBlueprint().Physics.MaxSpeed * 1.5 then
+            iAngleMaxSingleAdj = math.max(25, iAngleMaxSingleAdj * 2.5 / iDistanceAwayToMove)
+        end
+
+
+
+        local iStartTime = GetGameTimeSeconds()
+        oUnit[M28UnitInfo.refiGameTimeMicroStarted] = iStartTime
+        local iLoopCount = 0
+        local iMaxLoop = iTimeToRun * 10 + 1
+        --Distance from point A to point B will be much less than distanceaway to move, since that is the distance from the centre (radius) rather than the distance between 1 points on the circle edge; for simplicity will assume that distance is 0.25 of the distance from the centre
+        if bDontTreatAsMicroAction then iMaxLoop = math.ceil(iTimeToRun / (iDistanceAwayToMove / oUnit:GetBlueprint().Physics.MaxSpeed)) * 4 end
+        local tUnitStartPosition = oUnit:GetPosition()
+
+        local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+
+
+        local iAngleAdjFactor = 1
+
+        local tTempLocationToMove
+
+        local bRecentMicro = false
+        local iRecentMicroThreshold = 1
+        local iGameTime = GetGameTimeSeconds()
+        if oUnit[M28UnitInfo.refbSpecialMicroActive] and iGameTime - oUnit[M28UnitInfo.refiGameTimeMicroStarted] < iRecentMicroThreshold then bRecentMicro = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iStartTime='..iStartTime..'; iCurFacingDirection='..iCurFacingDirection..'; tUnitStartPosition='..repru(tUnitStartPosition)..'; bRecentMicro='..tostring((bRecentMicro or false))..'; bDontClearCommandsFirst='..tostring(bDontClearCommandsFirst or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 'nil')..'; GameTime='..iGameTime..'; Dif='..iGameTime-(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 0)..'; bDontTreatAsMicroAction='..tostring((bDontTreatAsMicroAction or false))) end
+        if bRecentMicro == false and not(bDontClearCommandsFirst) then
+            M28Orders.IssueTrackedClearCommands(oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Issued clear commands order to the unit') end
+        end
+        if not(bDontTreatAsMicroAction) then
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun, refbActiveCircleMicro)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will temporarily track the unit micro. iTimeToRun='..(iTimeToRun or 'nil')) end
+        else
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+        end
+
+        local bTimeToStop = false
+        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refbSpecialMicroActive='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; iMaxLoop='..iMaxLoop) end
+        while bTimeToStop == false do
+            iLoopCount = iLoopCount + 1
+            if iLoopCount > iMaxLoop then break
+            elseif M28UnitInfo.IsUnitValid(oUnit) == false then break end --No longer give error message as may be calling this for intel scouts now
+
+
+            tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oUnit) + iAngleMaxSingleAdj, iDistanceAwayToMove, true, false, true)
+            M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, false, 'MiCirc1', true)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(iTicksBetweenOrders)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

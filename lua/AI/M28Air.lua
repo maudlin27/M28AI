@@ -7837,7 +7837,10 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             local tFirstZoneWithTargetsMidpoint
                             local iZonesConsideredAfterFirstTarget = 0
                             if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as experimental bomber='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
-                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then tFirstZoneWithTargetsMidpoint = tBomberZoneMidpoint end
+                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                                tFirstZoneWithTargetsMidpoint = tBomberZoneMidpoint
+                                iDistFromFirstZoneToBomber = 0
+                            end
                             --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
                             --Is there groundAA in the current plateau/water zone (i.e. there are enemies but we have chosen not to attack due to the threat)?
                             if (tBomberLandOrWaterZoneData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 or (tBomberLandOrWaterZoneData[M28Map.subrefWZThreatEnemyAA] or 0) > 0 then
