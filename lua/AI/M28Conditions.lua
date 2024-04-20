@@ -22,6 +22,8 @@ local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving; also used by GE Template logic for when an engi is getting in range of building something via move order (due to rare issue wehre it is given move+buidl order and doesnt move or build)
 reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when last did the stuck check
+refiEngineerBuildWithoutFocusUnitCount = 'M28CEngBSc' --times that engineer has had a building status without a focus object
+--reftEngineerBuildWithoutFocusUnitPosition = 'M28CEngBSt' --removed part of logic relating to this as realised the issue it was trying to solve was likely a unit cap issue
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -199,7 +201,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false))
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil'))
     end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionManageGameEnderTemplate) and not(oEngineer:IsUnitState('Capturing')) then
         --Spare engineers - always treat as available even if in the middle of something
@@ -423,7 +425,79 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable') end --, refiEngineerBuildWithoutFocusUnitCount='..(oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0)) end
+            if oEngineer:IsUnitState('Building') then
+                local oFocusObject = oEngineer:GetFocusUnit()
+                if oFocusObject then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer oFocusObject='..(oFocusObject.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusObject) or 'nil')) end
+                    if oEngineer[refiEngineerBuildWithoutFocusUnitCount] then oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0 end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engi is building without a focus object, will increase refiEngineerBuildWithoutFocusUnitCount') end
+                    if (oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0) == 0 then
+                        oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 1
+                        --oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = {oEngineer:GetPosition()[1], oEngineer:GetPosition()[2], oEngineer:GetPosition()[3]}
+                    else
+                        oEngineer[refiEngineerBuildWithoutFocusUnitCount] = oEngineer[refiEngineerBuildWithoutFocusUnitCount] + 1
+                        if oEngineer[refiEngineerBuildWithoutFocusUnitCount] >= 30 then
+                            --If close to unit cap consider killing units
+                            if bDebugMessages == true then LOG(sFunctionRef..': refbCloseToUnitCap='..tostring(oEngineer:GetAIBrain()[M28Overseer.refbCloseToUnitCap] or false)..'; will check unit cap in case that is why we are unable to build') end
+                            oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
+                            M28Overseer.CheckUnitCap(oEngineer:GetAIBrain())
+                        end
+                    end
+                end
+            end
+
+                        --Below was to try and resolve issue with engi appearing to try and build somewhere and failing, but realised likely was just unit cap
+                        --if not(oEngineer[M28Engineer.refbHasSpareAction]) then
+                        --local tLastOrderPosition = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                        --if M28Utilities.IsTableEmpty(tLastOrderPosition) == false then
+
+                        --local sLastBlueprint = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
+                        --if sLastBlueprint then
+                        --local oOrderTarget = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget]
+                        --[[if not(M28UnitInfo.IsUnitValid(oOrderTarget)) then --i.e. make sure we werent trying to repair a building that is valid
+                            local tLZOrWZData = M28Map.GetLandOrWaterZoneData(tLastOrderPosition)
+                            if tLZOrWZData then
+                                M28Engineer.RecordBlacklistLocation(tLastOrderPosition, 1, 120, nil)
+                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrderPosition)
+                                local tPotentialBuildLocations = M28Engineer.GetPotentialBuildLocationsNearLocation(oEngineer:GetAIBrain(), tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.GetBuildingSize(sLastBlueprint), nil)
+                                if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
+                                    bDebugMessages = true
+                                    local tBestLocation = M28Engineer.GetBestBuildLocationForTarget(oEngineer, sLastBlueprint, tLastOrderPosition, tPotentialBuildLocations, 50, false, false)
+                                    if M28Utilities.IsTableEmpty(tBestLocation) == false then
+                                        local iPriority = (oEngineer[M28Engineer.refiAssignedActionPriority] or 1000)
+                                        local bIsPrimaryEngi = oEngineer[M28Engineer.refbPrimaryBuilder]
+                                        local iEngiAction = oEngineer[M28Engineer.refiAssignedAction]
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get engi to redo building in a different location, have recorded blacklist, tBestLocation='..repru(tBestLocation)) end
+                                        M28Orders.IssueTrackedBuild(oEngineer, tBestLocation, sLastBlueprint, false, 'StuckBuild')
+                                        --TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCurPriority, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable, bMarkAsSpare)
+                                        M28Engineer.TrackEngineerAction(oEngineer, iEngiAction, bIsPrimaryEngi, iPriority, nil, nil, false)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            elseif oEngineer[refiEngineerBuildWithoutFocusUnitCount] >= 45 then
+
+            oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
+            if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerBuildWithoutFocusUnitPosition]) <= 0.01 then
+                --Engineer is stuck, clear its orders and treat as available
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerBuildWithoutFocusUnitCount]='..oEngineer[refiEngineerBuildWithoutFocusUnitCount]) end
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+                oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = nil
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+            end
+            end
+            end
+            end--]]
+
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         end
