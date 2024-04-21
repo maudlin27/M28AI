@@ -2092,7 +2092,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         for iUnit, oUnit in tShieldsToRetreat do
             if bDebugMessages == true then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-                LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to run due to a low shield. iCurShield='..iCurShield..'; iMaxShield='..iMaxShield)
+                LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to run due to a low shield. iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit paused='..tostring(oUnit[M28UnitInfo.refbPaused])..'; Are power stalling='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; % stored E='..oUnit:GetAIBrain():GetEconomyStoredRatio('ENERGY')..'; Gross energy='..oUnit:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome])
             end
             if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ASRun'..iLandZone)
