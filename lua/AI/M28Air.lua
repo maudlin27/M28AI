@@ -1669,7 +1669,6 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if bDebugMessages == true then LOG(sFunctionRef..' Finished considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; iCurWZ='..(iCurLZOrWZ or 'nil')..'; iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; iClosestDistToEnemyBase='..(iClosestDistToEnemyBase or 'nil')..'; tClosestMidpoint='..repru(tClosestMidpoint)) end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished going through all units to protect, tClosestMidpoint='..repru(tClosestMidpoint)) end
-            local tAlternativeToZoneMidpointOverride --Used if want to be partway between base and air unit, due to zone midpoint itself being too dangerous
             if tClosestMidpoint then
                 --Change the closest base if it isn't safe and we have another base that is safe
                 local iBasePlateau, iBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tClosestBase)
@@ -1757,7 +1756,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 local iCap = 3000
                                 if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then iCap = 2000 end
                                 iGroundAAThreshold = math.min(iAirToGroundThreat * 0.2,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, iCap)
-                                iAirAAThreshold = math.max(iAirToGroundThreat * 0.1, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.2)
+                                iAirAAThreshold = math.max(iAirToGroundThreat * 0.1, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1)
                             else
                                 iGroundAAThreshold = math.min(iAirToGroundThreat * 0.05,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05, 1000)
                                 iAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05
@@ -1784,7 +1783,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)..'; bDoDetailedCheck (i.e. if this is dangerous then will do more precise check)='..tostring(bDoDetailedCheck)) end
                                     if bCurTargetTooDangerous and bDoDetailedCheck then
                                         --function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
-                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
+                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
                                         if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after detailed WZ check='..tostring(bCurTargetTooDangerous)) end
                                     end
                                     if bCurTargetTooDangerous then
@@ -1795,6 +1794,8 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                         iPrevWaterZone = iCurZone
                                         iPrevLandZone = nil
                                     end
+                                else
+                                    --Dont have avlid LZ or WZ so ignore
                                 end
                             else
                                 --Have a valid land zone
@@ -1806,7 +1807,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; bCurTargetTooDangerous before detailed check='..tostring(bCurTargetTooDangerous)..'; bDoDetailedCheck='..tostring(bDoDetailedCheck)) end
                                     if bCurTargetTooDangerous and bDoDetailedCheck then
                                         --function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
-                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
+                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
                                         if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after detailed check='..tostring(bCurTargetTooDangerous)) end
                                     end
                                     if bCurTargetTooDangerous then
@@ -1823,52 +1824,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             --No valid plateau so ignore this position
                         end
                     end
-                    if bCurTargetTooDangerous and bDoDetailedCheck and oPriorityUnitBeingSupported and tClosestBase and EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oPriorityUnitBeingSupported.UnitId) then
 
-                        local iDistFromBaseToMidpoint
-                        if not(iPrevPlateau) then iDistFromBaseToMidpoint = 0
-                        else
-                            local tSupportLZOrWZData
-                            if iPrevLandZone then
-                                tSupportLZOrWZData = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone]
-                            else
-                                tSupportLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone]
-                            end
-                            iDistFromBaseToMidpoint = M28Utilities.GetDistanceBetweenPositions(tSupportLZOrWZData[M28Map.subrefMidpoint], tClosestBase)
-                        end
-                        local iUnitDistToBase = M28Utilities.GetDistanceBetweenPositions(oPriorityUnitBeingSupported:GetPosition(), tClosestBase)
-                        local iBaseDistanceThreshold = 60
-                        if iUnitDistToBase - iDistFromBaseToMidpoint > iBaseDistanceThreshold then
-                            local iMaxSearchRange = math.floor((iUnitDistToBase - iDistFromBaseToMidpoint)/10)*10
-                            local bDangerousUsingPreciseCheck
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will do more precise support zone check, iDistFromBaseToMidpoint='..iDistFromBaseToMidpoint..'; iUnitDistToBase='..iUnitDistToBase..'; iMaxSearchRange='..iMaxSearchRange) end
-                            for iCurSearchRange = iDistFromBaseToMidpoint + 10, iDistFromBaseToMidpoint + iMaxSearchRange - (iBaseDistanceThreshold - 10), 10 do
-                                --Using a precise point instead of a midpoint, can we find a safe location that is closer to our experimental bomber?
-                                tCurTarget = M28Utilities.MoveInDirection(tClosestBase, iAngleToTarget, iDist, true, false, false)
-                                iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurTarget)
-                                if iCurPlateau and iCurZone then
-                                    --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
-                                    bDangerousUsingPreciseCheck = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true,        false,                          tCurTarget)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': More precise support shadowing check, iCurSearchRange='..iCurSearchRange..'; bDangerousUsingPreciseCheck='..tostring(bDangerousUsingPreciseCheck or false)) end
-                                    if not(bDangerousUsingPreciseCheck) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Using a precise location we have a more appropriate point, iCurSearchRange='..iCurSearchRange..'; tAlternativeToZoneMidpointOverride='..repru(tAlternativeToZoneMidpointOverride)) end
-                                        tAlternativeToZoneMidpointOverride = {tCurTarget[1], tCurTarget[2], tCurTarget[3]}
-                                    else
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')..'; tAlternativeToZoneMidpointOverride='..repru(tAlternativeToZoneMidpointOverride)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')) end
                     if bCurTargetTooDangerous then bDontMoveCloserToEnemyBase = true end
                     --Update the support rally point, and record pathing of other land and air zones to it if havent previously
                     if not(iPrevWaterZone) and not(iPrevLandZone) then
                         --Use closest base
                         tSupportRallyPoint = tClosestBase
-                    elseif tAlternativeToZoneMidpointOverride then
-                        tSupportRallyPoint = {tAlternativeToZoneMidpointOverride[1], tAlternativeToZoneMidpointOverride[2], tAlternativeToZoneMidpointOverride[3]}
                     else
                         --We have a valid support zone
                         local tSupportLZOrWZData
