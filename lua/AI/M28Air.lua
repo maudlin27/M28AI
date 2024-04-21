@@ -1469,7 +1469,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     local sFunctionRef = 'UpdateAirRallyAndSupportPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 39*60 then bDebugMessages = true end
+
 
     RefreshPriorityAirDefenceTargets(iAirSubteam)
     --Get the land or water zone of the priority unit that is closest to the enemy base that is closest to the air rally point and determine if its safe as a rally point
@@ -1739,13 +1739,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     local bCurTargetTooDangerous
                     local tbWaterZonesConsidered = {}
                     local tbPlateauAndLandZonesConsidered = {}
-                    local iCurPlateau, iCurLZ, iCurWZ
+                    local iCurPlateau
                     local iGroundAAThreshold
                     local iAirAAThreshold
                     local bDoDetailedCheck = false
                     local iStartPlateauOrZero, iStartLandOrWaterZone
                     if tClosestBase then iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tClosestBase) end
-                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and GetGameTimeSeconds() >= 39*60 then
+                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                         local iAirToGroundThreat = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]
                         if oPriorityUnitBeingSupported then
                             --If we are supporting a gunship or experimental air unit then have much higher thresholds
@@ -2792,7 +2792,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 60*39 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)

@@ -619,7 +619,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                 elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
                                     --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
                                     local oTargetBP = oTarget:GetBlueprint()
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if experimental wants to dodge shot, iDistToTarget='..iDistToTarget..'; Damage='..oWeapon.Blueprint.Damage..'; Experimental size='..math.max(oTargetBP.SizeX, oTargetBP.SizeZ)..'; Time since last weapon event='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                                     --Dont dodge at all if we have fired recently and the damage isn't massive
                                     if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeapon.Blueprint.Damage <= 4000 then
@@ -784,7 +783,7 @@ end
 
 function ForkedMoveInCircleOld(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
     --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedMoveInCircle'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -863,7 +862,7 @@ end
 
 function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
     --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedMoveInCircle'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

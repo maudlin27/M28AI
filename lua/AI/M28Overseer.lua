@@ -2296,7 +2296,7 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
 end
 
 function SecondDelayedUnpauseCheckForMobileShields(tUnits, iDelayInSeconds)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SecondDelayedUnpauseCheckForMobileShields'
 
     WaitSeconds(iDelayInSeconds)
