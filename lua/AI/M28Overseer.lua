@@ -2252,41 +2252,12 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
-        local tUnitsForFurtherCheck = {}
         for iUnit, oUnit in tUnits do
             if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())..'; Time='..GetGameTimeSeconds()) end
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
-            if oUnit.EnableShield and oUnit.MyShield then oUnit:EnableShield() end
-            if EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
-                table.insert(tUnitsForFurtherCheck, oUnit)
-            end
-        end
-        if M28Utilities.IsTableEmpty(tUnitsForFurtherCheck) == false then
-            ForkThread(SecondDelayedUnpauseCheckForMobileShields, tUnitsForFurtherCheck, 20)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function SecondDelayedUnpauseCheckForMobileShields(tUnits, iDelayInSeconds)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'SecondDelayedUnpauseCheckForMobileShields'
-
-    WaitSeconds(iDelayInSeconds)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through mobile shields, size of tUnits='..table.getn(tUnits)) end
-        local iCurShield, iMaxShield
-        for iUnit, oUnit in tUnits do
-            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering mobile shield oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMaxShield='..iMaxShield..'; iCurShield='..iCurShield..'; if cur shield is 0 then will try and unpause, aiBrain owner='..oUnit:GetAIBrain().Nickname) end
-            if iMaxShield > 0 and iCurShield == 0 then
-                oUnit:EnableShield()
-                M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
-            end
-        end
-    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
