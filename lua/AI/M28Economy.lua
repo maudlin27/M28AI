@@ -1411,6 +1411,8 @@ function ManageMassStalls(iTeam)
                                                             if M28UnitInfo.IsUnitValid(oFocusUnit) then
                                                                 if oFocusUnit:GetFractionComplete() >= 0.7 and oFocusUnit:GetFractionComplete() < 1 and EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryExperimentalLevel, oFocusUnit.UnitId) then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Wont apply action to unit as it is PD/Arti/Experimental') end
+                                                                    bApplyActionToUnit = false
+                                                                    if oUnit[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oUnit, false, iTeam, iCategoryCount) end
                                                                 elseif iActionRef == M28Engineer.refActionBuildLandFactory and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oFocusUnit.UnitId) and oBrain[refiGrossMassBaseIncome] >= 1.4 then
                                                                     local tEngiZone, tEngiTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Are building al and fac, wont pause if not in core zone, tEngiTeamData[M28Map.subrefLZbCoreBase]='..tostring(tEngiTeamData[M28Map.subrefLZbCoreBase] or false)) end

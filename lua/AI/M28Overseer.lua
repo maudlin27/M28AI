@@ -481,10 +481,15 @@ function TestCustom(aiBrain)
         local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
         LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
         if M28Utilities.IsTableEmpty(tLABs) == false then
+            local iRandom = math.random(0,1)
+            iRandom = iRandom * 2 - 1
             for iUnit, oUnit in tLABs do
-                M28Micro.MoveInCircleTemporarily(oUnit, 10, false, true, nil, nil)
+                if not(oUnit:IsUnitState('Moving')) and oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then
+                    M28Orders.IssueTrackedMove(oUnit, {oUnit:GetPosition()[1] + 10 * iRandom, oUnit:GetPosition()[2], oUnit:GetPosition()[3] + 10 * iRandom}, 0, false, 'TestMv', true)
+                end
+                --M28Micro.MoveInCircleTemporarily(oUnit, 10, false, true, nil, nil)
+                M28Micro.TrackTemporaryUnitMicro(oUnit, 1, nil, true)
             end
-
         end
         WaitSeconds(0.5)
     end
@@ -1186,7 +1191,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
