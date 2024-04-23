@@ -9509,6 +9509,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Anti-teleport PD builder
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+        --Are any teleport targets within 90 of this zone midpoint? If so then build emergency PD, and base the PD location on the teleport location (but move a bit towards this zone's midpoint from the actual teleport location)
+        local iClosestTeleportDist = 90
+        local iCurTeleportDist
+        local tClosestTeleport
+        for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+            iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZData[M28Map.subrefMidpoint])
+            if iCurTeleportDist < iClosestTeleportDist then
+                iClosestTeleportDist = iCurTeleportDist
+                tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+            end
+        end
+        if tClosestTeleport then
+            iBPWanted = 60
+            HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, tLZData[M28Map.subrefMidpoint]), 10, true))
+        end
+    end
+
 
 
     --First T2 PD emergency builder if we have no T2 PD and nearby enemy threat (unless are on a t1 land spam map)
@@ -12806,6 +12826,26 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     end
                 end
             end
+        end
+    end
+
+    --Anti-teleport PD builder
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+        --Are any teleport targets within 70 of this zone midpoint? If so then build emergency PD, and base the PD location on the teleport location (but move a bit towards this zone's midpoint from the actual teleport location)
+        local iClosestTeleportDist = 70
+        local iCurTeleportDist
+        local tClosestTeleport
+        for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+            iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZData[M28Map.subrefMidpoint])
+            if iCurTeleportDist < iClosestTeleportDist then
+                iClosestTeleportDist = iCurTeleportDist
+                tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+            end
+        end
+        if tClosestTeleport then
+            iBPWanted = 60
+            HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, tLZData[M28Map.subrefMidpoint]), 10, true))
         end
     end
 

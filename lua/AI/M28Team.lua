@@ -118,6 +118,11 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLongestOverdueScoutingTarget = 'M28TmLngSct' --Longest overdue scouting target in seconds
     subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
     iEnemyT3MAAActiveCount = 'M28EnT3MAACn' --Number of enemy T3 MAA (approximate measure)
+    reftRecentEnemyTeleportDetails = 'M28EnTelD' --contains subtables for recent enemy teleports, [x] = 1,2,3,...; returns {oUnitTeleporting, tTeleportDestination, iTimeOfTeleport}
+        subrefoTeleportUnit = 1
+        subreftTeleportTarget = 2
+        subrefiTeleportTime = 3
+
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
@@ -3413,6 +3418,7 @@ function TeamOverseer(iM28Team)
         ForkThread(TeamEconomyRefresh, iM28Team)
         ForkThread(CheckEnemyACUStatus, iM28Team)
         ForkThread(CheckForUnitsWithDisabledWeapons, iM28Team)
+        ForkThread(RefreshRecentEnemyTeleportLocations, iM28Team)
         WaitTicks(10)
     end
 end
@@ -4398,4 +4404,22 @@ function MonitorVulnerableFatboys(iTeam)
         end
         tTeamData[iTeam][refbActiveVulnerableFatboyMonitor] = false
     end
+end
+
+function RefreshRecentEnemyTeleportLocations(iTeam)
+    local sFunctionRef = 'RefreshRecentEnemyTeleportLocations'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftRecentEnemyTeleportDetails]) == false then
+        bDebugMessages = true
+        for iCurEntry = table.getn(tTeamData[iTeam][reftRecentEnemyTeleportDetails]), 1, -1 do
+            local tCurEntry = tTeamData[iTeam][reftRecentEnemyTeleportDetails][iCurEntry]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Is teleport unit valid='..tostring(M28UnitInfo.IsUnitValid(tCurEntry[subrefoTeleportUnit]))..'; reftActiveTeleportLocation='..repru(tCurEntry[subrefoTeleportUnit][M28UnitInfo.reftActiveTeleportLocation])..'; Cur time='..GetGameTimeSeconds()..'; Time since teleport attempt='..GetGameTimeSeconds() - tCurEntry[subrefiTeleportTime]) end
+            if not(M28UnitInfo.IsUnitValid(tCurEntry[subrefoTeleportUnit])) or GetGameTimeSeconds() - tCurEntry[subrefiTeleportTime] >= 180 or not(tCurEntry[subrefoTeleportUnit][M28UnitInfo.reftActiveTeleportLocation]) or M28Utilities.GetDistanceBetweenPositions(tCurEntry[subrefoTeleportUnit][M28UnitInfo.reftActiveTeleportLocation], tCurEntry[subreftTeleportTarget]) >= 5 then
+                table.remove(tTeamData[iTeam][reftRecentEnemyTeleportDetails], iCurEntry)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

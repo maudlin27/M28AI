@@ -3260,6 +3260,7 @@ function OnTeleportComplete(self, teleporter, location, orientation)
         local sFunctionRef = 'OnTeleportComplete'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        self[M28UnitInfo.reftActiveTeleportLocation] = nil
         --if bDebugMessages == true then LOG('OnTeleportComplete - self='..reprs(self)..'; teleporter='..reprs(teleporter)..'; location='..reprs(location)) end
         if self:GetAIBrain().M28AI and self[M28ACU.refbACUHasTeleport] then
             --If we arent in a core base then teleport back
@@ -3291,6 +3292,31 @@ function OnTeleportComplete(self, teleporter, location, orientation)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
+
+function OnStartTeleport(self, teleporter, location, orientation)
+    if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnStartTeleport'
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if M28UnitInfo.IsUnitValid(self) then
+            local iTeleportTeam = self:GetAIBrain().M28Team
+            self[M28UnitInfo.reftActiveTeleportLocation] = {location[1], location[2], location[3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Teleport attempt detected by unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; location='..repru(location)..'; brain owner='..self:GetAIBrain().Nickname) end
+            for iCurTeam = 1, M28Team.iTotalTeamCount do
+                if not(iCurTeam == iTeleportTeam) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                    if not(M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails]) then
+                        M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails] = {}
+                    end
+                    table.insert(M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails], {[M28Team.subrefoTeleportUnit] = self, [M28Team.subreftTeleportTarget] = {location[1], math.max(location[2], GetTerrainHeight(location[1], location[3])), location[3]}, [M28Team.subrefiTeleportTime] = GetGameTimeSeconds()})
+                end
+            end
+        end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+end
+
 function OnGameStart()
     --Called vai hook of simInit
     if import('/mods/M28AI/lua/M28Config.lua').M28RunSimpleProfiling then

@@ -3921,8 +3921,32 @@ function GetACUOrder(aiBrain, oACU)
         elseif oACU[reftSpecialObjectiveMoveLocation] then
             M28Orders.IssueTrackedMove(oACU, oACU[reftSpecialObjectiveMoveLocation], 3, false, 'ACUObj', false)
             bProceedWithLogic = false
+            --Move away from a teleport
+        elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+            --Are any teleport targets within 60 of us? If so then run in the opposite direction unless we are underwater or have a powerufl gun upgrade
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we need to run from enemy teleport') end
+            if not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[refiUpgradeCount] <= 2 or not(oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('BlastAttack'))) then
+                local iClosestTeleportDist = 50
+                local iCurTeleportDist
+                local tClosestTeleport
+                for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+                    iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZOrWZData[M28Map.subrefMidpoint])
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurTeleportDist='..iCurTeleportDist..'; iClosestTeleportDist threshold='..iClosestTeleportDist) end
+                    if iCurTeleportDist < iClosestTeleportDist then
+                        iClosestTeleportDist = iCurTeleportDist
+                        tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': tClosestTeleport='..repru(tClosestTeleport)) end
+                if tClosestTeleport then
+                    bProceedWithLogic = false
+                    M28Orders.IssueTrackedMove(oACU, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, oACU:GetPosition()), 50, true))
+                end
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder] or false)..'; bProceedWithLogic='..tostring(bProceedWithLogic or false)..'; Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
+        bDebugMessages = false
         if bProceedWithLogic then
             --Special case - rebuilding destroyed base (relevant for teamgame) - if ACU at core base, and has no factories, then build a factory
             --Cant just use factory count in case we have plateaus/islands that have factories on them
