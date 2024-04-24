@@ -17,6 +17,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -575,8 +576,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             local iHoverMaxTimeToRun
 
             if iMaxTimeToRun < 1.1 then iHoverMaxTimeToRun = 1.1 end
-            if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
-            if iTimeUntilImpact > 0.8 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAttackBot, (oWeaponTarget.UnitId or 'uel0001')))) end
+            if iTimeUntilImpact > 0.8 or (oWeaponTarget and EntityCategoryContains(M28UnitInfo.refCategoryAttackBot, oWeaponTarget.UnitId) and iTimeUntilImpact >= 0.2) then
                 for iTarget, oTarget in tUnitsToConsiderDodgeFor do
                     bCancelDodge = false
                     if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeapon.Blueprint.Damage..'; Target health='..oTarget:GetHealth()) end
@@ -587,13 +588,16 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                         local oBP = oTarget:GetBlueprint()
                         local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
                         if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed) end
-                        if iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId))) then
+                        if iAverageSize < 1 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
                             --Are we not underwater?
                             if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                 --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
                                 if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
                                     if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
                                         --Dont cancel upgrade/teleport
+                                        bCancelDodge = true
+                                    --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
+                                    elseif oTarget:IsUnitState('Moving') and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0) <= 2 and oWeapon.Blueprint.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.STRUCTURE, oUnit.UnitId) and oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition], oTarget:GetPosition()) >= 5 then
                                         bCancelDodge = true
                                     elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
                                         --If we have units we can hit then cancel
@@ -615,11 +619,15 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     end
                                 elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
                                     --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
-                                    iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
+                                    local oTargetBP = oTarget:GetBlueprint()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if experimental wants to dodge shot, iDistToTarget='..iDistToTarget..'; Damage='..oWeapon.Blueprint.Damage..'; Experimental size='..math.max(oTargetBP.SizeX, oTargetBP.SizeZ)..'; Time since last weapon event='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                                     --Dont dodge at all if we have fired recently and the damage isn't massive
                                     if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeapon.Blueprint.Damage <= 4000 then
                                         bCancelDodge = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Target is an experimental that has fired recently and the damage isnt massive so we dont want to dodge, weapon damage='..(oWeapon.Blueprint.Damage or 'nil')) end
+                                    elseif iDistToTarget <= 90 and math.max(oTargetBP.SizeX, oTargetBP.SizeZ) >= 7 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 20 or oWeapon.Blueprint.Damage <= 4000) then --megalith and fatboy
+                                        bCancelDodge = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Megalith or fatboy in size so wont dodge shot') end
                                     else
                                         local tLastOrder = oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                                         if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeapon.Blueprint.Damage <= 4000) then
@@ -630,9 +638,12 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                 end
 
                                 if not(bCancelDodge) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun) end
+                                    iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
                                     if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
                                         DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
+                                    elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 then
+                                        AltDodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
                                     else
                                         DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
                                     end
@@ -684,7 +695,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
 
     local oBP = oTarget:GetBlueprint()
     local iSpeed = oBP.Physics.MaxSpeed
-    local iDistanceToRun = iTimeToDodge * iSpeed
+    local iDistanceToRun = (iTimeToDodge + (M28Land.iTicksPerLandCycle - 1) / 10) * iSpeed
     local iUnitSize = oBP.SizeX + oBP.SizeZ
     local iAngleAdjust = math.max(15, oBP.Physics.TurnRate * 0.3)
     if iUnitSize >= 2 then
@@ -710,15 +721,38 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
 
     local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iCurFacingAngle + iAngleAdjust, iDistanceToRun, true, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize..'; iTimeToDodge='..iTimeToDodge) end
-    M28Orders.IssueTrackedClearCommands(oTarget)
+    --M28Orders.IssueTrackedClearCommands(oTarget)
     TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
     M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
     --Also send an order to go to the destination that we had before
     if bAttackMove then
         M28Orders.IssueTrackedAttackMove(oTarget, tCurDestination, 0.25, true, 'MiDod2', true)
     else
-        M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
+        --M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
+        --Disabled for v89 given new 'get goal' position and increase in the micro dodge distance
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function AltDodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
+    --Intended for units like LABs, making use of new logic to change existing move order
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AltDodgeShot'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
+
+    M28Orders.UpdateRecordedOrders(oTarget)
+    local iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oTarget)
+    local iAngleToMove = iCurFacingAngle + 120
+    if iAngleToMove > 360 then iAngleToMove = iAngleToMove - 360 end
+    local oBP = oTarget:GetBlueprint()
+    local iSpeed = oBP.Physics.MaxSpeed
+    local iDistanceToRun = iTimeToDodge * iSpeed
+    local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove, iDistanceToRun, true, false, true)
+    TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
+    M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.1, false, 'MiDod1', true)
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -773,7 +807,7 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
+function ForkedMoveInCircleOld(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
     --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedMoveInCircle'
@@ -842,6 +876,81 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
             if iLoopCount == 1 then iTempDistanceAwayToMove = iDistanceAwayToMove + iInitialDistanceAdj end
             tTempLocationToMove = M28Utilities.MoveInDirection(tUnitStartPosition, iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
             M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'MiCirc1', true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(iTicksBetweenOrders)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if not(bDontTreatAsMicroAction) and not((oUnit[M28UnitInfo.refiGameTimeMicroStarted] == iStartTime and GetGameTimeSeconds() - iStartTime < iTimeToRun)) then bTimeToStop = true end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
+    --More intensive version of MoveAwayFromTargetTemporarily, intended e.g. for ACUs
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedMoveInCircle'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local refbActiveCircleMicro = 'M28MicroActiveCircleMicro'
+
+    if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Unit has active circle micro='..tostring(oUnit[refbActiveCircleMicro] or false)) end
+    if not(oUnit[refbActiveCircleMicro]) then
+
+        --KEY CONFIG SETTINGS: (these will work sometimes but not always against an aeon strat)
+        local iInitialAngleAdj = 15
+        local iInitialDistanceAdj = -1
+        local iDistanceAwayToMove = (iCircleSizeOverride or 2)
+        local iAngleMaxSingleAdj = 120
+        local iTicksBetweenOrders = (iTickWaitOverride or 1) --prev 4
+
+        if iDistanceAwayToMove > oUnit:GetBlueprint().Physics.MaxSpeed * 1.5 then
+            iAngleMaxSingleAdj = math.max(25, iAngleMaxSingleAdj * 2.5 / iDistanceAwayToMove)
+        end
+
+
+
+        local iStartTime = GetGameTimeSeconds()
+        oUnit[M28UnitInfo.refiGameTimeMicroStarted] = iStartTime
+        local iLoopCount = 0
+        local iMaxLoop = iTimeToRun * 10 + 1
+        --Distance from point A to point B will be much less than distanceaway to move, since that is the distance from the centre (radius) rather than the distance between 1 points on the circle edge; for simplicity will assume that distance is 0.25 of the distance from the centre
+        if bDontTreatAsMicroAction then iMaxLoop = math.ceil(iTimeToRun / (iDistanceAwayToMove / oUnit:GetBlueprint().Physics.MaxSpeed)) * 4 end
+        local tUnitStartPosition = oUnit:GetPosition()
+
+        local iCurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+
+
+        local iAngleAdjFactor = 1
+
+        local tTempLocationToMove
+
+        local bRecentMicro = false
+        local iRecentMicroThreshold = 1
+        local iGameTime = GetGameTimeSeconds()
+        if oUnit[M28UnitInfo.refbSpecialMicroActive] and iGameTime - oUnit[M28UnitInfo.refiGameTimeMicroStarted] < iRecentMicroThreshold then bRecentMicro = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iStartTime='..iStartTime..'; iCurFacingDirection='..iCurFacingDirection..'; tUnitStartPosition='..repru(tUnitStartPosition)..'; bRecentMicro='..tostring((bRecentMicro or false))..'; bDontClearCommandsFirst='..tostring(bDontClearCommandsFirst or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 'nil')..'; GameTime='..iGameTime..'; Dif='..iGameTime-(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 0)..'; bDontTreatAsMicroAction='..tostring((bDontTreatAsMicroAction or false))) end
+        if bRecentMicro == false and not(bDontClearCommandsFirst) then
+            M28Orders.IssueTrackedClearCommands(oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Issued clear commands order to the unit') end
+        end
+        if not(bDontTreatAsMicroAction) then
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun, refbActiveCircleMicro)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will temporarily track the unit micro. iTimeToRun='..(iTimeToRun or 'nil')) end
+        else
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+        end
+
+        local bTimeToStop = false
+        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refbSpecialMicroActive='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; iMaxLoop='..iMaxLoop) end
+        while bTimeToStop == false do
+            iLoopCount = iLoopCount + 1
+            if iLoopCount > iMaxLoop then break
+            elseif M28UnitInfo.IsUnitValid(oUnit) == false then break end --No longer give error message as may be calling this for intel scouts now
+
+
+            tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oUnit) + iAngleMaxSingleAdj, iDistanceAwayToMove, true, false, true)
+            M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, false, 'MiCirc1', true)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(iTicksBetweenOrders)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

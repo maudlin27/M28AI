@@ -103,6 +103,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
             return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation)
         end,
+        InitiateTeleportThread = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
+            return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation)
+        end,
     }
 end
 

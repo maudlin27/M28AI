@@ -63,6 +63,7 @@ refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim th
 refiTeamsWithThisAsReclaimTarget = 'M28UnitTmsReclT' --[x] = 1,2,3...x; returns the M28Team ref (for any team that has this as a reclaim target via the normal 'on unit detected/add to zone' logic)
 refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
 reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
+reftActiveTeleportLocation = 'M28UnitTTrLoc' --Location of the last teleport command (for both M28 and non-M28 units)
 refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt
 refbTriedToKill = 'M28TryKill' --true if tried to kill unit
 refiHealthWhenLastChecked = 'M28HlthCh' --Unit health when last checked - used for gunships

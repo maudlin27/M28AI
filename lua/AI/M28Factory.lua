@@ -295,6 +295,13 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 if bDebugMessages == true then LOG(sFunctionRef..': Switching to build blaze instead of obsidian') end
                 sBPIDToBuild = 'xal0203'
             end
+        elseif sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106' then --light assault bots - disable after the first couple
+            local iLABLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAttackBot)
+            if iLABLifetimeCount >= 2 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (iLABLifetimeCount >= 1 and M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryAttackBot) >= 3) then
+                aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
+                aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
+                aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
+            end
         end
 
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
@@ -958,7 +965,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Core expansion - have no land combat so will try to get some')
             end
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then
+            --Get LAB if we arent seraphim
+            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and ConsiderBuildingCategory(M28UnitInfo.refCategoryAttackBot, oFactory.UnitId) then
+                return sBPIDToBuild
+            elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then
                 return sBPIDToBuild
             end
         elseif  not (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbEnemyHasOmni]) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 then
@@ -1548,8 +1558,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Initiail combat
         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat)) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat) < 3 then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then
+        if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3 then
+            --Get LABs for the first couple of combat units (non-seraphim)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAttackBot)) end
+            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAttackBot) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryAttackBot, oFactory.UnitId) then
+                return sBPIDToBuild
+            elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then
                 return sBPIDToBuild
             end
         end
@@ -2948,9 +2962,12 @@ function SetPreferredUnitsByCategory(aiBrain)
     --aiBrain[reftBlueprintPriorityOverride]['uel0201'] = 1 --Striker (instead of mechmarine)
     --aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaam (instead of combat scout)
 
-    aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
-    aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
-    aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
+    --v89 - moved the LAB logic to when a unit is built so we can build a couple of LABs first before always building tanks
+    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+        aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
+        aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
+        aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
+    end
     aiBrain[reftBlueprintPriorityOverride]['xsl0101'] = -1 --Combat scout (so prioritise thaam instead)
 
     --T2

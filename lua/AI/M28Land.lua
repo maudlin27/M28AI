@@ -9,10 +9,10 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
-local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+--local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+--local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
@@ -22,6 +22,7 @@ local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
+local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -1438,8 +1439,10 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
         for iEntry, iAltLZ in M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] do
             if bDebugMessages == true then LOG(sFunctionRef..': Looking for rally point for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; Considering iAltLZ='..iAltLZ..'; Travel distance to here='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ) or 'nil')) end
             if iAltLZ == iLandZone then
-                iClosestLZRef = iAltLZ
-                break
+                if not(iClosestLZRef) then
+                    iClosestLZRef = iAltLZ
+                    --break
+                end
             else
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZIslandRef] == iBaseIsland then
                     iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ) or iClosestDist + 1)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
@@ -2026,10 +2029,35 @@ function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData, tOpt
     end
 end
 
-function MoveToStealthTarget(oStealth, tEnemyBase)
-    local oBP = oStealth:GetBlueprint()
-    local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
-    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
+function MoveToStealthTarget(oStealth, tEnemyBase, tOptionalStealthLZTeamData, tOptionalEnemyDFUnits, tOptionalRallyPoint)
+    local bMoveToUnit = true
+    if tOptionalStealthLZTeamData and tOptionalEnemyDFUnits and tOptionalRallyPoint and (tOptionalStealthLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 180 then
+        local iDistToStealthTarget = M28Utilities.GetDistanceBetweenPositions(oStealth[refoMobileStealthTarget]:GetPosition(), oStealth:GetPosition())
+        if iDistToStealthTarget >= 50 then
+            local tStealthTargetLZData, tStealthTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oStealth[refoMobileStealthTarget]:GetPosition(), true, oStealth:GetAIBrain().M28Team)
+            if not(tStealthTargetLZTeamData ==  tOptionalStealthLZTeamData) then
+                if M28Utilities.GetDistanceBetweenPositions(oStealth[refoMobileStealthTarget]:GetPosition(), tOptionalRallyPoint) >= M28Utilities.GetDistanceBetweenPositions(oStealth:GetPosition(), tOptionalRallyPoint) then
+                    --Are we almost in range of an enemy unit in this zone?
+                    if M28Utilities.IsTableEmpty(tOptionalEnemyDFUnits) == false then
+                        if M28Conditions.CloseToEnemyUnit(oStealth:GetPosition(), tOptionalEnemyDFUnits, 5, oStealth:GetAIBrain().M28Team, true) then
+                            --LOG('MoveToStealthTarget: Stealth '..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)..' is in a dangerous zone and target '..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget])..' is far away so will retreat; Does Stealth have active micro='..tostring(oStealth[M28UnitInfo.refbSpecialMicroActive] or false)..'; Closest friendly base='..repru(tOptionalStealthLZTeamData[M28Map.reftClosestFriendlyBase]))
+                            --M28Utilities.DrawLocation(oStealth:GetPosition())
+                            bMoveToUnit = false
+                            --IssueTrackedMove(oUnit, tOrderPosition,                       iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc,                                                                                       bOverrideMicroOrder)
+                            M28Orders.IssueTrackedMove(oStealth, tOptionalRallyPoint, 5, false,                'StBl'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]), false)
+                        end
+                    end
+
+                end
+            end
+        end
+
+    end
+    if bMoveToUnit then
+        local oBP = oStealth:GetBlueprint()
+        local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
+        M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
+    end
 end
 
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
@@ -2090,7 +2118,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         for iUnit, oUnit in tShieldsToRetreat do
             if bDebugMessages == true then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-                LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to run due to a low shield. iCurShield='..iCurShield..'; iMaxShield='..iMaxShield)
+                LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to run due to a low shield. iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit paused='..tostring(oUnit[M28UnitInfo.refbPaused])..'; Are power stalling='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; % stored E='..oUnit:GetAIBrain():GetEconomyStoredRatio('ENERGY')..'; Gross energy='..oUnit:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome])
             end
             if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ASRun'..iLandZone)
@@ -2197,8 +2225,8 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
             local iClosestDistToEnemy = 10000
             local oClosestUnitWantingShieldToEnemy, iCurDist
-            local bIncludeIndirect = false
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] <= 15) then bIncludeIndirect = true end
+            local bIncludeIndirect = true --v89 - changed to always include
+            --if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] <= 15) or (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) > 0 then bIncludeIndirect = true end
             --Get closest enemy DF unit to our midpoint
             local oClosestEnemyToMidpoint
             local iClosestEnemyDist = 10000
@@ -2286,12 +2314,18 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
         end
         tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
     end
+    local tEnemyDFUnits
+    local tRallyPoint
+    if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 200 then
+        tEnemyDFUnits = EntityCategoryFilterDown(categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits])
+        tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
+    end
 
-
+    local tOriginallyAssignedMobileStealths = {}
     for iUnit, oUnit in tMobileStealths do
         if oUnit[refoMobileStealthTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileStealthTarget]) then
-            --make sure we are behind the target
-            MoveToStealthTarget(oUnit, tEnemyBase)
+            table.insert(tOriginallyAssignedMobileStealths, oUnit)
+
         else
             table.insert(tStealthsToAssign, oUnit)
         end
@@ -2358,6 +2392,69 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
 
                 end
             end
+        end
+    end
+
+    if M28Utilities.IsTableEmpty(tOriginallyAssignedMobileStealths) == false then
+        --First consider reassigning 1 Stealth if there are nearby enemy DF units and we have a unit closer to them than a current defended Stealth target
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+            local iClosestDistToEnemy = 10000
+            local oClosestUnitWantingStealthToEnemy, iCurDist
+            local bIncludeIndirect = true --v89 - changed to always include
+            --if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrStealth] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrStealth] <= 15) or (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) > 0 then bIncludeIndirect = true end
+            --Get closest enemy DF unit to our midpoint
+            local oClosestEnemyToMidpoint
+            local iClosestEnemyDist = 10000
+            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                if iCurDist < iClosestEnemyDist then
+                    iClosestEnemyDist = iCurDist
+                    oClosestEnemyToMidpoint = oUnit
+                end
+            end
+
+            if oClosestEnemyToMidpoint then
+                for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] do
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 12 or (bIncludeIndirect and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 12) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
+                        if iCurDist < iClosestDistToEnemy then
+                            iClosestDistToEnemy = iCurDist
+                            oClosestUnitWantingStealthToEnemy = oUnit
+                        end
+                    end
+                end
+                if oClosestUnitWantingStealthToEnemy then
+                    --Get the closest unit being Stealthed already (ignoring ACUs being Stealthed)
+                    local iFurthestStealthedDistToEnemy = 0
+                    local oFurthestStealthToEnemy
+
+
+                    for iStealth, oStealth in tOriginallyAssignedMobileStealths do
+
+                        if not(EntityCategoryContains(categories.COMMAND + categories.EXPERIMENTAL, oStealth[refoMobileStealthTarget].UnitId)) then --never reassign an ACU or experimental mobile stealth
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oStealth[refoMobileStealthTarget]:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
+                            if iCurDist > iFurthestStealthedDistToEnemy then
+                                iFurthestStealthedDistToEnemy = iCurDist
+                                oFurthestStealthToEnemy = oStealth
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to reassign furthest away Stealth to closest Stealth for P'..iPlateau..'Z'..iLandZone..', iFurthestStealthedDistToEnemy='..iFurthestStealthedDistToEnemy..'; iClosestDistToEnemy='..iClosestDistToEnemy..'; oFurthestStealthToEnemy='..(oFurthestStealthToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFurthestStealthToEnemy) or 'nil')..'; oClosestUnitWantingStealthToEnemy='..(oClosestUnitWantingStealthToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitWantingStealthToEnemy) or 'nil')) end
+                    if iFurthestStealthedDistToEnemy and iFurthestStealthedDistToEnemy - iClosestDistToEnemy >= 3 then
+                        --Switch Stealths
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will switch Stealths, old target='..oFurthestStealthToEnemy[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestStealthToEnemy[refoMobileStealthTarget])) end
+                        oFurthestStealthToEnemy[refoMobileStealthTarget][refoAssignedMobileStealth] = nil
+                        oFurthestStealthToEnemy[refoMobileStealthTarget] = oClosestUnitWantingStealthToEnemy
+                        oClosestUnitWantingStealthToEnemy[refoAssignedMobileStealth] = oFurthestStealthToEnemy
+                    end
+                end
+            end
+        end
+        --Now move all Stealths to their designated unit to guard
+        for iStealth, oStealth in tOriginallyAssignedMobileStealths do
+            --make sure we are behind the target
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get Stealth '..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)..' to move behind the Stealth target '..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget])..'; Stealth position='..repru(oStealth:GetPosition())..'; Target last order position='..repru(oStealth[refoMobileStealthTarget][M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])) end
+            MoveToStealthTarget(oStealth, tEnemyBase, tLZTeamData, tEnemyDFUnits, tRallyPoint)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4105,12 +4202,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             local bAreInScenario1 = false
             local iDFRangeOverrideForScenario1
+            local bAttackWithSameRange = false
             if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and --No long range enemy threat (i.e. t2 arti); and
                     (iFirebaseThreatAdjust == 0 or (iFriendlyBestMobileDFRange >= 100 and iFirebaseThreatAdjust < 6000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 8000) or (not(bRunFromFirebase) and (iFriendlyBestMobileDFRange >= 60 or iFriendlyBestMobileIndirectRange >= 60))) and --No enemy firebase or we have large threat that should be able to overwhelm it; and
                     ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or --we outrange enemy with our direct fire, or
                             ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then --we have indirect fire with better range than enemy direct fire, and the enemy has structures in this LZ such that we want to attack
 
                 bAreInScenario1 = true
+                if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 or iFirebaseThreatAdjust > 0 then
+                    bAttackWithSameRange = true
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Normal scenario 1 criteria satisfied') end
             elseif iFirebaseThreatAdjust == 0 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileDFRange or 0) >= math.max(10, (iEnemyBestDFRange or 0) - 3) then
                 if  iFriendlyBestMobileDFRange > (oNearestEnemyToMidpoint[M28UnitInfo.refiDFRange] or 0) and iFriendlyBestMobileDFRange >= iEnemyBestDFRange then --e.g. gattling bots vs hoplites
                     bAreInScenario1 = true
@@ -4162,10 +4264,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             --SCENARIO 1 - We outrange enemy DF units (mobile and fix), or have equal range but with either significantly more threat at that range, or nearest enemy lacks that range
             if bAreInScenario1 then
                 --ARE IN SCENARIO 1
-                local bAttackWithSameRange = true
-                if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and iFirebaseThreatAdjust == 0 and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0))) then
-                    bAttackWithSameRange = false
-                end
                 if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, so we either outrange enemy, or we have significantly more threat at their best range - i.e. equal range, bAttackWithSameRange='..tostring(bAttackWithSameRange)) end
                 local tOutrangedCombatUnits = {}
                 local tUnitsToSupport = {}
@@ -4306,7 +4404,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 bGivenCombatUnitsOrders = true
                 local bFiringAtNegligibleThreatInLRExperimentalRange = false --used for megalith and fatboy so won't attack-move towards enemy
                 for iUnit, oUnit in tAvailableCombatUnits do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)..'; Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)..'; Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; IF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 0)) end
 
                     --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
                     if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
@@ -4461,8 +4559,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to do kiting retreat with megalith, iDistToNearestEnemy='..iDistToNearestEnemy) end
                                                         --If 3 inside our range, or just inside our range but enemy is moving towards us, then consider kiting
                                                         if iDistToNearestEnemy < oUnit[M28UnitInfo.refiDFRange] - 3 or (iDistToNearestEnemy < oUnit[M28UnitInfo.refiDFRange] and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:IsUnitState('Moving') and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) <= 45) then
-                                                            --Are we in range of the enemy? If so then stop microing back in case it risks hurting our DPS, and so we can focus down the lowest health enemy experimental
-                                                            if iDistToNearestEnemy >= (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) then
+                                                            --Are we in range of the enemy? If so then stop microing back in case it risks hurting our DPS, and so we can focus down the lowest health enemy experimental; exception if no enemy exps, in which case retreating might help us get closer to friendly units
+                                                            if iDistToNearestEnemy >= (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) or (EntityCategoryContains(categories.TECH3, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])))) then
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to do megalith retreat micro') end
                                                                 if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                                                                     bUseNormalLogic = false
@@ -4778,6 +4876,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'UnkRetr'..iLandZone)
                                 end
                             end
+                        elseif (oUnit[M28UnitInfo.refiIndirectRange] or 0) > iEnemyBestDFRange then
+                            table.insert(tUnitsToSupport, oUnit)
                         end
                     end
                 end
@@ -4950,7 +5050,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                         else
-                            M28Utilities.ErrorHandler('We somehow think we outrange the enemy with DF units, but have no DF units with a long range')
+                            M28Utilities.ErrorHandler('We somehow think we outrange the enemy with DF units, but have no DF units with a long range, P'..iPlateau..'Z'..iLandZone)
                         end
                     end
                 end

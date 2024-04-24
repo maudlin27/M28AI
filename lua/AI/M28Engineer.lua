@@ -859,7 +859,6 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetPotentialBuildLocationsNearLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
@@ -1158,10 +1157,15 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
             end
 
-            --If trying to build experimental, then just build any kind of experimental (excl transports and PD)
+            --If trying to build experimental, then just build any kind of experimental (excl transports and PD, and sera factory (quantum arch from mods))
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD, oEngineer, false,        false,          nil,        nil)
+                local iCategoryToBuild = M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD
+                if aiBrain[M28Overseer.refbCloseToUnitCap] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySpecialFactory) >= 1 then
+                    iCategoryToBuild = iCategoryToBuild - categories.SERAPHIM * categories.FACTORY
+                end
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,        false,          nil,        nil)
+
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
@@ -1181,8 +1185,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     if sBlueprintToBuild == nil then
         if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get blueprint to build, but unable to find one') end
     else
-
-
         if iOptionalEngineerAction then
             tiLastBuildingSizeFromActionForTeam[oEngineer:GetAIBrain().M28Team][iOptionalEngineerAction] = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
         end
@@ -5810,8 +5812,9 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
     --Check - can our first engineer build units of the desired category? If not then change the category to be an experimental level unit as we might have unit restrictions preventing this
     if oFirstEngineer then
         local aiBrain = oFirstEngineer:GetAIBrain()
-        local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer)
-        if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL
+                                                                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+        local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer,      nil,            nil,        nil,            nil,                                nil,                    10)
+        if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL - categories.SERAPHIM * categories.FACTORY
             M28Team.tTeamData[aiBrain.M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] = true
         end
     end
@@ -6198,7 +6201,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         iFactionRef = M28UnitInfo.refFactionSeraphim
         oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
         if oEngineerToBuild then
-            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
         end
 
     end
@@ -6208,7 +6211,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             iFactionRef = M28UnitInfo.refFactionUEF
             oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
             if oEngineerToBuild then
-                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
             end
         end
         if not(sShieldToBuild) then
@@ -6217,7 +6220,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                 iFactionRef = M28UnitInfo.refFactionAeon
                 oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                 if oEngineerToBuild then
-                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
                 end
             end
             if not(sShieldToBuild) then
@@ -6226,7 +6229,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                     iFactionRef = M28UnitInfo.refFactionCybran
                     oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                     if oEngineerToBuild then
-                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
                     end
                 end
                 if not(sShieldToBuild) then
@@ -6234,7 +6237,9 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                         aiBrain = oFirstEngineer:GetAIBrain()
                         oEngineerToBuild = oFirstEngineer
                         if oEngineerToBuild then
-                            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
+                            --A large shield is better than no shield?
+                            if not(sShieldToBuild) then sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild) end
                         end
                     end
                 end
@@ -9507,6 +9512,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
             end
+        end
+    end
+
+    --Anti-teleport PD builder
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+        --Are any teleport targets within 90 of this zone midpoint? If so then build emergency PD, and base the PD location on the teleport location (but move a bit towards this zone's midpoint from the actual teleport location)
+        local iClosestTeleportDist = 90
+        local iCurTeleportDist
+        local tClosestTeleport
+        for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+            iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZData[M28Map.subrefMidpoint])
+            if iCurTeleportDist < iClosestTeleportDist then
+                iClosestTeleportDist = iCurTeleportDist
+                tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+            end
+        end
+        if tClosestTeleport then
+            iBPWanted = 60
+            HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, tLZData[M28Map.subrefMidpoint]), 10, true))
         end
     end
 
@@ -12807,6 +12832,26 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     end
                 end
             end
+        end
+    end
+
+    --Anti-teleport PD builder
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+        --Are any teleport targets within 70 of this zone midpoint? If so then build emergency PD, and base the PD location on the teleport location (but move a bit towards this zone's midpoint from the actual teleport location)
+        local iClosestTeleportDist = 70
+        local iCurTeleportDist
+        local tClosestTeleport
+        for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+            iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZData[M28Map.subrefMidpoint])
+            if iCurTeleportDist < iClosestTeleportDist then
+                iClosestTeleportDist = iCurTeleportDist
+                tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+            end
+        end
+        if tClosestTeleport then
+            iBPWanted = 60
+            HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, tLZData[M28Map.subrefMidpoint]), 10, true))
         end
     end
 

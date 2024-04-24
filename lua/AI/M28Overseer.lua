@@ -477,6 +477,22 @@ end
 
 
 function TestCustom(aiBrain)
+    while true do
+        local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
+        LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
+        if M28Utilities.IsTableEmpty(tLABs) == false then
+            local iRandom = math.random(0,1)
+            iRandom = iRandom * 2 - 1
+            for iUnit, oUnit in tLABs do
+                if not(oUnit:IsUnitState('Moving')) and oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then
+                    M28Orders.IssueTrackedMove(oUnit, {oUnit:GetPosition()[1] + 10 * iRandom, oUnit:GetPosition()[2], oUnit:GetPosition()[3] + 10 * iRandom}, 0, false, 'TestMv', true)
+                end
+                --M28Micro.MoveInCircleTemporarily(oUnit, 10, false, true, nil, nil)
+                M28Micro.TrackTemporaryUnitMicro(oUnit, 1, nil, true)
+            end
+        end
+        WaitSeconds(0.5)
+    end
     --M28Profiler.CompareDifferentThreatCalculations(aiBrain)
 
 
@@ -798,6 +814,7 @@ function CheckUnitCap(aiBrain)
             if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
             local tUnitsToDestroy
             local tiCategoryToDestroy = {
+                [-1] = M28UnitInfo.refCategoryMobileLand + categories.NAVAL * categories.MOBILE - categories.EXPERIMENTAL - categories.COMMAND - categories.SUBCOMMANDER,
                 [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
                 [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
                 [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMobileLandShield - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT,
@@ -836,6 +853,18 @@ function CheckUnitCap(aiBrain)
                 end
             end
 
+            --If exp count is 0 then remove cat -1
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then
+            else
+                --If we have <10 T3 engis then exclude engineers from cat -1
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 10 then
+                        tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
+                    end
+                end
+            end
+
+
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 2 then
                 --If have no t3 gunships then keep t2 in cat 0
                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
@@ -865,51 +894,53 @@ function CheckUnitCap(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
             local iCumulativeCategory = tiCategoryToDestroy[4]
-            for iAdjustmentLevel = 4, 0, -1 do
+            for iAdjustmentLevel = 4, -1, -1 do
                 if iAdjustmentLevel < 4 then
                     iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
-                if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
-                    tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
-                    if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
-                        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
-                        local bKillUnit
-                        for iUnit, oUnit in tUnitsToDestroy do
-                            if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
-                                --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
-                                bKillUnit = true
-                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                                    if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
-                                        bKillUnit = false
-                                    elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
-                                        bKillUnit = false
-                                    end
-                                end
-                                if bKillUnit then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                                    if not(oUnit[M28UnitInfo.refbTriedToKill]) then
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-                                            iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-                                        else
-                                            iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                if tiCategoryToDestroy[iAdjustmentLevel] then
+                    if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                        tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+                        if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                            M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+                            local bKillUnit
+                            for iUnit, oUnit in tUnitsToDestroy do
+                                if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
+                                    --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
+                                    bKillUnit = true
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                        if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
+                                            bKillUnit = false
+                                        elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
+                                            bKillUnit = false
                                         end
                                     end
-                                    M28Orders.IssueTrackedKillUnit(oUnit)
+                                    if bKillUnit then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                                        if not(oUnit[M28UnitInfo.refbTriedToKill]) then
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                                            else
+                                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                                            end
+                                        end
+                                        M28Orders.IssueTrackedKillUnit(oUnit)
 
-                                    if iCurUnitsDestroyed >= iMaxToDestroy then
-                                        if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
-                                            M28Chat.SendUnitCapMessage(aiBrain)
+                                        if iCurUnitsDestroyed >= iMaxToDestroy then
+                                            if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
+                                                M28Chat.SendUnitCapMessage(aiBrain)
+                                            end
+                                            break
                                         end
-                                        break
                                     end
                                 end
                             end
                         end
+                        if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                    else
+                        break
                     end
-                    if iCurUnitsDestroyed >= iMaxToDestroy then break end
-                else
-                    break
                 end
             end
             aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
@@ -2252,12 +2283,41 @@ function DelayedUnpauseOfUnits(tUnits, iDelayInSeconds)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
+        local tUnitsForFurtherCheck = {}
         for iUnit, oUnit in tUnits do
             if bDebugMessages == true then LOG(sFunctionRef..': About to unpause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is paused='..tostring(oUnit:IsPaused())..'; Time='..GetGameTimeSeconds()) end
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+            if oUnit.EnableShield and oUnit.MyShield then oUnit:EnableShield() end
+            if EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
+                table.insert(tUnitsForFurtherCheck, oUnit)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsForFurtherCheck) == false then
+            ForkThread(SecondDelayedUnpauseCheckForMobileShields, tUnitsForFurtherCheck, 20)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SecondDelayedUnpauseCheckForMobileShields(tUnits, iDelayInSeconds)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SecondDelayedUnpauseCheckForMobileShields'
+
+    WaitSeconds(iDelayInSeconds)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Conditions.IsTableOfUnitsStillValid(tUnits) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through mobile shields, size of tUnits='..table.getn(tUnits)) end
+        local iCurShield, iMaxShield
+        for iUnit, oUnit in tUnits do
+            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering mobile shield oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMaxShield='..iMaxShield..'; iCurShield='..iCurShield..'; if cur shield is 0 then will try and unpause, aiBrain owner='..oUnit:GetAIBrain().Nickname) end
+            if iMaxShield > 0 and iCurShield == 0 then
+                oUnit:EnableShield()
+                M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+            end
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
