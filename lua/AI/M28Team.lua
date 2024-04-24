@@ -1205,13 +1205,14 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
 end
 
 function DelayedUnitAssignmentForTeamSetup(aiBrain, oUnit)
-    while not(M28Map.bFirstM28TeamHasBeenInitialised) do
+    while not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
         WaitTicks(1)
         if GetGameTimeSeconds() >= 120 then
             M28Utilities.ErrorHandler('Still dont have a team setup after waiting a long time so will abort')
             break
         end
     end
+    WaitTicks(1)
     if M28UnitInfo.IsUnitValid(oUnit) then
         ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
     end
