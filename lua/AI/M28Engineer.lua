@@ -1157,10 +1157,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
             end
 
-            --If trying to build experimental, then just build any kind of experimental (excl transports and PD)
+            --If trying to build experimental, then just build any kind of experimental (excl transports and PD, and sera factory (quantum arch from mods))
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD, oEngineer, false,        false,          nil,        nil)
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD - categories.SERAPHIM * categories.FACTORY, oEngineer, false,        false,          nil,        nil)
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
@@ -5809,8 +5809,9 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
     --Check - can our first engineer build units of the desired category? If not then change the category to be an experimental level unit as we might have unit restrictions preventing this
     if oFirstEngineer then
         local aiBrain = oFirstEngineer:GetAIBrain()
-        local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer)
-        if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL
+                                                                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+        local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer,      nil,            nil,        nil,            nil,                                nil,                    10)
+        if not(sArtiToBuild) then tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL - categories.SERAPHIM * categories.FACTORY
             M28Team.tTeamData[aiBrain.M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] = true
         end
     end
@@ -6197,7 +6198,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         iFactionRef = M28UnitInfo.refFactionSeraphim
         oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
         if oEngineerToBuild then
-            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
         end
 
     end
@@ -6207,7 +6208,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
             iFactionRef = M28UnitInfo.refFactionUEF
             oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
             if oEngineerToBuild then
-                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
             end
         end
         if not(sShieldToBuild) then
@@ -6216,7 +6217,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                 iFactionRef = M28UnitInfo.refFactionAeon
                 oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                 if oEngineerToBuild then
-                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                    sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
                 end
             end
             if not(sShieldToBuild) then
@@ -6225,7 +6226,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                     iFactionRef = M28UnitInfo.refFactionCybran
                     oEngineerToBuild = tAvailableT3EngineersByFaction[iFactionRef][1]
                     if oEngineerToBuild then
-                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                        sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
                     end
                 end
                 if not(sShieldToBuild) then
@@ -6233,7 +6234,9 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                         aiBrain = oFirstEngineer:GetAIBrain()
                         oEngineerToBuild = oFirstEngineer
                         if oEngineerToBuild then
-                            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild)
+                            sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild,nil,nil,nil,nil,nil,6)
+                            --A large shield is better than no shield?
+                            if not(sShieldToBuild) then sShieldToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineerToBuild) end
                         end
                     end
                 end
