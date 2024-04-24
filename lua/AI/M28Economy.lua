@@ -1872,7 +1872,6 @@ function ManageEnergyStalls(iTeam)
                             else iBuildRateMod = 1
                             end
                             if bPauseNotUnpause then
-                                if GetGameTimeSeconds() >= 33*60 and iCategoryRef == M28UnitInfo.refCategorySpecialFactory then bDebugMessages = true else bDebugMessages = false end
                                 if iCategoryRef == iSpecialSurplusUpgradeCategory then
                                     --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
                                     tRelevantUnits = {}

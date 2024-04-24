@@ -3929,7 +3929,6 @@ function GetACUOrder(aiBrain, oACU)
             --Move away from a teleport
         elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
             --Are any teleport targets within 60 of us? If so then run in the opposite direction unless we are underwater or have a powerufl gun upgrade
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we need to run from enemy teleport') end
             if not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[refiUpgradeCount] <= 2 or not(oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('BlastAttack'))) then
                 local iClosestTeleportDist = 50
@@ -3951,7 +3950,6 @@ function GetACUOrder(aiBrain, oACU)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder] or false)..'; bProceedWithLogic='..tostring(bProceedWithLogic or false)..'; Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-        bDebugMessages = false
         if bProceedWithLogic then
             --Special case - rebuilding destroyed base (relevant for teamgame) - if ACU at core base, and has no factories, then build a factory
             --Cant just use factory count in case we have plateaus/islands that have factories on them

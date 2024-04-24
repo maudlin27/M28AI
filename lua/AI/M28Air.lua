@@ -5147,7 +5147,6 @@ function ManageGunships(iTeam, iAirSubteam)
 
                 --Telesnipe defence - if no targets yet and enemy has queued up a snipe attempt, then have gunships move there
                 if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false and oFrontGunship then
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Want gunships to prevent a snipe attempt if it isnt too far away') end
                     local iClosestTeleportDist = 500 --If assume a teleport allows about 45s for the unit to teleport there then teleport away (will vary following FAF update), and gunships move at 10 per sec, then if we only consider telesnipe locations within 500 it should cover cases where the gunships are close enough to feasibly help
                     local iCurTeleportDist

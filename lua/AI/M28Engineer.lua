@@ -1160,7 +1160,12 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             --If trying to build experimental, then just build any kind of experimental (excl transports and PD, and sera factory (quantum arch from mods))
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD - categories.SERAPHIM * categories.FACTORY, oEngineer, false,        false,          nil,        nil)
+                local iCategoryToBuild = M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD
+                if aiBrain[M28Overseer.refbCloseToUnitCap] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySpecialFactory) >= 1 then
+                    iCategoryToBuild = iCategoryToBuild - categories.SERAPHIM * categories.FACTORY
+                end
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,        false,          nil,        nil)
+
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
@@ -1180,8 +1185,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     if sBlueprintToBuild == nil then
         if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get blueprint to build, but unable to find one') end
     else
-
-
         if iOptionalEngineerAction then
             tiLastBuildingSizeFromActionForTeam[oEngineer:GetAIBrain().M28Team][iOptionalEngineerAction] = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
         end

@@ -4412,7 +4412,6 @@ function RefreshRecentEnemyTeleportLocations(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftRecentEnemyTeleportDetails]) == false then
-        bDebugMessages = true
         for iCurEntry = table.getn(tTeamData[iTeam][reftRecentEnemyTeleportDetails]), 1, -1 do
             local tCurEntry = tTeamData[iTeam][reftRecentEnemyTeleportDetails][iCurEntry]
             if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Is teleport unit valid='..tostring(M28UnitInfo.IsUnitValid(tCurEntry[subrefoTeleportUnit]))..'; reftActiveTeleportLocation='..repru(tCurEntry[subrefoTeleportUnit][M28UnitInfo.reftActiveTeleportLocation])..'; Cur time='..GetGameTimeSeconds()..'; Time since teleport attempt='..GetGameTimeSeconds() - tCurEntry[subrefiTeleportTime]) end
