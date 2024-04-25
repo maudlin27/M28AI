@@ -885,7 +885,6 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                 if oBrainToSendMessage then --End of game, we either won or lost, so include messages that work either way
                     --Add in generic messages
                     table.insert(tsPotentialMessages, 'gg')
-                    table.insert(tsPotentialMessages, 'gg wp')
                     table.insert(tsPotentialMessages, 'Rematch?')
                 end
             end
