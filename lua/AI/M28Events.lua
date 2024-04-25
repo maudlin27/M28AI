@@ -1148,45 +1148,66 @@ function ProjectileCreated(oProjectile, inWater)
         LOG('TEMP TEST will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
     end--]]
-    if oProjectile.GetTrackingTarget and (not(oProjectile.BeenDestroyed) or not(oProjectile:BeenDestroyed())) then
-        local oTarget = oProjectile:GetTrackingTarget()
-        --M28 target specific logic:
-        if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-            local sFunctionRef = 'ProjectileCreated'
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) then
+        local bTrackingProjectile = false
+        if oProjectile.GetTrackingTarget then
+            local oTarget = oProjectile:GetTrackingTarget()
+            --M28 target specific logic:
+            if M28UnitInfo.IsUnitValid(oTarget) then
+                bTrackingProjectile = true
+                if oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+                    local sFunctionRef = 'ProjectileCreated'
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-            --Gunships - consider retreating early
-            if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
-                if M28UnitInfo.IsUnitValid(oTarget) then
-                    if not(oTarget[M28UnitInfo.reftoEnemyProjectiles]) then
-                        oTarget[M28UnitInfo.reftoEnemyProjectiles] = {}
-                    end
-                    table.insert(oTarget[M28UnitInfo.reftoEnemyProjectiles], oProjectile)
-                    --Estimate total damage to be dealt
-                    local iTotalDamage = 0
-                    for iCurProjectile = table.getn(oTarget[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
-                        local oCurProjectile = oTarget[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
-                        if oCurProjectile:BeenDestroyed() then
-                            table.remove(oTarget[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
-                        else
-                            iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 'nil')
+                    --Gunships - consider retreating early
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                        if M28UnitInfo.IsUnitValid(oTarget) then
+                            if not(oTarget[M28UnitInfo.reftoEnemyProjectiles]) then
+                                oTarget[M28UnitInfo.reftoEnemyProjectiles] = {}
+                            end
+                            table.insert(oTarget[M28UnitInfo.reftoEnemyProjectiles], oProjectile)
+                            --Estimate total damage to be dealt
+                            local iTotalDamage = 0
+                            for iCurProjectile = table.getn(oTarget[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
+                                local oCurProjectile = oTarget[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
+                                if oCurProjectile:BeenDestroyed() then
+                                    table.remove(oTarget[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
+                                else
+                                    iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 'nil')
+                                end
+                            end
+
+                            local iCurHealth = oTarget:GetHealth()
+                            local iMaxHealth = oTarget:GetMaxHealth()
+                            if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
+                                oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
+                                M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship for refueling') end
+                            end
+
+                            --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))
+                            if bDebugMessages == true then LOG(sFunctionRef..': projectile target='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; Cur projectile damage='..(oProjectile.DamageData.DamageAmount or 'nil')..'; iTotalDamage='..iTotalDamage..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; Time='..GetGameTimeSeconds()) end
                         end
                     end
-
-                    local iCurHealth = oTarget:GetHealth()
-                    local iMaxHealth = oTarget:GetMaxHealth()
-                    if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
-                        oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
-                        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship for refueling') end
-                    end
-
-                    --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))
-                    if bDebugMessages == true then LOG(sFunctionRef..': projectile target='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; Cur projectile damage='..(oProjectile.DamageData.DamageAmount or 'nil')..'; iTotalDamage='..iTotalDamage..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; Time='..GetGameTimeSeconds()) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 end
             end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
+        if not(bTrackingProjectile) then
+            --LOG('reprs of oProjectile='..reprs(oProjectile)..'; reprs of oProjectile.Launcher='..reprs(oProjectile.Launcher)..'; oProjectile.InnerRing is nil='..tostring(oProjectile.InnerRing == nil)..'; oProjectile.OuterRing is nil='..tostring(oProjectile.OuterRing == nil)..'; Is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)))
+            if oProjectile.Launcher.UnitId and oProjectile.InnerRing and oProjectile.OuterRing and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) then
+                --Have a nuke missile that has just been fired
+                local oLauncher = oProjectile.Launcher
+                --LOG('Is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher)))
+                if M28UnitInfo.IsUnitValid(oLauncher) then
+                    local iTeam = oLauncher:GetAIBrain().M28Team
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        ForkThread(M28Micro.MonitorNukeTargetForFriendlyUnits, oProjectile, oLauncher, iTeam)
+                    end
+                end
+
+            end
         end
     end
 end

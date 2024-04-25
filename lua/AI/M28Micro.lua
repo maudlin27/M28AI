@@ -1499,3 +1499,49 @@ function MoveAndKillAirUnit(oUnit)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorNukeTargetForFriendlyUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
+        --LOG('Blueprint for projectile repru='..repru(oProjectile.Blueprint))
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if aiBrain then
+            if bDebugMessages == true then LOG(sFunctionRef..': Outer ring='..repru(oProjectile.OuterRing)..'; Inner ring='..repru(oProjectile.InnerRing)) end
+            local tTarget = oProjectile:GetCurrentTargetPosition()
+            local iSearchArea = math.min((oProjectile.OuterRing.Radius or 50), math.max(56, (oProjectile.InnerRing.Radius or 35) + 15)) + 4
+            local iCategoriesToSearch = M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryAllNavy * categories.MOBILE - categories.TECH1 + categories.COMMAND + categories.SUBCOMMANDER
+            local iSpeed = (oProjectile.Blueprint.Physics.MaxSpeed or 10)
+            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, oProjectile:GetPosition())
+            local iTimeToTarget = iDistToTarget / iSpeed
+            if bDebugMessages == true then LOG(sFunctionRef..': iSpeed='..iSpeed..'; iDistToTarget='..iDistToTarget..'; iTimeToTarget='..iTimeToTarget..'; iSearchArea='..iSearchArea..'; Excess time='..(iTimeToTarget - iSearchArea / 2)*10) end
+            if iTimeToTarget >= iSearchArea / 2 then --want to allow enough time for a unit in the middle of the target to get out of the way
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(math.floor((iTimeToTarget - iSearchArea / 2)*10))
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            local iAngleToUnit
+            local iMoveDistance = iSearchArea + 15
+            local bKeepInCampaignArea = M28Map.bIsCampaignMap
+            while not(oProjectile:BeenDestroyed()) and not(aiBrain.M28IsDefeated)  do
+                --Every second check for friendly experimental, ACU, and T3 land units around the target area and have them move away
+                --First check the missile is close enough that we should try and have units run
+                local tFriendlyUnitsNearTarget = aiBrain:GetUnitsAroundPoint(iCategoriesToSearch, tTarget, iSearchArea, 'Ally')
+                if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
+                    for iUnit, oUnit in tFriendlyUnitsNearTarget do
+                        iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
+                        local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
+                        M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
+                        TrackTemporaryUnitMicro(oUnit, 1)
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
