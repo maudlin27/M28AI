@@ -1754,16 +1754,16 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 iAirAAThreshold = math.max(3000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.2)
                                 iGroundAAThreshold = math.min(math.max(iAirToGroundThreat * 0.1,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, 1000), 3000)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oPriorityUnitBeingSupported.UnitId) then
-                                local iCap = 3000
-                                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then iCap = 2000 end
-                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.2,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, iCap)
+                                local iCap = 2500
+                                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then iCap = 1500 end
+                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.15,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.075, iCap)
                                 iAirAAThreshold = math.max(iAirToGroundThreat * 0.1, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.2)
                             else
-                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.05,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05, 1000)
+                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.05,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.04, 1000)
                                 iAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05
                             end
                         elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAirToGroundThreat >= 3000 then
-                            iGroundAAThreshold = math.min(iAirToGroundThreat * 0.1,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, 3000)
+                            iGroundAAThreshold = math.min(iAirToGroundThreat * 0.08,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.07, 3000)
                             iAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1
                         end
                     end
