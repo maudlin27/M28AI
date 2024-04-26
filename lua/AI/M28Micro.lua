@@ -639,7 +639,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
 
                                 if not(bCancelDodge) then
                                     iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
-                                    if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and GetGameTimeSeconds() >= 16*60 then bDebugMessages = true end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
                                     if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
                                         DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
@@ -665,7 +664,6 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 16*60 and EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
 
     M28Orders.UpdateRecordedOrders(oTarget)

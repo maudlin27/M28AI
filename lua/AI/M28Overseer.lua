@@ -44,6 +44,7 @@ tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zo
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
 iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
+bNonAISimModsActive = false
 
 --Campaign specific variables
 bActiveObjectiveUnitValidMonitorByObjective = {} --True if already are actively monitoring a particular unit
@@ -264,6 +265,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     for iMod, tModData in tSimMods do
         if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
+            bNonAISimModsActive = true
             bIncompatible = true
             if iSimModCount == 1 then
                 sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
