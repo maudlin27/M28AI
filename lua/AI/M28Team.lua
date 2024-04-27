@@ -122,6 +122,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
         subrefoTeleportUnit = 1
         subreftTeleportTarget = 2
         subrefiTeleportTime = 3
+    subrefbEnemyGettingFabsOrRAS = 'M28TeamEnRASFab' --true if enemy has been detected building mass fabs or RAS SACUs
 
 
     --Notable unit count and threat details
@@ -1733,6 +1734,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
                                     ForkThread(M28Air.EnemyT1BomberTracker, oUnit, aiBrain.M28Team)
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
+                                tTeamData[aiBrain.M28Team][subrefbEnemyGettingFabsOrRAS] = true
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
