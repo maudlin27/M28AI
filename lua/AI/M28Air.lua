@@ -35,6 +35,7 @@ tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one f
 tiRecentExpBomberTargets = {} --when an experimental bomber fires, then will trakc here
 iBaseLowHealthThreshold = 0.55
 iProjectileLowHealthThreshold = 0.52 --should always be equal or lower than iBaseLowHealthThreshold
+iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to consider dropping for even if no mex
 
 --Against units:
     reftAssignedRefuelingUnits = 'M28AirRefueling'
@@ -1739,7 +1740,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     local bCurTargetTooDangerous
                     local tbWaterZonesConsidered = {}
                     local tbPlateauAndLandZonesConsidered = {}
-                    local iCurPlateau
+                    local iCurPlateau, iCurZone
                     local iGroundAAThreshold
                     local iAirAAThreshold
                     local bDoDetailedCheck = false
@@ -1754,19 +1755,21 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 iAirAAThreshold = math.max(3000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.2)
                                 iGroundAAThreshold = math.min(math.max(iAirToGroundThreat * 0.1,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, 1000), 3000)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oPriorityUnitBeingSupported.UnitId) then
-                                local iCap = 3000
-                                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then iCap = 2000 end
-                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.2,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, iCap)
+                                local iCap = 2500
+                                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then iCap = 1500 end
+                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.15,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.075, iCap)
                                 iAirAAThreshold = math.max(iAirToGroundThreat * 0.1, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.2)
                             else
-                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.05,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05, 1000)
+                                iGroundAAThreshold = math.min(iAirToGroundThreat * 0.05,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.04, 1000)
                                 iAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.05
                             end
                         elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAirToGroundThreat >= 3000 then
-                            iGroundAAThreshold = math.min(iAirToGroundThreat * 0.1,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1, 3000)
+                            iGroundAAThreshold = math.min(iAirToGroundThreat * 0.08,  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.07, 3000)
                             iAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.1
                         end
                     end
+                    local iZoneGroundAAThreshold = (iGroundAAThreshold or 0) * 0.1
+                    local iZoneAirAAThreshold = (iAirAAThreshold or 0) * 0.2
                     for iDist = iSearchInterval, iRoundedDist, iSearchInterval do
                         bCurTargetTooDangerous = false
                         tCurTarget = M28Utilities.MoveInDirection(tClosestBase, iAngleToTarget, iDist, true, false, false)
@@ -1780,11 +1783,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                     --Have a valid water zone, check if it is dangerous
                                     tbWaterZonesConsidered[iCurZone] = true
                                     --IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
-                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurZone, true,         iGroundAAThreshold,         iAirAAThreshold,                nil,                                    nil)
+                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurZone, true,         iZoneGroundAAThreshold,         iZoneAirAAThreshold,                nil,                                    nil)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)..'; bDoDetailedCheck (i.e. if this is dangerous then will do more precise check)='..tostring(bDoDetailedCheck)) end
                                     if bCurTargetTooDangerous and bDoDetailedCheck then
                                         --function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
-                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
+                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iZoneGroundAAThreshold, iZoneAirAAThreshold, false, iAirSubteam, true)
                                         if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after detailed WZ check='..tostring(bCurTargetTooDangerous)) end
                                     end
                                     if bCurTargetTooDangerous then
@@ -1802,11 +1805,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 if not(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurZone]) then
                                     if not(tbPlateauAndLandZonesConsidered[iCurPlateau]) then tbPlateauAndLandZonesConsidered[iCurPlateau] = {} end
                                     tbPlateauAndLandZonesConsidered[iCurPlateau][iCurZone] = true
-                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurZone, false,         iGroundAAThreshold,         iAirAAThreshold)
+                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurZone, false,         iZoneGroundAAThreshold, iZoneAirAAThreshold)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; bCurTargetTooDangerous before detailed check='..tostring(bCurTargetTooDangerous)..'; bDoDetailedCheck='..tostring(bDoDetailedCheck)) end
                                     if bCurTargetTooDangerous and bDoDetailedCheck then
                                         --function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
-                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true)
+                                        bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iZoneGroundAAThreshold, iZoneAirAAThreshold, false, iAirSubteam, true)
                                         if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after detailed check='..tostring(bCurTargetTooDangerous)) end
                                     end
                                     if bCurTargetTooDangerous then
@@ -1849,9 +1852,9 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                 if iCurPlateau and iCurZone then
                                     --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
                                     bDangerousUsingPreciseCheck = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iAirAAThreshold, false, iAirSubteam, true,        false,                          tCurTarget)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': More precise support shadowing check, iCurSearchRange='..iCurSearchRange..'; bDangerousUsingPreciseCheck='..tostring(bDangerousUsingPreciseCheck or false)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': More precise support shadowing check, iDist='..iDist..'; bDangerousUsingPreciseCheck='..tostring(bDangerousUsingPreciseCheck or false)) end
                                     if not(bDangerousUsingPreciseCheck) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Using a precise location we have a more appropriate point, iCurSearchRange='..iCurSearchRange..'; tAlternativeToZoneMidpointOverride='..repru(tAlternativeToZoneMidpointOverride)) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Using a precise location we have a more appropriate point, iDist='..iDist..'; tAlternativeToZoneMidpointOverride='..repru(tAlternativeToZoneMidpointOverride)) end
                                         tAlternativeToZoneMidpointOverride = {tCurTarget[1], tCurTarget[2], tCurTarget[3]}
                                     else
                                         break
@@ -1882,16 +1885,19 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         local bMoveCloserToRally = false
                         local tNearbyEnemyAA
                         if aiBrain.GetUnitsAroundPoint then
-                            tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) end
-                            if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false and (not(iGroundAAThreshold) or M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyAA) > iGroundAAThreshold) then
+                            --Increased range to 85 for v90 from 78 to allow for air units turning around
+                            tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 85, 'Enemy')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then LOG(sFunctionRef..': Mass cost of nearby AA='..M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyAA)..'; M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)..'; iGroundAAThreshold='..iGroundAAThreshold)  end end
+                            if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false and (not(iGroundAAThreshold) or M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false) > iGroundAAThreshold) then
                                 for iAA, oAA in tNearbyEnemyAA do
-                                    if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oAA Nearby='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; AA range='..oAA[M28UnitInfo.refiAARange]..'; Dist to support rally='..M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint)) end
+                                    if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 18 then
                                         bMoveCloserToRally = true
                                         break
                                     end
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bMoveCloserToRally after check for neraby groundAA that have intel of='..tostring(bMoveCloserToRally or false)) end
                             if bMoveCloserToRally then
                                 bDontMoveCloserToEnemyBase = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
@@ -6242,6 +6248,7 @@ function UpdateTransportLocationShortlist(iTeam)
 
     --First record (once per game) potential islands to consider dropping for this team
     if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off exercise at start of game to identify islands to drop, time='..GetGameTimeSeconds()) end
         M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] = {}
         --First identify any islands by plateau that have mexes and dont have an enemy or friendly start position
         local tiPlayerStartByPlateauAndIsland = {}
@@ -6275,17 +6282,22 @@ function UpdateTransportLocationShortlist(iTeam)
                 for iIsland, tLandZonesInIsland in tPlateauSubtable[M28Map.subrefPlateauIslandLandZones] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iIsland='..iIsland..'; tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]='..reprs(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland])..'; Mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)) end
                     if not(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]) then
-                        --Does the island have mexes?
-                        if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 then
+                        --Does the island have mexes? (v90 - effectively removed this requirement and just require that it has land zones, while later on have a requirement for there to be mexes or reclaim)
+                        if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) == false then
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) then M28Utilities.ErrorHandler('Island has mexes but no land zone')
                             else
+                                local iSignificantReclaimValue = 0
                                 --Are we close to a friendly base (such that there's no point trying to drop here?)
                                 iClosestLZToBase = 100000
                                 iClosestBasePlateau = nil
                                 iClosestBaseLZ = nil
                                 --Cycle through every land zone to check for friendly bases on the same plateau, and for how many mexes we have built on
                                 for iEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
-                                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                                    --if not(tLZData[M28Map.subrefLastReclaimRefresh]) then
+                                    --M28Map.RefreshLandOrWaterZoneReclaimValue(iPlateau, iLandZone, false, true, true) --end --reworked how reclaim zones are updated so this should no longer be necessary
+                                    iSignificantReclaimValue = iSignificantReclaimValue + (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)
+                                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                                     --Get plateau of the nearest allied base for the first entry, since presumably all land zones have the same plateau, so stop searching if the first one is on a dif plateau
                                     if not(iClosestBasePlateau) then
                                         iClosestBasePlateau, iClosestBaseLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
@@ -6296,8 +6308,9 @@ function UpdateTransportLocationShortlist(iTeam)
                                     if iCurDistToFriendlyBase < iClosestLZToBase then
                                         iClosestLZToBase = iCurDistToFriendlyBase
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': P'..iPlateau..'Z'..iLandZone..'; tLZOrWZData[subrefLastReclaimRefresh]='..(tLZData[M28Map.subrefLastReclaimRefresh] or 'nil')..'; iCurDistToFriendlyBase='..iCurDistToFriendlyBase..'; Signif reclaim val for just this zone='..(tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)) end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]..'; iSignificantReclaimValue='..iSignificantReclaimValue) end
                                 if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) or (not(iClosestBasePlateau == iPlateau) and (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0) then
                                     bAlreadyIncluded = false
                                     if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau] = {}
@@ -6310,10 +6323,13 @@ function UpdateTransportLocationShortlist(iTeam)
                                         end
                                     end
                                     if not(bAlreadyIncluded) then
-                                        --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations') end
-                                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
-                                        tbPlateausWithPlayerStartOrIslandDrop[iPlateau] = true
+                                        --A transport is 120 mass, an engi is 52 mass, so want >200 mass for it to be worthwhile to consider dropping engi (on assumption will also be some lower value reclaim to give a profit)
+                                        if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop then
+                                            --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations, mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)..'; iSignificantReclaimValue='..iSignificantReclaimValue) end
+                                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
+                                            tbPlateausWithPlayerStartOrIslandDrop[iPlateau] = true
+                                        end
                                     end
                                 end
                             end
@@ -6343,9 +6359,9 @@ function UpdateTransportLocationShortlist(iTeam)
         local iMexesAlreadyBuiltOn = 0
         local iZonesWithSignificantThreat = 0
         local iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis
+        local iSignificantReclaimValue
 
         for iPlateau, tIslands in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] do
-            bHaveAZoneWithSignificantThreat = false
             iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = 0
             for iEntry, iIsland in tIslands do
                 --Have we not had a recent failed drop?
@@ -6355,8 +6371,10 @@ function UpdateTransportLocationShortlist(iTeam)
                     iRecentDropCount = 0
                     --Cycle through every land zone on island and check if enemy has large threat (>600) indicating an ACU is present or isgnificant army, or we have engineers traveling here or already on the island (and unattached)
                     bTooMuchThreatOrEngisTraveling = false
+                    iSignificantReclaimValue = 0
                     for iLZEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
                         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                        iSignificantReclaimValue = iSignificantReclaimValue + (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)
                         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                         if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
                         iMexesAlreadyBuiltOn = 0
@@ -6383,9 +6401,9 @@ function UpdateTransportLocationShortlist(iTeam)
                                     end
                                 end
                             end
-                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
                         else
-                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
                         end
                         if bTooMuchThreatOrEngisTraveling then break end
                     end
@@ -6400,7 +6418,13 @@ function UpdateTransportLocationShortlist(iTeam)
                         end
                     end
 
-                    if not(bTooMuchThreatOrEngisTraveling) and iMexesAlreadyBuiltOn >= M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][iIsland] then bTooMuchThreatOrEngisTraveling = true end
+                    if not(bTooMuchThreatOrEngisTraveling) and iMexesAlreadyBuiltOn >= (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][iIsland] or 0) then
+                        if iMexesAlreadyBuiltOn > 0 then
+                            bTooMuchThreatOrEngisTraveling = true
+                        elseif  iSignificantReclaimValue < iReclaimWantedForTransportDrop then
+                            bTooMuchThreatOrEngisTraveling = true
+                        end
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchThreatOrEngisTraveling='..tostring(bTooMuchThreatOrEngisTraveling)) end
                     if not(bTooMuchThreatOrEngisTraveling) and iRecentDropCount < 3 then --note this probably is effectively 1 less than the value noted, since if the transport is given the order to unload then that location is removed from the shortlist it will potentially cancel its unload order
                         if not(bDontHaveLocationInPlayableArea) then
@@ -6439,6 +6463,7 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
         local iClosestDist = 100000
         local iClosestIslandDist = 100000
         local iCurIslandDist
+        local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
 
         --Unit cur plateau and land/water zone
         local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -6458,10 +6483,11 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 end
             end
             --Is it safe to travel here?
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60))..'; M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ]='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60))..'; M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ]='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ] or 'nil')..'; Does enemy have AA using detailed check='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60,          nil,                     false,         iAirSubteam,         true))) end
             --Has a transport recently died trying to get here?
             if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ] or -300) > 180 then
-                if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60)) then
+                    --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
+                if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition())) then
                     iCurIslandDist = iClosestDist
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurIslandDist='..iCurIslandDist..'; iClosestIslandDist='..iClosestIslandDist) end
                     if iCurIslandDist < iClosestIslandDist then
@@ -6491,6 +6517,7 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
         local iCurDist
         local iClosestDist = 100000
         local tiClosestPlateauAndZone
+        local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
 
         --Unit cur plateau and land/water zone
         local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -6510,8 +6537,8 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
                     --Is it safe to travel here?
                     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300) > 180 then
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60))) end
-                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) end
+                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition())) then
                             iClosestDist = iCurDist
                             tiClosestPlateauAndZone = {tiPlateauAndZone[1], tiPlateauAndZone[2]}
                         end

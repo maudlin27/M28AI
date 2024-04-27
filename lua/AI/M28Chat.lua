@@ -120,7 +120,7 @@ function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimil
     local sFunctionRef = 'SendGloatingMessage'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Map.bIsCampaignMap or not(aiBrain[refiAssignedPersonality]) or (aiBrain[refiAssignedPersonality] == refiQAI and not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran)) then
+    if not(aiBrain[refiAssignedPersonality]) or (aiBrain[refiAssignedPersonality] == refiQAI and (not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran) or (M28Map.bIsCampaignMap and not(aiBrain.Nickname == 'QAI') and not(aiBrain.Name == 'QAI')))) then
         SendGenericGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimilarMessages)
     else
         local tsPotentialMessages = {}
@@ -650,10 +650,19 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
     local iRandGroupingType
     local iOrigM28BrainCountOnTeam = 0
     local iHumansOnSameTeamAsDefeatedM28 = 0
+    local iHumansOnDifferentTeamToDefeatedBrain = 0
+    local iNonM28AIPresent = 0
     for iBrain, oBrain in ArmyBrains do
-        if oBrain.M28AI and oBrain.M28Team == oBrainDefeated.M28Team then iOrigM28BrainCountOnTeam = iOrigM28BrainCountOnTeam + 1 end
-        if oBrain.BrainType == 'Human' and oBrain.M28Team == oBrainDefeated.M28Team and oBrainDefeated.M28AI then
-            iHumansOnSameTeamAsDefeatedM28 = iHumansOnSameTeamAsDefeatedM28 + 1
+        if oBrain.M28AI and oBrain.M28Team == oBrainDefeated.M28Team then
+            iOrigM28BrainCountOnTeam = iOrigM28BrainCountOnTeam + 1
+        elseif oBrain.BrainType == 'Human' then
+            if not(oBrain.M28Team == oBrainDefeated.M28Team) then
+                iHumansOnDifferentTeamToDefeatedBrain = iHumansOnDifferentTeamToDefeatedBrain + 1
+            elseif oBrain.M28Team == oBrainDefeated.M28Team and oBrainDefeated.M28AI then
+                iHumansOnSameTeamAsDefeatedM28 = iHumansOnSameTeamAsDefeatedM28 + 1
+            end
+        elseif not(M28Conditions.IsCivilianBrain(oBrain)) then
+            iNonM28AIPresent = iNonM28AIPresent + 1
         end
     end
     if iOrigM28BrainCountOnTeam == 1 and (not(bHaveTeammates) or iHumansOnSameTeamAsDefeatedM28 > 0) then
@@ -674,95 +683,99 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
         if bLastM28OnTeamToDie then
             oBrainToSendMessage = oBrainDefeated
+            if bDebugMessages == true then LOG(sFunctionRef..': Campaign map='..tostring(M28Map.bIsCampaignMap)..'; Assigned personality='..oBrainDefeated[refiAssignedPersonality]..'; Resource mod='..oBrainDefeated[M28Economy.refiBrainResourceMultiplier]..'; Build mod='..oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier]..'; Map size='..M28Map.iMapSize..'; bNonAISimModsActive='..tostring(M28Overseer.bNonAISimModsActive)..'; iHumansOnSameTeamAsDefeatedM28='..iHumansOnSameTeamAsDefeatedM28..'; iNonM28AIPresent='..iNonM28AIPresent..'; iHumansOnDifferentTeamToDefeatedBrain='..iHumansOnDifferentTeamToDefeatedBrain..'; iOrigM28BrainCountOnTeam='..iOrigM28BrainCountOnTeam..'; bUnitRestrictionsArePresent='..tostring(M28Overseer.bUnitRestrictionsArePresent)..'; Map and brackman='..tostring(not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman)..'; Modifiers='..tostring(oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5)..'; Map size and mod cond='..tostring(M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1024 and M28Overseer.bNonAISimModsActive == false)..'; Brain count conditions='..tostring(iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam)) end
+            if not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5 and M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1024 and M28Overseer.bNonAISimModsActive == false and iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam and not(M28Overseer.bUnitRestrictionsArePresent) then
+                AddPotentialMessage(LOC('<LOC X04_M03_260_010>[{i Brackman}]: Hi, this is Jamieson Price, the voice of Dr. Brackman. Your skills are so impressive that you knocked me out of character, and now I have to re-record my VO! Gimme a moment while I dial it back in ... oh yes ... there we go, much better. Much better.'), 'X04_Brackman_M03_05106', 'X04_VO')
+            else
+                AddPotentialMessage( 'Recall damnit, recall!')
+                AddPotentialMessage( 'That\'s not how the simulation went!')
 
-            table.insert(tsPotentialMessages, 'Recall damnit, recall!')
-            table.insert(tsPotentialMessages, 'That\'s not how the simulation went!')
-
-            if not(M28Map.bIsCampaignMap) and (not(oBrainDefeated.CheatEnabled) or oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1) then
-                if oBrainDefeated.M28Easy then
-                    table.insert(tsPotentialMessages, 'Time for the training wheels to come off')
-                    table.insert(tsPotentialMessages, 'Well done, but I was going easy on you')
-                else
-                    table.insert(tsPotentialMessages, 'Bet you couldnt beat an AiX version of me!')
-                    table.insert(tsPotentialMessages, 'Make me an AiX and Ill show you what I can really do!')
+                if not(M28Map.bIsCampaignMap) and (not(oBrainDefeated.CheatEnabled) or oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1) then
+                    if oBrainDefeated.M28Easy then
+                        AddPotentialMessage( 'Time for the training wheels to come off')
+                        AddPotentialMessage( 'Well done, but I was going easy on you')
+                    else
+                        AddPotentialMessage( 'Bet you couldnt beat an AiX version of me!')
+                        AddPotentialMessage( 'Make me an AiX and Ill show you what I can really do!')
+                    end
+                elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
+                    AddPotentialMessage( 'Bet you couldnt beat me if I was a 1.5 AiX!')
+                elseif not(M28Map.bIsCampaignMap) then
+                    AddPotentialMessage( 'Damn, I thought Id be unbeatable with this high a modifier')
+                    AddPotentialMessage( 'Impressive')
                 end
-            elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
-                table.insert(tsPotentialMessages, 'Bet you couldnt beat me if I was a 1.5 AiX!')
-            elseif not(M28Map.bIsCampaignMap) then
-                table.insert(tsPotentialMessages, 'Damn, I thought Id be unbeatable with this high a modifier')
-                table.insert(tsPotentialMessages, 'Impressive')
-            end
-            --Is this the last brain on the team? (means it wont be campaign map anyway)
-            if bDebugMessages == true then LOG(sFunctionRef..': Are last M28 on team to die, bHaveTeammates='..tostring(bHaveTeammates)) end
-            if not(bHaveTeammates) then
-                --Were there human players against us?
-                local bHadEnemyHuman = false
-                for iBrain, oBrain in ArmyBrains do
-                    if oBrain.BrainType == 'Human' and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) then
-                        bHadEnemyHuman = true
-                        break
-                    end
-                end
-                if bHadEnemyHuman then
-                    table.insert(tsPotentialMessages, 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
-                    table.insert(tsPotentialMessages, 'Time for me to go back to fighting other bots :(')
-                    if oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 then
-                        table.insert(tsPotentialMessages, 'I hope M27 doesnt see my humiliation this day')
-                        table.insert(tsPotentialMessages, 'My father would be interested in a replay to see how I was defeated')
-                    end
-                    --Did we only have 1 M28AI? If so then ask for more
-                    local bHadFriendlyM28AI = false
+                --Is this the last brain on the team? (means it wont be campaign map anyway)
+                if bDebugMessages == true then LOG(sFunctionRef..': Are last M28 on team to die, bHaveTeammates='..tostring(bHaveTeammates)) end
+                if not(bHaveTeammates) then
+                    --Were there human players against us?
+                    local bHadEnemyHuman = false
                     for iBrain, oBrain in ArmyBrains do
-                        if oBrain.M28AI and not(oBrain == oBrainDefeated) and oBrain.M28Team == oBrainDefeated.M28Team then
-                            bHadFriendlyM28AI = true
-                        end
-                    end
-                    if not(bHadFriendlyM28AI) then
-                        table.insert(tsPotentialMessages, 'You might\'ve beaten me, but I bet two M28AI would prove too much!')
-                    end
-                else
-                    --Was there an M27 or M28AI on the team?
-                    for iBrain, oBrain in ArmyBrains do
-                        if not(oBrain.M28Team == oBrainDefeated.M28Team) and (oBrain.M27AI or oBrain.M28AI) then
-                            table.insert(tsPotentialMessages, 'Brother, how could you?')
-                            if oBrain.M27AI then
-                                table.insert(tsPotentialMessages, 'This changes nothing, I’m still our father\'s favourite')
-                            end
+                        if oBrain.BrainType == 'Human' and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) then
+                            bHadEnemyHuman = true
                             break
                         end
                     end
+                    if bHadEnemyHuman then
+                        AddPotentialMessage( 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                        AddPotentialMessage( 'Time for me to go back to fighting other bots :(')
+                        if oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 then
+                            AddPotentialMessage( 'I hope M27 doesnt see my humiliation this day')
+                            AddPotentialMessage( 'My father would be interested in a replay to see how I was defeated')
+                        end
+                        --Did we only have 1 M28AI? If so then ask for more
+                        local bHadFriendlyM28AI = false
+                        for iBrain, oBrain in ArmyBrains do
+                            if oBrain.M28AI and not(oBrain == oBrainDefeated) and oBrain.M28Team == oBrainDefeated.M28Team then
+                                bHadFriendlyM28AI = true
+                            end
+                        end
+                        if not(bHadFriendlyM28AI) then
+                            AddPotentialMessage( 'You might\'ve beaten me, but I bet two M28AI would prove too much!')
+                        end
+                    else
+                        --Was there an M27 or M28AI on the team?
+                        for iBrain, oBrain in ArmyBrains do
+                            if not(oBrain.M28Team == oBrainDefeated.M28Team) and (oBrain.M27AI or oBrain.M28AI) then
+                                AddPotentialMessage( 'Brother, how could you?')
+                                if oBrain.M27AI then
+                                    AddPotentialMessage( 'This changes nothing, I’m still our father\'s favourite')
+                                end
+                                break
+                            end
+                        end
+                    end
+                    AddPotentialMessage( 'I let you win this time')
+                    if ScenarioInfo.Options.Victory == 'demoralization' then AddPotentialMessage( 'So this is the way it ends, not with a whimper, but with a bang') end
+                    AddPotentialMessage( 'gg')
+                    AddPotentialMessage( 'gg wp')
+                    AddPotentialMessage( 'Rematch?')
+                    if M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.refiConstructedExperimentalCount] >= 4 and GetGameTimeSeconds() >= 45 * 60 then
+                        AddPotentialMessage( 'That was an epic game!')
+                        AddPotentialMessage( 'Ah well, I feel I at least put up a fight this time')
+                    end
+                    --If we had more than 1 teammate
+                    local iPlayersOnTeam = 0
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.M28Team == oBrainDefeated.M28Team then iPlayersOnTeam = iPlayersOnTeam + 1 end
+                    end
+                    if iPlayersOnTeam >= 2 then
+                        AddPotentialMessage(LOC('<LOC X03_M02_170_010>[{i Princess}]: They\'re ... they\'re dead ... I shall forever mourn their loss.'),'X03_Princess_M02_03334', 'X03_VO')
+                    end
+                    if oBrainDefeated.M28AI and (oBrainDefeated[refiAssignedPersonality] == refiFletcher or oBrainDefeated[refiAssignedPersonality] == refiHall or oBrainDefeated[refiAssignedPersonality] == refiRhiza or oBrainDefeated[refiAssignedPersonality] == refiBrackman or oBrainDefeated[refiAssignedPersonality] == refiDostya or oBrainDefeated[refiAssignedPersonality] == refiAmalia) then
+                        AddPotentialMessage(LOC('<LOC X05_DB01_030_010>[{i HQ}]: The operation has ended in failure. All is lost.'), 'X05_HQ_DB01_04956', 'Briefings')
+                        AddPotentialMessage(LOC('<LOC X06_M01_130_010>[{i HQ}]: Looks like the Commander just ate it. Poor bastard.'), 'X06_HQ_M01_04960', 'X06_VO')
+                        AddPotentialMessage(LOC('<LOC X06_M01_140_010>[{i HQ}]: Commander, you read me? Commander? Ah hell...'),'X06_HQ_M01_04961', 'X06_VO')
+                    end
+                else
+                    AddPotentialMessage( ':( There I was thinking my team would save me')
                 end
-                table.insert(tsPotentialMessages, 'I let you win this time')
-                if ScenarioInfo.Options.Victory == 'demoralization' then table.insert(tsPotentialMessages, 'So this is the way it ends, not with a whimper, but with a bang') end
-                table.insert(tsPotentialMessages, 'gg')
-                table.insert(tsPotentialMessages, 'gg wp')
-                table.insert(tsPotentialMessages, 'Rematch?')
-                if M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.refiConstructedExperimentalCount] >= 4 and GetGameTimeSeconds() >= 45 * 60 then
-                    table.insert(tsPotentialMessages, 'That was an epic game!')
-                    table.insert(tsPotentialMessages, 'Ah well, I feel I at least put up a fight this time')
-                end
-                --If we had more than 1 teammate
-                local iPlayersOnTeam = 0
-                for iBrain, oBrain in ArmyBrains do
-                    if oBrain.M28Team == oBrainDefeated.M28Team then iPlayersOnTeam = iPlayersOnTeam + 1 end
-                end
-                if iPlayersOnTeam >= 2 then
-                    AddPotentialMessage(LOC('<LOC X03_M02_170_010>[{i Princess}]: They\'re ... they\'re dead ... I shall forever mourn their loss.'),'X03_Princess_M02_03334', 'X03_VO')
-                end
-                if oBrainDefeated.M28AI and (oBrainDefeated[refiAssignedPersonality] == refiFletcher or oBrainDefeated[refiAssignedPersonality] == refiHall or oBrainDefeated[refiAssignedPersonality] == refiRhiza or oBrainDefeated[refiAssignedPersonality] == refiBrackman or oBrainDefeated[refiAssignedPersonality] == refiDostya or oBrainDefeated[refiAssignedPersonality] == refiAmalia) then
-                    AddPotentialMessage(LOC('<LOC X05_DB01_030_010>[{i HQ}]: The operation has ended in failure. All is lost.'), 'X05_HQ_DB01_04956', 'Briefings')
-                    AddPotentialMessage(LOC('<LOC X06_M01_130_010>[{i HQ}]: Looks like the Commander just ate it. Poor bastard.'), 'X06_HQ_M01_04960', 'X06_VO')
-                    AddPotentialMessage(LOC('<LOC X06_M01_140_010>[{i HQ}]: Commander, you read me? Commander? Ah hell...'),'X06_HQ_M01_04961', 'X06_VO')
-                end
-            else
-                table.insert(tsPotentialMessages, ':( There I was thinking my team would save me')
-            end
-            if M28Map.bIsCampaignMap then
-                table.insert(tsPotentialMessages,'You were meant to protect me!')
-                table.insert(tsPotentialMessages,'Shall we give it another go?')
-                table.insert(tsPotentialMessages, ':(')
-                if not(bHaveTeammates) then
-                    table.insert(tsPotentialMessages, 'So ends the last hope of humanity')
+                if M28Map.bIsCampaignMap then
+                    AddPotentialMessage('You were meant to protect me!')
+                    AddPotentialMessage('Shall we give it another go?')
+                    AddPotentialMessage( ':(')
+                    if not(bHaveTeammates) then
+                        AddPotentialMessage( 'So ends the last hope of humanity')
+                    end
                 end
             end
         else
@@ -804,40 +817,40 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
                     if bHadAIX then
                         if bHadEnemyHuman then
-                            table.insert(tsPotentialMessages, 'Maybe you should lower the AiX modifier next time!')
+                            AddPotentialMessage( 'Maybe you should lower the AiX modifier next time!')
                             if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
-                                table.insert(tsPotentialMessages, 'I thought you were being overconfident challenging me when I had this big a resource bonus')
+                                AddPotentialMessage( 'I thought you were being overconfident challenging me when I had this big a resource bonus')
                             end
                         end
 
-                        table.insert(tsPotentialMessages, 'gg, even if I had bonus resources to help')
+                        AddPotentialMessage( 'gg, even if I had bonus resources to help')
                     else
                         if bHadEnemyHuman then
-                            table.insert(tsPotentialMessages, 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
+                            AddPotentialMessage( 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
                             if (oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] or 1) == 1 then
-                                table.insert(tsPotentialMessages, 'You can set my AiX modifier to below 1.0 for an easier time')
-                                if not(oEnemyM28AIBrain.M28Easy) then table.insert(tsPotentialMessages, 'If you found me too hard you could practice against M28Easy') end
+                                AddPotentialMessage( 'You can set my AiX modifier to below 1.0 for an easier time')
+                                if not(oEnemyM28AIBrain.M28Easy) then AddPotentialMessage( 'If you found me too hard you could practice against M28Easy') end
                             end
-                            table.insert(tsPotentialMessages, 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
+                            AddPotentialMessage( 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
                         end
                     end
                     if bHaveNonM28Teammates then
-                        table.insert(tsPotentialMessages, 'gj team')
+                        AddPotentialMessage( 'gj team', nil, nil, true)
                     else
-                        table.insert(tsPotentialMessages, 'Better luck next time scrub')
-                        table.insert(tsPotentialMessages, 'Want to try again?')
+                        AddPotentialMessage( 'Better luck next time scrub')
+                        AddPotentialMessage( 'Want to try again?')
                     end
-                    table.insert(tsPotentialMessages, 'All your mex are belong to us')
+                    AddPotentialMessage( 'All your mex are belong to us')
 
                     if (M28Team.tTeamData[oEnemyM28AIBrain.M28Team][M28Team.refiConstructedExperimentalCount] or 0) >= 4 and GetGameTimeSeconds() >= 45 * 60 then
-                        table.insert(tsPotentialMessages, 'Phew, that took me longer than I expected')
+                        AddPotentialMessage( 'Phew, that took me longer than I expected')
                     end
 
                     --Did we beat M27 or M28AI?
                     for iBrain, oBrain in ArmyBrains do
                         if not(oBrain.M28Team == oBrainDefeated.M28Team) and (oBrainDefeated.M27AI or oBrainDefeated.M28AI) then
-                            table.insert(tsPotentialMessages, 'Goodbye, brother')
-                            if oBrainDefeated.M27AI then table.insert(tsPotentialMessages, 'Youve gotten complacent in your old age, and now your birthright is mine') end
+                            AddPotentialMessage( 'Goodbye, brother')
+                            if oBrainDefeated.M27AI then AddPotentialMessage( 'Youve gotten complacent in your old age, and now your birthright is mine') end
                             break
                         end
                     end
@@ -858,7 +871,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                                 end
                             end
                             if not(bHadFactionOnOurTeam) then
-                                table.insert(tsPotentialMessages, 'Die, '..sFaction..' scum!')
+                                AddPotentialMessage( 'Die, '..sFaction..' scum!')
                             end
                         end
                     end
@@ -873,20 +886,19 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     end
                     if oBrainToSendMessage then
                         if oBrainDefeated.Nickname then
-                            table.insert(tsPotentialMessages, 'There I was hoping '..oBrainDefeated.Nickname..' would carry our team...')
-                            table.insert(tsPotentialMessages, 'You cost us the game '..oBrainDefeated.Nickname)
-                            table.insert(tsPotentialMessages, 'Ah well, you tried your best '..oBrainDefeated.Nickname)
+                            AddPotentialMessage( 'There I was hoping '..oBrainDefeated.Nickname..' would carry our team...')
+                            AddPotentialMessage( 'You cost us the game '..oBrainDefeated.Nickname)
+                            AddPotentialMessage( 'Ah well, you tried your best '..oBrainDefeated.Nickname)
                         end
-                        table.insert(tsPotentialMessages, 'Never had a chance with these teams')
-                        table.insert(tsPotentialMessages, ':( wp')
-                        table.insert(tsPotentialMessages, 'We let you win this one...')
+                        AddPotentialMessage( 'Never had a chance with these teams')
+                        AddPotentialMessage( ':( wp')
+                        AddPotentialMessage( 'We let you win this one...')
                     end
                 end
                 if oBrainToSendMessage then --End of game, we either won or lost, so include messages that work either way
                     --Add in generic messages
-                    table.insert(tsPotentialMessages, 'gg')
-                    table.insert(tsPotentialMessages, 'gg wp')
-                    table.insert(tsPotentialMessages, 'Rematch?')
+                    AddPotentialMessage( 'gg')
+                    AddPotentialMessage( 'Rematch?')
                 end
             end
         end
@@ -1006,41 +1018,62 @@ function AssignAIPersonalityAndRating(aiBrain)
     local sFunctionRef = 'AssignAIPersonalityAndRating'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if aiBrain.M28AI and not(M28Map.bIsCampaignMap) then
-        local tiPotentialPersonalities = {}
-        local iFactionIndex = aiBrain:GetFactionIndex()
-        local bAlreadyHaveNickname = false
-        if M28Utilities.IsTableEmpty(tiPersonalitiesByFaction[iFactionIndex]) == false then
-            if aiBrain.Nickname then
-                for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if brain '..aiBrain.Nickname..' is a match to iPersonality='..iPersonality..'; tsPersonalityNames[iPersonality]='..tsPersonalityNames[iPersonality]..'; is string.find reversed nil='..tostring(string.find(tsPersonalityNames[iPersonality], aiBrain.Nickname) == nil)..'; string.find result is nil?='..tostring(string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) == nil)) end
-                    if string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) then
-                        bAlreadyHaveNickname = true
-                        table.insert(tiPotentialPersonalities, iPersonality)
-                        break
+    if aiBrain.M28AI then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering assignemtn for brain nickanme='..aiBrain.Nickname..'; reprs='..reprs(aiBrain)) end
+        if not(M28Map.bIsCampaignMap) then
+            local tiPotentialPersonalities = {}
+            local iFactionIndex = aiBrain:GetFactionIndex()
+            local bAlreadyHaveNickname = false
+            if M28Utilities.IsTableEmpty(tiPersonalitiesByFaction[iFactionIndex]) == false then
+                if aiBrain.Nickname then
+                    for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if brain '..aiBrain.Nickname..' is a match to iPersonality='..iPersonality..'; tsPersonalityNames[iPersonality]='..tsPersonalityNames[iPersonality]..'; is string.find reversed nil='..tostring(string.find(tsPersonalityNames[iPersonality], aiBrain.Nickname) == nil)..'; string.find result is nil?='..tostring(string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) == nil)) end
+                        if string.find(aiBrain.Nickname, tsPersonalityNames[iPersonality]) then
+                            bAlreadyHaveNickname = true
+                            table.insert(tiPotentialPersonalities, iPersonality)
+                            break
+                        end
+                    end
+                end
+                if not(bAlreadyHaveNickname) then
+                    LOG('Dont already have nickname for .nickname='..aiBrain.Nickname)
+                    for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
+                        if not(tbAssignedPersonalities[iPersonality]) then
+                            table.insert(tiPotentialPersonalities, iPersonality)
+                        end
                     end
                 end
             end
-            if not(bAlreadyHaveNickname) then
-                LOG('Dont already have nickname for .nickname='..aiBrain.Nickname)
-                for iEntry, iPersonality in tiPersonalitiesByFaction[iFactionIndex] do
-                    if not(tbAssignedPersonalities[iPersonality]) then
-                        table.insert(tiPotentialPersonalities, iPersonality)
-                    end
+            if M28Utilities.IsTableEmpty(tiPotentialPersonalities) then
+                --Aeon - consider amalia if all others are taken
+                if iFactionIndex == M28UnitInfo.refFactionAeon and not(tbAssignedPersonalities[refiAmalia]) then
+                    table.insert(tiPotentialPersonalities, refiAmalia)
+                else
+                    table.insert(tiPotentialPersonalities, refiQAI)
                 end
             end
+            local iRand = math.random(1, table.getn(tiPotentialPersonalities))
+            aiBrain[refiAssignedPersonality] = tiPotentialPersonalities[iRand]
+            tbAssignedPersonalities[aiBrain[refiAssignedPersonality]] = true
+        else
+            --Campaign AI - add for specific AI
+            local tsPersonalityByName = {['Fletcher'] = refiFletcher,
+                                         ['Hex5'] = refiHex5,
+                                         ['Dostya'] = refiDostya,
+                                         ['Brackman'] = refiBrackman,
+                                         ['Rhiza'] = refiRhiza,
+                                         ['Hall'] = refiHall,
+                                         ['Celene'] = refiCelene,
+                                         ['Vendetta'] = refiVendetta,
+                                         ['Amalia'] = refiAmalia,
+                                         ['Kael'] = refiKael,
+                                         ['Gari'] = refiGari,
+                                         ['QAI'] = refiQAI,
+                                         ['Thel-Uuthow'] = refiThelUuthow,
+                                         ['Oum-Eoshi'] = refiOumEoshi}
+            local iPersonality = tsPersonalityByName[aiBrain.Nickname] or tsPersonalityByName[aiBrain.Name]
+            if iPersonality then aiBrain[refiAssignedPersonality] = iPersonality end
         end
-        if M28Utilities.IsTableEmpty(tiPotentialPersonalities) then
-            --Aeon - consider amalia if all others are taken
-            if iFactionIndex == M28UnitInfo.refFactionAeon and not(tbAssignedPersonalities[refiAmalia]) then
-                table.insert(tiPotentialPersonalities, refiAmalia)
-            else
-                table.insert(tiPotentialPersonalities, refiQAI)
-            end
-        end
-        local iRand = math.random(1, table.getn(tiPotentialPersonalities))
-        aiBrain[refiAssignedPersonality] = tiPotentialPersonalities[iRand]
-        tbAssignedPersonalities[aiBrain[refiAssignedPersonality]] = true
     end
     if aiBrain.M28AI then
         LOG('AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname)
