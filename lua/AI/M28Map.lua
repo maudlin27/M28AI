@@ -7751,7 +7751,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
                 tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue
                 iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
-                --if iPlateau == 64 then bDebugMessages = true else bDebugMessages = false end
+
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; Segment X'..iCurX..'Z'..iCurZ..' with iTotalMassValue='..iTotalMassValue..' and iTotalMassAboveThreshold='..iTotalMassAboveThreshold..' for plateau '..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Drawing reclai mrectangle')
                     M28Utilities.DrawRectangle(GetReclaimSegmentRectangle(iCurX, iCurZ))

@@ -642,7 +642,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
                                     if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
                                         DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
-                                    elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and (GetGameTimeSeconds() <= 16*60 or oBP.Physics.MaxSpeed >= 3) then
+                                    elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and oBP.Physics.MaxSpeed >= 3 then
                                         AltDodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
                                     else
                                         DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
@@ -707,7 +707,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     end
     --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
     if bDebugMessages == true then LOG(sFUnctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)) end
-    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) or (GetGameTimeSeconds() >= 16*60 and EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3) then
+    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3) then
         local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
         if bDebugMessages == true then LOG(sFunctionRef..': iAngleDifToDestination='..iAngleDifToDestination..'; iAngleAdjust='..iAngleAdjust) end
         if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then
