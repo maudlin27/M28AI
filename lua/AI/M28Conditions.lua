@@ -858,27 +858,28 @@ end
 
 function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
-        --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
+    --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
-
-    if bAllConstructionNotFactory then
-        local tUnitsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-        if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
-            for iUnit, oUnit in tUnitsOfCategory do
-                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                    iAlreadyBuilding = iAlreadyBuilding + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        if bAllConstructionNotFactory then
+            local tUnitsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                for iUnit, oUnit in tUnitsOfCategory do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                        iAlreadyBuilding = iAlreadyBuilding + 1
+                    end
                 end
             end
-        end
-    else
-        local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-        if M28Utilities.IsTableEmpty(tLZFactories) == false then
-            local oCurUnitBuilding
-            for iFactory, oFactory in tLZFactories do
-                oCurUnitBuilding = oFactory:GetFocusUnit()
-                if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
-                    --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
-                    iAlreadyBuilding = iAlreadyBuilding + 1
+        else
+            local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tLZFactories) == false then
+                local oCurUnitBuilding
+                for iFactory, oFactory in tLZFactories do
+                    oCurUnitBuilding = oFactory:GetFocusUnit()
+                    if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
+                        --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
+                        iAlreadyBuilding = iAlreadyBuilding + 1
+                    end
                 end
             end
         end
@@ -1180,13 +1181,15 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         else
             local iFriendlyLand = 0
             local iFriendlyOtherFactory = 0
-            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                for iUnit, oUnit in tFriendlyFactory do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                        iFriendlyLand = iFriendlyLand + 1
-                    else
-                        iFriendlyOtherFactory = iFriendlyOtherFactory + 1
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                    for iUnit, oUnit in tFriendlyFactory do
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                            iFriendlyLand = iFriendlyLand + 1
+                        else
+                            iFriendlyOtherFactory = iFriendlyOtherFactory + 1
+                        end
                     end
                 end
             end
@@ -1224,7 +1227,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     bWantMoreFactories = true
                 elseif not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 or iAverageCurAirAndLandFactories < tiFactoryToMassByTechRatioWanted[3] * 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     bWantMoreFactories = true
-                elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] < 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10  and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+                elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] < 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10  and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) then
                     --Fewer than 1 air fac per player; if have no air facs in this zone then get more factories
                     bWantMoreFactories = true
                 elseif iAverageCurAirAndLandFactories >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 and ( M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.05 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
@@ -1455,7 +1458,7 @@ function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOu
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
         --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
-    elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false))) then
+    elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)))) then
         if bDebugMessages == true then LOG(sFunctionRef..': Have a chance of beating enemy and friendly buildings') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -1722,7 +1725,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     else
                                         --Have min number of land factories, now check how many air factories we have
                                         local iAirFactoriesHave = 0
-                                        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 0) > 0 then
+                                        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                                             local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                             if M28Utilities.IsTableEmpty(tAirFactories) == false then
                                                 iAirFactoriesHave = table.getn(tAirFactories)
@@ -2189,7 +2192,8 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
                 elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
                     --No enemies in this water zone, so must only be in adjacent zone, check if are close to being in range of our naval factory
 
-                    local tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    local tFriendlyNavalFac
+                    if tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] == false then tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
                     if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
                         --Greater search range as dont know how close to midpoint the naval fac build location would be
                         if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
@@ -2533,7 +2537,7 @@ end
 
 function GetHighestTechInZone(iTeam, tLZTeamData)
     local iHighestTech = 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1 then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
         local tFactoriesAndEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories + M28UnitInfo.refCategoryEngineer - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tFactoriesAndEngineersInZone) == false then
             for iUnit, oUnit in tFactoriesAndEngineersInZone do
@@ -2816,7 +2820,7 @@ function WillBlockTemplateLocation(tLZTeamData, iCurSegmentX, iCurSegmentZ, iBui
 end
 
 function WantT3MAAInsteadOfT2(oFactory, iTeam)
-    if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000) and (oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 20 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= 1000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 2) then
+    if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000) and (oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 20 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= 1000 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 2) then
         return true
     end
     return false
