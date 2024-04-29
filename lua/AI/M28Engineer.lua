@@ -12757,6 +12757,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if bHaveLowMass then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end
             if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted after adjusting for enemy units='..iFactoriesWanted..'; iExistingFactory='..iExistingFactory) end
         end
+    elseif tLZTeamData[M28Map.subrefLZFortify] then
+        iFactoriesWanted = 1
+        if not(bHaveLowMass) then iFactoriesWanted = 2 end
     end
 
     --Do we want emergency PD?
