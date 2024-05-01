@@ -5669,7 +5669,7 @@ function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
 
 end
 
-function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, bWantToChangeDueToNovax)
+function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, bWantToChangeDueToNovax, bWantToChangeDueToBuildingMultipleGameEnder)
     local sFunctionRef = 'GETemplateReassessGameEnderCategory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5678,8 +5678,11 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'L'..iLandZone..'; Is oFirstUEF valid='..tostring(M28UnitInfo.IsUnitValid(oFirstUEF))..'; Does GETemplate contain novax='..tostring(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]))..'; Time='..GetGameTimeSeconds()) end
     local bDontConsiderGameEnderDueToExistingConstruction = false
-    if not(tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) or not(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory])) then
-        local iMassToCompleteGameEnders = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryGameEnder, false)
+    if bWantToChangeDueToBuildingMultipleGameEnder then
+        bDontConsiderGameEnderDueToExistingConstruction = true
+    elseif not(tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) or not(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory])) then
+        --GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter, bOptionalClearEngineersInOtherZonesWithoutConstruction, iOptionalTableRefToIgnoreForThisZone)
+        local iMassToCompleteGameEnders = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                   nil,                    M28UnitInfo.refCategoryGameEnder, false,                                        iTableRef)
         if bDebugMessages == true then LOG(sFunctionRef..': iMassToCompleteGameEnders='..(iMassToCompleteGameEnders or 'nil')..'; Time='..GetGameTimeSeconds()) end
         if iMassToCompleteGameEnders > 30000 and iMassToCompleteGameEnders < math.min(80000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 0.5) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.min(900, 200 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]) then
             bDontConsiderGameEnderDueToExistingConstruction = true
@@ -6068,7 +6071,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
         if tTableRef[M28Map.subrefiCyclesWaitingForEngineer] >= 15 and oFirstEngineer then
             --Reevaluate what gameender or T3 arti unit we want
             if bDebugMessages == true then LOG(sFunctionRef..': Have been waiting '..tTableRef[M28Map.subrefiCyclesWaitingForEngineer]..' cycles for an engineer so will reassess the GE category') end
-            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
+            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
 
             tTableRef[M28Map.subrefiCyclesWaitingForEngineer] = 0
         end
@@ -7022,6 +7025,15 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         --If we dont have a T3 arti even started construction, then build one with the closest engineer able to build the desired category
                         if iCompletedArti == 0 and iUnderConstructionArti == 0 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try and build an arti or gameender, is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; oFirstEngineer='..(oFirstEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer) or 'nil')..'; Is tAvailableT3EngineersByFaction empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction))) end
+                                                                                                                    --GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter,                 bOptionalClearEngineersInOtherZonesWithoutConstruction, iOptionalTableRefToIgnoreForThisZone)
+                            local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                                                      nil,            M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, false, iTemplateRef)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to build another gameender unit from this template, iTeam='..(iTeam or 'nil')..'; iOtherLandZonesWithExperimental='..(iOtherLandZonesWithExperimental or 'nil')..'; iMassToComplete='..(iMassToComplete or 'nil')..'; Stored mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Av mass%='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..' Time='..GetGameTimeSeconds()) end
+                            if (iOtherLandZonesWithExperimental or 0) > 0 and (iMassToComplete or 0) >= math.max(100000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0) * 2) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.TeamHasLowMass(iTeam)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
+                                --NOTE: IF CHANGING ABOVE THEN CHANGE THE SAME PLACE LATER IN CODE
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will reassess first category to build as dont want another gameender') end
+                                --If current category contains game-enders then reassess
+                                GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, true)
+                            end
                             bGaveBuildOrder = GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
                             if bGaveBuildOrder then bTriedBuildingSomething = true end
                             if M28UnitInfo.IsUnitValid(oFirstEngineer) and M28Team.tTeamData[oFirstEngineer:GetAIBrain().M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] then
@@ -7167,21 +7179,28 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Have available engineers and no arti to build or assist so want to start building a second (if its possible), iCompletedArti='..iCompletedArti..'; iArtiLocations='..iArtiLocations..'; bTriedBuildingSomething='..tostring(bTriedBuildingSomething)) end
                                                     if iCompletedArti < iArtiLocations and (iCompletedArti >= 1 or not(bTriedBuildingSomething)) and not(oNearestCompletionArti) then
                                                         --First check we have the mass to support                                                                                                        --GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter)
-                                                        local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                                                      nil,            M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti)
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to build another gameender unit from this template, iTeam='..(iTeam or 'nil')..'; iOtherLandZonesWithExperimental='..(iOtherLandZonesWithExperimental or 'nil')..'; iMassToComplete='..(iMassToComplete or 'nil')..'; Stored mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Av mass%='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..' Time='..GetGameTimeSeconds()) end
-                                                        if (iOtherLandZonesWithExperimental or 0) == 0 or (iMassToComplete or 0) <= math.max(10000, 5000 + (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 800 or (iMassToComplete < 40000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(M28Conditions.TeamHasLowMass(iTeam)))
+                                                        local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                                                      nil,            M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, false, iTemplateRef)
+
+                                                        local bAvoidGameEnder = false
+                                                        if (iOtherLandZonesWithExperimental or 0) > 0 and (iMassToComplete or 0) >= math.max(100000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0) * 2) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.TeamHasLowMass(iTeam)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then bAvoidGameEnder = true end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to build another gameender unit from this template, iTeam='..(iTeam or 'nil')..'; iOtherLandZonesWithExperimental='..(iOtherLandZonesWithExperimental or 'nil')..'; iMassToComplete='..(iMassToComplete or 'nil')..'; Stored mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Av mass%='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; bAvoidGameEnder='..tostring(bAvoidGameEnder)..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..' Time='..GetGameTimeSeconds()) end
+                                                        if bAvoidGameEnder then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will reassess category to build as looks like we are building another gameender or similar in mass so dont want to start on another gameender') end
+                                                            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, true)
+                                                        elseif (iOtherLandZonesWithExperimental or 0) == 0 or (iMassToComplete or 0) <= math.max(10000, 5000 + (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 800 or (iMassToComplete < 40000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(M28Conditions.TeamHasLowMass(iTeam)))
                                                                 or (iMassToComplete <= 20000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000 and iOtherLandZonesWithExperimental <= 1) then
 
                                                             --Further check to avoid queuing up another unit if we are likely building a gameender
                                                             if iMassToComplete < math.max(50000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 2) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) or (iMassToComplete < 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 150) then
+                                                                --NOTE: IF CHANGING ABOVE THEN CHANGE THE SAME PLACE EARLIER IN CODE
                                                                 --Change the category to build if we have UEF and built a novax, or if we have high mass income on our team and we could be building a paragon
                                                                 if not(bHaveAlreadyTriedSwitchingCategoryForNovax) and oFirstUEF and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNovaxCentre, tTableRef[M28Map.subrefGEArtiUnits])) == false and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': We have a UEF engineer and havent yet reassessed GE category so will consider reassessing it') end
-                                                                    GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true)
+                                                                    GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true, bAvoidGameEnder)
                                                                     bHaveAlreadyTriedSwitchingCategoryForNovax = true
                                                                 elseif oFirstAeon and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 600 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryParagon, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': We have an Aeon engineer and high enough gross mass that we dont want paragon and the category to build contains a paragon, so will reassess') end
-                                                                    GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true)
+                                                                    GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, true, bAvoidGameEnder)
                                                                 end
                                                                 GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer)
                                                             else
@@ -8812,13 +8831,14 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
     return iBPWanted, iTechLevelWanted, oUnitToShield
 end
 
-function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter, bOptionalClearEngineersInOtherZonesWithoutConstruction)
+function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter, bOptionalClearEngineersInOtherZonesWithoutConstruction, iOptionalTableRefToIgnoreForThisZone)
     --returns two variables, the first is true/false if iLandZone has a queued experimental to build; the second is the number of other land zones for iTeam that have queued experimentals to build
     --Optional variables are all for if bOptionalReturnMassToCompleteOtherZoneUnderConstruction is true, except for iOptionalCategoryFilter
-    --bOptionalReturnMassToCompleteOtherZoneUnderConstruction will return the amount of mass needed to complete all under construction experimentals in other zones
+    --bOptionalReturnMassToCompleteOtherZoneUnderConstruction will return the amount of mass needed to complete all under construction experimentals in other zones; if iOptionalTableRefToIgnoreForThisZone is specified then will include this zone unless it is a table ref equal to the specified one
     --iOptionalSearchRange Will only include those within iOptionalSearchRange; if 0 then will only include exp in this zone
     --iOptionalCategoryFilter - if specified, then will only count engineers who are building or are queued to build a unit meeting this category (will include everything if nil)
     --bOptionalClearEngineersInOtherZonesWithoutConstruction - if true, then will clear any engineers building an experimental in a dif zone to the one specified if it is only queued up for all those units and none have started construction
+    --iOptionalTableRefToIgnoreForThisZone - if specified, then will only ignore engineers assigned to this table ref for the zone
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetExperimentalsBeingBuiltInThisAndOtherLandZones'
@@ -8831,7 +8851,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
     local iMassToComplete
     if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then iMassToComplete = 0 end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of engis building exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of engis building exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; iOptionalTableRefToIgnoreForThisZone='..(iOptionalTableRefToIgnoreForThisZone or 'nil')..' bOptionalReturnMassToCompleteOtherZoneUnderConstruction='..tostring(bOptionalReturnMassToCompleteOtherZoneUnderConstruction or false)..'; iOptionalSearchRange='..(iOptionalSearchRange or 'nil')..'; is iOptionalCategoryFilter nil='..tostring(iOptionalCategoryFilter == nil)..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
         local tiPlateauAndLZBuildingExperimental = {}
         local toUnderConstructionExperimentalsInOtherZonesByUnitRef = {}
@@ -8848,7 +8868,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')..'; Engi last order blueprint='..(oEngi[M28Orders.reftiLastOrders][(oEngi[M28Orders.refiOrderCount] or 1)][M28Orders.subrefsOrderBlueprint] or 'nil')..'; Engi last order reprs='..reprs(oEngi[M28Orders.reftiLastOrders])..'; is primary engineer='..tostring(oEngi[refbPrimaryBuilder] or false)..'; Engi assigned action='..(oEngi[refiAssignedAction] or 'nil'))
                     local oEngiOrderTarget = oEngi[M28Orders.reftiLastOrders][(oEngi[M28Orders.refiOrderCount] or 1)][M28Orders.subrefoOrderUnitTarget]
                     if M28UnitInfo.IsUnitValid(oEngiOrderTarget) then
-                        LOG(sFunctionRef..': oEngiOrderTarget='..oEngiOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngiOrderTarget)..'; Fraction complete='..oEngiOrderTarget:GetFractionComplete())
+                        LOG(sFunctionRef..': oEngiOrderTarget='..oEngiOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngiOrderTarget)..'; Fraction complete='..oEngiOrderTarget:GetFractionComplete()..'; Do we either have no category filter or this unit contains the required category='..tostring(not(iOptionalCategoryFilter) or EntityCategoryContains(iOptionalCategoryFilter, oEngiOrderTarget.UnitId)))
                         local oOrderTargetFocus = oEngiOrderTarget:GetFocusUnit()
                         if M28UnitInfo.IsUnitValid(oOrderTargetFocus) then
                             LOG(sFunctionRef..': oOrderTargetFocus='..oOrderTargetFocus.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTargetFocus)..'; fraction complete='..oOrderTargetFocus:GetFractionComplete())
@@ -8856,8 +8876,9 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                     end
                 end
                 if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then --Check if want to include this
-                    if not(iCurLZ == iLandZone and iPlateau == iCurPlateau) then
+                    if not(iCurLZ == iLandZone and iPlateau == iCurPlateau and (iOptionalTableRefToIgnoreForThisZone == nil or iOptionalTableRefToIgnoreForThisZone == oEngi[M28Building.reftArtiTemplateRefs][3] == iOptionalTableRefToIgnoreForThisZone)) then
                         local oCurExperimental = oEngi:GetFocusUnit() or oEngi[M28Orders.reftiLastOrders][(oEngi[M28Orders.refiOrderCount] or 1)][M28Orders.subrefoOrderUnitTarget]
+                        --if bDebugMessages == true then LOG(sFunctionRef..': Is oCurExperimental valid='..tostring(M28UnitInfo.IsUnitValid(oCurExperimental))) end
                         if M28UnitInfo.IsUnitValid(oCurExperimental) and oCurExperimental:GetFractionComplete() < 1 then
                             if not(iOptionalCategoryFilter) or EntityCategoryContains(iOptionalCategoryFilter, oCurExperimental.UnitId) then
                                 if not(toUnderConstructionExperimentalsInOtherZonesByUnitRef[oCurExperimental.EntityId]) then
@@ -8933,7 +8954,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
         if bOptionalReturnMassToCompleteOtherZoneUnderConstruction and M28Utilities.IsTableEmpty(toUnderConstructionExperimentalsInOtherZonesByUnitRef) == false then
             local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
-                if not(iOptionalSearchRange) or (iOptionalSearchRange > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
+                if not(iOptionalSearchRange) or ((iOptionalSearchRange > 0 or (iOptionalTableRefToIgnoreForThisZone and not(iOptionalTableRefToIgnoreForThisZone == oUnit[M28Building.reftArtiTemplateRefs][3]))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
                     iMassToComplete = iMassToComplete + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * (1 - oUnit:GetFractionComplete())
                 end
             end
