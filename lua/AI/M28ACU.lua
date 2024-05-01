@@ -4839,7 +4839,7 @@ function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'CheckForNearbyMobileShieldToRequisition'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oACU.UnitId == 'uel0001' then bDebugMessages = true end
     if not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) and iPlateauOrZero > 0 then
         oACU[M28Land.refoAssignedMobileShield] = nil
         --Do we have access to T2 land, and aren't in our core base (hiding)?
