@@ -3423,6 +3423,23 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy has nearby t2 arti so will switch to t3 arti instead of gameender, Fixed T3 arti 12') end
             end
+            --Exclude paragon from category wanted if the likely brain already has one
+            if aiBrain[M28Economy.refbBuiltParagon] then
+                local bExcludeParagon = false
+                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                    bExcludeParagon = true
+                else
+                    local bHaveBrainWithoutParagon = false
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if not(oBrain[M28Economy.refbBuiltParagon]) then bHaveBrainWithoutParagon = true break end
+                    end
+                    if not(bHaveBrainWithoutParagon) then bExcludeParagon = true end
+                end
+                if bExcludeParagon then
+                    if iCategoryWanted == M28UnitInfo.refCategoryParagon then iCategoryWanted = M28UnitInfo.refCategoryGameEnder end
+                    iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryParagon
+                end
+            end
 
             --Check if we want to switch to using a gameender template
             if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre) then
