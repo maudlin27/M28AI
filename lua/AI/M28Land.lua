@@ -260,7 +260,7 @@ function GetUnitToTravelToLandZone(oUnit, iTargetPlateau, iTargetLandZone, subre
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUnitToTravelToLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
+
     M28Navy.RemoveUnitFromAnyExistingLandOrWaterZoneItWasPreviouslyTravelingTo(oUnit, subrefTScoutsTravelingHere)
 
     oUnit[M28Navy.refiWZToMoveTo] = nil
@@ -933,7 +933,6 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local iClosestDangerousEnemy
         local oClosestDangerousEnemy
         for iScout, oScout in tScouts do
-            bDebugMessages = true
             if oScout:GetFractionComplete() == 1 then
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; bCheckForEnemies='..tostring(bCheckForEnemies)) end
@@ -1068,9 +1067,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                 local tEnemyBaseLZData = M28Map.tAllPlateaus[iEnemyBasePlateauOrZero][M28Map.subrefPlateauLandZones][iEnemyBaseLZOrWZ]
                                 local tEnemyBaseLZTeamData = tEnemyBaseLZData[M28Map.subrefLZTeamData][iTeam]
                                 if M28Utilities.IsTableEmpty(tEnemyBaseLZTeamData[M28Map.subrefTScoutsTravelingHere]) and NavUtils.GetLabel(M28Map.refPathingTypeLand,tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] and (tEnemyBaseLZTeamData[M28Map.refbWantLandScout] or M28Utilities.IsTableEmpty(tEnemyBaseLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Dealing with first ever land scout so will have it prioritise enemy base for intel, iEnemyBasePlateauOrZero='..iEnemyBasePlateauOrZero..'; iEnemyBaseLZOrWZ='..iEnemyBaseLZOrWZ) end
-                                    bDebugMessages = false
                                     bGoingToEnemyBase = true
                                 end
                             end

@@ -2826,7 +2826,7 @@ end
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
         --Wait until map setup complete
@@ -3263,10 +3263,8 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     end
                 end
                 --Aeon M4 - flag the zone to be fortified (redundancy)
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Aeon M4 check, ScenarioInfo.PlayerCapturedMainframe='..tostring(ScenarioInfo.PlayerCapturedMainframe or false)..'; toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil')) end
                 if M28Map.bIsCampaignMap and ScenarioInfo.PlayerCapturedMainframe and (toCapturedUnits[1].UnitId == 'urc1901' or toCapturedUnits[1].UnitId == 'urc1902') then
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Have captured the mainframe, will cycle through brains to find a human brain to check if it is aeon, and hence if this is likely to be Aeon M4') end
                     for iBrain, oBrain in ArmyBrains do
                         if oBrain.BrainType == 'Human' then
