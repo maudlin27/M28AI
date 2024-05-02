@@ -2293,8 +2293,8 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
         end
 
         if bWantMoreAirStaging then M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] = GetGameTimeSeconds() end
-        if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()..' unless we only have low health exp, bWantMoreAirStaging='..tostring(bWantMoreAirStaging)) end
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()..' unless we only have low health exp, bWantMoreAirStaging='..tostring(bWantMoreAirStaging)..'; tRallyPoint='..repru(tRallyPoint)..'; Plateau label='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tRallyPoint) or 'nil')) end
         local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
         local tRefuelBase
         if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
