@@ -3262,6 +3262,27 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                         ForkThread(M28Overseer.DelayedCybranFireBlackSun, oUnit:GetAIBrain())
                     end
                 end
+                --Aeon M4 - flag the zone to be fortified (redundancy)
+                if bDebugMessages == true then LOG(sFunctionRef..': Aeon M4 check, ScenarioInfo.PlayerCapturedMainframe='..tostring(ScenarioInfo.PlayerCapturedMainframe or false)..'; toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil')) end
+                if M28Map.bIsCampaignMap and ScenarioInfo.PlayerCapturedMainframe and (toCapturedUnits[1].UnitId == 'urc1901' or toCapturedUnits[1].UnitId == 'urc1902') then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have captured the mainframe, will cycle through brains to find a human brain to check if it is aeon, and hence if this is likely to be Aeon M4') end
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.BrainType == 'Human' then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is human brain aeon='..tostring(oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) end
+                            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                                local tMainframeLZData, tMainframeLZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oBrain.M28Team)
+                                if tMainframeLZTeamData then
+                                    tMainframeLZTeamData[M28Map.subrefLZFortify] = true
+                                    if bDebugMessages == true then
+                                        local iCapturePlateau, iCaptureZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                                        LOG(sFunctionRef..': Have flagged zone to be fortified, iCapturePlateau='..iCapturePlateau..'; iCaptureZone='..iCaptureZone)
+                                    end
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
             elseif not(bCaptured) then
                 if M28Utilities.IsTableEmpty(toCapturedUnits) == false then
                     ForkThread(DelayedUnpauseOfTransferredUnits, toCapturedUnits, iArmyIndex)

@@ -2290,6 +2290,10 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             local iACUDistThreshold = (oACU[M28UnitInfo.refiDFRange] or 0)
                             local iShortEnemyRangeThreshold = 6
                             local iLongEnemyRangeThreshold = 40
+                            local iPDDistThreshold = 10 --i.e. if PD is this much close to being in range of us we will take into account its threat
+                            local iEnemyT1PDInRangeOfUs = 0
+                            local iEnemyNearbyT2PlusPDThreat = 0
+                            local iEnemyFurtherAwayLRPDThreat = 0
 
                             if M28Map.iMapSize >= 1024 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.5 then iLongEnemyRangeThreshold = 80 end
                             local iEnemyMobileThreatSlightlyFurtherAway = 0
@@ -2300,14 +2304,33 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
 
                                     local tEnemyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, tCurLZTeamData[M28Map.subrefTEnemyUnits])
                                     if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
+                                        local iCurThreatRating
                                         for iUnit, oUnit in tEnemyUnitsOfInterest do
                                             if M28UnitInfo.IsUnitValid(oUnit) then
                                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy unit is close enough to record threat, iCurDist='..iCurDist..'; iACUDistThreshold='..iACUDistThreshold..'; Unit DF range and  SR threshold='..(oUnit[M28UnitInfo.refiDFRange] or 0) + iShortEnemyRangeThreshold..'; Unit threat='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false)..'; Unit combat range and LR threat='..(oUnit[M28UnitInfo.refiCombatRange] or 0) + iLongEnemyRangeThreshold) end
                                                 if iCurDist <= iACUDistThreshold or iCurDist <= (oUnit[M28UnitInfo.refiDFRange] or 0) + iShortEnemyRangeThreshold then
-                                                    iEnemyT1ArtiAndDFThreatCloseToOurRange = iEnemyT1ArtiAndDFThreatCloseToOurRange + M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false)
+                                                    iCurThreatRating = M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false)
+                                                    iEnemyT1ArtiAndDFThreatCloseToOurRange = iEnemyT1ArtiAndDFThreatCloseToOurRange + iCurThreatRating
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                                        if (oUnit[M28UnitInfo.refiDFRange] or 0) <= (oACU[M28UnitInfo.refiDFRange] or 0) then
+                                                            iEnemyT1PDInRangeOfUs = iEnemyT1PDInRangeOfUs + iCurThreatRating
+                                                        elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > (oACU[M28UnitInfo.refiDFRange] or 0) then
+                                                            iEnemyNearbyT2PlusPDThreat = iEnemyNearbyT2PlusPDThreat + iCurThreatRating
+                                                        end
+                                                    end
+
                                                 elseif iCurDist <= (oUnit[M28UnitInfo.refiCombatRange] or 0) + iLongEnemyRangeThreshold then
-                                                    iEnemyMobileThreatSlightlyFurtherAway = iEnemyMobileThreatSlightlyFurtherAway + M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false)
+                                                    iCurThreatRating = M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false)
+                                                    iEnemyMobileThreatSlightlyFurtherAway = iEnemyMobileThreatSlightlyFurtherAway + iCurThreatRating
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                                        if iCurDist > (oUnit[M28UnitInfo.refiCombatRange] or 0) + iPDDistThreshold then
+                                                            --Exclude PD that isn't going to be in our range very soon given its not mobile
+                                                            iEnemyMobileThreatSlightlyFurtherAway = iEnemyMobileThreatSlightlyFurtherAway - iCurThreatRating
+                                                        elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > (oACU[M28UnitInfo.refiDFRange] or 0) then
+                                                            iEnemyFurtherAwayLRPDThreat = iEnemyFurtherAwayLRPDThreat + iCurThreatRating
+                                                        end
+                                                    end
                                                 end
                                             end
                                         end
@@ -2323,8 +2346,11 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if iEnemyT1ArtiAndDFThreatCloseToOurRange <= 200 + 100 * oACU[refiUpgradeCount] and iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 600 + oACU[refiUpgradeCount] * 300 then
                                 bWantKitingRetreat = false
                                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want to do king retreat after all') end
+                            elseif oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1800 and iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 2700 and iEnemyT1PDInRangeOfUs == 0 and (iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 1900 or iEnemyNearbyT2PlusPDThreat + iEnemyFurtherAwayLRPDThreat >= 800) then
+                                bWantKitingRetreat = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have high health and are heavily upgraded so want to press a bit more either due to enemy threat not being massive, or because neemy threat includes PD which we could always run from') end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iEnemyMobileThreatSlightlyFurtherAway='..iEnemyMobileThreatSlightlyFurtherAway) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iEnemyMobileThreatSlightlyFurtherAway='..iEnemyMobileThreatSlightlyFurtherAway..'; iEnemyT1PDInRangeOfUs='..iEnemyT1PDInRangeOfUs..'; iEnemyNearbyT2PlusPDThreat='..iEnemyNearbyT2PlusPDThreat..'; iEnemyFurtherAwayLRPDThreat='..iEnemyFurtherAwayLRPDThreat) end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU position='..repru(oACU:GetPosition())..'; Enemy unit to target='..repru(oEnemyToTarget:GetPosition())..'; Dist betweeh tnem straight line='..M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Enemy combat total based just on this zone='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; bWantKitingRetreat='..tostring(bWantKitingRetreat)) end
@@ -4839,7 +4865,7 @@ function CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'CheckForNearbyMobileShieldToRequisition'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    
     if not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) and iPlateauOrZero > 0 then
         oACU[M28Land.refoAssignedMobileShield] = nil
         --Do we have access to T2 land, and aren't in our core base (hiding)?

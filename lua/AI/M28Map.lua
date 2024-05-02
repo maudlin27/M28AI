@@ -658,7 +658,8 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
                         M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
-                        M28Utilities.DrawLocation(tPosition)
+                        LOG('tPosition='..repru(tPosition)..'; Land label of position='..(NavUtils.GetLabel(refPathingTypeLand, tPosition) or 'nil'))
+                        --M28Utilities.DrawLocation(tPosition)
                     end
                 else
                     if iAltPlateau then
