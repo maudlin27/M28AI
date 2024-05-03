@@ -2874,6 +2874,33 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
     return false
 end
 
+function GetNumberOfUnitsOfCategoryInAdjacentLandZones(tLZData, iPlateau, iTeam, iCategory, bIncludeOnlyConstructed, bReturnOnceOnlyOneUnit)
+    --Only considers adjacent land zones, not the current zone; assumes dealing with land zone
+    local iCount = 0
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+            if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                local tUnitsOfCategory
+                if iCategory then tUnitsOfCategory = EntityCategoryFilterDown(iCategory, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                else tUnitsOfCategory = tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]
+                end
+                if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                    for iUnit, oUnit in tUnitsOfCategory do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if not(bIncludeOnlyConstructed) or oUnit:GetFractionComplete() == 1 then
+                                iCount = iCount + 1
+                                if bReturnOnceOnlyOneUnit then return iCount end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return iCount
+end
+
 
 function AreAnyOfTableOfUnitsInAdjacentLandZone(tUnits, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
     if M28Utilities.IsTableEmpty(tUnits) == false then --redundancy
