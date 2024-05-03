@@ -168,7 +168,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLandZonesWantingMAAByPlateau = 'M28TeamLZWantingMAA' --[x] is the plateau ,ref, [y] is the land zone ref, returns true if we want MAA support for the plateau
     subrefiWaterZonesWantingSignificantMAAByPlateau = 'M28TeamWZWantingMAA' --[x] is the PLATEAU ref, [y] is the wawter zone ref, returns true if want significant MAA support for the plateau
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, then returns a table orderd 1, 2... of land zones that are rally points
-    refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoShieldTargetsByIsland = 'M28TeamLastTimeNoShieldTargets' --[x] is the island ref (i.e. navutils.getlabel(M28Map.refPathingTypeLand...), returns gametime seconds
     refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoStealthBoatTargetsByPond = 'M28TeamLastTimeNoStealthBoatTargets' --[x] is the pond ref, returns gametimeseconds
@@ -600,7 +600,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedMAAThreat] = 0
-    tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthBoatTargetsByPond] = {}
