@@ -3742,7 +3742,7 @@ function ManageBombers(iTeam, iAirSubteam)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
     local tEnemyTargets = {}
-    if GetGameTimeSeconds() >= 55*60 then bDebugMessages = true end
+
     function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory, bOptionalCheckNotAlreadyInEnemyTargets) --UPDATE USAGE IN SPECIAL BOMBER LOGIC IF CHANGING (and changes are relevant to engi hunter)
         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
             local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
@@ -4244,7 +4244,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
     local sFunctionRef = 'AssignTorpOrBomberTargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 55*60 then bDebugMessages = true end
+
 
     if bTargetAAAndShieldsFirst then
         if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without; also priority enemy ACUs ahead of all this, mass cost of available bombers='..M28UnitInfo.GetMassCostOfUnits(tAvailableBombers)) end

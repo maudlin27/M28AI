@@ -44,6 +44,7 @@ refoAssignedUnitToGuard = 'M28LAMAAToG' --Unit that is being guarded/assisted (e
 
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
+reftoAdditionalAssignedMobileShields = 'M28LandExtraMobS' --for units assigned multiple mobile shields (e.g. ACUs)
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
 refoAssignedMobileStealth = 'M28LandAssignedMobileStealth' --If a mobile stealth is assigned to this unit, then returns the mobile stealth unit assigned
 refoMobileStealthTarget = 'M28LandMobileStealthTarget' --Against mobile stleaht units, returns the unit the mobile stealth is trying to cover
@@ -1845,6 +1846,48 @@ function StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, bAssignAll
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RecordMobileShieldAgainstTarget(oShield, oTarget)
+    oShield[refoMobileShieldTarget] = oTarget
+    if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
+        local iEnemyNovaxCount = M28Team.tTeamData[oTarget:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount]
+        local bAssignAsExtraShield = false
+        if iEnemyNovaxCount > 0 then
+            local iExistingExtraShields = 0
+            if M28Conditions.IsTableOfUnitsStillValid(oTarget[reftoAdditionalAssignedMobileShields]) then
+                iExistingExtraShields = table.getn(oTarget[reftoAdditionalAssignedMobileShields])
+            end
+            if iExistingExtraShields <= math.min(iEnemyNovaxCount, 4) and (iExistingExtraShields <= 2 or M28UnitInfo.GetUnitHealthPercent(oTarget) < 1) then
+                bAssignAsExtraShield = true
+            end
+        end
+        if bAssignAsExtraShield then
+            if not(oTarget[reftoAdditionalAssignedMobileShields]) then oTarget[reftoAdditionalAssignedMobileShields] = {} end
+            table.insert(oTarget[reftoAdditionalAssignedMobileShields], oShield)
+        else
+            oTarget[refoAssignedMobileShield] = oShield
+        end
+    else
+        oTarget[refoAssignedMobileShield] = oShield
+    end
+end
+
+function ClearCurrentShieldTarget(oShield)
+    if oShield[refoMobileShieldTarget] then
+        if M28Utilities.IsTableEmpty(oShield[refoMobileShieldTarget][reftoAdditionalAssignedMobileShields]) == false then
+            for iCurShield = table.getn(oShield[refoMobileShieldTarget][reftoAdditionalAssignedMobileShields]), 1, -1 do
+                local oCurShield = oShield[refoMobileShieldTarget][reftoAdditionalAssignedMobileShields][iCurShield]
+                if oCurShield == oShield then
+                    table.remove(oShield[refoMobileShieldTarget][reftoAdditionalAssignedMobileShields], iCurShield)
+                end
+            end
+        end
+        if oShield[refoMobileShieldTarget][refoAssignedMobileShield] == oShield then
+            oShield[refoMobileShieldTarget][refoAssignedMobileShield] = nil
+        end
+        oShield[refoMobileShieldTarget] = nil
+    end
+end
+
 function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllShields)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShieldUnitsInLandZone'
@@ -1879,8 +1922,8 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                                 iClosestRef = iShield
                             end
                         end
-                        tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = oTarget
-                        oTarget[refoAssignedMobileShield] = tShieldsToAssign[iClosestRef]
+                        RecordMobileShieldAgainstTarget(tShieldsToAssign[iClosestRef], oTarget)
+
                         MoveToShieldTarget(tShieldsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
                         table.remove(tShieldsToAssign, iClosestRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have just removed shield with iClosestRef='..iClosestRef..' from the table of tShieldsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; size of table='..table.getn(tShieldsToAssign)) end
@@ -1897,7 +1940,7 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                 if not(tUnitsToPrioritiseForShielding) then tUnitsToPrioritiseForShielding = {} end
                 for iACU, oACU in tTeamTargetLZData[M28Map.subrefAlliedACU] do
                     iCurHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
-                    if iCurHealthPercent <= 0.6 or (iCurHealthPercent <= 0.98 and GetGameTimeSeconds() - (oACU[M28ACU.refiTimeLastWantedToRun] or -100) <= 5) then
+                    if iCurHealthPercent <= 0.6 or (iCurHealthPercent <= 0.98 and GetGameTimeSeconds() - (oACU[M28ACU.refiTimeLastWantedToRun] or -100) <= 5) or M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] > 0 then
                         table.insert(tUnitsToPrioritiseForShielding, oACU)
                     end
                 end
@@ -2141,6 +2184,8 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
                 LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to run due to a low shield. iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit paused='..tostring(oUnit[M28UnitInfo.refbPaused])..'; Are power stalling='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; % stored E='..oUnit:GetAIBrain():GetEconomyStoredRatio('ENERGY')..'; Gross energy='..oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome])
             end
+            ClearCurrentShieldTarget(oUnit)
+
             if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ASRun'..iLandZone)
             else
@@ -2249,55 +2294,81 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     --Do we have any units in the zone without a shield, who are closer to the nearest enemy base than our current units? If so then assign a mobile shield already assigned to one of these units
     if M28Utilities.IsTableEmpty(tOriginallyAssignedMobileShields) == false then
         --First consider reassigning 1 shield if there are nearby enemy DF units and we have a unit closer to them than a current defended shield target
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-            local iClosestDistToEnemy = 10000
-            local oClosestUnitWantingShieldToEnemy, iCurDist
-            local bIncludeIndirect = true --v89 - changed to always include
-            --if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] <= 15) or (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) > 0 then bIncludeIndirect = true end
-            --Get closest enemy DF unit to our midpoint
-            local oClosestEnemyToMidpoint
-            local iClosestEnemyDist = 10000
-            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())
-                if iCurDist < iClosestEnemyDist then
-                    iClosestEnemyDist = iCurDist
-                    oClosestEnemyToMidpoint = oUnit
-                end
-            end
-
-            if oClosestEnemyToMidpoint then
-                for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield] do
-                    if not(M28UnitInfo.IsUnitValid(oClosestUnitWantingShieldToEnemy[refoAssignedMobileShield])) and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 12 or (bIncludeIndirect and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 12)) then
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
-                        if iCurDist < iClosestDistToEnemy then
-                            iClosestDistToEnemy = iCurDist
-                            oClosestUnitWantingShieldToEnemy = oUnit
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
+            local bHaveACUInZoneWithNoDFEnemies = false
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])) == false then bHaveACUInZoneWithNoDFEnemies = true end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or bHaveACUInZoneWithNoDFEnemies then
+                local iClosestDistToEnemy = 10000
+                local oClosestUnitWantingShieldToEnemy, iCurDist
+                local bIncludeIndirect = true --v89 - changed to always include
+                --if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] <= 15) or (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) > 0 then bIncludeIndirect = true end
+                --Get closest enemy DF unit to our midpoint
+                local oClosestEnemyToMidpoint
+                local iClosestEnemyDist = 10000
+                if not(bHaveACUInZoneWithNoDFEnemies) then
+                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                        if iCurDist < iClosestEnemyDist then
+                            iClosestEnemyDist = iCurDist
+                            oClosestEnemyToMidpoint = oUnit
                         end
                     end
                 end
-                if oClosestUnitWantingShieldToEnemy then
-                    --Get the closest unit being shielded already (ignoring ACUs being shielded)
-                    local iFurthestShieldedDistToEnemy = 0
-                    local oFurthestShieldToEnemy
 
+                if oClosestEnemyToMidpoint or bHaveACUInZoneWithNoDFEnemies then
+                    local tComparisonPosition
+                    if bHaveACUInZoneWithNoDFEnemies then tComparisonPosition = tLZTeamData[M28Map.reftClosestEnemyBase] else tComparisonPosition =  oClosestEnemyToMidpoint:GetPosition() end
+                    local bWantToShieldACU = false
 
-                    for iShield, oShield in tOriginallyAssignedMobileShields do
-
-                        if not(EntityCategoryContains(categories.COMMAND, oShield[refoMobileShieldTarget].UnitId)) then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
-                            if iCurDist > iFurthestShieldedDistToEnemy then
-                                iFurthestShieldedDistToEnemy = iCurDist
-                                oFurthestShieldToEnemy = oShield
+                    for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield] do
+                        if not(M28UnitInfo.IsUnitValid(oClosestUnitWantingShieldToEnemy[refoAssignedMobileShield])) and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 12 or (bIncludeIndirect and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 12)) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tComparisonPosition)
+                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iCurDist = iCurDist / 1000 end
+                            if iCurDist < iClosestDistToEnemy then
+                                iClosestDistToEnemy = iCurDist
+                                oClosestUnitWantingShieldToEnemy = oUnit
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to reassign furthest away shield to closest shield for P'..iPlateau..'Z'..iLandZone..', iFurthestShieldedDistToEnemy='..iFurthestShieldedDistToEnemy..'; iClosestDistToEnemy='..iClosestDistToEnemy..'; oFurthestShieldToEnemy='..(oFurthestShieldToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFurthestShieldToEnemy) or 'nil')..'; oClosestUnitWantingShieldToEnemy='..(oClosestUnitWantingShieldToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitWantingShieldToEnemy) or 'nil')..'; Does closest unit have a valid assigned shield='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitWantingShieldToEnemy[refoAssignedMobileShield]))) end
-                    if iFurthestShieldedDistToEnemy and iFurthestShieldedDistToEnemy - iClosestDistToEnemy >= 3 then
-                        --Switch shields
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will switch shields, old target='..oFurthestShieldToEnemy[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestShieldToEnemy[refoMobileShieldTarget])) end
-                        oFurthestShieldToEnemy[refoMobileShieldTarget][refoAssignedMobileShield] = nil
-                        oFurthestShieldToEnemy[refoMobileShieldTarget] = oClosestUnitWantingShieldToEnemy
-                        oClosestUnitWantingShieldToEnemy[refoAssignedMobileShield] = oFurthestShieldToEnemy
+                    if oClosestUnitWantingShieldToEnemy then
+                        if EntityCategoryContains(categories.COMMAND, oClosestUnitWantingShieldToEnemy.UnitId) then
+                            bWantToShieldACU = true
+                        end
+                        local iFurthestShieldedDistToEnemy = 0
+                        local oFurthestShieldToEnemy
+
+                        if not(bWantToShieldACU) then
+                            --Get the closest unit being shielded already (ignoring ACUs being shielded)
+                            for iShield, oShield in tOriginallyAssignedMobileShields do
+
+                                if not(EntityCategoryContains(categories.COMMAND, oShield[refoMobileShieldTarget].UnitId)) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
+                                    if iCurDist > iFurthestShieldedDistToEnemy then
+                                        iFurthestShieldedDistToEnemy = iCurDist
+                                        oFurthestShieldToEnemy = oShield
+                                    end
+                                end
+                            end
+                        else
+                            --Want the closest shield to the ACU
+                            iFurthestShieldedDistToEnemy = 10000
+                            for iShield, oShield in tOriginallyAssignedMobileShields do
+                                if not(EntityCategoryContains(categories.COMMAND, oShield[refoMobileShieldTarget].UnitId)) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oClosestUnitWantingShieldToEnemy:GetPosition())
+                                    if iCurDist <     iFurthestShieldedDistToEnemy then
+                                        iFurthestShieldedDistToEnemy = iCurDist
+                                        oFurthestShieldToEnemy = oShield
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to reassign furthest away shield to closest shield for P'..iPlateau..'Z'..iLandZone..', iFurthestShieldedDistToEnemy='..iFurthestShieldedDistToEnemy..'; iClosestDistToEnemy='..iClosestDistToEnemy..'; oFurthestShieldToEnemy='..(oFurthestShieldToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFurthestShieldToEnemy) or 'nil')..'; oClosestUnitWantingShieldToEnemy='..(oClosestUnitWantingShieldToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitWantingShieldToEnemy) or 'nil')..'; Does closest unit have a valid assigned shield='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitWantingShieldToEnemy[refoAssignedMobileShield]))) end
+                        if oFurthestShieldToEnemy and (bWantToShieldACU or iFurthestShieldedDistToEnemy - iClosestDistToEnemy >= 3) then
+                            --Switch shields
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will switch shields, old target='..(oFurthestShieldToEnemy[refoMobileShieldTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFurthestShieldToEnemy[refoMobileShieldTarget]) or 'nil')..'; bWantToShieldACU='..tostring(bWantToShieldACU)) end
+                            ClearCurrentShieldTarget(oFurthestShieldToEnemy)
+                            RecordMobileShieldAgainstTarget(oFurthestShieldToEnemy, oClosestUnitWantingShieldToEnemy)
+                        end
                     end
                 end
             end
@@ -2313,7 +2384,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths)
+function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths, iEnemyOmniCoverage)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMobileStealthsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2349,14 +2420,28 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
     end
 
     local tOriginallyAssignedMobileStealths = {}
-    for iUnit, oUnit in tMobileStealths do
-        if oUnit[refoMobileStealthTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileStealthTarget]) then
-            table.insert(tOriginallyAssignedMobileStealths, oUnit)
 
-        else
+    --If enemy has omni coverage and we dont have units wanting mobile stealth in this zone, then clear any mobile stealths
+    if iEnemyOmniCoverage >= 40 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) then
+        for iUnit, oUnit in tMobileStealths do
+            if oUnit[refoMobileStealthTarget] then
+                if oUnit[refoMobileStealthTarget][refoAssignedMobileStealth] then oUnit[refoMobileStealthTarget][refoAssignedMobileStealth] = nil end
+                oUnit[refoMobileStealthTarget] = nil
+            end
             table.insert(tStealthsToAssign, oUnit)
         end
+    else
+        for iUnit, oUnit in tMobileStealths do
+            if oUnit[refoMobileStealthTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileStealthTarget]) then
+                table.insert(tOriginallyAssignedMobileStealths, oUnit)
+
+            else
+                table.insert(tStealthsToAssign, oUnit)
+            end
+        end
     end
+
+
     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
         --Stealth units in this zone first
         StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
@@ -6951,8 +7036,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
 
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            local bConsiderMobileShieldsForBuildings = false
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 2 then bConsiderMobileShieldsForBuildings = true end
+            local bCurUnitWantsMobileShield
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)) end
+                bCurUnitWantsMobileShield = false
                 if oUnit:GetFractionComplete() >= 1 then
                     if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
                         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -6960,9 +7049,17 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             bLandZoneOrAdjHasUnitsWantingScout = true
                         elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
                             --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
-                            if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone..'; Does ACU have valid mobile shield assigned='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield]))..'; Assigned shield='..(oUnit[refoAssignedMobileShield].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedMobileShield]) or 'nil')) end
                             bLandZoneOrAdjHasUnitsWantingScout = true
-                            if not(oUnit[refoAssignedMobileShield]) then table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit) end
+                            bCurUnitWantsMobileShield = true
+                            if not(oUnit[refoAssignedMobileShield]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU to table of units wanting mobile shield for this zone') end
+                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                            elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 then --when assigning a mobile shield, we should do it to this table first, and to refoAssignedMobileShield last; that way, the below should only be relevant if previously assigned mobile shields have died or retreated; although not perfect since it means a smaller number assigned, hopefully it will be close enough and avoids the risk of inconsistent conditions leading to an infinite cycle of shield assignment (if changing then need to do an M28Conditions function)
+                                if not(M28Conditions.IsTableOfUnitsStillValid(oUnit[reftoAdditionalAssignedMobileShields])) then
+                                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                                end
+                            end
                             if iEnemyOmniCoverage <= 20 and (not(oUnit.HasEnhancement) or not((oUnit:HasEnhancement('StealthGenerator') or oUnit:HasEnhancement('CloakingGenerator')))) then
                                 if not(oUnit[refoAssignedMobileStealth]) then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
@@ -7046,6 +7143,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     end
                                     iUnitMassCost = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                                     if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
+                                        bCurUnitWantsMobileShield = true
                                         if not(oUnit[refoAssignedMobileShield]) then
                                             table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Wnat mobile shield for unit') end
@@ -7078,11 +7176,18 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             bLandZoneOrAdjHasUnitsWantingScout = true
                         end
                     else
-                        if bConsiderMobileShieldsForT2Arti and EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                        if bConsiderMobileShieldsForBuildings and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1 + M28UnitInfo.refCategoryEnergyStorage, oUnit.UnitId) then
+                            bCurUnitWantsMobileShield = true
+                            if not(oUnit[refoAssignedMobileShield]) then
+                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                            end
+                        elseif bConsiderMobileShieldsForT2Arti and EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                            bCurUnitWantsMobileShield = true
                             if not(oUnit[refoAssignedMobileShield]) then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                             end
                         elseif bConsiderMobileShieldsForT2PD and EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                            bCurUnitWantsMobileShield = true
                             if not(oUnit[refoAssignedMobileShield]) then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                             end
@@ -7091,9 +7196,15 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     end
                 else
                     --Under construction unit
-                    if (bConsiderMobileShieldsForT2PD or bConsiderMobileShieldsForT2Arti) and oUnit:GetFractionComplete() >= 0.2 then
+                    if bConsiderMobileShieldsForBuildings and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                        bCurUnitWantsMobileShield = true
+                        if not(oUnit[refoAssignedMobileShield]) then
+                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                        end
+                    elseif (bConsiderMobileShieldsForT2PD or bConsiderMobileShieldsForT2Arti) and oUnit:GetFractionComplete() >= 0.2 then
                         if bConsiderMobileShieldsForT2Arti then
                             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                                bCurUnitWantsMobileShield = true
                                 if not(oUnit[refoAssignedMobileShield]) then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                 end
@@ -7101,12 +7212,16 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         end
                         if bConsiderMobileShieldsForT2PD then
                             if EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oUnit.UnitId) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) then
+                                bCurUnitWantsMobileShield = true
                                 if not(oUnit[refoAssignedMobileShield]) then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                 end
                             end
                         end
                     end
+                end
+                if oUnit[refoAssignedMobileShield] and not(bCurUnitWantsMobileShield) and oUnit[refoAssignedMobileShield][refoMobileShieldTarget] == oUnit then
+                    ClearCurrentShieldTarget(oUnit[refoAssignedMobileShield])
                 end
             end
         end
@@ -7156,7 +7271,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
 
         if M28Utilities.IsTableEmpty(tMobileStealths) == false then
-            ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths)
+            ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths, iEnemyOmniCoverage)
         end
 
         local iCurDFThreat = 0

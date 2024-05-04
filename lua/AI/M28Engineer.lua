@@ -12898,7 +12898,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Consider making a zone with lots of mexes a core expansion in some cases in the early game
     iCurPriority = iCurPriority + 1
-    if (iLandZone == 16 or iLandZone == 21) and tLZTeamData[M28Map.subrefLZSValue] > 0 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': LZ mex count='..tLZData[M28Map.subrefLZMexCount]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; P='..iPlateau..'Z='..iLandZone) end
     if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) then
         if ((tLZData[M28Map.subrefLZMexCount] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2) or (M28Map.bIsCampaignMap and tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and tLZTeamData[M28Map.subrefLZSValue] > 0 and GetGameTimeSeconds() >= 1800)) and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 + 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
@@ -12932,7 +12931,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
-    bDebugMessages = false
 
 
     iCurPriority = iCurPriority + 1

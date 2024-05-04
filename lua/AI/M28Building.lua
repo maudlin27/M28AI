@@ -60,6 +60,7 @@ reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against shield, ret
 --refiShieldsWanted = 'M28BuildShieldsWanted' --number of fixed shield coverage wanted for the unit
 refbUnitWantsShielding = 'M28BuildUnitWantsFixedShield' --true if unit wants a fixed shield
 refbPriorityShield = 'M28BuildPriorityShield' --True if shield is a priority shield for assistance
+refbRemoveShieldFromPriorityTableWhenFullHealth = 'M28BuildRemPrSh' --true if the shield should be removed from the table of shields wanting priority shielding when full health
 refoPriorityShieldProvidingCoverage = 'M28BuildPriorityShieldCoveringUnit' --Against unit being shielded; If a shield marked as a priority shield is covering the unit, then this should return that shield
 refoNearbyFactoryOfFaction = 'M28BuildNrFactionFac' --assigned against a gameender, to record that it can obtain engineers of a particular faction (for shielding purposes)
 reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that have htis factory as their 'nearest' factory - intended for gamenders so can track which game enders assume this factory can provide engineers
@@ -1205,23 +1206,44 @@ function RecordPriorityShields(iTeam, tLZTeamData)
         --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
         if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
         if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
+            local tTemporaryPriorityShields = {}
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
                 for iShield, oShield in tShieldsToAssist do
                     if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false and not(oShield[refbPriorityShield]) then
-                        --Shield wasnt a priority shield in the last cycle but has engineers assigned to assist it - will clear these engineers
-                        local tEngineersToClear = {}
-                        for iEngi, oEngi in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
-                            table.insert(tEngineersToClear, oEngi)
+                        local bClearShield = true
+                        if oShield[refbRemoveShieldFromPriorityTableWhenFullHealth] then
+                            bClearShield = false
+                            local iCurShieldHealth, iCurShieldMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                            if iCurShieldHealth / iCurShieldMaxHealth >= 0.99 then
+                                bClearShield = true
+                            end
+                            if not(bClearShield) then
+                                table.insert(tTemporaryPriorityShields, oShield)
+                            else
+                                oShield[refbRemoveShieldFromPriorityTableWhenFullHealth] = nil
+                            end
                         end
-                        for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
-                            if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
+                        if bClearShield then
+                            --Shield wasnt a priority shield in the last cycle but has engineers assigned to assist it - will clear these engineers
+                            local tEngineersToClear = {}
+                            for iEngi, oEngi in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
+                                table.insert(tEngineersToClear, oEngi)
+                            end
+                            for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
+                                if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
+                            end
+                            oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
                         end
-                        oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
                     end
                 end
             end
 
             tLZTeamData[M28Map.reftPriorityShieldsToAssist] = {}
+            if M28Utilities.IsTableEmpty(tTemporaryPriorityShields) == false then
+                for iShield, oShield in tTemporaryPriorityShields do
+                    table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
+                end
+            end
             local iTotalUnitMassCoverage
             local iCurMassValue
             local bConsiderRecentlyDamagedShields = false
@@ -1229,7 +1251,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
             for iShield, oShield in tShieldsToAssist do
                 iTotalUnitMassCoverage = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
-                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false and not(oShield[reftArtiTemplateRefs]) then
+                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false and not(oShield[reftArtiTemplateRefs]) and not(oShield[refbRemoveShieldFromPriorityTableWhenFullHealth]) then
                     --Only flag a shield for assistance if its health is <80%
                     local iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Shield health='..iCurShieldHealth..'; Max health='..iMaxShieldHealth) end
