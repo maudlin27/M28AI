@@ -583,7 +583,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
                 else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shields so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                 --If dont have any blueprints to build then look to support indirect or DF instead
                 --GetBlueprintThatCanBuildOfCategory(aiBrain,               iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                 local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
@@ -594,12 +594,13 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
             end
             if not(iBaseCategoryWanted) then
                 --Mobile stealth (unless enemy so close that combat units would be better)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want mobile stealth, bConsiderMobileStealths='..tostring(bConsiderMobileStealths)..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
                 if bConsiderMobileStealths and tLZTargetTeamData[M28Map.refbLZWantsMobileStealth] and not(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                     iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
                     if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
                     else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shilelds so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                     --If dont have any blueprints to build then look to support indirect or DF instead
                     --GetBlueprintThatCanBuildOfCategory(aiBrain,               iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                     local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
@@ -2524,6 +2525,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+
+        --Get mobile stealth if we have low lifetime count, a cybran T2+ factory, and dont have low power
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Mobile stealth low lifetime count low priority builder, bHaveLowPower='..tostring(bHaveLowPower)..'; Factory build count='..oFactory[refiTotalBuildCount]..'; Mobile stealth LC='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLandStealth)..'; Team built omni='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbEnemyBuiltOmni])..'; Our gross power='..tostring(aiBrain[M28Economy.refiGrossEnergyBaseIncome])) end
+        if bConsiderMobileStealths and not(bHaveLowPower) and oFactory[refiTotalBuildCount] >= 4 and iFactoryTechLevel >= 2 and EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 150 and not(M28Team.tTeamData[iTeam][M28Team.subrefbEnemyBuiltOmni]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbEnemyHasOmni]) then
+            local iMobileStealthLifetimeCount = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLandStealth)
+            if iMobileStealthLifetimeCount <= 6 and iMobileStealthLifetimeCount < 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                if not(bHaveLowMass) or iMobileStealthLifetimeCount <= math.min(3,  M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': will get mobile steatlh if we have built enough land combat units, lifetime T2+ count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat - categories.TECH1)) end
+                    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= math.max(4, iMobileStealthLifetimeCount * 5) then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandStealth) then return sBPIDToBuild end
+                    end
+                end
+            end
+        end
+
 
         --Want factories to have a lifetime build count of indirect fire units
         iCurrentConditionToTry = iCurrentConditionToTry + 1
