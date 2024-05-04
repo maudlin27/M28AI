@@ -2583,17 +2583,32 @@ function ApplyM28ToOtherAI(aiBrain)
                 end
             end
 
+            local bEnemyOfPlayerAlly = false
+            local bEnemyOfPlayerEnemy = false
+
             if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                 bEnemyOfPlayer = true
                 bIsEnemyOfSomeone = true
-            end
-            if IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+            elseif IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                 --Check there is a brain this is an enemy of
                 for iBrain, oBrain in ArmyBrains do
                     if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
                         bIsEnemyOfSomeone = true
                         bAllyOfPlayerWithEnemy = true
                         break
+                    end
+                end
+            else
+                --Not ally or enemy of player; if enemy of the same faction the player is enemy of, then still consider an ally
+
+                for iBrain, oBrain in ArmyBrains do
+                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                        if IsEnemy(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bEnemyOfPlayerEnemy = true
+                        elseif IsAlly(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bEnemyOfPlayerAlly = true
+                        end
+                        bIsEnemyOfSomeone = true
                     end
                 end
             end
@@ -2605,12 +2620,12 @@ function ApplyM28ToOtherAI(aiBrain)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)..'; bEnemyOfPlayerAlly='..tostring(bEnemyOfPlayerAlly)..'; bEnemyOfPlayerEnemy='..tostring(bEnemyOfPlayerEnemy)) end
             local bUseM28AI = false
             if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
                 if aiBrain.CampaignAI then aiBrain.HostileCampaignAI = true end
-            elseif bAllyOfPlayerWithEnemy and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
+            elseif (bAllyOfPlayerWithEnemy or (bIsEnemyOfSomeone and not(bEnemyOfPlayer) and not(bEnemyOfPlayerAlly) and bEnemyOfPlayerEnemy)) and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
             end
 

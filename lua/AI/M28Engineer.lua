@@ -15856,19 +15856,23 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Time ' .. GetGameTimeSeconds() .. '; First position with iDistToMove=' .. iDistToMove .. '=' .. repru(tTargetLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; tPointToMoveFrom=' .. repru(tPointToMoveFrom) .. '; Dist to midpoint=' .. M28Utilities.GetDistanceBetweenPositions(tPointToMoveFrom, tLZMidpoint) .. '; Dist to original target=' .. M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tTargetLocation) .. '; iTargetPlateau=' .. (iTargetPlateau or 'nil') .. '; iTargetLandZone=' .. (iTargetLandZone or 'nil')..'; iLandZone='..iLandZone)
     end
-    while not (iLandZone == iTargetLandZone) do
+    if (iDistToPointToMove or 100000) < 500 then --To prevent infinite loop
+        while not (iLandZone == iTargetLandZone) do
+            --LOG('Emergency PD log, iDistToMove='..iDistToMove..'; iDistToPointToMove='..(iDistToPointToMove or 'nil'))
+            iDistToMove = iDistToMove + 5
+            if iDistToMove > iDistToPointToMove then
+                tTargetLocation = tLZMidpoint
+                break
+            else
+                tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+                if iDistToMove >=2000 then M28Utilities.ErrorHandler('Likely infinite loop, will abort') break end
+            end
 
-        iDistToMove = iDistToMove + 5
-        if iDistToMove > iDistToPointToMove then
-            tTargetLocation = tLZMidpoint
-            break
-        else
-            tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+            iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
         end
-
-        iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-        if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
     end
+
 
     --Adjust if likely to be on elevated ground and unable to hit the enemy as a result (move closer so are on edge of cliff); if the reverse (we are on lower ground) then move away
     if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove) end

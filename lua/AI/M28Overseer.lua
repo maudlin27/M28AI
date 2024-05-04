@@ -1146,28 +1146,6 @@ function GetCivilianCaptureTargets(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DebugCheckProfiling(bJustShowTickCount)
-    M28Utilities.ErrorHandler('Debug check profiling is enabled')
-    local sFunctionRef = 'DebugCheckProfiling'
-    local iTickTimeToStartDetailedDebug = 10000000 --set to high number if first want to figure out the tick where this happens
-    local bSetHook = false --Used for debugging
-    if not(bDebugTickCheckerActive) then
-        bDebugTickCheckerActive = true
-        --Every tick list out the tick - use this function to help identify infinite loops
-        while true do
-            WaitTicks(1)
-            LOG(sFunctionRef..': Cur time='..GetGameTimeSeconds())
-            if not(bSetHook) and not(bJustShowTickCount) and GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
-                bSetHook = true
-                M28Profiler.bFunctionCallDebugOverride = true
-                --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
-                debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
-                LOG(sFunctionRef..': Have started the main hook of function calls')
-            end
-        end
-    end
-end
-
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheckProfiling)
 
@@ -2418,5 +2396,31 @@ function GlobalOverseer()
             ForkThread(ConsiderSlowdownForHighUnitCount)
         end
         WaitSeconds(1) --in case want to add per second logic in the future
+    end
+end
+
+
+
+
+
+function DebugCheckProfiling(bJustShowTickCount)
+    M28Utilities.ErrorHandler('Debug check profiling is enabled')
+    local sFunctionRef = 'DebugCheckProfiling'
+    local iTimeInSecondsToStartDetailedDebug = 10000000-- 1362.3 --set to high number if first want to figure out the tick where this happens
+    local bSetHook = false --Used for debugging
+    if not(bDebugTickCheckerActive) then
+        bDebugTickCheckerActive = true
+        --Every tick list out the tick - use this function to help identify infinite loops
+        while true do
+            WaitTicks(1)
+            LOG(sFunctionRef..': Cur time='..GetGameTimeSeconds())
+            if not(bSetHook) and not(bJustShowTickCount) and GetGameTimeSeconds() >= iTimeInSecondsToStartDetailedDebug then
+                bSetHook = true
+                M28Profiler.bFunctionCallDebugOverride = true
+                --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+                debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+                LOG(sFunctionRef..': Have started the main hook of function calls')
+            end
+        end
     end
 end
