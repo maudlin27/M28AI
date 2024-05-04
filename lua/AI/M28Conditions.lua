@@ -2583,17 +2583,32 @@ function ApplyM28ToOtherAI(aiBrain)
                 end
             end
 
+            local bEnemyOfPlayerAlly = false
+            local bEnemyOfPlayerEnemy = false
+
             if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                 bEnemyOfPlayer = true
                 bIsEnemyOfSomeone = true
-            end
-            if IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+            elseif IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                 --Check there is a brain this is an enemy of
                 for iBrain, oBrain in ArmyBrains do
                     if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
                         bIsEnemyOfSomeone = true
                         bAllyOfPlayerWithEnemy = true
                         break
+                    end
+                end
+            else
+                --Not ally or enemy of player; if enemy of the same faction the player is enemy of, then still consider an ally
+
+                for iBrain, oBrain in ArmyBrains do
+                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                        if IsEnemy(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bEnemyOfPlayerEnemy = true
+                        elseif IsAlly(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bEnemyOfPlayerAlly = true
+                        end
+                        bIsEnemyOfSomeone = true
                     end
                 end
             end
@@ -2605,12 +2620,12 @@ function ApplyM28ToOtherAI(aiBrain)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)..'; bEnemyOfPlayerAlly='..tostring(bEnemyOfPlayerAlly)..'; bEnemyOfPlayerEnemy='..tostring(bEnemyOfPlayerEnemy)) end
             local bUseM28AI = false
             if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
                 if aiBrain.CampaignAI then aiBrain.HostileCampaignAI = true end
-            elseif bAllyOfPlayerWithEnemy and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
+            elseif (bAllyOfPlayerWithEnemy or (bIsEnemyOfSomeone and not(bEnemyOfPlayer) and not(bEnemyOfPlayerAlly) and bEnemyOfPlayerEnemy)) and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
                 bUseM28AI = true
             end
 
@@ -2874,6 +2889,33 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, bHaveAeonOrSeraFactor
     return false
 end
 
+function GetNumberOfUnitsOfCategoryInAdjacentLandZones(tLZData, iPlateau, iTeam, iCategory, bIncludeOnlyConstructed, bReturnOnceOnlyOneUnit)
+    --Only considers adjacent land zones, not the current zone; assumes dealing with land zone
+    local iCount = 0
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+            if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                local tUnitsOfCategory
+                if iCategory then tUnitsOfCategory = EntityCategoryFilterDown(iCategory, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                else tUnitsOfCategory = tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]
+                end
+                if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                    for iUnit, oUnit in tUnitsOfCategory do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if not(bIncludeOnlyConstructed) or oUnit:GetFractionComplete() == 1 then
+                                iCount = iCount + 1
+                                if bReturnOnceOnlyOneUnit then return iCount end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return iCount
+end
+
 
 function AreAnyOfTableOfUnitsInAdjacentLandZone(tUnits, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
     if M28Utilities.IsTableEmpty(tUnits) == false then --redundancy
@@ -2947,43 +2989,51 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
     return false
 end
 
-function ACULikelyToWantCombatUpgrade(oACU)
-    --used to decide if we want to go down combat path of upgrades for ACU
+function ACULikelyToWantCombatUpgradeOrShield(oACU)
+    --used to decide if we want to go down combat path of upgrades for ACU, or if enemy has novax such that we want more defence for acu
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ACULikelyToWantCombatUpgrade'
+    local sFunctionRef = 'ACULikelyToWantCombatUpgradeOrShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
     if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
-    elseif GetGameTimeSeconds() <= 1200 then
+
+    else
         local aiBrain = oACU:GetAIBrain()
-        if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
-            local iTeam = aiBrain.M28Team
-            if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
-                --How close is nearest enemy base to our nearest friendly base (dont want to do based on ACU position as ACU might retreat to get upgrade then the upgrade changes as a result of htis flag
-                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
-                if not(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
-                    tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
-                end
-                local iDistBetweenBases = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
-                if bDebugMessages == true then LOG(sFunctionRef..': iDistBetweenBases='..iDistBetweenBases..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Cur T3 mex='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)) end
-                if iDistBetweenBases <= 300 or (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iDistBetweenBases <= 500) then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) < 3 then
-                        --Check start LZ isnt in a safe position
-                        local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
-                        if bDebugMessages == true then LOG(sFunctionRef..': tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition])) end
-                        if not(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Likely we will want to use ACU in combat, returning true') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true
+        local iTeam = aiBrain.M28Team
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        elseif GetGameTimeSeconds() <= 1200 then
+
+            if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                local iTeam = aiBrain.M28Team
+                if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
+                    --How close is nearest enemy base to our nearest friendly base (dont want to do based on ACU position as ACU might retreat to get upgrade then the upgrade changes as a result of htis flag
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
+                    if not(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
+                        tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                    end
+                    local iDistBetweenBases = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                    if bDebugMessages == true then LOG(sFunctionRef..': iDistBetweenBases='..iDistBetweenBases..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Cur T3 mex='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)) end
+                    if iDistBetweenBases <= 300 or (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iDistBetweenBases <= 500) then
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) < 3 then
+                            --Check start LZ isnt in a safe position
+                            local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(aiBrain), true, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition])) end
+                            if not(tStartLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Likely we will want to use ACU in combat, returning true') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
                         end
                     end
                 end
             end
-        end
 
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

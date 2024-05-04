@@ -168,7 +168,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLandZonesWantingMAAByPlateau = 'M28TeamLZWantingMAA' --[x] is the plateau ,ref, [y] is the land zone ref, returns true if we want MAA support for the plateau
     subrefiWaterZonesWantingSignificantMAAByPlateau = 'M28TeamWZWantingMAA' --[x] is the PLATEAU ref, [y] is the wawter zone ref, returns true if want significant MAA support for the plateau
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, then returns a table orderd 1, 2... of land zones that are rally points
-    refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoShieldTargetsByIsland = 'M28TeamLastTimeNoShieldTargets' --[x] is the island ref (i.e. navutils.getlabel(M28Map.refPathingTypeLand...), returns gametime seconds
     refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoStealthBoatTargetsByPond = 'M28TeamLastTimeNoStealthBoatTargets' --[x] is the pond ref, returns gametimeseconds
@@ -600,7 +600,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedMAAThreat] = 0
-    tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthBoatTargetsByPond] = {}
@@ -1736,6 +1736,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
                                 tTeamData[aiBrain.M28Team][subrefbEnemyGettingFabsOrRAS] = true
+                            elseif EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
+                                ForkThread(EnemyNovaxSatelliteMonitor, oUnit, aiBrain.M28Team)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
@@ -4475,6 +4477,48 @@ function RefreshRecentEnemyTeleportLocations(iTeam)
                 table.remove(tTeamData[iTeam][reftRecentEnemyTeleportDetails], iCurEntry)
             end
         end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function EnemyNovaxSatelliteMonitor(oNovax, iTeam)
+    --Tracks enemy novax and flags for zones that are near it (so they can e.g. get more mobile shielding)
+    local sFunctionRef = 'EnemyNovaxSatelliteMonitor'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iNearbyZoneMidpointDistThreshold = 150 --Dist between the novax zone midpoint and the cur zone midpoint - want to beh igher than main search range in case novax is towards the edge of the midpoint
+    local iNovaxDistToMidpointThreshold = 100
+    while M28UnitInfo.IsUnitValid(oNovax) and tTeamData[iTeam][subrefiActiveM28BrainCount] > 0 do
+        local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oNovax:GetPosition(), true, iTeam)
+        if tStartLZOrWZData then
+            tStartLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] = GetGameTimeSeconds()
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                    if tSubtable[M28Map.subrefiDistance] > iNearbyZoneMidpointDistThreshold then break end
+                    local tAltLZOrWZData
+                    local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                    else
+                        tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                    end
+                    if M28Utilities.GetDistanceBetweenPositions(oNovax:GetPosition(), tAltLZOrWZData[M28Map.subrefMidpoint]) <= iNovaxDistToMidpointThreshold then
+                        local tAltLZOrWZTeamData
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                        else
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                        end
+                        tAltLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] = GetGameTimeSeconds()
+                    end
+                end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

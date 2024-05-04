@@ -3922,6 +3922,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                         if tPathingDetails[M28Map.subrefbIsWaterZone] then iOtherPlateauOrZero = 0 end
                                         local iCurGroundAAThreatAlongPath = 0
                                         local tAAUnitsAlongPath
+                                        local bProceedWithAttack
                                         if not(tbZonesConsideredByPlateau[iRallyPlateauOrZero][iOtherLZOrWZ]) and iOtherLZOrWZ then
 
                                             local tOtherLZOrWZData
@@ -3949,12 +3950,31 @@ function ManageBombers(iTeam, iAirSubteam)
                                                     if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
                                                         iCurGroundAAThreatAlongPath, tAAUnitsAlongPath = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLZOrWZ, iOtherPlateauOrZero, iOtherLZOrWZ, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iMaxEnemyGroundAAThreat, nil, false, iAirSubteam, true, true, nil, true)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZOrWZ='..iOtherLZOrWZ..'; iCurGroundAAThreatAlongPath='..iCurGroundAAThreatAlongPath..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
+                                                        bProceedWithAttack = false
                                                         if iCurGroundAAThreatAlongPath < iMaxEnemyGroundAAThreat then
-                                                            if M28Utilities.IsTableEmpty(tAAUnitsAlongPath) == false then FilterToAvailableTargets(tAAUnitsAlongPath, nil, true) end
-                                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Have added all enemy units and AA units along the path, are available bombers table empty now='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
-                                                            if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
-                                                        else
+                                                            bProceedWithAttack = true
+                                                            local oClosestEnemyToRally = M28Utilities.GetNearestUnit(tEnemyTargets, tRallyPoint)
+                                                            if oClosestEnemyToRally then
+                                                                local tNearbyEnemyGroundAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, oClosestEnemyToRally:GetPosition(), 80, 'Enemy')
+                                                                if M28Utilities.IsTableEmpty(tNearbyEnemyGroundAA) == false then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat using getunitsaroundpoint='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyGroundAA, true, false, true, false, false, false)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
+                                                                    if M28UnitInfo.GetAirThreatLevel(tNearbyEnemyGroundAA, true, false, true, false, false, false) >= iMaxEnemyGroundAAThreat then
+                                                                        bProceedWithAttack = false
+                                                                    else
+                                                                        FilterToAvailableTargets(tNearbyEnemyGroundAA, nil, true)
+                                                                    end
+                                                                end
+                                                            end
+                                                            if bProceedWithAttack then
+                                                                if M28Utilities.IsTableEmpty(tAAUnitsAlongPath) == false then FilterToAvailableTargets(tAAUnitsAlongPath, nil, true) end
+                                                                --Further redundancy for nearby AA - get the closest potential enemy target, and search for nearby groundAA units using getunitsaroundpoint
+
+                                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Have added all enemy units and AA units along the path, are available bombers table empty now='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+                                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
+                                                            end
+                                                        end
+                                                        if not(bProceedWithAttack) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Too great an enemy threat so wont add these targets after all') end
                                                             iSearchSize = math.min(iSearchSize, (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) + 25) --i.e. consider a couple more zones in case htey are in another direction
                                                         end
@@ -4227,9 +4247,10 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
 
 
     if bTargetAAAndShieldsFirst then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without; also priority enemy ACUs ahead of all this') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without; also priority enemy ACUs ahead of all this, mass cost of available bombers='..M28UnitInfo.GetMassCostOfUnits(tAvailableBombers)) end
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2000 and EntityCategoryContains(M28UnitInfo.refCategoryBomber, tAvailableBombers[1].UnitId) then
             local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tEnemyTargets)
+            if bDebugMessages == true then LOG(sFunctionRef..': is table of enemy ACU empty='..tostring(M28Utilities.IsTableEmpty(tEnemyACU))) end
             if M28Utilities.IsTableEmpty(tEnemyACU) == false then
                 if M28UnitInfo.GetMassCostOfUnits(tAvailableBombers) >= 15000 then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyACU, iAirSubteam, bForceGroundFire, false)

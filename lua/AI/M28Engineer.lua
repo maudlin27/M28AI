@@ -12899,25 +12899,31 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Consider making a zone with lots of mexes a core expansion in some cases in the early game
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': LZ mex count='..tLZData[M28Map.subrefLZMexCount]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; P='..iPlateau..'Z='..iLandZone) end
-    if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and tLZData[M28Map.subrefLZMexCount] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 + 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
-        if not(bTeammateHasBuiltHere) or tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] < 2 or tLZTeamData[M28Map.refiNonM28TeammateMexCount] <= math.max(5, tLZData[M28Map.subrefLZMexCount] * 0.75) then
-            if tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 or tLZData[M28Map.subrefLZMexCount] >= 5 then
-                iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
-                if iHighestTechEngiAvailable > 0 then
-                    --Check we can path to closest enemy base
-                    if bDebugMessages == true then LOG(sFunctionRef..': Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Nearest enemy base island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')) end
-                    if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
-                        --Check we are closer to enemy base than closest friendly base
-                        local iOurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
-                        if bDebugMessages == true then LOG(sFunctionRef..': iOurDistToEnemy='..iOurDistToEnemy..'; Map size='..M28Map.iMapSize..'; Dist from closest friendly base to enemy='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZTeamData[M28Map.reftClosestFriendlyBase])) end
-                        if iOurDistToEnemy < math.min(650, M28Map.iMapSize * 1.1) then
-                            local iClosestFriendlyBaseDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZTeamData[M28Map.reftClosestFriendlyBase])
-                            if iClosestFriendlyBaseDist > iOurDistToEnemy then
-                                tLZTeamData[M28Map.subrefLZExpansionOverride] = true
-                                tLZTeamData[M28Map.subrefLZCoreExpansion] = true
-                                iFactoriesWanted = math.max(iFactoriesWanted, 1)
-                                if bDebugMessages == true then LOG(sFunctionRef..': setting this zone as being a core expansion with iFactoriesWanted='..iFactoriesWanted) end
+    if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) then
+        if ((tLZData[M28Map.subrefLZMexCount] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2) or (M28Map.bIsCampaignMap and tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and tLZTeamData[M28Map.subrefLZSValue] > 0 and GetGameTimeSeconds() >= 1800)) and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 + 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
+            if not(bTeammateHasBuiltHere) or tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] < 2 or tLZTeamData[M28Map.refiNonM28TeammateMexCount] <= math.max(5, tLZData[M28Map.subrefLZMexCount] * 0.75) then
+                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 or tLZData[M28Map.subrefLZMexCount] >= 5 then
+                    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
+                    if iHighestTechEngiAvailable > 0 then
+                        --Check we can path to closest enemy base
+                        if bDebugMessages == true then LOG(sFunctionRef..': Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Nearest enemy base island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')) end
+                        if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                            --Check we are closer to enemy base than closest friendly base
+                            local iOurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+                            if bDebugMessages == true then LOG(sFunctionRef..': iOurDistToEnemy='..iOurDistToEnemy..'; Map size='..M28Map.iMapSize..'; Dist from closest friendly base to enemy='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; Factories in adj zone='..M28Conditions.GetNumberOfUnitsOfCategoryInAdjacentLandZones(tLZData, iPlateau, iTeam, M28UnitInfo.refCategoryFactory, true, true)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
+                            if iOurDistToEnemy < math.min(650, M28Map.iMapSize * 1.1) or (M28Map.bIsCampaignMap and iOurDistToEnemy <= 800 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                                local iClosestFriendlyBaseDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                if iClosestFriendlyBaseDist > iOurDistToEnemy or (M28Map.bIsCampaignMap and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                                    --If no mexes and campaign map then also require no land facs in an adjacent zone
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will proceed if have mexes, arent campaign map, or no factories in adj zone') end
+                                    if tLZData[M28Map.subrefLZMexCount] > 0 or not(M28Map.bIsCampaignMap) or M28Conditions.GetNumberOfUnitsOfCategoryInAdjacentLandZones(tLZData, iPlateau, iTeam, M28UnitInfo.refCategoryFactory, true, true) == 0 then
+                                        tLZTeamData[M28Map.subrefLZExpansionOverride] = true
+                                        tLZTeamData[M28Map.subrefLZCoreExpansion] = true
+                                        iFactoriesWanted = math.max(iFactoriesWanted, 1)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': setting this zone as being a core expansion with iFactoriesWanted='..iFactoriesWanted) end
+                                    end
+                                end
                             end
                         end
                     end
@@ -15850,19 +15856,23 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Time ' .. GetGameTimeSeconds() .. '; First position with iDistToMove=' .. iDistToMove .. '=' .. repru(tTargetLocation) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; tPointToMoveFrom=' .. repru(tPointToMoveFrom) .. '; Dist to midpoint=' .. M28Utilities.GetDistanceBetweenPositions(tPointToMoveFrom, tLZMidpoint) .. '; Dist to original target=' .. M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tTargetLocation) .. '; iTargetPlateau=' .. (iTargetPlateau or 'nil') .. '; iTargetLandZone=' .. (iTargetLandZone or 'nil')..'; iLandZone='..iLandZone)
     end
-    while not (iLandZone == iTargetLandZone) do
+    if (iDistToPointToMove or 100000) < 500 then --To prevent infinite loop
+        while not (iLandZone == iTargetLandZone) do
+            --LOG('Emergency PD log, iDistToMove='..iDistToMove..'; iDistToPointToMove='..(iDistToPointToMove or 'nil'))
+            iDistToMove = iDistToMove + 5
+            if iDistToMove > iDistToPointToMove then
+                tTargetLocation = tLZMidpoint
+                break
+            else
+                tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+                if iDistToMove >=2000 then M28Utilities.ErrorHandler('Likely infinite loop, will abort') break end
+            end
 
-        iDistToMove = iDistToMove + 5
-        if iDistToMove > iDistToPointToMove then
-            tTargetLocation = tLZMidpoint
-            break
-        else
-            tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
+            iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
         end
-
-        iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-        if bDebugMessages == true then LOG(sFunctionRef..': Adjusted the target location by increasing the distance to move, New location='..repru(tTargetLocation)..'; land zone='..(iTargetLandZone or 'nil')..'; iLandZone='..iLandZone) end
     end
+
 
     --Adjust if likely to be on elevated ground and unable to hit the enemy as a result (move closer so are on edge of cliff); if the reverse (we are on lower ground) then move away
     if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove) end

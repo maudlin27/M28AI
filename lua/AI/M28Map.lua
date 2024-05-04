@@ -204,6 +204,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone / water zone
         reftoAllOmniRadar = 'AllOmn' --table of all omni radar units providing some coverage to this zone's midpoint - i.e. includes ally and enemy alike
         refiAllOmniCoverage = 'AllOmC' --Omni coverage of the zone midpoint by any player (ally and enemy alike)
+        refiTimeOfNearbyEnemyNovax = 'NrENvx' --Gametimeseconds that enemy had a nearby novax satellite
 
         --Island related
         subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeLand) for the midpoint

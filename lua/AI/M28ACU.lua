@@ -19,6 +19,7 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -1104,6 +1105,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
     local oBP = oACU:GetBlueprint()
 
+
     if (bWantToDoTeleSnipe or (oACU[refbPlanningToGetTeleport] and (oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('Teleporter') or oACU:HasEnhancement('BlastAttack')))) and oBP.Enhancements['Teleporter'] then
         if EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'MicrowaveLaserGenerator', 'Teleporter'}
@@ -1145,7 +1147,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                         oACU[refbPlanningToGetShield] = true
                     end
                     --Also get shield if a good chance we will use ACU in combat for a while
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) then
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) then
                         oACU[reftPreferredUpgrades] = {'Shield', 'ResourceAllocation'}
                     else
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
@@ -1170,7 +1172,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     end
 
                     --Also get shield if a good chance we will use ACU in combat for a while
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) or oACU:HasEnhancement('Shield') or oACU:HasEnhancement('ShieldHeavy') then
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) or oACU:HasEnhancement('Shield') or oACU:HasEnhancement('ShieldHeavy') then
                         oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
                     else
                         oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
@@ -1195,10 +1197,12 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                         oACU[refbPlanningToGetShield] = true
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbPlanningToGetShield]='..tostring(oACU[refbPlanningToGetShield])) end
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) or oACU:HasEnhancement('SelfRepairSystem') then
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) or oACU:HasEnhancement('SelfRepairSystem') then
                         oACU[reftPreferredUpgrades] = {'StealthGenerator'}
                         if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
+                        if oBP.Enhancements['FAF_SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_SelfRepairSystem') end
                         if bDebugMessages == true then LOG(sFunctionRef..': Want stealth and nano for ACU') end
+                        if M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount] >= 2 then table.insert(oACU[reftPreferredUpgrades], 'CloakingGenerator') end
                     else
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation'}
                         if bDebugMessages == true then LOG(sFunctionRef..': Want RAS for ACU') end
@@ -1220,8 +1224,8 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
                         oACU[refbPlanningToGetShield] = true
                     end
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgrade(oACU) then
-                        oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) then
+                        oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'DamageStabilizationAdvanced', 'ResourceAllocationAdvanced'}
                     else
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
                     end
@@ -2981,16 +2985,68 @@ end
 
 function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)
     --If it's dangerous for ACUs and the current zone isnt a core zone with a shield, but there is a nearby core zone with a shield, then send the ACU there and returns true
+    --Also includes logic for ACU to assist the shield and/or flag it for other engineers to assist
     local sFunctionRef = 'ConsiderRunningToNearestShield'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --No point looking for other core bases if we were the only M28 on the team originally, or if not dangerous for ACU
-    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount] > 1 then
+    if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or false)..'; Orig brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount]..'; tLZOrWZTeamData[M28Map.refiModDistancePercent]='..tLZOrWZTeamData[M28Map.refiModDistancePercent]) end
+    if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount] > 1 or tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3) then
         --If we have shields in this zone dont leave it
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if it is safe for ACU owend by brain '..oACU:GetAIBrain().Nickname..' to be in zone '..iLandOrWaterZone..'; tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount]='..(tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 'nil')..'; Is core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Time='..GetGameTimeSeconds()) end
-        if (tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) > 0 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
-            --Do nothing
+        if (tLZOrWZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) > 0 and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) < 1)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to go to the nearest constructed shield in this zone') end
+            --If we arent already under shield coverage and ACU is sub-100% health move to be under it
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and (M28UnitInfo.GetUnitHealthPercent(oACU) < 1 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and oACU:GetMaxHealth() < 20000 and (not(oACU.MyShield.GetHealth) or oACU.MyShield:GetHealth() <= 5000) and (not(oACU[M28UnitInfo.refCategoryMobileLandShield]) or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 1) and M28Utilities.IsTableEmpty(oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryNovax, oACU:GetPosition(), 70, 'Enemy')) == false)) then
+                local tFriendlyFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyFixedShields) == false then
+                    local oNearestShieldWithHealth
+                    local iNearestShieldWithHealthDist = 1000
+                    local iCurDist
+                    for iShield, oShield in tFriendlyFixedShields do
+                        if M28UnitInfo.IsUnitValid(oShield) and oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() >= 100 then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                            if iCurDist < iNearestShieldWithHealthDist then
+                                iNearestShieldWithHealthDist = iCurDist
+                                oNearestShieldWithHealth = oShield
+                            end
+                        end
+                    end
+                    if oNearestShieldWithHealth then
+                        --Are we not comfortably within the shield coverage?
+                        if iNearestShieldWithHealthDist > (oNearestShieldWithHealth:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.45 - 4 then
+                            M28Orders.IssueTrackedMove(oACU, oNearestShieldWithHealth:GetPosition(), 1, false, 'RetrCSh', false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will retreat ACU to the nearest shield '..oNearestShieldWithHealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestShieldWithHealth)) end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        else
+                            --Do we want to assist the shield if it isnt at full health?
+                            local iShieldCurHealth, iShieldMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oNearestShieldWithHealth, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want ACU to assist the shield it is currently assigned to, shield health%='..iShieldCurHealth / iShieldMaxHealth) end
+                            if iShieldCurHealth / iShieldMaxHealth <= 0.85 then
+                                M28Orders.IssueTrackedGuard(oACU, oNearestShieldWithHealth, false, 'RetrAsSh', false)
+                                if not(oNearestShieldWithHealth[M28Building.reftArtiTemplateRefs]) and iShieldCurHealth / iShieldMaxHealth <= 0.8 then
+                                    --Add shield to table of priority shields to assist for engineers
+                                    local bAlreadyRecorded = false
+                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                                        for iRecorded, oRecorded in tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist] do
+                                            if oRecorded == oNearestShieldWithHealth then bAlreadyRecorded = true break end
+                                        end
+                                    end
+                                    if not(bAlreadyRecorded) then
+                                        if not(tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist]) then tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist] = {} end
+                                        table.insert(tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist], oNearestShieldWithHealth)
+                                        oNearestShieldWithHealth[M28Building.refbRemoveShieldFromPriorityTableWhenFullHealth] = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': We have a shield in this zone, but ACU is on full health and/or is already under shield coverage or the shield lacks sufficient health so wont retreat to this shield') end
         else
             --Find out closest zone on a plateau that has a shield
             local iClosestCoreZoneWithShield = 275 --no point trying to move to a zone further away than this
@@ -3027,6 +3083,49 @@ function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTea
                 if bDebugMessages == true then LOG(sFunctionRef..': Will retreat ACU to the zone') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if are any T2 plus shields nearby if vulnerable to novax, since since last novax tLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax]='..GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] or 0)..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iPlateauOrZero='..iPlateauOrZero..'; Novax count='..M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount]) end
+                if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 and iPlateauOrZero > 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 5 then
+                    --Do we have any allied Fixed T2 non-Cybran shields nearby? if so try heading here instead
+                    local aiBrain = oACU:GetAIBrain()
+                    local tNearbyFixedShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield - categories.CYBRAN * categories.TECH2 -categories.TECH1, oACU:GetPosition(), 120, 'Ally')
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby fixed shields empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFixedShields) == false)) end
+                    if M28Utilities.IsTableEmpty(tNearbyFixedShields) == false then
+                        --Assist the closest fixed shield with health, or just the closest under construction
+                        local iClosestWithHealthShieldDist = 10000
+                        local iClosestShieldOfAnyTypeDist = 10000
+                        local oClosestWithHealthShield
+                        local oClosestShieldOfAnyType
+                        local iCurDist, iCurShield, iMaxShield
+
+
+                        for iShield, oShield in tNearbyFixedShields do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oACU:GetPosition())
+                            if iCurDist < iClosestWithHealthShieldDist then
+                                if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oShield:GetPosition()) == iPlateauOrZero then
+                                    if iCurDist < iClosestShieldOfAnyTypeDist then
+                                        oClosestShieldOfAnyType = oShield
+                                        iClosestShieldOfAnyTypeDist = iCurDist
+                                    end
+                                    if oShield:GetFractionComplete()== 1 then
+                                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                                        if iCurShield >= 100 then
+                                            iClosestWithHealthShieldDist = iCurDist
+                                            oClosestWithHealthShield = oShield
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        local oShieldToAssist = oClosestWithHealthShield or oClosestShieldOfAnyType
+                        if bDebugMessages == true then LOG(sFunctionRef..': oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
+                        if oShieldToAssist then
+                            M28Orders.IssueTrackedGuard(oACU, oShieldToAssist, false, 'BkcupAsSh', false)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
+                    end
+                end
             end
         end
     end
