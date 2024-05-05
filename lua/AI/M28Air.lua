@@ -5075,29 +5075,40 @@ function ManageGunships(iTeam, iAirSubteam)
             bUsingSnipePriority = true
         end
 
-        --Emergency response - first include any ground threats in a start position and (if none) adjacent to a start position
+        --Emergency response - first include any ground threats in a core zone and (if none) adjacent to a core zone (v92 and earlier - used start positions instead)
         if not(iClosestSnipeTarget) or iClosestSnipeTarget >= 200 then
             local tiFriendlyStartPositionPlateauAndZones = {}
-            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
-                iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
-                if (iCurPlateauOrZero or 0) > 0 then
-                    if (iCurLZOrWZ or 0) == 0 then
-                        iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
-                        if (iCurLZOrWZ or 0) > 0 then
-                            iCurPlateauOrZero = 0
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
+                for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
+                    for iEntry, iZone in tZones do
+                        table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
+                    end
+                end
+            else
+                M28Utilities.ErrorHandler('Dont have any core zones so will revert to player start points')
+                --Old code - left in as redundancy
+                for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                    local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
+                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+                    if (iCurPlateauOrZero or 0) > 0 then
+                        if (iCurLZOrWZ or 0) == 0 then
+                            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
+                            if (iCurLZOrWZ or 0) > 0 then
+                                iCurPlateauOrZero = 0
+                            end
+                        end
+                    end
+                    if (iCurLZOrWZ or 0) > 0 then
+                        if not(iClosestSnipeTarget) or M28Utilities.GetDistanceBetweenPositions(tStartPoint, oFrontGunship:GetPosition()) < iClosestSnipeTarget + 25 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
+                            table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
+                            --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
                         end
                     end
                 end
-                if (iCurLZOrWZ or 0) > 0 then
-                    if not(iClosestSnipeTarget) or M28Utilities.GetDistanceBetweenPositions(tStartPoint, oFrontGunship:GetPosition()) < iClosestSnipeTarget + 25 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
-                        table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
-                        --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                        AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
-                    end
-                end
             end
+
 
             local bAlwaysInclAdjToStart = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]
             if not(bAlwaysInclAdjToStart) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) < iOurGunshipThreat * 0.1 then bAlwaysInclAdjToStart = true end
