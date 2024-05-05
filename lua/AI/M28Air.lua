@@ -3996,10 +3996,14 @@ function ManageBombers(iTeam, iAirSubteam)
                         AssignTorpOrBomberTargets(tAvailableBombers, toObjectiveTargets, iAirSubteam, true, true)
                     end
 
-                    --Send any remaining bombers to rally point
+                    --Send any remaining bombers to rally point (or for refueling if they are damaged)
                     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                         for iUnit, oUnit in tAvailableBombers do
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
+                            if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 and (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 200))) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                table.insert(tBombersForRefueling, oUnit)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
+                            end
                         end
                     end
                 end
