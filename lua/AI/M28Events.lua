@@ -3296,7 +3296,10 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     elseif toCapturedUnits[1].UnitId == 'uec1902' and oCapturingBrain.M28AI and not(oCapturingBrain.HostileCampaignAI) and oCapturingBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
                         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oCapturingBrain.M28Team)
                         if bDebugMessages == true then LOG(sFunctionRef..': Core base override being set for the black sun control centre') end
-                        if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride] = true end
+                        if tLZOrWZTeamData then
+                            tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                            tLZOrWZTeamData[M28Map.subrefLZFortify] = true
+                        end
                     end
 
                 end
