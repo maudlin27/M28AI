@@ -6292,18 +6292,24 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                     --If we have recently been given a short range target, or are almost in range of the target, then we may have moved into this zone temporarily, in which case continue with attacking the target
                     if bDebugMessages == true then LOG(sFunctionRef..': is oUnit[refoSREnemyTarget] valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]))..'; refiTimeOfSREnemyTarget='..(oUnit[refiTimeOfSREnemyTarget] or 'nil')..'; unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; time='..GetGameTimeSeconds()) end
-                    if bConsiderAttackMoveIfClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 30 then
-                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[refoSREnemyTarget]:GetPosition(), 6, false, 'SRClRAT'..iLandZone)
-                    elseif M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]) and oUnit[refiTimeOfSREnemyTarget] and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) and (GetGameTimeSeconds() - oUnit[refiTimeOfSREnemyTarget] <= 20 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) + 10) then
+                    if M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]) and oUnit[refiTimeOfSREnemyTarget] and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) and (GetGameTimeSeconds() - oUnit[refiTimeOfSREnemyTarget] <= 20 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) + 10) then
                         if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) - 10 then
                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[refoSREnemyTarget]:GetPosition(), 6, false, 'SRHistAT'..iLandZone)
                         else
                             M28Orders.IssueTrackedMove(oUnit, oUnit[refoSREnemyTarget]:GetPosition(), 6, false, 'SRHistMT'..iLandZone)
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
-                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AFBRetr'..iLandZone)
+                        if bConsiderAttackMoveIfClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 30 then
+                            M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AFBARetr'..iLandZone)
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AFBMRetr'..iLandZone)
+                        end
                     else
-                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'FBRetr'..iLandZone)
+                        if bConsiderAttackMoveIfClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 30 then
+                            M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'FBARetr'..iLandZone)
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'FBRetr'..iLandZone)
+                        end
                     end
                 else
                     --Clear unit assignment value so it is used by other zones
