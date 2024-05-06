@@ -4610,6 +4610,9 @@ function ManageGunships(iTeam, iAirSubteam)
     local iCloseToFrontThreshold = 50
     local iAngleFromRallyToGunship, iDistFromRallyToGunship
     local iEnemyAirAAThreatNearGunship
+    --Set a default value as a basic backup
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iEnemyAirAAThreatNearGunship = 0 else iEnemyAirAAThreatNearGunship = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] end
+    local iEnemyGroundAAThreatByGunship = 0
     local tTeleportTargetToMoveTo --used if we want to preemptively move to an enemy teleport target location
     if bDebugMessages == true then LOG(sFunctionRef..': Is front gunship valid='..tostring(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]))) end
     if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
@@ -4618,7 +4621,6 @@ function ManageGunships(iTeam, iAirSubteam)
         if iGunshipPlateauOrZero and (iGunshipLandOrWaterZone or 0) > 0 then
             --Ignore this logic if significant AA threat in the gunship current zone
             local tGunshipLandOrWaterZoneData, tGunshipLandOrWaterZoneTeamData
-            local iEnemyGroundAAThreatByGunship
 
             if iGunshipPlateauOrZero == 0 then
                 --iGunshipLandOrWaterZone = M28Map.GetWaterZoneFromPosition(oFrontGunship:GetPosition())
@@ -5084,9 +5086,30 @@ function ManageGunships(iTeam, iAirSubteam)
         if not(iClosestSnipeTarget) or iClosestSnipeTarget >= 200 then
             local tiFriendlyStartPositionPlateauAndZones = {}
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each core base by plateau and adding to friendly start position P and Z table, repru='..repru(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau])..'; M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]='..repru(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau])) end
                 for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
-                    for iEntry, iZone in tZones do
+                    for iZone, bZone in tZones do
                         table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
+                    end
+                end
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]) == false then
+                    for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau] do
+                        for iZone, bZone in tZones do
+                            --Only include if we have friendly SValue in the zone
+                            local tLZOrWZData
+                            local tLZOrWZTeamData
+                            if iPlateau > 0 then
+                                tLZOrWZData  = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
+                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            else
+                                --Water zone
+                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPlateau]][M28Map.subrefPondWaterZones][iZone]
+                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            end
+                            if tLZOrWZTeamData[M28Map.subrefLZSValue] > 0 then
+                                table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
+                            end
+                        end
                     end
                 end
             else
@@ -5120,21 +5143,27 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tiFriendlyStartPositionPlateauAndZones) == false and (not(iClosestSnipeTarget) or iClosestSnipeTarget >= 400) then
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                     --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemies around core base P'..(tiPlateauAndZone[1] or 'nil')..'; Z'..(tiPlateauAndZone[2] or 'nil')) end
                     AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false, nil, nil, true)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of targets empty after checking core zones='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))) end
                 if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
                     --Consider land zones adjacent to a land start position provided the zone midpoint is within 25% of the closest base (since we aren't doing an AirAA check), and the enemy doesnt have a large airaa force near us
                     for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                         if tiPlateauAndZone[1] > 0 then
                             local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjacent land zones to the core zone P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..'; bRetreatFromAhwassa='..tostring(bRetreatFromAhwassa)..'; Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; iEnemyAirAAThreatNearGunship='..iEnemyAirAAThreatNearGunship..'; 25% of gunship threat='..iOurGunshipThreat * 0.25..'; iMaxEnemyAirAA='..iMaxEnemyAirAA) end
                             if not(bRetreatFromAhwassa) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and iEnemyAirAAThreatNearGunship < math.min(iOurGunshipThreat * 0.25, iMaxEnemyAirAA) then
                                 local iCurDistToBase
+                                local iGunshipAdjacentToCoreBaseThreatFactorWanted = 3
+                                if M28Map.bIsCampaignMap and tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] then iGunshipAdjacentToCoreBaseThreatFactorWanted = 2 end
                                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
 
                                     --Land zone
                                     local tAdjLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][iAdjLZ]
                                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                    if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)..'; LZ fortify='..tostring(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false)..'; AdjLZ Fortify='..tostring(tAdjLZTeamData[M28Map.subrefLZFortify] or false)..'; bAlwaysInclAdjToStart='..tostring(bAlwaysInclAdjToStart)) end
+                                    if tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.5 or (M28Map.bIsCampaignMap and (tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or tAdjLZTeamData[M28Map.subrefLZFortify])) then
                                         iCurDistToBase = M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], tAdjLZData[M28Map.subrefMidpoint])
                                         if bAlwaysInclAdjToStart or tAdjLZTeamData[M28Map.refiModDistancePercent] <= 0.1 or iCurDistToBase <= 220 then
                                             --Check actual % dist to base

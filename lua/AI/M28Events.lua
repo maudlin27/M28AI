@@ -2863,8 +2863,8 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                         local iTeam = oFirstM28Brain.M28Team
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
-                        tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for unit '..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iTeam='..iTeam) end
                     end
                 end
@@ -2985,9 +2985,8 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                         local iTeam = oFirstM28Brain.M28Team
-
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
-                        tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
                         if bDebugMessages == true then
                             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
                             LOG(sFunctionRef..': flagged to fortify zone for repair target, ='..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Fortify zone flag='..tostring(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false))
@@ -3279,14 +3278,12 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                             if oBrain.BrainType == 'Human' then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is human brain aeon='..tostring(oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) end
                                 if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
-                                    local tMainframeLZData, tMainframeLZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oBrain.M28Team)
-                                    if tMainframeLZTeamData then
-                                        tMainframeLZTeamData[M28Map.subrefLZFortify] = true
-                                        if bDebugMessages == true then
-                                            local iCapturePlateau, iCaptureZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
-                                            LOG(sFunctionRef..': Have flagged zone to be fortified, iCapturePlateau='..iCapturePlateau..'; iCaptureZone='..iCaptureZone)
-                                        end
+                                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                                    M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, oBrain.M28Team)
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef..': Have flagged zone to be fortified, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iCaptureZone='..(iCaptureZone or 'nil'))
                                     end
+
                                 end
                                 break
                             end
@@ -3294,10 +3291,10 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                         --Aeon M6 - fortify the black sun control centre
                     elseif toCapturedUnits[1].UnitId == 'uec1902' and oCapturingBrain.M28AI and not(oCapturingBrain.HostileCampaignAI) and oCapturingBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
                         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oCapturingBrain.M28Team)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Core base override being set for the black sun control centre') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Fortify zone being set for the black sun control centre') end
                         if tLZOrWZTeamData then
-                            tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride] = true
-                            tLZOrWZTeamData[M28Map.subrefLZFortify] = true
+                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                            M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, oCapturingBrain.M28Team)
                         end
                     end
 
