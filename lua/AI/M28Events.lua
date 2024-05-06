@@ -966,6 +966,7 @@ function OnBombFired(oWeapon, projectile)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId then
+            oUnit[M28UnitInfo.refiLastBombFired] = GetGameTimeSeconds()
             local sUnitID = oUnit.UnitId
 
             if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())..'; Bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; Time since last bomber event='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0))) end
@@ -981,7 +982,42 @@ function OnBombFired(oWeapon, projectile)
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+                            if bDebugMessages == true then LOG(sFunctionRef..': will get ahwassa to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))) end
+
+                            --Decide whether to retreat to air rally point or nearest base; most of the time go to rally, but switch to base if angel to rally is significantly different and has a high mod dist, in case we risk passing by enemy AA on the way
+                            local aiBrain = oUnit:GetAIBrain()
+                            local tNearestFriendlyBase
+                            local bCloseToDangerousFriendlyBase = false
+                            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                            if tLZOrWZTeamData then
+                                tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                                if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
+                            end
+                            if not(tNearestFriendlyBase) then tNearestFriendlyBase = M28Map.GetPlayerStartPosition(aiBrain) end
+                            
+                            local tAirRallyPoint = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                            local tRallyLZOrWZData, tRallyLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                            local tRetreatLocation
+                            if not(bCloseToDangerousFriendlyBase) and tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
+                                local iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tNearestFriendlyBase)
+                                local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAirRallyPoint)
+                                if M28Utilities.GetAngleDifference(iAngleToBase, iAngleToRally) >= 35 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) >= 60 then
+                                    if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
+                                        tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                    else
+                                        local iRallyPlateauOrZero, iRallyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tAirRallyPoint)
+                                        local iUnitPlateauOrZero, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                        if iRallyPlateauOrZero and iUnitPlateauOrZero and iRallyZone and iUnitZone then
+                                            M28Air.CalculateAirTravelPath(iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone)
+                                            if M28Air.DoesEnemyHaveAAThreatAlongPath(aiBrain.M28Team, iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone, false, 1000, 1000, false, aiBrain.M28AirSubteam, true, false, oUnit:GetPosition(), false) then
+                                                tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
+                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
                         end
 
                         --Have friendly gunships dodge
@@ -1015,7 +1051,7 @@ function OnWeaponFired(oWeapon)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; Time='..GetGameTimeSeconds()) end
         local oUnit = oWeapon.unit
-        if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
+        if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain and M28UnitInfo.IsUnitValid(oUnit) then
 
             local oParentBrain = oUnit:GetAIBrain()
             --M28 torp bomber micro (done here as want to make sure we pick up the last weapon event)
@@ -1609,19 +1645,19 @@ function OnConstructed(oEngineer, oJustBuilt)
     if M28Utilities.bM28AIInGame then
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
         --LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
-        if not(M28Map.bMapLandSetupComplete) then
+        if not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) then
             local iWaitCount = 0
             local bDontCallAgain = false
-            while not(M28Map.bMapLandSetupComplete) do
+            while not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) do
                 WaitTicks(1)
                 iWaitCount = iWaitCount + 1
                 if iWaitCount >= 300 then
-                    M28Utilities.ErrorHandler('Waited more than 5m for map setup to complete, something has gone wrong')
+                    M28Utilities.ErrorHandler('Waited more than 5m for map setup or team setup to complete, something has gone wrong, M28Map.bFirstM28TeamHasBeenInitialised='..tostring(M28Map.bFirstM28TeamHasBeenInitialised or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
                     bDontCallAgain = true
                     break
                 end
             end
-            if not(bDontCallAgain) and M28UnitInfo.IsUnitalid(oJustBuilt) then
+            if not(bDontCallAgain) and M28UnitInfo.IsUnitValid(oJustBuilt) then
                 OnConstructed(oEngineer, oJustBuilt)
             end
         else
@@ -2863,8 +2899,8 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                         local iTeam = oFirstM28Brain.M28Team
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
-                        tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for unit '..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iTeam='..iTeam) end
                     end
                 end
@@ -2985,9 +3021,8 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                         local iTeam = oFirstM28Brain.M28Team
-
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
-                        tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
                         if bDebugMessages == true then
                             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
                             LOG(sFunctionRef..': flagged to fortify zone for repair target, ='..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Fortify zone flag='..tostring(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false))
@@ -3016,6 +3051,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         end
                     end
                 end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Target.Units is empty; Target.UnitId='..(Target.UnitId or 'nil'))
             end
 
             --Record units as objective targets generally (used to trigger onkilled callback from upgrades)
@@ -3279,14 +3315,12 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                             if oBrain.BrainType == 'Human' then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is human brain aeon='..tostring(oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) end
                                 if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
-                                    local tMainframeLZData, tMainframeLZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oBrain.M28Team)
-                                    if tMainframeLZTeamData then
-                                        tMainframeLZTeamData[M28Map.subrefLZFortify] = true
-                                        if bDebugMessages == true then
-                                            local iCapturePlateau, iCaptureZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
-                                            LOG(sFunctionRef..': Have flagged zone to be fortified, iCapturePlateau='..iCapturePlateau..'; iCaptureZone='..iCaptureZone)
-                                        end
+                                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                                    M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, oBrain.M28Team)
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef..': Have flagged zone to be fortified, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iCaptureZone='..(iCaptureZone or 'nil'))
                                     end
+
                                 end
                                 break
                             end
@@ -3294,10 +3328,10 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                         --Aeon M6 - fortify the black sun control centre
                     elseif toCapturedUnits[1].UnitId == 'uec1902' and oCapturingBrain.M28AI and not(oCapturingBrain.HostileCampaignAI) and oCapturingBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
                         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oCapturingBrain.M28Team)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Core base override being set for the black sun control centre') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Fortify zone being set for the black sun control centre') end
                         if tLZOrWZTeamData then
-                            tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride] = true
-                            tLZOrWZTeamData[M28Map.subrefLZFortify] = true
+                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                            M28Map.MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, oCapturingBrain.M28Team)
                         end
                     end
 
