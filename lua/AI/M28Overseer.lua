@@ -1938,7 +1938,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
             --Operation trident - dont reclaim the civilians
         elseif ScenarioInfo.M1CivilianCity and M28Utilities.IsTableEmpty(ScenarioInfo.M1CivilianCity) == false then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Will flag every unit in civilian city to not be a reclaim target, Time='..GetGameTimeSeconds()) end
             for iUnit, oUnit in ScenarioInfo.M1CivilianCity do
                 oUnit[M28UnitInfo.refbIsReclaimTarget] = false

@@ -4000,10 +4000,8 @@ function ManageBombers(iTeam, iAirSubteam)
                     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                         for iUnit, oUnit in tAvailableBombers do
                             if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 and (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 200))) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have injured bomber so will send it for refueling as it is idle otherwise, Bomber oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 table.insert(tBombersForRefueling, oUnit)
-                                bDebugMessages = false
                             else
                                 M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
                             end

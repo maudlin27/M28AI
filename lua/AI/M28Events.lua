@@ -3269,7 +3269,6 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     end
                 end
                 --Aeon M4 - flag the zone to be fortified (redundancy)
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Aeon M4 check, ScenarioInfo.PlayerCapturedMainframe='..tostring(ScenarioInfo.PlayerCapturedMainframe or false)..'; toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil'))
                     LOG(sFunctionRef..': Aeon M6 check - treat as core zone if captured control centre, toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil')..'; oCapturingBrain.Nickname='..(oCapturingBrain.Nickname or 'nil'))
                 end
