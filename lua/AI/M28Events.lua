@@ -3245,12 +3245,18 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
 
                 --Is the unit owned by an enemy to the first M28AI in the game?
                 local oM28Brain
+                local oCapturingBrain
                 for iBrain, oBrain in ArmyBrains do
-                    if oBrain.M28AI then
-                        oM28Brain = oBrain
-                        break
+                    if not(oM28Brain) then
+                        if oBrain.M28AI then
+                            oM28Brain = oBrain
+
+                        end
                     end
+                    if oBrain:GetArmyIndex() == iArmyIndex then oCapturingBrain = oBrain end
                 end
+
+
                 local bCheckForBlackSun = M28Map.bIsCampaignMap
                 for iUnit, oUnit in toCapturedUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForBlackSun='..tostring(bCheckForBlackSun)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Unit brain='..oUnit:GetAIBrain().Nickname) end
@@ -3263,25 +3269,38 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     end
                 end
                 --Aeon M4 - flag the zone to be fortified (redundancy)
-                if bDebugMessages == true then LOG(sFunctionRef..': Aeon M4 check, ScenarioInfo.PlayerCapturedMainframe='..tostring(ScenarioInfo.PlayerCapturedMainframe or false)..'; toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil')) end
-                if M28Map.bIsCampaignMap and ScenarioInfo.PlayerCapturedMainframe and (toCapturedUnits[1].UnitId == 'urc1901' or toCapturedUnits[1].UnitId == 'urc1902') then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have captured the mainframe, will cycle through brains to find a human brain to check if it is aeon, and hence if this is likely to be Aeon M4') end
-                    for iBrain, oBrain in ArmyBrains do
-                        if oBrain.BrainType == 'Human' then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is human brain aeon='..tostring(oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) end
-                            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
-                                local tMainframeLZData, tMainframeLZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oBrain.M28Team)
-                                if tMainframeLZTeamData then
-                                    tMainframeLZTeamData[M28Map.subrefLZFortify] = true
-                                    if bDebugMessages == true then
-                                        local iCapturePlateau, iCaptureZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
-                                        LOG(sFunctionRef..': Have flagged zone to be fortified, iCapturePlateau='..iCapturePlateau..'; iCaptureZone='..iCaptureZone)
+                if bDebugMessages == true then LOG(sFunctionRef..': Aeon M4 check, ScenarioInfo.PlayerCapturedMainframe='..tostring(ScenarioInfo.PlayerCapturedMainframe or false)..'; toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil'))
+                    LOG(sFunctionRef..': Aeon M6 check - treat as core zone if captured control centre, toCapturedUnits[1].UnitId='..(toCapturedUnits[1].UnitId or 'nil')..'; oCapturingBrain.Nickname='..(oCapturingBrain.Nickname or 'nil'))
+                end
+                if M28Map.bIsCampaignMap then
+                    if ScenarioInfo.PlayerCapturedMainframe and (toCapturedUnits[1].UnitId == 'urc1901' or toCapturedUnits[1].UnitId == 'urc1902') then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have captured the mainframe, will cycle through brains to find a human brain to check if it is aeon, and hence if this is likely to be Aeon M4') end
+                        for iBrain, oBrain in ArmyBrains do
+                            if oBrain.BrainType == 'Human' then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is human brain aeon='..tostring(oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) end
+                                if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                                    local tMainframeLZData, tMainframeLZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oBrain.M28Team)
+                                    if tMainframeLZTeamData then
+                                        tMainframeLZTeamData[M28Map.subrefLZFortify] = true
+                                        if bDebugMessages == true then
+                                            local iCapturePlateau, iCaptureZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(toCapturedUnits[1]:GetPosition())
+                                            LOG(sFunctionRef..': Have flagged zone to be fortified, iCapturePlateau='..iCapturePlateau..'; iCaptureZone='..iCaptureZone)
+                                        end
                                     end
                                 end
+                                break
                             end
-                            break
+                        end
+                        --Aeon M6 - fortify the black sun control centre
+                    elseif toCapturedUnits[1].UnitId == 'uec1902' and oCapturingBrain.M28AI and not(oCapturingBrain.HostileCampaignAI) and oCapturingBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(toCapturedUnits[1]:GetPosition(), true, oCapturingBrain.M28Team)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Core base override being set for the black sun control centre') end
+                        if tLZOrWZTeamData then
+                            tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                            tLZOrWZTeamData[M28Map.subrefLZFortify] = true
                         end
                     end
+
                 end
             elseif not(bCaptured) then
                 if M28Utilities.IsTableEmpty(toCapturedUnits) == false then

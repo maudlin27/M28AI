@@ -1936,6 +1936,27 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --Operation trident - dont reclaim the civilians
+        elseif ScenarioInfo.M1CivilianCity and M28Utilities.IsTableEmpty(ScenarioInfo.M1CivilianCity) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will flag every unit in civilian city to not be a reclaim target, Time='..GetGameTimeSeconds()) end
+            for iUnit, oUnit in ScenarioInfo.M1CivilianCity do
+                oUnit[M28UnitInfo.refbIsReclaimTarget] = false
+                if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget]) == false then
+                    for iEntry, iTeam in oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] do
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                            for iRecorded, oRecorded in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                                if oRecorded == oUnit then
+                                    table.remove(tLZTeamData[M28Map.subreftoUnitsToReclaim], iRecorded)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] = nil
+                    if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from table of units wanting reclaiming in this zone for all teams') end
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
