@@ -439,7 +439,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 22*60 and oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'xsb03011' then bDebugMessages = true end
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -656,7 +656,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 22*60 and oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'xsb03011' then bDebugMessages = true end
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -1591,6 +1591,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
+        --MAA if we are building a land experimental, lack air control, and enemy has a large air to ground threat
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if not(bDontConsiderBuildingMAA) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, 0, M28UnitInfo.refCategoryLandExperimental, false, nil) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA as we are building a ground exp, enemy has signif air to ground threat, and we lack air control') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
+        end
+
 
         --Initial T2+ tanks if have at least 5 engis of our current tech level and dont have many tanks, and can path to enemy by land (core base only)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -1599,9 +1606,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
             local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; iCurIsland=' .. (iCurIsland or 'nil') .. '; iEnemyIsland=' .. (iEnemyIsland or 'nil') .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Cur engineers of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) .. '; Cur DF units of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
+                LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; iCurIsland=' .. (iCurIsland or 'nil') .. '; iEnemyIsland=' .. (iEnemyIsland or 'nil') .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Cur engineers of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) .. '; Cur DF units of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))..'; Team has air control='..tostring(M28Conditions.TeamHasAirControl(iTeam)))
             end
-            if iCurIsland == iEnemyIsland and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
+            if iCurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 8000 or M28Conditions.TeamHasAirControl(iTeam)) and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                 if bCanPathToEnemyWithLand then
                     if iFactoryTechLevel == 2 and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                         return sBPIDToBuild
