@@ -68,12 +68,13 @@ end
 function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
     --returns nil if cant find any blueprints that can build
     --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
+    --NOTE: bGetSlowest is forced to be true for t1 land factories
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
+    --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option)
+    if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
     local tAllBlueprints = __blueprints
     local tValidBlueprints = {}
@@ -296,8 +297,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 sBPIDToBuild = 'xal0203'
             end
         elseif sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106' then --light assault bots - disable after the first couple
+            --Redundancy for cases where LABs get built far more than wanted (most of the time they get avoided by choosing the slowest T1 land unit)
             local iLABLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAttackBot)
-            if iLABLifetimeCount >= 2 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (iLABLifetimeCount >= 1 and M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryAttackBot) >= 3) then
+            if iLABLifetimeCount >= 10 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (iLABLifetimeCount >= 5 and M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryAttackBot) >= 16) then
                 aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
                 aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
                 aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
@@ -986,8 +988,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --core expansion and enemies nearby - build tank
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
-        if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks') end
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
+        if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks, will prioritise bots if our factory LC is low for them, attack bot lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAttackBot, false)..'; DF tank lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false)) end
+        if M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAttackBot, false) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryAttackBot) then return sBPIDToBuild
+        elseif M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false) < (1 + M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) * 2.5 and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild
+        elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild
+        end
     end
 
     --First engineer of cur tech level

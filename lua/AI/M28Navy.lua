@@ -1482,7 +1482,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                         table.insert(tAmphibiousUnits, oUnit)
                                     end
                                     if bIncludeUnit then
-                                    RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
+                                        RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
                                     end
                                 end
                                 --Is this a land unit traveling from 1 island to another island? In which case also want to consider
@@ -1634,7 +1634,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                     RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
                 end
             else
-                                            --ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
+                --ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
                 local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
                 if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                     for iUnit, oUnit in tRemainingLandUnits do
@@ -3668,8 +3668,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 (and have already applied logic)='..tostring(bAreInScenario1)) end
             if not(bAreInScenario1) then
-                if M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tCombatUnitsOfUse)) == false then
+                if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false then
                     --WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
                     local bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false                               ,iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat, iOurAntiNavyThreat)
 
