@@ -1234,7 +1234,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
             end
         end
-        else
+    else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
