@@ -1015,7 +1015,7 @@ function OnWeaponFired(oWeapon)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; Time='..GetGameTimeSeconds()) end
         local oUnit = oWeapon.unit
-        if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
+        if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain and M28UnitInfo.IsUnitValid(oUnit) then
 
             local oParentBrain = oUnit:GetAIBrain()
             --M28 torp bomber micro (done here as want to make sure we pick up the last weapon event)
@@ -1609,19 +1609,19 @@ function OnConstructed(oEngineer, oJustBuilt)
     if M28Utilities.bM28AIInGame then
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
         --LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
-        if not(M28Map.bMapLandSetupComplete) then
+        if not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) then
             local iWaitCount = 0
             local bDontCallAgain = false
-            while not(M28Map.bMapLandSetupComplete) do
+            while not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) do
                 WaitTicks(1)
                 iWaitCount = iWaitCount + 1
                 if iWaitCount >= 300 then
-                    M28Utilities.ErrorHandler('Waited more than 5m for map setup to complete, something has gone wrong')
+                    M28Utilities.ErrorHandler('Waited more than 5m for map setup or team setup to complete, something has gone wrong, M28Map.bFirstM28TeamHasBeenInitialised='..tostring(M28Map.bFirstM28TeamHasBeenInitialised or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
                     bDontCallAgain = true
                     break
                 end
             end
-            if not(bDontCallAgain) and M28UnitInfo.IsUnitalid(oJustBuilt) then
+            if not(bDontCallAgain) and M28UnitInfo.IsUnitValid(oJustBuilt) then
                 OnConstructed(oEngineer, oJustBuilt)
             end
         else
@@ -3016,6 +3016,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         end
                     end
                 end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Target.Units is empty; Target.UnitId='..(Target.UnitId or 'nil'))
             end
 
             --Record units as objective targets generally (used to trigger onkilled callback from upgrades)

@@ -29,7 +29,7 @@ refiBrackman = 11
 refiQAI = 12
 refiThelUuthow = 13
 refiOumEoshi = 14 --will also use SethIavow
-tiPersonalitiesByFaction = {[M28UnitInfo.refFactionUEF] = {refiFletcher, refiHall}, [M28UnitInfo.refFactionAeon] = {refiCelene, refiRhiza, refiVendetta, refiKael, refiGari}, [M28UnitInfo.refFactionCybran] = {refiDostya, refiHex5, refiBrackman, refiQAI}, [M28UnitInfo.refFactionSeraphim] = {refiThelUuthow, refiOumEoshi}}
+tiPersonalitiesByFaction = {} --Will be set by AssignAIPersonalityAndRating
 tsPersonalityNames = {[refiFletcher] = 'Fletcher', [refiHall] = 'Hall', [refiCelene] = 'Celene', [refiRhiza] = 'Rhiza', [refiVendetta] = 'Vendetta', [refiAmalia] = 'Amalisa', [refiKael] = 'Kael', [refiGari] = 'Gari', [refiDostya] = 'Dostya', [refiHex5]='Hex5', [refiBrackman] = 'Brackman', [refiQAI]='QAI', [refiThelUuthow]='ThelUuthow', [refiOumEoshi]='OumEoshi'}
 
 --Against specific unit
@@ -1019,6 +1019,9 @@ function AssignAIPersonalityAndRating(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain.M28AI then
+        if M28Utilities.IsTableEmpty(tiPersonalitiesByFaction) then
+            tiPersonalitiesByFaction = {[M28UnitInfo.refFactionUEF] = {refiFletcher, refiHall}, [M28UnitInfo.refFactionAeon] = {refiCelene, refiRhiza, refiVendetta, refiKael, refiGari}, [M28UnitInfo.refFactionCybran] = {refiDostya, refiHex5, refiBrackman, refiQAI}, [M28UnitInfo.refFactionSeraphim] = {refiThelUuthow, refiOumEoshi}}
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering assignemtn for brain nickanme='..aiBrain.Nickname..'; reprs='..reprs(aiBrain)) end
         if not(M28Map.bIsCampaignMap) then
             local tiPotentialPersonalities = {}
