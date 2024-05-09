@@ -19,7 +19,6 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
-local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving; also used by GE Template logic for when an engi is getting in range of building something via move order (due to rare issue wehre it is given move+buidl order and doesnt move or build)
 reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when last did the stuck check
@@ -3039,41 +3038,4 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
     if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
-end
-
-function AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'AdjacentToPacifistZone'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local tLZOrWZData
-    if iPlateauOrZero == 0 then
-        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-    else
-        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData))) end
-    if tLZOrWZData[M28Map.subrefbPacifistArea] then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
-    else
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
-        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
-            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                if tSubtable[M28Map.subrefiDistance] > 200 then break end
-                local tAltLZOrWZData
-                local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
-                if tSubtable[M28Map.subrefbIsWaterZone] then
-                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                else
-                    tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
-                end
-                if tAltLZOrWZData[M28Map.subrefbPacifistArea] then
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
-                end
-            end
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -3066,8 +3066,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -3444,7 +3442,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) then
             --Try and get an upgrade if dont have low mass
-            if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap and factory isnt highest tech level so will only build if dont have low mass, bHaveLowMass='..tostring(bHaveLowMass)) end
             if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
                 if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
                     if ConsiderUpgrading() then return sBPIDToBuild end
@@ -3535,31 +3532,24 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --Priority asf for campaign missions
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if bDebugMessages == true then LOG(sFunctionRef..': Priority asf for campaign maps, iFactoryTechLevel='..iFactoryTechLevel..'; iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]) end
-            if M28Map.bIsCampaignMap and iAirAACountOfSearchCategory <= 100 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
+            if M28Map.bIsCampaignMap and iFactoryTechLevel >= 3 and iAirAACountOfSearchCategory <= 100 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Campaign specific logic - will get base level of air threat hten get asfs as a high priority') end
-                --If we dont have T3 yet then upgrade factory
-                if iFactoryTechLevel <= 2 then
-                    if iFactoryTechLevel <= aiBrain[M28Economy.refiOurHighestAirFactoryTech] and (not(bHaveLowMass) or oFactory[refiTotalBuildCount] >= 15 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
-                        if ConsiderUpgrading() then return sBPIDToBuild end
-                    end
-                else
-                    --Base level of gunship and torp bomber threat before considering to get asf, assuming we have a base level of asf
-                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 1000 then
-                        if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
-                    end
-
-                    --Gunships
-                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] <= 600 then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                    end
-
-                    --Torp bomber if need them
-                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2500 then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
-                    end
-
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+                --Base level of gunship and torp bomber threat before considering to get asf, assuming we have a base level of asf
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 1000 then
+                    if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
                 end
+
+                --Gunships
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] <= 600 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                end
+
+                --Torp bomber if need them
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2500 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                end
+
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
             end
 
             --Priority AirAA if need to support ahwassa or exp gunship/czar
@@ -3598,11 +3588,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --General production - depends on if we have highest tech level, or if we dont have t3 air yet
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Deciding next decisions based on how high a tech level we are, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest air factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; refbNoAvailableTorpsForEnemies='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]))
+                LOG(sFunctionRef .. ': Deciding next decisions based on how high a tech level we are, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest air factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech])
             end
             if iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) and (iFactoryTechLevel == 1 or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
                 --We dont want to build units in most cases as T3 versions are available
-                if bDebugMessages == true then LOG(sFunctionRef..': Below highest tech level so will hold off building in most cases, bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Factory lifetime count all categories='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
                 if not(bHaveLowMass) or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 100 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 * iFactoryTechLevel * iFactoryTechLevel and M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25) then
                     --Consider upgrading if dont have active upgrade in this LZ
                     --Upgrade factory if this LZ is lagging behind tech wise
@@ -3834,30 +3823,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         --Not far behind on air so get more torps
                         if bDebugMessages == true then LOG(sFunctionRef..': Not far behind on air so will try and get more torp bombers') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
-                    end
-                end
-
-                iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Air fac upgrade if not highest tech level') end
-                if iFactoryTechLevel <= 2 and iFactoryTechLevel <= aiBrain[M28Economy.refiOurHighestAirFactoryTech] and (not(bHaveLowMass) or (oFactory[refiTotalBuildCount] >= 15 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
-                    --Consider upgrading if dont have active air fac upgrade in this LZ
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': is table of active upgrades for this LZ empty=' .. tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades])))
-                    end
-                    local iUpgradingAirFactoriesOfThisTechOrBetter = 0
-                    local iNonUpgradingAirFactories
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
-                        for iUnit, oUnit in tLZTeamData[M28Map.subreftoActiveUpgrades] do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) and M28UnitInfo.GetUnitTechLevel(oUnit) >= iFactoryTechLevel then
-                                    iUpgradingAirFactoriesOfThisTechOrBetter = iUpgradingAirFactoriesOfThisTechOrBetter + 1
-                            end
-                        end
-                    end
-                    if iUpgradingAirFactoriesOfThisTechOrBetter == 0 or (not(bHaveLowMass) and iUpgradingAirFactoriesOfThisTechOrBetter <= 4 and iUpgradingAirFactoriesOfThisTechOrBetter < M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirFactory) * 0.7 - 1) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider upgrading if we have T2+ mexes or enough mass income and arent in t1 spam mode') end
-                        if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or oFactory[refiTotalBuildCount] >= 25) then
-                            if ConsiderUpgrading() then return sBPIDToBuild end
-                        end
                     end
                 end
 
