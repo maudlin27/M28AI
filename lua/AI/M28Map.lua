@@ -8673,7 +8673,7 @@ function RecordBackupGameEnderLocation()
 end
 
 function MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MarkZoneForFortification'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
