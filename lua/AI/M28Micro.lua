@@ -1297,7 +1297,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
                         iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
                         tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
                         M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM', true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurANgleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
                     elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
                     end
 
@@ -1393,10 +1393,13 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
             iCurAngleDif = math.abs(iCurAngleDif)
             if iCurAngleDif <= (iMaxAcceptableAngleDif or 15) or iDistToTarget <= iPotentialAbortDistance then
                 --Are close enough in angle so can stop the micro
-                if iDistToTarget <= iPotentialAbortDistance and (iPotentialAbortDistance <= 30 or iCurANgleDif > iMaxAcceptableAngleDif) then
+                if iDistToTarget <= iPotentialAbortDistance then
                     local tPotentialTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iFacingDirection, iBombStraightLineDistance, true, false, true)
                     if tPotentialTarget and M28Utilities.GetDistanceBetweenPositions(tPotentialTarget, oTarget:GetPosition()) <= iAOE - 1 then
                         tGroundTarget = {tPotentialTarget[1], tPotentialTarget[2], tPotentialTarget[3]}
+                    elseif iCurAngleDif <= (iMaxAcceptableAngleDif or 15) * 0.6 then
+                        --We are fairly close and aiming in the right direction so just attack rather than trying aoe attack to reduce the risk we just stay hovering in the air never attacking
+                        tGroundTarget = oTarget:GetPosition()
                     end
                 else
                     tGroundTarget = oTarget:GetPosition()
@@ -1406,12 +1409,14 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
                 --If we cant fire yet then clear the ground target and keep microing
                 tGroundTarget = nil
             end
-            if not(tGroundTarget) then
+            if tGroundTarget then
+                break
+            else
                 if iCurTick == 1 then
                     iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
                     tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
                     M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM', true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurANgleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
                 elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
                 end
 
