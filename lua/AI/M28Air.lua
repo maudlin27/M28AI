@@ -7977,7 +7977,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageExperimentalBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 30*60 then bDebugMessages = true end
 
     local tAvailableBombers, tBombersForRetreating, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
