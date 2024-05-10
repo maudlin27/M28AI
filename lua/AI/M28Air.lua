@@ -7977,7 +7977,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageExperimentalBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 30*60 then bDebugMessages = true end
 
     local tAvailableBombers, tBombersForRetreating, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
@@ -8344,46 +8344,65 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         end
 
                         local bUseAOEForTargetIfNotTooClose = false
-                        if M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
-                            bUseAOEForTargetIfNotTooClose = true
-                            --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
-                        elseif iTotalExpBombers == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
-                            local iTargetPlateau, iTargetZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestEnemyTarget:GetPosition())
-                            if (iTargetPlateau or 0) > 0 and iTargetZone then
-                                local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
-                                local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
-                                if bDebugMessages == true then LOG(sFunctionRef..': Only have 1 exp bomber, target is unshielded, but will consider if ground AA threat so great we want to do aoe attack on the AOE, (tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)) end
-                                if (tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) >= 8000 then --Equiv of 5 SAMs
-                                    bUseAOEForTargetIfNotTooClose = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will use aoe to attack target due to significant enemy ground threat') end
+                        local bGivenOrderAlready = false
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
+                        local iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())
+                        local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                        local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
+                        local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..oBomber[refiTimeBetweenBombs]) end
+
+                        --If bomber is facing the wrong direction and isnt that far from the target, and is ready to fire, then consider using micro to turn around and fire at it
+                        if GetGameTimeSeconds() >= 30 * 60 and iDistToTarget <= 80 and iAngleDifToTarget > 30 and iTimeUntilReadyToFire <= 0 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
+                            --Want to turn to face the target and shoot it
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will use micro to turn where we are to fire a bomb at oBestEnemyTarget='..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
+                            ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBestEnemyTarget)
+                            bGivenOrderAlready = true
+                        else
+                            if M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
+                                bUseAOEForTargetIfNotTooClose = true
+                                --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
+                            elseif iTotalExpBombers == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
+                                local iTargetPlateau, iTargetZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestEnemyTarget:GetPosition())
+                                if (iTargetPlateau or 0) > 0 and iTargetZone then
+                                    local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
+                                    local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Only have 1 exp bomber, target is unshielded, but will consider if ground AA threat so great we want to do aoe attack on the AOE, (tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)) end
+                                    if (tTargetLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) >= 8000 then --Equiv of 5 SAMs
+                                        bUseAOEForTargetIfNotTooClose = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will use aoe to attack target due to significant enemy ground threat') end
+                                    end
                                 end
                             end
-                        end
-                        if bUseAOEForTargetIfNotTooClose then
-                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
-                            if iDistToTarget >= 40 then
-                                --Just try to target the unit with our aoe, provided there aren't friendly units near it
-                                local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
-                                if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
-                                    M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
-                                    bUseAOEForTargetIfNotTooClose = true
+                            if bUseAOEForTargetIfNotTooClose then
+                                if iDistToTarget >= 40 then
+                                    --Just try to target the unit with our aoe, provided there aren't friendly units near it
+                                    local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
+                                    if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
+                                        M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
+                                        bGivenOrderAlready = true
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)) end
+                                else
+                                    bUseAOEForTargetIfNotTooClose = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Target is too close to bomber so wont use aoe attack') end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)) end
-                            else
-                                bUseAOEForTargetIfNotTooClose = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': Target is too close to bomber so wont use aoe attack') end
                             end
                         end
 
-                        if not(bUseAOEForTargetIfNotTooClose) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will ground fire the location that deals the most damage') end
+                        if not(bGivenOrderAlready) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will ground fire the location that deals the most damage if targeting a structure, is the target a structure='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId))) end
                             --Structures - get best aoe target
                             if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
                                 local tTarget = M28Logic.GetBestAOETarget(oBomber:GetAIBrain(), oBestEnemyTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileUnitInnerDamageFactor, iOptionalShieldReductionFactor)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Best AOE target='..repru(tTarget)..'; Angle to this='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTarget)..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tTarget)) end
                                 M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
                             elseif M28UnitInfo.IsUnitUnderwater(oBestEnemyTarget) then
                                 M28Orders.IssueTrackedGroundAttack(oBomber, oBestEnemyTarget:GetPosition(), iAOE * 0.5, false, 'ExpAG', false)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Attacking underwater target so will ground fire it') end
                             else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will attack the unit itself') end
                                 M28Orders.IssueTrackedAttack(oBomber, oBestEnemyTarget, false, 'ExpAU', false)
                             end
                         end

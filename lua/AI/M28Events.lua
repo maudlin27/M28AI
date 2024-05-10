@@ -966,6 +966,7 @@ function OnBombFired(oWeapon, projectile)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId then
+            oUnit[M28UnitInfo.refiLastBombFired] = GetGameTimeSeconds()
             local sUnitID = oUnit.UnitId
 
             if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())..'; Bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; Time since last bomber event='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0))) end
@@ -981,6 +982,8 @@ function OnBombFired(oWeapon, projectile)
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': will get ahwassa to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))) end
                             ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
                         end
 
