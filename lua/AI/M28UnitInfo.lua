@@ -35,6 +35,7 @@ refClampStinger = 5
 
 --Variables against units;
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
+refiLastBombFired = 'M28LastBmb' --Gametimeseconds that last fired a bomb
 refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the onbombfired logic
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
@@ -105,6 +106,7 @@ refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 refiTimeBetweenDFShots = 'M28DFTime'
 refiTimeBetweenIFShots = 'M28IFTime'
+refiTimeBetweenBombs = 'M28BmTime' --Time in seconds based on the bomb weapon's rate of fire
 reftoEnemyProjectiles = 'M28UntProj' --table of projectiles targeting the unit
 refbProjectilesMeanShouldRefuel = 'M28UnPrjRf' --true if we wanted the unit to refuel due to expected projectile damage
 refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
@@ -1381,6 +1383,7 @@ function RecordUnitRange(oUnit)
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' or oCurWeapon.WeaponCategory == 'Kamikaze' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         if oCurWeapon.MinRadius then
@@ -2317,4 +2320,20 @@ function GetUnitMassCost(oUnit)
         end
     end
     return (oUnit[refiUnitMassCost] or 0)
+end
+
+function GetTimeUntilReadyToFireBomb(oUnit)
+    --Returns the time since we are ready to fire, or a negative number if we have been ready to fire for a while
+
+    --Assumes unit fires once every 10s if we dont have a delay recorded
+    local iTimeBetweenShots =  oUnit[refiTimeBetweenBombs]
+    if not(iTimeBetweenShots) then M28Utilities.ErrorHandler('Dont have refiTimeBetweenBombs recorded for unit with ID '..oUnit.UnitId..' so will assume a time', true)
+        if EntityCategoryContains(categories.EXPERIMENTAL * categories.AIR, oUnit.UnitId) then iTimeBetweenShots = 20 else iTimeBetweenShots = 10 end
+    end
+    if not(oUnit[refiLastBombFired]) then
+        return -(GetGameTimeSeconds() - (oUnit[refiTimeCreated] or 0))
+    else
+        local iTimeSinceFired = GetGameTimeSeconds() - oUnit[refiLastBombFired]
+        return iTimeBetweenShots - iTimeSinceFired
+    end
 end

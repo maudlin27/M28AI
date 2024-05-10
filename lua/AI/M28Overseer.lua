@@ -1783,7 +1783,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will wait a while and then look to include enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
-            ForkThread(DelayedRecordingOfCzar, ScenarioInfo.Czar)
+            local tUnits = {}
+            --Work whether Czar is a table or a isngle unit
+            if M28UnitInfo.IsUnitValid(ScenarioInfo.Czar) and ScenarioInfo.Czar.UnitId then table.insert(tUnits, ScenarioInfo.Czar)
+            else tUnits = ScenarioInfo.Czar
+            end
+            ForkThread(DelayedRecordingOfCzar, tUnits)
             --Cybran M6 - fire black sun if it is owned by M28 and we are on the objective to fire it
         elseif ScenarioInfo.M7_FauxUEFCommanderUnit then
             ForkThread(M1AeonEndMissionBackupMonitor)

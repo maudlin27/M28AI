@@ -8346,6 +8346,7 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                             M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = {}
                                         end
                                         M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero][iStartLandZone] = nil
+                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = nil end
                                     end
                                 end
                             end
@@ -8668,5 +8669,31 @@ function RecordBackupGameEnderLocation()
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MarkZoneForFortification'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Will mark P'..iPlateauOrZero..'Z'..iLandOrWaterZone..' for fortification for team '..iTeam..' at time='..GetGameTimeSeconds()) end
+    if not(iPlateauOrZero) or not(iLandOrWaterZone) then M28Utilities.ErrorHandler('Trying to mark a zone for fortification but it has a nil plateau or LZ, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
+    local tLZOrWZData
+    local tLZOrWZTeamData
+    if iPlateauOrZero > 0 then
+        tLZOrWZData  = tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[subrefLZTeamData][iTeam]
+    else
+        --Water zone
+        tLZOrWZData = tPondDetails[tiPondByWaterZone[iPlateauOrZero]][subrefPondWaterZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[subrefWZTeamData][iTeam]
+    end
+    tLZOrWZTeamData[subrefLZFortify] = true
+    if not(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau][iPlateauOrZero]) then
+        if not(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau] = {} end
+        M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau][iPlateauOrZero] = {}
+    end
+    M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau][iPlateauOrZero][iLandOrWaterZone] = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
