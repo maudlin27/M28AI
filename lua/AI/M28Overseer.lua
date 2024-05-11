@@ -790,7 +790,7 @@ end
 
 function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
@@ -814,6 +814,11 @@ function CheckUnitCap(aiBrain)
             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
             local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))
             if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
+            local bReconsiderShortly = false
+            if iMaxToDestroy > 10 then
+                iMaxToDestroy = 10
+                bReconsiderShortly = true
+            end
             local tUnitsToDestroy
             local tiCategoryToDestroy = {
                 [-1] = M28UnitInfo.refCategoryMobileLand + categories.NAVAL * categories.MOBILE - categories.EXPERIMENTAL - categories.COMMAND - categories.SUBCOMMANDER,
@@ -947,6 +952,10 @@ function CheckUnitCap(aiBrain)
             end
             aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
             if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+            if iCurUnitsDestroyed >= iMaxToDestroy and bReconsiderShortly then
+                if bDebugMessages == true then LOG(sFunctionRef..': We wanted to destroy more units, so will reassess in 10 seconds') end
+                ForkThread(DelayedUnitCapCheck, aiBrain, 10)
+            end
         else
             --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
             if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
@@ -968,10 +977,10 @@ function CheckUnitCap(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayedUnitCapCheck(aiBrain)
+function DelayedUnitCapCheck(aiBrain, iOptionalSecondsToWait)
     if not(aiBrain[refbWillDoDelayedUnitCapCheck]) then
         aiBrain[refbWillDoDelayedUnitCapCheck] = true
-        WaitSeconds(30)
+        WaitSeconds(iOptionalSecondsToWait or 30)
         aiBrain[refbWillDoDelayedUnitCapCheck] = false
         CheckUnitCap(aiBrain)
     end
