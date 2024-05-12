@@ -4233,30 +4233,38 @@ function GetACUOrder(aiBrain, oACU)
                                 --If the rally point takes us further away from the closest friendly base, and is more than 50 from the closest friendly base, then head towards the base (exception if rally point is a core base or is a location with friendly PD and/or factories or significantly friendly combat)
                                 if bDebugMessages == true then LOG(sFunctionRef..': tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())..'; ACU angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
                                 if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 50 then
-                                    local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+                                    local iDistToBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will switch to running to base if base relatively close and rally point a dif angle, iDistToBase='..iDistToBase..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint), M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]))) end
+                                    if iDistToBase <= 250 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.6 and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint), M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) >= 35 then
+                                        if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.8 then bConsiderMexesAndReclaim = true end
+                                        tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                                    else
 
-                                    if not(tRallyLZTeamData[M28Map.subrefLZbCoreBase]) then
-                                        local iRallyThreat = (tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
-                                        if tRallyLZTeamData == tLZOrWZTeamData then iRallyThreat = iRallyThreat - M28UnitInfo.GetCombatThreatRating({oACU}, false, false, false, false, false, false, false, false) end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Rally point is more than 50 from closest friendly base, checking if threat is too low, iRallyThreat='..iRallyThreat..'; Is rally in a core expansion='..tostring(tRallyLZTeamData[M28Map.subrefLZCoreExpansion])) end
-                                        if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from rally to closest base='..M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint])..'; Dist from ACU to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())) end
-                                            if M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint]) > M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition()) then
-                                                bConsiderMexesAndReclaim = false
-                                                --Is our closest friendly base in the same plateau?
-                                                local iClosestBasePlateauOrZero, iClosestBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
-                                                if iClosestBasePlateauOrZero == iPlateauOrZero then
-                                                    tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Changed rally point to be the closest friendly base') end
+                                        local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+
+                                        if not(tRallyLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                            local iRallyThreat = (tRallyLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                                            if tRallyLZTeamData == tLZOrWZTeamData then iRallyThreat = iRallyThreat - M28UnitInfo.GetCombatThreatRating({oACU}, false, false, false, false, false, false, false, false) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Rally point is more than 50 from closest friendly base, checking if threat is too low, iRallyThreat='..iRallyThreat..'; Is rally in a core expansion='..tostring(tRallyLZTeamData[M28Map.subrefLZCoreExpansion])) end
+                                            if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Dist from rally to closest base='..M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint])..'; Dist from ACU to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())) end
+                                                if M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint]) > M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition()) then
+                                                    bConsiderMexesAndReclaim = false
+                                                    --Is our closest friendly base in the same plateau?
+                                                    local iClosestBasePlateauOrZero, iClosestBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                                                    if iClosestBasePlateauOrZero == iPlateauOrZero then
+                                                        tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Changed rally point to be the closest friendly base') end
+                                                    end
                                                 end
-                                            end
-                                        else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if rally LZ is same as ACU LZ, are they equal='..tostring(tRallyLZData == tLZOrWZData)) end
-                                            if tRallyLZData == tLZOrWZData then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iRallyThreat='..iRallyThreat) end
-                                                if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 and iRallyThreat < 100 then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to consider mexes and reclaim') end
-                                                    bConsiderMexesAndReclaim= true
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if rally LZ is same as ACU LZ, are they equal='..tostring(tRallyLZData == tLZOrWZData)) end
+                                                if tRallyLZData == tLZOrWZData then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iRallyThreat='..iRallyThreat) end
+                                                    if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 and iRallyThreat < 100 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to consider mexes and reclaim') end
+                                                        bConsiderMexesAndReclaim= true
+                                                    end
                                                 end
                                             end
                                         end
