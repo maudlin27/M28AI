@@ -4341,6 +4341,39 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     end
                 end
             end
+            if bAddAsSnipeTarget then
+                --Does the target have fixed shield coverage?
+                local bUnderFixedShield = false
+                local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)) end
+                if (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then
+                    local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                    local iMaxDistanceToShield = 10
+                    local iCurDist, iCurShield, iMaxShield
+                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
+                    if M28Utilities.IsTableEmpty(tFixedShields) == false then
+                        for iShield, oShield in tFixedShields do
+                            if M28UnitInfo.IsUnitValid(oShield) then
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
+                                if iCurShield >= 4000 then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
+                                    if iCurDist <= iMaxDistanceToShield then
+                                        bAddAsSnipeTarget = false
+                                    else
+                                        local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
+                                        if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                                            bAddAsSnipeTarget = false
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                end
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near end of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; Time='..GetGameTimeSeconds()) end
