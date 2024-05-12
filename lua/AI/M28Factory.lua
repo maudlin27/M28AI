@@ -4916,9 +4916,21 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
         --Build engineer if we have lots of reclaim in this zone and dont have a large enemy threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Engineer for reclaim builder - mass in LZ='..tLZData[M28Map.subrefTotalMassReclaim]..'; Enemy mobile DF='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
-        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an engineer') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+
+        --Build MAA if fatboy lacks sufficient escort
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 then
+            local iExistingMAA = 0
+            if M28Utilities.IsTableEmpty(oFactory[M28Land.reftoAssignedMAAGuards]) == false then
+                iExistingMAA = table.getn(oFactory[M28Land.reftoAssignedMAAGuards])
+            end
+            if iExistingMAA < M28Land.iFatboySafeMAACount and (iExistingMAA < M28Land.iFatboyBaseMAACount or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 and not(M28Conditions.TeamHasAirControl(iTeam)))) then
+                if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+            end
         end
 
         --Build df units or t1 arti if have nearby DF enemies in this zone or nearby
@@ -4944,6 +4956,15 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
         if tLZTeamData[M28Map.subrefLZThreatAllyMAA] <= 1500 and (tLZTeamData[M28Map.subrefLZThreatAllyMAA] <= 400 or tLZTeamData[M28Map.subrefLZMAAThreatWanted] > tLZTeamData[M28Map.subrefLZThreatAllyMAA] and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 5000) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have too little MAA in zone will try and get more') end
             if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+        end
+
+
+        --Build engineer if some mass in the zone
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Engineer for reclaim builder - mass in LZ='..tLZData[M28Map.subrefTotalMassReclaim]..'; Enemy mobile DF='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an engineer') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
         --If enemy threat in-range then build percies (the above builder covers t1 arti when enemy is really close)
