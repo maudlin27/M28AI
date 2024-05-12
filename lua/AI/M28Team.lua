@@ -4345,7 +4345,6 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 --Does the target have fixed shield coverage?
                 local bUnderFixedShield = false
                 local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)) end
                 if (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then
                     local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
