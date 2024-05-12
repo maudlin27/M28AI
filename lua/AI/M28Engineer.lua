@@ -6281,7 +6281,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
         local bUseArtiInsteadOfLastShieldLocation = false
         local tbShieldEntriesNotToConsider = {}
 
-        if __blueprints[sShieldToBuild].Defense.ShieldSize <= 37 and table.getn(tTableRef[M28Map.subrefGEArtiLocations]) >= 2 and not(oFirstUEF) and not(oFirstSeraphim) then
+        if __blueprints[sShieldToBuild].Defense.Shield.ShieldSize <= 37 and table.getn(tTableRef[M28Map.subrefGEArtiLocations]) >= 2 and not(oFirstUEF) and not(oFirstSeraphim) then
             --Only want to build aeon/cybran shields in the 'middle' locations (where they cover both game-enders and all other shields), outer shields will need to be UEF/Seraphim
             tbShieldEntriesNotToConsider = {[1]=true,[2]=true,[5]=true,[6]=true,[8]=true}
             --Flag we want UEF and sera engineers
