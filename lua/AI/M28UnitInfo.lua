@@ -1143,6 +1143,16 @@ function GetUnitHealthPercent(oUnit)
     return oUnit:GetHealth() / oUnit:GetMaxHealth()
 end
 
+function GetUnitHealthAndShieldPercent(oUnit)
+    local iCurHealth = oUnit:GetHealth()
+    local iMaxHealth = oUnit:GetMaxHealth()
+    if oUnit.MyShield and oUnit:GetFractionComplete() then
+        iCurHealth = iCurHealth + oUnit.MyShield:GetHealth()
+        iMaxHealth = iMaxHealth + oUnit.MyShield:GetMaxHealth()
+    end
+    return iCurHealth / iMaxHealth
+end
+
 function GetUnitMaxHealthIncludingShield(oUnit)
     --Returns unit max health; includes shield max health if unit is constructed
     local iMaxShield = 0

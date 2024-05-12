@@ -3124,7 +3124,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             local iAirAAAvoidThreshold
             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
                 bAvoidLargeEnemyAirAA = true
-                iAirAAAvoidThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.8
+                iAirAAAvoidThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5
             else
                 iAirAAAvoidThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]
             end
@@ -3140,8 +3140,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             function GetAASearchTypeForPriorityUnit(oUnit, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
                 --Only consider avoiding AA if no enemy air to ground threat in this zone or adjacent zone
                 local bAvoidGroundAA
-                if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bAvoidGroundAA = false
-                else bAvoidGroundAA = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]
+                if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then bAvoidGroundAA = false
+                elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                    bAvoidGroundAA = true
+                elseif (tUnitLZOrWZTeamData[M28Map.refiModDistancePercent] or 0) >= 0.7 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
+                    if not(tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] >= 3000 and EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
+                        bAvoidGroundAA = true
+                    end
                 end
 
                 local bAvoidAAThreat = false
@@ -3213,7 +3218,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 iCurUnitAASearchType = GetAASearchTypeForPriorityUnit(oUnit, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
 
                                 AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, false, iCurUnitAASearchType, iGroundAAAdjacentThreshold, iAirAAAvoidThreshold)
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land zone near priority unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to protect, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; iCurUnitAASearchType='..iCurUnitAASearchType) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just finished considering adding enemy air in land zone near priority unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to protect, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; iCurUnitAASearchType='..iCurUnitAASearchType..'; AirAA threat of enemy units='..M28UnitInfo.GetAirThreatLevel(tEnemyAirTargets, true, true, false, false, false, false)) end
 
                                 --Also include adjacent zones subject to air threat
                                 --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
@@ -5213,22 +5218,36 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
                 if oNearestExperimental and iClosestDist <= 190 then
-                    local bCheckForAirAA = true
-                    local iThreatFactor = 3.5
-                    if iClosestDist <= 130 then
-                        bCheckForAirAA = false
-                        iThreatFactor = 2
-                    end
-                    local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNearestExperimental:GetPosition())
-                    if (iTargetZone or 0) > 0 then
-                        local iGroundAAThreatAdjust = 0
-                        if iOurGunshipThreat >= 600 then
-                            --Reduce by AA of experimental, i.e. dont want to avoid engaging a ythotha just because of the ythotha AA
-                            iGroundAAThreatAdjust = M28UnitInfo.GetAirThreatLevel({ oNearestExperimental }, true, false, true, false, false, false, false) * 0.75
+                    --If lack air control then consider nearby air threat using normal logic
+                    local bAttackExperimental = true
+                    if iClosestDist > 100 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                        if iClosestDist > 170 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                            bAttackExperimental = false
+                        elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or iClosestDist > 130 then
+                            local bNearbyAirToGunship = IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / 1.8, iMaxEnemyAirAA, 60, oFrontGunship:GetPosition())
+                            if bNearbyAirToGunship then
+                                bAttackExperimental = false
+                            end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider adding zone containing the closest experimental, oNearestExperimental='..oNearestExperimental.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental)..'; iGroundAAThreatAdjust='..iGroundAAThreatAdjust..'; iTargetPlateau='..iTargetPlateau..'; iTargetZone='..iTargetZone) end
-                        --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck, bDetailedAACheckOverride)
-                        AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateau, iTargetZone, iThreatFactor, bCheckForAirAA, nil, iGroundAAThreatAdjust, nil, true)
+                    end
+                    if bAttackExperimental then
+                        local bCheckForAirAA = true
+                        local iThreatFactor = 3.5
+                        if iClosestDist <= 130 then
+                            bCheckForAirAA = false
+                            iThreatFactor = 2
+                        end
+                        local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNearestExperimental:GetPosition())
+                        if (iTargetZone or 0) > 0 then
+                            local iGroundAAThreatAdjust = 0
+                            if iOurGunshipThreat >= 600 then
+                                --Reduce by AA of experimental, i.e. dont want to avoid engaging a ythotha just because of the ythotha AA
+                                iGroundAAThreatAdjust = M28UnitInfo.GetAirThreatLevel({ oNearestExperimental }, true, false, true, false, false, false, false) * 0.75
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider adding zone containing the closest experimental, oNearestExperimental='..oNearestExperimental.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental)..'; iGroundAAThreatAdjust='..iGroundAAThreatAdjust..'; iTargetPlateau='..iTargetPlateau..'; iTargetZone='..iTargetZone) end
+                            --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck, bDetailedAACheckOverride)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateau, iTargetZone, iThreatFactor, bCheckForAirAA, nil, iGroundAAThreatAdjust, nil, true)
+                        end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if have appraoching land experimental, oNearestExperimental='..(oNearestExperimental.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental) or 'nil')..'; iClosestDist='..iClosestDist..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))) end

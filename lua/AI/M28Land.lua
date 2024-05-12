@@ -41,6 +41,9 @@ refiTimeOfSREnemyTarget = 'M28LndSRTTim' --Gametimeseconds
 reftoUnitsToKillOnCompletion = 'M28RadCtrlK' --Table of units to ctrlk when this unit finishes construction
 reftoAssignedMAAGuards = 'M28LAMAAGrd' --Table of MAA assigned to cover a unit (e.g. a fatboy)
 refoAssignedUnitToGuard = 'M28LAMAAToG' --Unit that is being guarded/assisted (e.g. MAA assisting a fatboy)
+iFatboyBaseMAACount = 5 --Number of MAA wanted as guards normally
+iFatboySafeMAACount = 10 --Number of MAA wanted as guards if worried about restorer deathball/equivalent
+
 
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
@@ -8518,7 +8521,7 @@ function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
             iExistingMAA = table.getn(oFatboy[reftoAssignedMAAGuards])
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iExistingMAA='..iExistingMAA) end
-        if iExistingMAA < 5 then
+        if iExistingMAA < iFatboySafeMAACount and (iExistingMAA < iFatboyBaseMAACount or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(aiBrain.M28Team)))) then
             table.insert(oFatboy[reftoAssignedMAAGuards], oMAA)
             oMAA[refoAssignedUnitToGuard] = oFatboy
             if bDebugMessages == true then LOG(sFunctionRef..': Assigned MAA to guard the fatboy') end
