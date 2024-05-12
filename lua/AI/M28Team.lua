@@ -277,6 +277,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     --subreftoFriendlyM28Brains = 'M28Brains' --Uses same ref as air subteam
     subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --LAND SUBTEAM data table; First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
     subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
+    refbConsideredScoutFactionRestrictions = 'M28LSTSctRest' --true if we have applied subrefBlueprintBlacklist for land scouts yet
 
 
 --Other variables dependent on above:
@@ -2263,33 +2264,43 @@ end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end--]]
 
-function UpdateFactionBlueprintBlacklist(iSubteam)
+function UpdateFactionBlueprintBlacklist(iLandSubteam)
     --Considers any blueprint specific overrides (only supports the 4 core factions and not modded units since blueprint values are hardcoded)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateFactionBlueprintBlacklist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    tLandSubteamData[iSubteam][subrefBlueprintBlacklist] = {}
-
-
-    --Land scouts
-    if M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
-        --Only want Aeon land scouts
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
-    elseif M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
-        --If have cybran tech then prioritise this
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
-    elseif M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
-        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+    tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist] = {}
+    local bConsiderScoutRestrictions = false
+    if tLandSubteamData[iLandSubteam][refbConsideredScoutFactionRestrictions] then bConsiderScoutRestrictions = true
+    else
+        local iLandScoutCount = 0
+        local iBrainCount = 0
+        for iBrain, oBrain in tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains] do
+            iLandScoutCount = iLandScoutCount + M28Conditions.GetLifetimeBuildCount(oBrain, M28UnitInfo.refCategoryLandScout)
+            iBrainCount = iBrainCount + 1
+        end
+        if iLandScoutCount > iBrainCount * 4 then
+            bConsiderScoutRestrictions = true
+        end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, blacklist for subteam '..iSubteam..' = '..repru(tLandSubteamData[iSubteam][subrefBlueprintBlacklist])) end
+    if bConsiderScoutRestrictions then
+        --Land scouts
+        if M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
+            --Only want Aeon land scouts
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+        elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
+            --If have cybran tech then prioritise this
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+        elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, blacklist for subteam '..iLandSubteam..' = '..repru(tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
-
-
 end
 
 function CheckForSubteamFactoryChange(oUnit, bJustBuiltNotDied)

@@ -1594,6 +1594,21 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 end
             end
+        elseif tLZTeamData[M28Map.refiRadarCoverage] <= 150 and iFactoryTechLevel <= 2 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmni]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            --If we have t1 radar in this zone we still want land scouts to support units further away
+            local iCurLandScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)
+            if bDebugMessages == true then LOG(sFunctionRef..': Land scouts for adjacent zone builder, iCurLandScouts='..iCurLandScouts) end
+            if iCurLandScouts <= 2 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+            elseif iCurLandScouts <= 6 and iCurLandScouts <= oFactory[refiTotalBuildCount] / 3 then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Does adj LZ='..iAdjLZ..' want land scout='..tostring(tAdjLZTeamData[M28Map.refbWantLandScout])) end
+                    if tAdjLZTeamData[M28Map.refbWantLandScout] then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                    end
+                end
+            end
         end
 
         --MAA if we are building a land experimental, lack air control, and enemy has a large air to ground threat
