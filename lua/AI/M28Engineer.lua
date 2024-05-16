@@ -5531,7 +5531,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                     local iPercentCompleteWanted
                     local iTotalBuildPowerAvailable = 0
                     for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
-                        iTotalBuildPowerAvailable = iTotalBuildPowerAvailable + oEngineer:GetBlueprint().Economy.BuildRate
+                        iTotalBuildPowerAvailable = iTotalBuildPowerAvailable + (oEngineer:GetBlueprint().Economy.BuildRate or 0)
                     end
                     if aiBrain.M28AI then
                         iTotalBuildPowerAvailable = iTotalBuildPowerAvailable * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier]
