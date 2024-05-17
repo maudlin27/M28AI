@@ -4257,6 +4257,7 @@ local function SetupLandZones()
     end--]]
     ForkThread(RecordBackupGameEnderLocation)
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
+    bDebugMessages = true
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()

@@ -1807,7 +1807,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally so wont record, with some exceptions; iTeam='..(aiBrain.M28Team or 'nil')) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit belongs to a non-M28 ally or non-hostile brain so wont record, with some exceptions; iTeam='..(aiBrain.M28Team or 'nil')) end
                                 bIgnore = true
                                 if M28Map.bIsCampaignMap then
                                     local bAddToNeutralTable = true
@@ -1826,6 +1826,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 --Track non-M28 teammate units
                                 if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)..'; refiNonM28TeammateMexCount='..(tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] or 'nil')) end
                                     if tLZOrWZTeamData then
                                         if not(oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally]) then oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] = {} end
                                         table.insert(oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally], aiBrain.M28Team)
@@ -1833,6 +1834,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             tLZOrWZTeamData[M28Map.refiNonM28TeammateFactoryCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) + 1
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                                             tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] = (tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) + 1
+
+                                            if bDebugMessages == true then
+                                                local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                                LOG(sFunctionRef..': Recorded teammate as having a mex in this LZ, tLZTeamData[M28Map.refiNonM28TeammateMexCount] after update='..tLZOrWZTeamData[M28Map.refiNonM28TeammateMexCount]..'; iPlateau='..iPlateau..'; iZone='..iZone)
+                                            end
                                         end
                                     end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
