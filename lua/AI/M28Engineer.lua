@@ -12548,7 +12548,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 100 then bDebugMessages = true end
+
 
     local bDontCheckPlayableArea = false
     if M28Map.bIsCampaignMap then
@@ -12590,7 +12590,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         bTeammateHasBuiltHere = true
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bTeammateHasBuiltHere='..tostring(bTeammateHasBuiltHere)..'; P'..iPlateau..'Z'..iLandZone) end
-    bDebugMessages = false
     -- (tLZTeamData[M28Map.refiNonM28TeammateMexCount] >= tLZData[M28Map.subrefLZMexCount] tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] > 0 and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] >= 3 or
     --local iCurCondition = 0
     local iCurPriority = 0
