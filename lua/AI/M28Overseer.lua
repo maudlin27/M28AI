@@ -794,7 +794,6 @@ function CheckUnitCap(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
-        if aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 then bDebugMessages = true end
         aiBrain[refiLastUnitCapTimeCheck] = GetGameTimeSeconds()
         --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
         --Use below method in case a mod has changed this
@@ -1295,15 +1294,31 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                             iHumanBrainCount = iHumanBrainCount + 1
                         end
                     end
+                    local iUnitsAlreadyOwnedOfBlueprint
+
                     iNthEntryToGive = math.ceil((iM28BrainCount + iHumanBrainCount) / iM28BrainCount)
                     local iTotalUnitCount
                     local iCurCycleCount
                     local tUnitsToGive = {}
+                    local iCurNthEntryToGive
                     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all units to potentially share, iNthEntryToGive='..iNthEntryToGive..'; iM28BrainCount='..iM28BrainCount..'; iHumanBrainCount='..iHumanBrainCount) end
                     for sBlueprint, tUnits in tUnitsToShareByBlueprint do
+                        iCurNthEntryToGive = iNthEntryToGive
                         iTotalUnitCount = table.getn(tUnits)
                         if bDebugMessages == true then LOG(sFunctionRef..': sBLueprint='..sBlueprint..'; iTotalUnitCount='..iTotalUnitCount) end
                         if iTotalUnitCount >= iNthEntryToGive then
+                            iUnitsAlreadyOwnedOfBlueprint = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                iUnitsAlreadyOwnedOfBlueprint = iUnitsAlreadyOwnedOfBlueprint + oBrain:GetCurrentUnits(categories[sBlueprint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': oBrain cur units for sBlueprint='..oBrain:GetCurrentUnits(categories[sBlueprint])) end
+                            end
+                            if iUnitsAlreadyOwnedOfBlueprint > 0 then
+                                if iUnitsAlreadyOwnedOfBlueprint >= iTotalUnitCount then
+                                    iCurNthEntryToGive = 1000
+                                else
+                                    iCurNthEntryToGive = iCurNthEntryToGive + (iUnitsAlreadyOwnedOfBlueprint - iTotalUnitCount) * iM28BrainCount
+                                end
+                            end
                             iCurCycleCount = 0
                             for iUnit, oUnit in tUnits do
                                 iCurCycleCount = iCurCycleCount + 1
