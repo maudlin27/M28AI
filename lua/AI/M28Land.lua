@@ -2266,7 +2266,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                         end
                         if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
                             if bDebugMessages == true then LOG(sFunctionRef..': Still have shields to assign after considering all zones with adjacent enemy threats, so will flag that we failed to have shield targets for plateau '..iPlateau..'; For reference, the current land zone considering this is '..iLandZone..'; Time='..GetGameTimeSeconds()) end
-                            M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
+                            if tLZData[M28Map.subrefLZIslandRef] then M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds() end
                             --Dont have any land zones that want a mobile shield, but we have mobile shields - find the closest LZ  that wants DF or IF support and has DF or IF units, and send them here; if that's this LZ, then have them go to the unit closest to the enemy in this LZ, but without assigning them
                             if iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits then
                                 local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][(iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits)][M28Map.subrefLZTeamData][iTeam]
@@ -4767,7 +4767,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             --M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'UnderWARA', false)
                                                         else
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef] 'AKRetrU'..iLandZone)
+                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetrU'..iLandZone)
                                                             --M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AKRetrU'..iLandZone)
                                                         end
                                                     else
@@ -5358,8 +5358,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         --NOTE: We have "suicide into mex logic" later on; however htis also does a similar thing but is intended to mean units like microbots will be more aggressive early on to target engis and mexes
-                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to try attacking exposed enemy unit, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; oNearestEnemyToFriendlyBase.UnitId='..oNearestEnemyToFriendlyBase.UnitId..'; is table of shields covering empty='..tostring(M28Utilities.IsTableEmpty(oNearestEnemyToFriendlyBase[M28Map.reftoShieldsProvidingCoverage]))) end
-                        if not(bAttackWithEverything) and iOurCombatThreat > 0 and iOurCombatThreat <= 3500 and iEnemyCombatThreat <= 5000 and (iFirebaseThreatAdjust == 0 or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId) and M28Utilities.IsTableEmpty(oNearestEnemyToFriendlyBase[M28Map.reftoShieldsProvidingCoverage])) and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and oNearestEnemyToFriendlyBase and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryStructure - categories.DIRECTFIRE, oNearestEnemyToFriendlyBase.UnitId)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to try attacking exposed enemy unit, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; oNearestEnemyToFriendlyBase.UnitId='..oNearestEnemyToFriendlyBase.UnitId..'; is table of shields covering empty='..tostring(M28Utilities.IsTableEmpty(oNearestEnemyToFriendlyBase[M28Building.reftoShieldsProvidingCoverage]))) end
+                        if not(bAttackWithEverything) and iOurCombatThreat > 0 and iOurCombatThreat <= 3500 and iEnemyCombatThreat <= 5000 and (iFirebaseThreatAdjust == 0 or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId) and M28Utilities.IsTableEmpty(oNearestEnemyToFriendlyBase[M28Building.reftoShieldsProvidingCoverage])) and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and oNearestEnemyToFriendlyBase and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryStructure - categories.DIRECTFIRE, oNearestEnemyToFriendlyBase.UnitId)) then
                             local iDistToNearestEnemyDFUnitLessRange = 10000
                             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                                 local iCurDistLessRange

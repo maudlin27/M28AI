@@ -1967,7 +1967,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
                             --Decide whether to value destroying reclaim
                             local iReclaimFactor
-                            if M28Utilities.IsTableEmpty(M28Map.tiVeryHighValueReclaimSegments) == false then
+                            if M28Utilities.IsTableEmpty(M28Map.tiVeryHighValueReclaimSegments) == false and not(M28Map.bIsCampaignMap) then
                                 iReclaimFactor = 0.4
                             end
 
@@ -2245,6 +2245,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 if (tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <  iBestTargetValue * 0.5 then
                                     --Are there enemy experimentals or battleships in this zone?
                                     local tEnemyExperimentalsAndBattleships = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP,tTargetZoneTeamData[M28Map.subrefTEnemyUnits])
+                                    M28Conditions.IsTableOfUnitsStillValid(tEnemyExperimentalsAndBattleships)
                                     if M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships) then
                                         tEnemyExperimentalsAndBattleships = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, tTarget, iAOE, 'Enemy')
                                         if bDebugMessages == true then LOG(sFunctionRef..': No enemy experimentals in the zone being targeting, is units around point empty='..tostring(M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships))) end
@@ -2254,7 +2255,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         local bHaveAttackingOrPatrollingUnits = false
 
                                         for iUnit, oUnit in tEnemyExperimentalsAndBattleships do
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Dead='..tostring(oUnit.Dead or false)) end
                                             if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() >= 0.05 then
                                                 bHaveMobileUnitsAndNoUnderConstruction = false
                                                 break

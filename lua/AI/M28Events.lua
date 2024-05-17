@@ -2004,6 +2004,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                         ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
                     elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
                         ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oJustBuilt.UnitId) then
+                        if not(M28Team.tLandSubteamData[oJustBuilt:GetAIBrain().M28LandSubteam][M28Team.refbConsideredScoutFactionRestrictions]) then
+                            M28Team.UpdateFactionBlueprintBlacklist(oJustBuilt:GetAIBrain().M28LandSubteam)
+                        end
                     end
 
                     --Update economy tracking (this function will check if it is an economic unit as part of it)

@@ -863,9 +863,9 @@ function CheckUnitCap(aiBrain)
             --If exp count is 0 then remove cat -1
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then
             else
-                --If we have <10 T3 engis then exclude engineers from cat -1
+                --If we have <35 T3 engis then exclude engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 10 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 35 then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
                     end
                 end
@@ -899,7 +899,7 @@ function CheckUnitCap(aiBrain)
 
 
             if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
-            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > math.max(30, iUnitCap * 0.35) then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
             local iCumulativeCategory = tiCategoryToDestroy[4]
             for iAdjustmentLevel = 4, -1, -1 do
                 if iAdjustmentLevel < 4 then
@@ -1294,15 +1294,31 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                             iHumanBrainCount = iHumanBrainCount + 1
                         end
                     end
+                    local iUnitsAlreadyOwnedOfBlueprint
+
                     iNthEntryToGive = math.ceil((iM28BrainCount + iHumanBrainCount) / iM28BrainCount)
                     local iTotalUnitCount
                     local iCurCycleCount
                     local tUnitsToGive = {}
+                    local iCurNthEntryToGive
                     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all units to potentially share, iNthEntryToGive='..iNthEntryToGive..'; iM28BrainCount='..iM28BrainCount..'; iHumanBrainCount='..iHumanBrainCount) end
                     for sBlueprint, tUnits in tUnitsToShareByBlueprint do
+                        iCurNthEntryToGive = iNthEntryToGive
                         iTotalUnitCount = table.getn(tUnits)
                         if bDebugMessages == true then LOG(sFunctionRef..': sBLueprint='..sBlueprint..'; iTotalUnitCount='..iTotalUnitCount) end
                         if iTotalUnitCount >= iNthEntryToGive then
+                            iUnitsAlreadyOwnedOfBlueprint = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                iUnitsAlreadyOwnedOfBlueprint = iUnitsAlreadyOwnedOfBlueprint + oBrain:GetCurrentUnits(categories[sBlueprint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': oBrain cur units for sBlueprint='..oBrain:GetCurrentUnits(categories[sBlueprint])) end
+                            end
+                            if iUnitsAlreadyOwnedOfBlueprint > 0 then
+                                if iUnitsAlreadyOwnedOfBlueprint >= iTotalUnitCount then
+                                    iCurNthEntryToGive = 1000
+                                else
+                                    iCurNthEntryToGive = iCurNthEntryToGive + (iUnitsAlreadyOwnedOfBlueprint - iTotalUnitCount) * iM28BrainCount
+                                end
+                            end
                             iCurCycleCount = 0
                             for iUnit, oUnit in tUnits do
                                 iCurCycleCount = iCurCycleCount + 1

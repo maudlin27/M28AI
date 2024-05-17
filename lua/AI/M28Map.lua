@@ -2370,10 +2370,12 @@ local function AssignMexesALandZone()
 
     local tiStartResourcesByBrainIndex = {}
 
+    local iStraightLineToIgnoreTravelDist = 40
     local iStraightLineThreshold = 70 --Ignore locations that are more than this distance away
     local iHydroStraightLineThreshold = iStraightLineThreshold + 5
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
     local iHydroTravelDistThreshold = iTravelDistThreshold + 5
+    local iStartPositionTravelThreshold = iTravelDistThreshold + 5
     local tiSlightlyNearMexDistByPlateauMexAndBrain = {}
     local tPotentialNearMexesByBrain = {}
     local tiMexesAssignedByBrain = {} --used in campaign maps if a brain location lacks a mex
@@ -2406,8 +2408,8 @@ local function AssignMexesALandZone()
                     for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
                         if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
                             iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist..'; iCampaignSlightlyNearThreshold='..iCampaignSlightlyNearThreshold) end
-                            if iCurDistStraightLine <= iStraightLineThreshold then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist..'; iCampaignSlightlyNearThreshold='..iCampaignSlightlyNearThreshold..'; Travel dist='..(M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, tMex, refPathingTypeHover) or 'nil')) end
+                            if iCurDistStraightLine <= iStraightLineThreshold and (iCurDistStraightLine <= iStraightLineToIgnoreTravelDist or M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, tMex, refPathingTypeHover) or 1000) < iStartPositionTravelThreshold then
                                 table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
                                 if iCurDistStraightLine < iClosestStraightLineTravelDist then
                                     iClosestStraightLineTravelDist = iCurDistStraightLine
@@ -2523,6 +2525,7 @@ local function AssignMexesALandZone()
         end
     end
 
+
     --Now add any mexes near these resource locations to the same land zone
     if bDebugMessages == true then LOG(sFunctionRef..': Will now add mexes near the start position resources to the same land zone, tiStartResourcesByBrainIndex='..repru(tiStartResourcesByBrainIndex)) end
     local iStartRecursiveCountToUse
@@ -2629,7 +2632,7 @@ local function AssignMexesALandZone()
                             if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
                                 iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
-                                if iCurDistStraightLine <= iStraightLineThreshold then
+                                if iCurDistStraightLine <= iStraightLineThreshold and (iCurDistStraightLine <= iStraightLineToIgnoreTravelDist or M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, tMex, refPathingTypeHover) or 1000) < iStartPositionTravelThreshold then
                                     table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
                                     if iCurDistStraightLine < iClosestStraightLineTravelDist then
                                         iClosestStraightLineTravelDist = iCurDistStraightLine
@@ -4200,7 +4203,6 @@ local function SetupLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones, system time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
@@ -4257,6 +4259,7 @@ local function SetupLandZones()
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end--]]
     ForkThread(RecordBackupGameEnderLocation)
+
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
