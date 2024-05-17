@@ -12744,7 +12744,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
         end
-        if not(bTeammateHasBuiltHere) and (not(bExpansionOnSameIslandAsBase) or not(bAdjacentToCoreZone) or (bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750) or (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and ((bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.75 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or tLZData[M28Map.subrefLZMexCount] >= 4) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3)) then
+        if not(bTeammateHasBuiltHere) and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(bHaveLowMass) and (bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750) or (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and ((bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.75 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or tLZData[M28Map.subrefLZMexCount] >= 4) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3))) then
             iFactoriesWanted = math.min(4, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] - 2)
             local iIslandZoneCount = table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][tLZData[M28Map.subrefLZIslandRef]])
             if bExpansionOnSameIslandAsBase then
