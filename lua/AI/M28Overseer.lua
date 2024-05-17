@@ -794,6 +794,7 @@ function CheckUnitCap(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
+        if aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 then bDebugMessages = true end
         aiBrain[refiLastUnitCapTimeCheck] = GetGameTimeSeconds()
         --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
         --Use below method in case a mod has changed this

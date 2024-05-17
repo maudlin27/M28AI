@@ -265,7 +265,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     local sFunctionRef = 'AdjustBlueprintForOverrides'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 then bDebugMessages = true end
 
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
@@ -367,7 +367,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjustment for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' for if close to unit cap, sBPIDToBuild='..(sBPIDToBuild or 'nil')..'; aiBrain[M28Overseer.refbCloseToUnitCap]='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; aiBrain[M28Overseer.refiExpectedRemainingCap]='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
-        if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild)) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 150) then
+        if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild)) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 150 and (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 100 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.95)) then
             --Exception - build T2 engineers if we dont have many T3 engineers and have at least 10 leeway and havent been destroying these units
             if aiBrain[M28Overseer.refiExpectedRemainingCap] >= 20 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH2, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 25 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 2 and (not(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed]) or not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) then
                 --Are trying to build a T2 engi and havent been destroying any yet, so still build it
@@ -388,7 +388,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             local iCurUnitsOfCategory = aiBrain:GetCurrentUnits(categories[sBPIDToBuild])
 
             if iCurUnitsOfCategory >= 150 or (iCurUnitsOfCategory >= 50 and (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 35 and (iCurUnitsOfCategory >= 100 or ((oFactory[refiTotalBuildCount] or 0) + iCurUnitsOfCategory >= 100 and EntityCategoryContains(categories.TECH1 + categories.TECH2, sBPIDToBuild)))) then
-                if bDebugMessages == true then LOG(sFUnctionRef..': Have lots of units of this category already, iCurUnitsOfCategory='..iCurUnitsOfCategory) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Have lots of units of this category already, iCurUnitsOfCategory='..iCurUnitsOfCategory) end
                 sBPIDToBuild = nil
             end
         elseif sBPIDToBuild then
@@ -4113,7 +4113,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then bDebugMessages = true end
 
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())
@@ -4251,7 +4251,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iCombatCategory = M28UnitInfo.refCategoryFrigate
         elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships * 2 + 2 then
             iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
-        --If factory can build battlecruiser and we have none and LC is 0 then build instead of battleship
+            --If factory can build battlecruiser and we have none and LC is 0 then build instead of battleship
         elseif oFactory:CanBuild('xes0307') and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) <= 1 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser) == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships])) then
             iCombatCategory = M28UnitInfo.refCategoryBattlecruiser
         else
