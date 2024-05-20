@@ -2807,6 +2807,10 @@ end
 function OnMapResizeFORSEARCHONLY()  end --So can find onplayableareachange easier
 function OnPlayableAreaChange(rect, voFlag)
     if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnPlayableAreaChange'
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()) end
         local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
         if type(rect) == 'string' then
             rect = ScenarioUtils.AreaToRect(rect)
@@ -2818,6 +2822,7 @@ function OnPlayableAreaChange(rect, voFlag)
         ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
         --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
         ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -3072,7 +3077,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             --Manual objective checks (e.g. where campaign doesnt use the function for adding objectives)
             M28Engineer.CheckForSpecialCampaignCaptureTargets()
             if bDebugMessages == true then LOG(sFunctionRef..': About to check for special campaign objectives') end
-            M28Overseer.ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+            ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives,Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
         end
 
         ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)

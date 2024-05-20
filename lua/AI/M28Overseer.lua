@@ -1555,7 +1555,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1948,6 +1948,28 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
                 ForkThread(MonitorObjectiveUnitsAndRemoveIfDead, ScenarioInfo.M1P1Units, 1, ScenarioInfo.M1P1)
                 --]]
+            --Dawn (FA Mission 2) - redundancy for case where first objective (kill attack) is done but second (destroy order base) doesnt trigger - commented out as in the particular case this function (i.e. considering special campaign objectives) only triggers when the attack wave is still alive, and doesnt trigger when the units die
+        --[[elseif ScenarioInfo.M1P1Units and ScenarioInfo.M1OrderAttack and not(ScenarioInfo.M1P2.Active) then
+            --If we have alive units in M1P1Units then are still scenario 1
+            local bHaveAliveBaseUnits = false
+            local bHaveAliveAttackUnits = false
+            for iUnit, oUnit in ScenarioInfo.M1OrderAttack do
+                if not(oUnit.Dead) then bHaveAliveAttackUnits = true break end
+            end
+            for iUnit, oUnit in ScenarioInfo.M1P1Units do
+                if not(oUnit.Dead) then
+                    bHaveAliveBaseUnits = true
+                end
+            end
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveAliveAttackUnits='..tostring(bHaveAliveAttackUnits)..'; bHaveAliveBaseUnits='..tostring(bHaveAliveBaseUnits)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)) end
+            if not(bHaveAliveAttackUnits) and bHaveAliveBaseUnits then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed check if mission active') end
+                WaitSeconds(300)
+                if not(ScenarioInfo.M1P2.Active) then
+                    ScenarioInfo.M1P1:ManualResult(true)
+                end
+            end--]]
             --Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
             tbSpecialCodeForMission[41] = true
