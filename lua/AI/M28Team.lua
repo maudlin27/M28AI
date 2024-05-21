@@ -110,7 +110,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeLastHadNothingToBuildForLandFactory = 'M28TeamLandFacTimNoBuild' --Gametimeseconds that failed to find something to do with land fac that was our highest tech level
 
     --Intel details
-    subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
+    subrefbTeamHasOmniVision = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
@@ -578,7 +578,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount] = {}
     tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] = {}
     tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] = {}
-    tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = false
+    tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = false
     tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = false
     tTeamData[iTotalTeamCount][subreftoEnemyBrains] = {}
     tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = 0
@@ -714,7 +714,7 @@ function CreateNewTeam(aiBrain)
                     bHaveM28BrainInTeam = true
                     --Check if we have omni vision for the team
                     if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
-                        tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = true
+                        tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
                     end
                     --Record brain details in log for ease of reference
                     local sAiXref = ''
