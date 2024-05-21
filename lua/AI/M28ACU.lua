@@ -2191,19 +2191,25 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             else iDistThreshold = 60
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Adding table of enemy units to consider targeting, is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))) end
+        local bCheckCurTarget = false
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
             tUnitsToTarget = tLZTeamData[M28Map.reftoNearestDFEnemies]
             iDistThreshold = iDistThreshold + 10
+            bCheckCurTarget = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Will target nearest enemy DF units') end
         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
             tUnitsToTarget = tLZTeamData[M28Map.subrefTEnemyUnits]
             iDistThreshold = iDistThreshold + 10
+            bCheckCurTarget = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Will target nearest enemy units') end
         else
             --Search adjacent land zones for enemy units if none in this zone, and consider if they are within 60 of ACU position
             tUnitsToTarget = {}
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking for enemies in iAdjLZ='..iAdjLZ..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
                     if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         for iUnit, oUnit in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
                             if M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) <= iDistThreshold then
@@ -2215,6 +2221,20 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             end
             if M28Utilities.IsTableEmpty(tUnitsToTarget) then
                 tUnitsToTarget = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, oACU:GetPosition(), iDistThreshold, 'Enemy')
+            end
+        end
+        if bCheckCurTarget and M28Utilities.IsTableEmpty(oACU.WeaponInstances) == false then
+            for iWeapon, oWeapon in oACU.WeaponInstances do
+                if oWeapon.GetCurrentTarget then
+                    local oCurTarget = oWeapon:GetCurrentTarget()
+                    if bDebugMessages == true and oCurTarget then LOG(sFunctionRef..': Cur weapon target='..oCurTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurTarget)..'; with combat range='..(oCurTarget[M28UnitInfo.refiCombatRange] or 'nil')) end
+                    if M28UnitInfo.IsUnitValid(oCurTarget) and (oCurTarget[M28UnitInfo.refiCombatRange] or 0) > 0 then
+                        if not(oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][1] == iPlateau and oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][2] == iLandZone) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Cur target isnt assigned to this zone so will add into table of units to target') end
+                            table.insert(tUnitsToTarget, oCurTarget)
+                        end
+                    end
+                end
             end
         end
 
