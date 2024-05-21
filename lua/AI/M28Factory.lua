@@ -3035,7 +3035,7 @@ function SetPreferredUnitsByCategory(aiBrain)
 
     --Engineers
     aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
-
+    aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1 --fire beetle (so build wagners instead if going for fast units)
 end
 
 function IdleFactoryMonitor(aiBrain)
