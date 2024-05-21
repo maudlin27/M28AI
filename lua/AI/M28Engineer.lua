@@ -5462,7 +5462,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                         if not(bNearbyShield) then
                                             for iBuilding, oBuilding in tBuildingsNearby do
                                                 if oBuilding:GetAIBrain().M28AI and oBuilding:GetAIBrain().M28Team == aiBrain.M28Team then
-                                                    if oBuilding[M28UnitInfo.refiUnitMassCost] * oBuilding:GetFractionComplete() <= 5000 then
+                                                    if M28UnitInfo.GetUnitMassCost(oBuilding[M28UnitInfo.refiUnitMassCost]) * oBuilding:GetFractionComplete() <= 5000 then
                                                         --Check the building position and size means it is actually a blocking building
                                                         if oBuilding:GetPosition()[1] >= rShieldAreaRect[1] and oBuilding:GetPosition()[1] <= rShieldAreaRect[3] and oBuilding:GetPosition()[3] >= rShieldAreaRect[2] and oBuilding:GetPosition()[3] <= rShieldAreaRect[2] and (not(oBuilding[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will destroy blocking building='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)..'; Building position='..repru(oBuilding:GetPosition())..'; will draw rectangle that this is within')

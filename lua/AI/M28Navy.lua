@@ -3948,7 +3948,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if M28Utilities.IsTableEmpty(tMissileShips) == false then
             if oNearestEnemyToFriendlyBase then
                 for iUnit, oUnit in tMissileShips do
-                    if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refiCombatRange] * 0.6, math.min(oUnit[M28UnitInfo.refiCombatRange] - 10, oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] + 10, (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) + 10)) then
+                    if oNearestEnemyToFriendlyBase and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= math.max((oUnit[M28UnitInfo.refiCombatRange] or 60) * 0.6, math.min((oUnit[M28UnitInfo.refiCombatRange] or 60) - 10, (oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] or 20) + 10, (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) + 10)) then
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, 'MisRetr', false)
                     else
                         table.insert(tMissileShipsToBombard, oUnit)
