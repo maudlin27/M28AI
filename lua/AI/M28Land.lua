@@ -871,7 +871,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
     if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 2 or (GetGameTimeSeconds() <= 420 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 3000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3)) and (tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
-        if not(tLZData[M28Map.subrefbPacifistArea]) then
+        if not(tLZData[M28Map.subrefbPacifistArea]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     tLZTeamData[M28Map.refbWantLandScout] = true
@@ -1164,26 +1164,46 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
                 if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                     tLZTeamData[M28Map.refbWantLandScout] = false
-                    --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
-                    for iScout, oScout in tAvailableScouts do
-                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
-                            --Patrol the land zone
-                            M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
-                        else
-                            --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
-                            if not(oScout:IsUnitState('Moving')) then
-                                M28Orders.UpdateRecordedOrders(oScout)
-                                if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
-                                    --Want ot get somewhere to move to as a backup
-                                    if tLZData[M28Map.subrefLZMexCount] > 0 then
-                                        M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefMidpoint], 5, false, 'BackupMid')
-                                    else
-                                        --Do we have an adjacent LZ? If so move here
-                                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
-                                            GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefTScoutsTravelingHere)
+                    if table.getn(tAvailableScouts) > 1 then
+                        --Look for further away zones in this island wanting land scouts
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                            for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                                local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+                                if tTeamTargetLZData[M28Map.refbWantLandScout] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]) end
+                                    GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
+                                    tTeamTargetLZData[M28Map.refbWantLandScout] = false
+                                    table.remove(tAvailableScouts, 1)
+                                    if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                                end
+                                --subrefLZNumber = 1 --Land zone reference number
+                                --subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable, returns a table [x]=1,2,3...; which returns the land zone reference for each land zone that will go through on a path from these
+                                --subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                        --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
+                        for iScout, oScout in tAvailableScouts do
+                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                                --Patrol the land zone
+                                M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                            else
+                                --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
+                                if not(oScout:IsUnitState('Moving')) then
+                                    M28Orders.UpdateRecordedOrders(oScout)
+                                    if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
+                                        --Want ot get somewhere to move to as a backup
+                                        if tLZData[M28Map.subrefLZMexCount] > 0 then
+                                            M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefMidpoint], 5, false, 'BackupMid')
                                         else
-                                            --No adjacent LZs, and no mexes in this LZ, so just move randomly
-                                            M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 5, false, 'BackupRnd')
+                                            --Do we have an adjacent LZ? If so move here
+                                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                                                GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefTScoutsTravelingHere)
+                                            else
+                                                --No adjacent LZs, and no mexes in this LZ, so just move randomly
+                                                M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 5, false, 'BackupRnd')
+                                            end
                                         end
                                     end
                                 end
@@ -3942,7 +3962,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
             if iModifiedHighestEnemyValue then iModifiedHighestEnemyValue = iModifiedHighestEnemyValue * 0.75 end --dont worry about adjusting distances if have locations similar in value
-            if bDebugMessages == true then LOG(sFunctionRef..': iModifiedHighestEnemyValue='..iModifiedHighestEnemyValue) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iModifiedHighestEnemyValue='..(iModifiedHighestEnemyValue or 'nil')) end
             local iDistMod
             function UpdateForUnitsInAdjacentZone(tAdjLZTeamData)
                 if iModifiedHighestEnemyValue and iAvailableCombatUnitThreat >= 3000 and iModifiedHighestEnemyValue >= 1500 and (iModifiedHighestEnemyValue >= 5000 or (tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) < 1800) then --primarily want the logic for things like experimentals
@@ -4068,7 +4088,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))) end
-        function AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureFurtherDistAdjust)
+        function AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureFurtherDistAdjust, iAngleFromClosestFriendlyUnitToMidpoint)
             --Only include units in the threat calculation if they are close enough to this LZ, or we have a firebase threat adjust
             if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 then
                 iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0))
@@ -4077,11 +4097,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iDistUntilInRange
                     local bAdd = false
                     for iUnit, oUnit in tPotentialEnemyUnits do
+                        bAdd = false
                         if oUnit:GetFractionComplete() >= 0.95 and M28UnitInfo.IsUnitValid(oUnit) then
                             iDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
                             if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
                                 if iDistUntilInRange  <= iAdjacentDistThreshold + iStructureFurtherDistAdjust then
-                                    bAdd = true
+                                    if iDistUntilInRange <= 20 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': PD is almost within its DF range of the midpoint of target zone, oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iDistUntilInRange='..iDistUntilInRange) end
+                                        bAdd = true
+                                    elseif iDistUntilInRange * 2 <= math.min(40, iAdjacentDistThreshold + iStructureFurtherDistAdjust) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': PD is within half of the target range even after applying structure dist adj, iAdjacentDistThreshold + iStructureFurtherDistAdjust='..iAdjacentDistThreshold + iStructureFurtherDistAdjust) end
+                                        bAdd = true
+                                    elseif M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]), iAngleFromClosestFriendlyUnitToMidpoint) <= 50 then
+                                        bAdd = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Angle dif is low enough that we are including PD, angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]), iAngleFromClosestFriendlyUnitToMidpoint)) end
+                                    end
                                 end
                             else
                                 if iDistUntilInRange  <= iAdjacentDistThreshold then
@@ -4091,7 +4121,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bAdd then
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies')
-                                    LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
+                                    LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Angle to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iAngleFromClosestFriendlyUnitToMidpoint='..(iAngleFromClosestFriendlyUnitToMidpoint or 'nil'))
                                 end
                                 table.insert(tNearbyAdjacentEnemies, oUnit)
                             end
@@ -4416,22 +4446,33 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             local tOurDFAndT1ArtiUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAvailableCombatUnits)
                             local iAdjacentDistThreshold = 0
                             local iCurDist
+                            local iMinDist = 1000
+                            local oClosestFriendlyUnit
                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             for iUnit, oUnit in tOurDFAndT1ArtiUnits do
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                                 if iCurDist > iAdjacentDistThreshold then iAdjacentDistThreshold = iCurDist end
+                                if iCurDist < iMinDist then
+                                    iMinDist = iCurDist
+                                    oClosestFriendlyUnit = oUnit
+                                end
                             end
+                            local iAngleFromClosestFriendlyUnit = 0
+                            if oClosestFriendlyUnit then iAngleFromClosestFriendlyUnit = M28Utilities.GetAngleFromAToB(oClosestFriendlyUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) end
                             iAdjacentDistThreshold = iAdjacentDistThreshold + 20
                             local iStructureUnitDistThresholdAdjust = math.max(-30, -iAdjacentDistThreshold + 15)
+                            if iAdjacentDistThreshold + iStructureUnitDistThresholdAdjust > iMinDist + 10 then
+                                iStructureUnitDistThresholdAdjust = iMinDist + 10 - iAdjacentDistThreshold
+                            end
                             if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 if not(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]) then
-                                    AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust)
+                                    AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
                                 end
                             end
                             if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                                 for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
-                                    AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust)
+                                    AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
                                 end
                             end
                             if M28Utilities.IsTableEmpty(tUnitsNearFatboyInFurtherAwayZones) == false then
@@ -5288,34 +5329,48 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local bAdjustStructureThreat = false
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         if iFirebaseThreatAdjust == 0 then
+                            local oClosestFriendlyUnit
                             local tNearbyAdjacentEnemies = {}
                             local iAdjacentDistThreshold = 0
                             local iCurDist
+                            local iMinDist = 10000
                             for iUnit, oUnit in tOurDFAndT1ArtiUnits do
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                                if iCurDist > iAdjacentDistThreshold then iAdjacentDistThreshold = iCurDist end
+                                if iCurDist > iAdjacentDistThreshold then
+                                    iAdjacentDistThreshold = iCurDist
+                                end
+                                if iCurDist < iMinDist then
+                                    iMinDist = iCurDist
+                                    oClosestFriendlyUnit = oUnit
+                                end
                             end
+                            local iAngleFromClosestFriendlyUnit = 0
+                            if oClosestFriendlyUnit then iAngleFromClosestFriendlyUnit = M28Utilities.GetAngleFromAToB(oClosestFriendlyUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) end
                             iAdjacentDistThreshold = iAdjacentDistThreshold + 20
                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
                             local iStructureUnitDistThresholdAdjust = math.max(-30, -iAdjacentDistThreshold + 15)
+                            if iAdjacentDistThreshold + iStructureUnitDistThresholdAdjust > iMinDist + 10 then
+                                iStructureUnitDistThresholdAdjust = iMinDist + 10 - iAdjacentDistThreshold
+                            end
                             local tbZonesConsidered = {}
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 --Only include units in the threat calculation if they are close enough to this LZ, or we have a firebase threat adjust
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider adding enemy units in iAdjLZ='..iAdjLZ..' if they are close enough to this zone midpoint, iAdjacentDistThreshold='..iAdjacentDistThreshold) end
-                                AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider adding enemy units in iAdjLZ='..iAdjLZ..' if they are close enough to this zone midpoint, iAdjacentDistThreshold='..iAdjacentDistThreshold..'; iStructureUnitDistThresholdAdjust='..iStructureUnitDistThresholdAdjust) end
+                                AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
                                 tbZonesConsidered[iAdjLZ] = true
                             end
                             if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                                 for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
                                     if not(tbZonesConsidered[tPlateauAndZone[2]]) or not(tPlateauAndZone[1] == iPlateau) then --redundancy, in theory shoudlnt be possible for adjacent zone to be recorded as dangerous nearby zone
-                                        AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust)
+                                        AddUnitFromAdjacentZoneToTableIfCloseEnough(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
                                     end
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentDistThreshold='..iAdjacentDistThreshold..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; Combat threat of nearby adjacent enemies='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)) end
-
-                            iEnemyCombatThreat = iEnemyCombatThreat + M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentDistThreshold='..iAdjacentDistThreshold..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; Combat threat of nearby adjacent enemies to add to this='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)..'; Threat of DF units in adjacent enemies='..M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.DIRECTFIRE, tNearbyAdjacentEnemies))) end
+                            if M28Utilities.IsTableEmpty(tNearbyAdjacentEnemies) == false then
+                                iEnemyCombatThreat = iEnemyCombatThreat + math.max(M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false) * 0.5, M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.DIRECTFIRE, tNearbyAdjacentEnemies), false))
+                            end
                         else
                             if iAvailableCombatUnitThreat >= 5000 then bAdjustStructureThreat = true end
 
