@@ -2808,7 +2808,7 @@ function OnMapResizeFORSEARCHONLY()  end --So can find onplayableareachange easi
 function OnPlayableAreaChange(rect, voFlag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnPlayableAreaChange'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()) end
         local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
