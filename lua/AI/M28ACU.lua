@@ -43,6 +43,7 @@ refbACUHasTeleport = 'M28ACUHasTel' --true if ACU has teleport (will assume it a
 refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on getting teleport upgrade on the ACU
 refbPlanningToGetShield = 'M28ACUPlanningShield' --nil if haven't considered whether to get shield or not yet; true if planning on getting shield/equivalent upgrade on the ACU
 refiTimeLastConsideredUpgradePath = 'M28ACUTimUpP' --Gametimeseconds we last considered the upgrade path
+refoShieldRallyTarget = 'M28ACUShR' --Shield unit that ACU is trying to shelter under
 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
@@ -3067,6 +3068,7 @@ function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTea
                         end
                     end
                     if oNearestShieldWithHealth then
+                        oACU[refoShieldRallyTarget] = oNearestShieldWithHealth
                         --Are we not comfortably within the shield coverage?
                         if iNearestShieldWithHealthDist > (oNearestShieldWithHealth:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.45 - 4 then
                             M28Orders.IssueTrackedMove(oACU, oNearestShieldWithHealth:GetPosition(), 1, false, 'RetrCSh', false)
@@ -3173,6 +3175,7 @@ function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTea
                         local oShieldToAssist = oClosestWithHealthShield or oClosestShieldOfAnyType
                         if bDebugMessages == true then LOG(sFunctionRef..': oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
                         if oShieldToAssist then
+                            oACU[refoShieldRallyTarget] = oShieldToAssist
                             M28Orders.IssueTrackedGuard(oACU, oShieldToAssist, false, 'BkcupAsSh', false)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
@@ -3204,17 +3207,42 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
             local iNearestDist = 10000
             local iCurDist
             local oNearestUnit
+            local bCheckIfOtherACUsUnderShield = false
+            local bAddAsNearestShield
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                bCheckIfOtherACUsUnderShield = true
+                if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 then bCheckIfOtherACUsUnderShield = false end
+            end
             for iUnit, oUnit in tFixedShields do
                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
                     if iCurDist < iNearestDist then
-                        iNearestDist = iCurDist
-                        oNearestUnit = oUnit
+                        bAddAsNearestShield = true
+                        --Check not already assigned to an ACU (unless we are low health)
+                        if bCheckIfOtherACUsUnderShield then
+                            for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                                if not(oFriendlyACU == oACU) then
+                                    if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == oUnit then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont go to nearest shield as it is already a rally target for another ACU') end
+                                        iCurDist = iCurDist + 400
+                                        if iCurDist > iNearestDist then
+                                            bAddAsNearestShield = false
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bAddAsNearestShield then
+                            iNearestDist = iCurDist
+                            oNearestUnit = oUnit
+                        end
                     end
                 end
             end
 
             if oNearestUnit then
+                oACU[refoShieldRallyTarget] = oNearestUnit
                 if bDebugMessages == true then LOG(sFunctionRef..': Will set rally point to the nearest fixed shield, position='..repru(oNearestUnit:GetPosition())..'; Nearest unit='..oNearestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestUnit)) end
                 tRallyPoint = oNearestUnit:GetPosition()
             end
@@ -3997,6 +4025,7 @@ function GetACUOrder(aiBrain, oACU)
         end
         --Are there enemies in the same LZ as the ACU? If so then consider action for these
     else
+        oACU[refoShieldRallyTarget] = nil
         oACU[refbACUHasBeenGivenABuildOrderRecently] = false
         local bProceedWithLogic = true
         if oACU[refbDoingInitialBuildOrder] then
@@ -5253,7 +5282,14 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
 
         local iClosestShield = 1000 --(i.e. ignoring distance check for shields in this zone itself)
         local oClosestShield, iCurDist
+        local bCheckIfOtherACUsUnderShield = false
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+            bCheckIfOtherACUsUnderShield = true
+            if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 then bCheckIfOtherACUsUnderShield = false end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
+
+        local bAlreadyHaveFriendlyACU
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
 
             for iTemplate, tSubtable in tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates] do
@@ -5270,7 +5306,22 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                 end
             end
         end
-        if not(oClosestShield) then
+        if bCheckIfOtherACUsUnderShield and oClosestShield then
+            for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                if not(oFriendlyACU == oACU) then
+                    if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == oClosestShield then
+                        if bAlreadyHaveFriendlyACU then --means have 2+ ACUs already here
+                            oClosestShield = nil
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Wont go to nearest shield as it is already a rally target for another ACU') end
+                            iClosestShield = iClosestShield + 250
+                            bAlreadyHaveFriendlyACU = true
+                        end
+                    end
+                end
+            end
+        end
+        if not(oClosestShield) or bAlreadyHaveFriendlyACU then
             --Do we have any active GE templates nearby?
             if bDebugMessages == true then LOG(sFunctionRef..': dont have shield in GE template for this zone, is table of potentially active GE templates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))) end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
@@ -5284,8 +5335,20 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tTemplateTable[M28Map.subrefGEShieldUnits][1]:GetPosition(), oACU:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': dist to shield '..tTemplateTable[M28Map.subrefGEShieldUnits][1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tTemplateTable[M28Map.subrefGEShieldUnits][1])..'='..iCurDist) end
                             if iCurDist < iClosestShield then
-                                oClosestShield = tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]
-                                iClosestShield = iCurDist
+                                if bCheckIfOtherACUsUnderShield then
+                                    for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                                        if not(oFriendlyACU == oACU) then
+                                            if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Wont go to nearest shield as it is already a rally target for another ACU') end
+                                                iClosestShield = iClosestShield + 250
+                                            end
+                                        end
+                                    end
+                                end
+                                if iCurDist < iClosestShield then
+                                    oClosestShield = tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]
+                                    iClosestShield = iCurDist
+                                end
                             end
                         end
                     end
@@ -5294,6 +5357,7 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield to run to in GE template, oClosestShield='..(oClosestShield.Unitid or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')) end
         if oClosestShield then
+            oACU[refoShieldRallyTarget] = oClosestShield
             if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname) end
             if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield and oClosestShield.MyShield:GetHealth() >= 5000) then
                 local sUpgradeToGet = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
