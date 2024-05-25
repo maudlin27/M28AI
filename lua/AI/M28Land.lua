@@ -943,7 +943,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 if bCheckForEnemies then
                     iClosestDangerousEnemy = 10000
                     oEnemyToRunFrom = nil
-                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 12 and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
+                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 40 or (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) < 30) and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
                         bConsiderAttacking = true
                         iEnemyToConsiderAttackingDist = 100000
                     end
@@ -976,8 +976,13 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                         end
                                         if iCurDist <= iRunThreshold then
                                             oEnemyToRunFrom = oUnit
-                                            bStandAlmostStill = false
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
+                                            if bConsiderAttacking and iCurDist >= 4 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and iClosestDangerousEnemy > iRunThreshold then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Decent dist until we are in range of engineer so will look to stand almost still instead of retreating') end
+                                                bStandAlmostStill = true
+                                            else
+                                                bStandAlmostStill = false
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching unless considering attacking, iClosestDangerousEnemy='..iClosestDangerousEnemy..'; iRunThreshold='..iRunThreshold..'; bConsiderAttacking='..tostring(bConsiderAttacking)) end
                                             if not(bConsiderAttacking) or iClosestDangerousEnemy < iRunThreshold then break end
                                         else
                                             --Adjust run threshold if enemy unit is moving, and facing towards us
