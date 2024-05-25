@@ -218,6 +218,7 @@ refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFI
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
+refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAND
 refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE

@@ -9807,7 +9807,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bContinue then
             --Check not an easy AI
-            if not(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex].M28Easy) then
+            if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28Easy) then
 
                 if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
                     iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
@@ -11075,6 +11075,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
 
+    --High priority mass fab or quantum gateway for maps with few mexes
+    bDebugMessages = true
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Higher priority fab and gateway builder, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bLowMexMap='..tostring(M28Map.bIsLowMexMap)..'; M28Overseer.iMassFabRatio='..(M28Overseer.iMassFabRatio or 'nil')..'; bWantMorePower='..tostring(bWantMorePower)) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(bHaveLowPower) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 320 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 or not(bWantMorePower) or M28Team.tTeamData[iTeam][M28Team.subrefbEnemyGettingFabsOrRAS] or (M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryQuantumGateway) <= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryQuantumGateway) == 0)) then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mass fab or gateway') end
+                ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower)
+            end
+        end
+    end
+    bDebugMessages = false
+
     --Assist land factory if we want to focus on getting sniperbots
     iCurPriority = iCurPriority + 1
     if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData) then
@@ -11537,75 +11552,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes; or quantum gateway if enemy having them
     iCurPriority = iCurPriority + 1
+    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Mass fab builder: Highest friendly fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or (M28Overseer.bNoRushActive and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true))) and not(bHaveLowPower) and not(bSaveMassForMML) then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or (M28Overseer.bNoRushActive and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) or M28Map.bIsLowMexMap) and not(bHaveLowPower) and not(bSaveMassForMML) then
         if bDebugMessages == true then LOG(sFunctionRef..': Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bLowMexMap='..tostring(M28Map.bIsLowMexMap)..'; M28Overseer.iMassFabRatio='..(M28Overseer.iMassFabRatio or 'nil')) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or ((M28Map.bIsLowMexMap or M28Overseer.bNoRushActive) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 260 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (M28Overseer.iMassFabRatio >= 1.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZData[M28Map.subrefLZMexCount] <= 1) or ((M28Map.bIsLowMexMap or M28Overseer.bNoRushActive) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 260 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (M28Overseer.iMassFabRatio >= 1.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
             --Do we either have a constructed experimental in this zone, or have unit restrictions?
-            if M28Overseer.bUnitRestrictionsArePresent or (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) > 0 or M28Overseer.bNoRushActive then
-                local iExistingT3MassFabs = 0
-                local iUnderConstructionT3MassFabs = 0
-                local tExistingMassFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassFab * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                if M28Utilities.IsTableEmpty( tExistingMassFabs) == false then
-                    for iUnit, oUnit in tExistingMassFabs do
-                        if oUnit:GetFractionComplete() < 1 then iUnderConstructionT3MassFabs = iUnderConstructionT3MassFabs + 1
-                        else iExistingT3MassFabs = iExistingT3MassFabs + 1
-                        end
-                    end
-                end
-                local iMaxMassFabsWanted = 1
-                local iModFactor = M28Overseer.iMassFabRatio * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsLowMexMap or iModFactor >= math.max(1.2, 1 + 0.1 * iExistingT3MassFabs) then
-                    iMaxMassFabsWanted = 4
-                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-                        --If enemy has multiple T3 arti or novax or gameender then reduce to 1
-                        local iEnemyCount = 0
-                        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) then
-                            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
-                                if oUnit:GetFractionComplete() >= 0.35 then
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
-                                        iEnemyCount = iEnemyCount + 3
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
-                                        iEnemyCount = iEnemyCount + 1
-                                    else
-                                        iEnemyCount = iEnemyCount + 0.5
-                                    end
-                                end
-                            end
-                        end
-                        iMaxMassFabsWanted = math.max(0, iMaxMassFabsWanted - iEnemyCount)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Are defending against arti, imaxMassFabsWanted='..iMaxMassFabsWanted..'; iEnemyCount='..iEnemyCount) end
-                    end
-                elseif M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then iMaxMassFabsWanted = 0
-                end
-                if iModFactor >= 1.5 then
-                    iMaxMassFabsWanted = math.max(2,iMaxMassFabsWanted * ((iModFactor - 1)*0.5 + 1))
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': iExistingT3MassFabs='..iExistingT3MassFabs..'; iMaxMassFabsWanted='..iMaxMassFabsWanted..'; iUnderConstructionT3MassFabs='..iUnderConstructionT3MassFabs) end
-
-                if iExistingT3MassFabs < iMaxMassFabsWanted or iUnderConstructionT3MassFabs > 0 then
-                    iBPWanted = 90
-                    if bWantMorePower then iBPWanted = 45 end
-                    HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iBpWanted for mass fabs='..iBPWanted) end
-                elseif M28Map.bIsLowMexMap or M28Team.tTeamData[iTeam][M28Team.subrefbEnemyGettingFabsOrRAS] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 1) or (M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 60) then
-                    local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    local iExistingGateways = 0
-                    if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
-                        for iUnit, oUnit in tQuantumGateways do
-                            if oUnit:GetFractionComplete() == 1 then
-                                iExistingGateways = iExistingT3MassFabs + 1
-                            end
-                        end
-                    end
-                    if iExistingGateways == 0 then
-                        iBPWanted = 70
-                        if bWantMorePower then iBPWanted = 35 end
-                        HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have enough mass fabs but want quantum gateway, iBPWanted='..iBPWanted) end
-                    end
-
-                end
+            if M28Overseer.bUnitRestrictionsArePresent or (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) > 0 or M28Overseer.bNoRushActive or M28Map.bIsLowMexMap or (M28Team.tTeamData[iTeam][M28Team.subrefbEnemyGettingFabsOrRAS] and tLZData[M28Map.subrefLZMexCount] <= 2) or (tLZData[M28Map.subrefLZMexCount] == 0 and not(bHaveLowPower)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting lower priority mass fab or gateway builder') end
+                ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower)
             end
         end
     end
@@ -13127,7 +13082,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         if bContinue then
-            if not(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex].M28Easy) then
+            if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28Easy) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
                     for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
                         LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
@@ -16750,6 +16705,78 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 
             end
         end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderBuildingMassFabOrGateway(iTeam, iZone, tLZTeamData, HaveActionToAssign, bWantMorePower)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderBuildingMassFabOrGateway'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iExistingT3MassFabs = 0
+    local iUnderConstructionT3MassFabs = 0
+    local tExistingMassFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassFab * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+    if M28Utilities.IsTableEmpty( tExistingMassFabs) == false then
+        for iUnit, oUnit in tExistingMassFabs do
+            if oUnit:GetFractionComplete() < 1 then iUnderConstructionT3MassFabs = iUnderConstructionT3MassFabs + 1
+            else iExistingT3MassFabs = iExistingT3MassFabs + 1
+            end
+        end
+    end
+    local iMaxMassFabsWanted = 1
+    local iModFactor = M28Overseer.iMassFabRatio * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering for zone '..iZone..' at time='..GetGameTimeSeconds()) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsLowMexMap or iModFactor >= math.max(1.2, 1 + 0.1 * iExistingT3MassFabs) then
+        iMaxMassFabsWanted = 4
+        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+            --If enemy has multiple T3 arti or novax or gameender then reduce to 1
+            local iEnemyCount = 0
+            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) then
+                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                    if oUnit:GetFractionComplete() >= 0.35 then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
+                            iEnemyCount = iEnemyCount + 3
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
+                            iEnemyCount = iEnemyCount + 1
+                        else
+                            iEnemyCount = iEnemyCount + 0.5
+                        end
+                    end
+                end
+            end
+            iMaxMassFabsWanted = math.max(0, iMaxMassFabsWanted - iEnemyCount)
+            if bDebugMessages == true then LOG(sFunctionRef..': Are defending against arti, imaxMassFabsWanted='..iMaxMassFabsWanted..'; iEnemyCount='..iEnemyCount) end
+        end
+    elseif M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then iMaxMassFabsWanted = 0
+    end
+    if iModFactor >= 1.5 or M28Map.bIsLowMexMap then
+        iMaxMassFabsWanted = math.max(2,iMaxMassFabsWanted * ((iModFactor - 1)*0.5 + 1))
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iExistingT3MassFabs='..iExistingT3MassFabs..'; iMaxMassFabsWanted='..iMaxMassFabsWanted..'; iUnderConstructionT3MassFabs='..iUnderConstructionT3MassFabs) end
+    local iBPWanted = 0
+    if iExistingT3MassFabs < iMaxMassFabsWanted or iUnderConstructionT3MassFabs > 0 then
+        iBPWanted = 90
+        if bWantMorePower then iBPWanted = 45 end
+        HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted)
+        if bDebugMessages == true then LOG(sFunctionRef..': iBpWanted for mass fabs='..iBPWanted) end
+    elseif M28Map.bIsLowMexMap or M28Team.tTeamData[iTeam][M28Team.subrefbEnemyGettingFabsOrRAS] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 1) or (M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 60) then
+        local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        local iExistingGateways = 0
+        if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+            for iUnit, oUnit in tQuantumGateways do
+                if oUnit:GetFractionComplete() == 1 then
+                    iExistingGateways = iExistingT3MassFabs + 1
+                end
+            end
+        end
+        if iExistingGateways == 0 then
+            iBPWanted = 70
+            if bWantMorePower then iBPWanted = 35 end
+            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have enough mass fabs but want quantum gateway, iBPWanted='..iBPWanted) end
+        end
+
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -7204,7 +7204,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                             elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
                                                 table.insert(tAvailableCombatUnits, oUnit)
                                                 iAvailableCombatCount = iAvailableCombatCount + 1
-                                                if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                                if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange and not(EntityCategoryContains(M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
                                                 if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
                                                 bIncludeUnit = true
                                             end
@@ -7411,7 +7411,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
                                     iCurUnitThreat = nil
                                     if oUnit[M28UnitInfo.refiDFRange] > 0 then
-                                        if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                        if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange and not(EntityCategoryContains(M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
                                         iCurUnitThreat = M28UnitInfo.GetCombatThreatRating({ oUnit })
                                         iCurDFThreat = iCurDFThreat + iCurUnitThreat
                                         if iCurDFThreat > tLZTeamData[M28Map.subrefLZDFThreatWanted] then
