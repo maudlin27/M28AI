@@ -8029,9 +8029,15 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        if GetGameTimeSeconds() >= 600 then bDebugMessages = true end
         local iTotalExpBombers = table.getn(tAvailableBombers)
         local iBombersPerTick = math.max(1, math.ceil(iTotalExpBombers / 3)) --Logic can run slowly so want to spread it out over 3 ticks
         local iCurBomberPerTick = 0
+
+        local iFriendlyUnitDamageReductionFactor = 0.8
+        local iFriendlyUnitAOEFactor = 1.6
+        local iMobileUnitInnerDamageFactor = 0.75
+        local iOptionalShieldReductionFactor = 0.15
 
         if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then iTotalExpBombers = iTotalExpBombers + table.getn(tBombersForRetreating) end
         if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then iTotalExpBombers = iTotalExpBombers + table.getn(tUnavailableUnits) end
@@ -8198,6 +8204,10 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             local tFirstZoneWithTargetsMidpoint
                             local iZonesConsideredAfterFirstTarget = 0
                             local iDistFromFirstZoneToBomber
+
+                            local iCurBombDamage
+
+
                             if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as experimental bomber='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
                             if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
                                 tFirstZoneWithTargetsMidpoint = tBomberZoneMidpoint
@@ -8251,16 +8261,30 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for bombers for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; tSubtable='..repru(tSubtable)) end
                                             if not(tFirstZoneWithTargetsMidpoint) and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
-                                                local tOtherZoneLZOrWZData
-                                                if tSubtable[M28Map.subrefbIsWaterZone] then
-                                                    tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                                else
-                                                    tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                --Check we have at least 1 target where the bomb will deal damage of at least 100
+                                                for iEnemyCount = table.getn(tEnemyGroundTargets), 1, -1 do
+                                                    iCurBombDamage = M28Logic.GetDamageFromBomb(aiBrain, tEnemyGroundTargets[iEnemyCount]:GetPosition(), iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Damage for iEnemyCount='..iEnemyCount..'; Enemy='..tEnemyGroundTargets[iEnemyCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iEnemyCount])..' is iCurBombDamage='..iCurBombDamage) end
+                                                    if iCurBombDamage >= 200 then
+                                                        break
+                                                    elseif iCurBombDamage <= 40 then
+                                                        table.remove(tEnemyGroundTargets, iEnemyCount)
+                                                    end
                                                 end
-                                                tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
-                                                iDistFromFirstZoneToBomber = (tSubtable[M28Map.subrefiDistance] or M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, oBomber:GetPosition()))
-                                                --tiFirstPlateauAndZone = {tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef]}
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Finished removing nil damage enemy ground targets, is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
+                                                if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                                                    local tOtherZoneLZOrWZData
+                                                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                                                        tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                    else
+                                                        tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                    end
+                                                    tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
+                                                    iDistFromFirstZoneToBomber = (tSubtable[M28Map.subrefiDistance] or M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, oBomber:GetPosition()))
+
+                                                    --tiFirstPlateauAndZone = {tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef]}
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
+                                                end
                                             end
                                             --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
                                         end
@@ -8303,10 +8327,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                     local iCurDamage
                     local iHighestDamage = 0
                     local aiBrain = oBomber:GetAIBrain()
-                    local iFriendlyUnitDamageReductionFactor = 0.8
-                    local iFriendlyUnitAOEFactor = 1.6
-                    local iMobileUnitInnerDamageFactor = 0.75
-                    local iOptionalShieldReductionFactor = 0.15
                     local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
                     local iAngleDif
 
@@ -8397,7 +8417,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
                         local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..oBomber[refiTimeBetweenBombs]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')) end
 
                         --If bomber is facing the wrong direction and isnt that far from the target, and is ready to fire, then consider using micro to turn around and fire at it
                         if iDistToTarget <= 85 and iAngleDifToTarget > 30 and (iTimeUntilReadyToFire <= 0 or (iDistToTarget <= 60 and iTimeUntilReadyToFire <= 5 and (iDistToTarget <= 40 or iTimeUntilReadyToFire <= 3))) and not(oBomber[M28UnitInfo.refbEasyBrain]) then
