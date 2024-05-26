@@ -11076,9 +11076,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
 
     --High priority mass fab or quantum gateway for maps with few mexes
-    bDebugMessages = true
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Higher priority fab and gateway builder, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bLowMexMap='..tostring(M28Map.bIsLowMexMap)..'; M28Overseer.iMassFabRatio='..(M28Overseer.iMassFabRatio or 'nil')..'; bWantMorePower='..tostring(bWantMorePower)) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(bHaveLowPower) then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 320 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 or not(bWantMorePower) or M28Team.tTeamData[iTeam][M28Team.subrefbEnemyGettingFabsOrRAS] or (M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryQuantumGateway) <= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryQuantumGateway) == 0)) then
@@ -11088,7 +11086,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     --Assist land factory if we want to focus on getting sniperbots
     iCurPriority = iCurPriority + 1
@@ -11552,7 +11549,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes; or quantum gateway if enemy having them
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Mass fab builder: Highest friendly fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or (M28Overseer.bNoRushActive and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) or M28Map.bIsLowMexMap) and not(bHaveLowPower) and not(bSaveMassForMML) then
         if bDebugMessages == true then LOG(sFunctionRef..': Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bLowMexMap='..tostring(M28Map.bIsLowMexMap)..'; M28Overseer.iMassFabRatio='..(M28Overseer.iMassFabRatio or 'nil')) end
@@ -16710,7 +16706,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 end
 
 function ConsiderBuildingMassFabOrGateway(iTeam, iZone, tLZTeamData, HaveActionToAssign, bWantMorePower)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderBuildingMassFabOrGateway'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

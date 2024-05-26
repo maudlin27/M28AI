@@ -6104,7 +6104,7 @@ end
 
 function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     --Once per game generate list of land zones that are on the same island as a base but far away, or are on an island with lots of zones but far away from the existing island, so we can consider dropping these as well
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportShortlistForFarAwayLandZoneDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -6901,7 +6901,7 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
 end
 
 function ManageTransports(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTransports'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

@@ -943,7 +943,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 if bCheckForEnemies then
                     iClosestDangerousEnemy = 10000
                     oEnemyToRunFrom = nil
-                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 40 or (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) < 30) and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
+                    if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 40 or (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) < 30) and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
                         bConsiderAttacking = true
                         iEnemyToConsiderAttackingDist = 100000
                     end

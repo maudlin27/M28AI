@@ -650,7 +650,6 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                         local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
                         if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * categories.AMPHIBIOUS + iAbsolverCategory * categories.HOVER end
 
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
                         --Can we actually build a unit with this categoyr?
 

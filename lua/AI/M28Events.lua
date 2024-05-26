@@ -2346,7 +2346,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
             local aiBrain = ArmyBrains[iBrainIndex]
             M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
             if aiBrain.M28AI then
-                if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
+                if aiBrain.M28Team and not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
                     if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
                     oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team] = true
                     if oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnitDetected.UnitId) then
