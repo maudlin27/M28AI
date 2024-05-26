@@ -437,7 +437,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     return sBPIDToBuild
 end
 
-function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iTargetLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bDontGetCombat, bDontGetIndirect)
+function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iTargetLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bDontGetCombat, bDontGetIndirect)
     local sFunctionRef = 'GetLandZoneSupportCategoryWanted'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -642,6 +642,23 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 else
                     iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
                 end
+
+                --Absolver override
+                if bConsiderAbsolvers then
+                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.SHIELD + categories.PERSONALSHIELD, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
+                        --Want absolvers unless we are already building some in this zone
+                        local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
+                        if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * categories.AMPHIBIOUS + iAbsolverCategory * categories.HOVER end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
+                        --Can we actually build a unit with this categoyr?
+
+                        local sAbsolver = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAbsolverCategory, oFactory)
+                        if sAbsolver then
+                            iBaseCategoryWanted = iAbsolverCategory
+                        end
+                    end
+                end
             elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
             end
             if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
@@ -793,6 +810,20 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': bCapMAABuiltAtOnce=' .. tostring(bCapMAABuiltAtOnce) .. '; Number of MAA already being built=' .. M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMAA) .. '; bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA))
+            end
+        end
+    end
+
+    --Absolvers
+    local bConsiderAbsolvers = false
+    if iFactoryTechLevel >= 3 and oFactory[refiTotalBuildCount] >= 5 and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+        local iCurAbsolvers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAbsolver)
+        if iCurAbsolvers < 5 then
+            bConsiderAbsolvers = true
+            if iCurAbsolvers >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3) < iCurAbsolvers * 7 then
+                bConsiderAbsolvers = false
+            elseif M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryAbsolver) > 0 then
+                bConsiderAbsolvers = false
             end
         end
     end
@@ -1341,7 +1372,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': Wont build tank as want to get engineers') end
             else
                 --Build tanks unless we have a LC of tanks of at least 5 and more than our LC of engineers
-                local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths)
+                local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considered support category wanted for this LZ, is iCategoryToGet nil='..tostring(iCategoryToGet==nil)) end
 
                 --About to overflow mass and enemy is in adj zone but not this zone, or are in a 'safe' zone
@@ -1353,11 +1384,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         if iFactoryTechLevel < 3 or not (bDontConsiderBuildingMAA) then
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers)
                         elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1000 then
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, false, bConsiderMobileShields, bConsiderMobileStealths)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, false, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers)
                         else
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering category to build for iAdjLZ='..iAdjLZ..'; is iCategoryToGet nil='..tostring(iCategoryToGet == nil)) end
                         if iCategoryToGet then
@@ -1653,7 +1684,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Do we have a core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; will consider if we want non-core base units for this LZ if not a core base')
         end
         if not (tLZTeamData[M28Map.subrefLZbCoreBase]) then
-            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bSaveMassDueToEnemyFirebaseOrOurExperimental)
+            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bSaveMassDueToEnemyFirebaseOrOurExperimental)
             if iCategoryToGet then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have support category wanted for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
                 if ConsiderBuildingCategory(iCategoryToGet) then
@@ -1909,7 +1940,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Have highest LZ tech, iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Will see if we want to get support for this LZ, bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA) .. '; bConsiderMobileShields=' .. tostring(bConsiderMobileShields) .. '; bConsiderMobileStealths=' .. tostring(bConsiderMobileStealths))
             end
-            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bSaveMassDueToEnemyFirebaseOrOurExperimental)
+            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bSaveMassDueToEnemyFirebaseOrOurExperimental)
             if iCategoryToGet then
                 if ConsiderBuildingCategory(iCategoryToGet) then
                     return sBPIDToBuild
@@ -2113,7 +2144,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                 LOG(sFunctionRef .. ': Considering whether to reinforce alternative LZ ' .. (tLZPathing[M28Map.subrefLZNumber] or 'nil') .. '; Travel dist=' .. (tLZPathing[M28Map.subrefLZTravelDist] or 'nil') .. '; iDistToEnemyBaseToConsider=' .. (iDistToEnemyBaseToConsider or 'nil') .. '; Size of this alt LZ in segments=' .. (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTotalSegmentCount] or 'nil'))
                             end
                             --if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bSaveMassDueToEnemyFirebaseOrOurExperimental)
+                            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bSaveMassDueToEnemyFirebaseOrOurExperimental)
                             if bDebugMessages == true then
                                 LOG(sFunctionRef .. ': DO we have no category (i.e. false means we want to build something) for this alternative LZ ' .. tLZPathing[M28Map.subrefLZNumber] .. '=' .. tostring(iCategoryToGet == nil) .. '; bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA))
                             end
@@ -2290,7 +2321,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                     LOG(sFunctionRef .. ': T2 Considering whether to reinforce alternative LZ ' .. tLZPathing[M28Map.subrefLZNumber] .. '; Travel dist=' .. tLZPathing[M28Map.subrefLZTravelDist] .. '; iDistToEnemyBaseToConsider=' .. iDistToEnemyBaseToConsider..'; bDontConsiderMainCombat='..tostring(bDontConsiderMainCombat)..'; bDontConsiderIndirect='..tostring(bDontConsiderIndirect))
                                 end
                                 if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                                    local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bDontConsiderMainCombat, bDontConsiderIndirect)
+                                    local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bDontConsiderMainCombat, bDontConsiderIndirect)
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': T2 DO we have no category for this alternative LZ ' .. tLZPathing[M28Map.subrefLZNumber] .. '=' .. tostring(iCategoryToGet == nil) .. '; bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA))
                                     end

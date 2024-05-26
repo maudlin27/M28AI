@@ -77,6 +77,7 @@ refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 refiUnitMassCost = 'M28UMCs' --for profiling testing
 refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against the table of non-M28 experimentals being constructed
+refbHaveSeenUnitByTeam = 'M28UHvSn' --true if we have detected the unit in some way
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -218,6 +219,7 @@ refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFI
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
+refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAND
 refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE

@@ -7101,7 +7101,8 @@ function CheckIfLowMexMap()
             --2.5 or fewer mexes per player - check total reclaim - cant rely on normal reclaiming tracking since likely hasnt been updated yet (and we need to know early on so we can decide whether to build a factory or not)
             local rRect = Rect(rMapPlayableArea[1], rMapPlayableArea[2], rMapPlayableArea[3], rMapPlayableArea[4])
             local iTotalReclaimMass = GetReclaimInRectangle(3, rRect)
-            if iTotalReclaimMass <= 200 then
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalReclaimMass on map='..iTotalReclaimMass) end
+            if iTotalReclaimMass <= 200 or (iTotalMexCount <= M28Team.iPlayersAtGameStart and iTotalReclaimMass <= 25000 * M28Team.iPlayersAtGameStart) then
                 bIsLowMexMap = true
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iTotalReclaimMass='..iTotalReclaimMass..'; bIsLowMexMap='..tostring(bIsLowMexMap)) end
