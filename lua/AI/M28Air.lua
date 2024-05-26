@@ -6104,7 +6104,7 @@ end
 
 function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     --Once per game generate list of land zones that are on the same island as a base but far away, or are on an island with lots of zones but far away from the existing island, so we can consider dropping these as well
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportShortlistForFarAwayLandZoneDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -6276,14 +6276,41 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                 if not(bHaveUnattachedEngineersOrFactories) then
                                     --Do we have engineers in an adjacent zone?
                                     local bHaveNearbyFactoriesOrLargeThreat = false
+                                    local bAlreadyHaveTransportTravelingHere = false
+                                    if tLZTeamData[M28Map.refiTransportRecentUnloadCount] == 1 and not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][iLandZone]) then bAlreadyHaveTransportTravelingHere = true end
+
                                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; tAdjLZTeamData[M28Map.refiTransportRecentUnloadCount]='..(tAdjLZTeamData[M28Map.refiTransportRecentUnloadCount] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef][iLandZone]='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][iLandZone] or 'nil')) end
                                             if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 and not(bCampaignMap) then
-                                                bHaveNearbyFactoriesOrLargeThreat = true
-                                                break
-                                            else
+                                                --Check how close the enemy unit is if we already have a transport heading to the base location
+                                                if not(bAlreadyHaveTransportTravelingHere) then
+                                                    bHaveNearbyFactoriesOrLargeThreat = true
+                                                    break
+                                                else
+                                                    local iDistThreshold = 160
+                                                    local iCurDist
+                                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                        local tEnemyCombat = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                                        if M28Utilities.IsTableEmpty(tEnemyCombat) == false then
+                                                            for iUnit, oUnit in tEnemyCombat do
+                                                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist of enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to midpoint='..iCurDist) end
+                                                                    if iCurDist < iDistThreshold then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy is too close, no longer include as potential drop zone') end
+                                                                        bHaveNearbyFactoriesOrLargeThreat = true
+                                                                        break
+                                                                    end
+                                                                end
+                                                            end
+                                                            if bHaveNearbyFactoriesOrLargeThreat then break end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                            if not(bHaveNearbyFactoriesOrLargeThreat) then
                                                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                                                     local tFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                     if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
@@ -6874,7 +6901,7 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
 end
 
 function ManageTransports(iTeam, iAirSubteam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTransports'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
