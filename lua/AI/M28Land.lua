@@ -6136,6 +6136,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tPriorityMMLTargets empty='..tostring(M28Utilities.IsTableEmpty(tPriorityMMLTargets))) end
                 local iDistThresholdFurtherAdjust
+                local tPriorityEnemyScoutTargets = {}
                 for iUnit, oUnit in tMMLForSynchronisation do
                     iDistThresholdFurtherAdjust = 0
                     if oUnit[M28UnitInfo.refiIndirectRange] - iEnemyBestDFRange >= 40 and oUnit[M28UnitInfo.refiIndirectRange] >= 55 then iDistThresholdFurtherAdjust = math.max(8, 20 - iIndirectRunFigureSynchronisation) end
@@ -6190,8 +6191,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         M28Orders.IssueTrackedMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchM'..iLandZone)
                                     end
                                 else
-                                    --Can attack the unit itself as either in range or almost in range
-                                    M28Orders.IssueTrackedGroundAttack(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchGA', false)
+                                    if oClosestPotentialTarget[M28UnitInfo.refbHaveSeenUnitByTeam][iTeam] or not(EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryStealthGenerator, oClosestPotentialTarget.UnitId)) then
+                                        --Can attack the unit itself as either in range or almost in range
+                                        M28Orders.IssueTrackedGroundAttack(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchGA', false)
+                                    else
+                                        --Enemy TMD that we dont have intel of
+                                        tPriorityEnemyScoutTargets[oClosestPotentialTarget.EntityId] = oClosestPotentialTarget
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oClosestPotentialTarget:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 10) - 5, 'MMLNoVis')
+                                    end
                                     table.insert(tMMLWithNearbyTargets, oUnit)
                                     if bConsiderMultipleTargets then
                                         tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] = (tiAssignedInRangeThreatByEntity[oClosestPotentialTarget.EntityId] or 0) + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
@@ -6230,6 +6237,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
                 end
+
+                if M28Utilities.IsTableEmpty(tPriorityEnemyScoutTargets) == false then
+                    local iAirSubteam = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam
+                    for iEnemy, oEnemy in tPriorityEnemyScoutTargets do
+                        M28Air.AddUnitWantingPriorityScout(oEnemy, false, iAirSubteam)
+                    end
+                end
+
                 --Do we have any MML that have targets in-range or almost in range? If so then consider synchronising their weapons (dont do this though if we only want to prioritise TMD and shields and dont want to synchronise)
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tMMLWithNearbyTargets empty='..tostring(M28Utilities.IsTableEmpty(tMMLWithNearbyTargets))) end
                 if bConsiderSpecialMMLLogic and M28Utilities.IsTableEmpty(tMMLWithNearbyTargets) == false then

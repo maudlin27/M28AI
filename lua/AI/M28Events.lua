@@ -2346,6 +2346,13 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
             local aiBrain = ArmyBrains[iBrainIndex]
             M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
             if aiBrain.M28AI then
+                if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
+                    if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
+                    oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team] = true
+                    if oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnitDetected.UnitId) then
+                        oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] = nil --not ideal for multi-team game but hopefully in most cases will be ok and is for niche scenairo anyway - i.e. if MMLs come across TMD with no intel they flag as a priority scout target; then when the unit is detected it gets cleared
+                    end
+                end
                 --Update highest enemy ground unti health
                 if M28Map.bFirstM28TeamHasBeenInitialised and M28UnitInfo.IsUnitValid(oUnitDetected) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
                     local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)

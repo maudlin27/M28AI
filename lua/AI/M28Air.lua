@@ -257,13 +257,13 @@ function AirTeamOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable)
+function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitWantingPriorityScout'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bAddUnit = true
-    local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
+    local iAirSubteam = iAirSubteamOverride or oUnit:GetAIBrain().M28AirSubteam
     if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
         for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
             if oExistingUnit == oUnit then bAddUnit = false break end
