@@ -8029,7 +8029,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-        if GetGameTimeSeconds() >= 600 then bDebugMessages = true end
         local iTotalExpBombers = table.getn(tAvailableBombers)
         local iBombersPerTick = math.max(1, math.ceil(iTotalExpBombers / 3)) --Logic can run slowly so want to spread it out over 3 ticks
         local iCurBomberPerTick = 0
