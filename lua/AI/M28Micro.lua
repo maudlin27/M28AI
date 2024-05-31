@@ -136,10 +136,18 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
         --If are backing up, then consider queuing up multiple move orders
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should backup, bBackupInsteadOfTurning='..tostring(bBackupInsteadOfTurning or false)) end
         if bBackupInsteadOfTurning and iBackupDist - 1 > 0 and iDistanceToMove > iDistanceAlreadyMoved then
+            --First stop and wait 1 tick (so we can actually backup)
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
+            --For backing up to work reliably the unit should be stationery
+            if oUnit:IsUnitState('Moving') then
+                M28Orders.IssueTrackedClearCommands(oUnit)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
             local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
             local iCurDistToMove
-            local bFirstTime = true
-            while iDistanceAlreadyMoved < iDistanceToMove do
+            while iDistanceAlreadyMoved < iDistanceToMove and M28UnitInfo.IsUnitValid(oUnit) do
                 iCurDistToMove = math.min(iBackupDist - 1, math.max(1, iDistanceToMove - iDistanceAlreadyMoved))
                 local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, iCurDistToMove + iDistanceAlreadyMoved, true, false, true)
                 if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tViaPoint) == iPlateauWanted then
@@ -149,7 +157,6 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                             or (EntityCategoryContains(categories.NAVAL, oUnit.UnitId) and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tViaPoint)) then
                         M28Orders.IssueTrackedMove(oUnit, tViaPoint, 0.25, true, 'BckupDodMv', true)
                         iDistanceAlreadyMoved = iDistanceAlreadyMoved + iCurDistToMove
-                        if bFirstTime then TrackTemporaryUnitMicro(oUnit, iTimeToRun) bFirstTime = false end
                         if bDebugMessages == true then LOG(sFunctionRef..': Backing up to via point, iCurDistToMove='..iCurDistToMove..'; iDistanceAlreadyMoved='..iDistanceAlreadyMoved) end
                     else
                         --Abort

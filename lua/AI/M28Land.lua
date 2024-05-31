@@ -51,6 +51,7 @@ reftoAdditionalAssignedMobileShields = 'M28LandExtraMobS' --for units assigned m
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
 refoAssignedMobileStealth = 'M28LandAssignedMobileStealth' --If a mobile stealth is assigned to this unit, then returns the mobile stealth unit assigned
 refoMobileStealthTarget = 'M28LandMobileStealthTarget' --Against mobile stleaht units, returns the unit the mobile stealth is trying to cover
+refoLandScoutTarget = 'M28LndSTrg' --Against land scouts if assigned to follow a unit such as an ACU
 
 function UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
     tLZTeamData[M28Map.subrefbLZWantsSupport] = (bWantDFSupport or bWantIndirectSupport)
@@ -936,6 +937,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local iActualCurDist
         local iClosestDangerousEnemy
         local oClosestDangerousEnemy
+        local toEscortScouts = {}
         for iScout, oScout in tScouts do
             if oScout:GetFractionComplete() == 1 then
 
@@ -1087,8 +1089,13 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                 table.insert(tAvailableScouts, oScout)
                             end
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will add scout to table of available scouts') end
-                            table.insert(tAvailableScouts, oScout)
+                            if oScout[refoLandScoutTarget] and M28UnitInfo.IsUnitValid(oScout[refoLandScoutTarget]) then
+                                table.insert(toEscortScouts, oScout)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Scout is escorting unit '..oScout[refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[refoLandScoutTarget])) end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will add scout to table of available scouts') end
+                                table.insert(tAvailableScouts, oScout)
+                            end
                         end
                     end
                 end
@@ -1098,116 +1105,132 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         if bDebugMessages == true then LOG(sFunctionRef..': Is available scout table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
 
         if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-            --First assign any available scouts to adjacent land zones wanting scouts
-            --Early game - prioritise zones with combat threat if we only have one scout available
-            local bPrioritiseLandZonesWithFriendlyCombat = false
-            local tFirstPlateauOrLZIfWantCombat
-            if GetGameTimeSeconds() <= 360 and table.getn(tAvailableScouts) == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bPrioritiseLandZonesWithFriendlyCombat = true end
+            --If not a core zone and have ACU in this zone that lacks a decided scout, no nearby omni, and has an upgrade with decent df range (so guncom) then assign scout to it
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiRadarCoverage] < 400 then
+                for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
+                    if not(M28UnitInfo.IsUnitValid(oACU[M28ACU.refoAssignedLandScout])) and (oACU[M28ACU.refiUpgradeCount] or 0) > 0 and oACU[M28UnitInfo.refiDFRange] >= 28 then
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Will first allocate scouts to any adjacent land zones that want a scout. Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
-                local bDontCheckInPlayableArea = not(M28Map.bIsCampaignMap)
-                for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Consideri niAdjLZ='..iAdjLZ..'; Does this LZ want land scout='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] or false)..'; Is table of traveling scouts here empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere]))) end
-                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                    if tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] and (bDontCheckInPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint])) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent land zone '..iAdjLZ..' in plateau '..iPlateau) end
-                        if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
-                            if not(bPrioritiseLandZonesWithFriendlyCombat) or M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedCombatUnits]) == false then
+                        oACU[M28ACU.refoAssignedLandScout] = tAvailableScouts[1]
+                        tAvailableScouts[1][refoLandScoutTarget] = oACU
+                        table.insert(toEscortScouts, tAvailableScouts[1])
+                        table.remove(tAvailableScouts, 1)
+                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
 
-                                GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefTScoutsTravelingHere)
-                                tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
-                                table.remove(tAvailableScouts, 1)
-                                if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
-                            else
-                                --We want to prioritise an adjacent zone wanting scouts
-                                if not(tFirstPlateauOrLZIfWantCombat) then
-                                    tFirstPlateauOrLZIfWantCombat = {iPlateau, iAdjLZ}
+                --First assign any available scouts to adjacent land zones wanting scouts
+                --Early game - prioritise zones with combat threat if we only have one scout available
+                local bPrioritiseLandZonesWithFriendlyCombat = false
+                local tFirstPlateauOrLZIfWantCombat
+                if GetGameTimeSeconds() <= 360 and table.getn(tAvailableScouts) == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bPrioritiseLandZonesWithFriendlyCombat = true end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Will first allocate scouts to any adjacent land zones that want a scout. Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                    local bDontCheckInPlayableArea = not(M28Map.bIsCampaignMap)
+                    for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Consideri niAdjLZ='..iAdjLZ..'; Does this LZ want land scout='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] or false)..'; Is table of traveling scouts here empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere]))) end
+                        local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                        if tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] and (bDontCheckInPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint])) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent land zone '..iAdjLZ..' in plateau '..iPlateau) end
+                            if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
+                                if not(bPrioritiseLandZonesWithFriendlyCombat) or M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedCombatUnits]) == false then
+
+                                    GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefTScoutsTravelingHere)
+                                    tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                                    table.remove(tAvailableScouts, 1)
+                                    if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                                else
+                                    --We want to prioritise an adjacent zone wanting scouts
+                                    if not(tFirstPlateauOrLZIfWantCombat) then
+                                        tFirstPlateauOrLZIfWantCombat = {iPlateau, iAdjLZ}
+                                    end
                                 end
                             end
                         end
                     end
+                    if bPrioritiseLandZonesWithFriendlyCombat and M28Utilities.IsTableEmpty(tAvailableScouts) == false and tFirstPlateauOrLZIfWantCombat then
+                        GetUnitToTravelToLandZone(tAvailableScouts[1], tFirstPlateauOrLZIfWantCombat[1], tFirstPlateauOrLZIfWantCombat[2], M28Map.subrefTScoutsTravelingHere)
+                        M28Map.tAllPlateaus[tFirstPlateauOrLZIfWantCombat[1]][M28Map.subrefPlateauLandZones][tFirstPlateauOrLZIfWantCombat[2]][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                        table.remove(tAvailableScouts, 1)
+                    end
                 end
-                if bPrioritiseLandZonesWithFriendlyCombat and M28Utilities.IsTableEmpty(tAvailableScouts) == false and tFirstPlateauOrLZIfWantCombat then
-                    GetUnitToTravelToLandZone(tAvailableScouts[1], tFirstPlateauOrLZIfWantCombat[1], tFirstPlateauOrLZIfWantCombat[2], M28Map.subrefTScoutsTravelingHere)
-                    M28Map.tAllPlateaus[tFirstPlateauOrLZIfWantCombat[1]][M28Map.subrefPlateauLandZones][tFirstPlateauOrLZIfWantCombat[2]][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
-                    table.remove(tAvailableScouts, 1)
-                end
-            end
-            --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
-            if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
-                    local tAmphibiousOrHoverScouts = EntityCategoryFilterDown(categories.AMPHIBIOUS + categories.HOVER, tAvailableScouts)
-                    if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) == false then
-                        local iPond, iAdjWZ
-                        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
-                            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-                            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
-                            local tAdjWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]
-                            if tAdjWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering tAmphibiousOrHoverScouts, size of table='..table.getn(tAmphibiousOrHoverScouts)) end
-                                M28Navy.GetUnitToTravelToWaterZone(tAmphibiousOrHoverScouts[1], iPond, iAdjWZ, M28Map.subrefTScoutsTravelingHere)
-                                M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
-                                local iAvailableScoutRef
-                                for iUnit, oUnit in tAvailableScouts do
-                                    if oUnit == tAmphibiousOrHoverScouts[1] then
-                                        iAvailableScoutRef = iUnit
+                --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
+                if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                        local tAmphibiousOrHoverScouts = EntityCategoryFilterDown(categories.AMPHIBIOUS + categories.HOVER, tAvailableScouts)
+                        if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) == false then
+                            local iPond, iAdjWZ
+                            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                                iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                                local tAdjWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]
+                                if tAdjWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering tAmphibiousOrHoverScouts, size of table='..table.getn(tAmphibiousOrHoverScouts)) end
+                                    M28Navy.GetUnitToTravelToWaterZone(tAmphibiousOrHoverScouts[1], iPond, iAdjWZ, M28Map.subrefTScoutsTravelingHere)
+                                    M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                                    local iAvailableScoutRef
+                                    for iUnit, oUnit in tAvailableScouts do
+                                        if oUnit == tAmphibiousOrHoverScouts[1] then
+                                            iAvailableScoutRef = iUnit
+                                            break
+                                        end
+                                    end
+                                    table.remove(tAmphibiousOrHoverScouts, 1)
+                                    if iAvailableScoutRef then
+                                        table.remove(tAvailableScouts, iAvailableScoutRef)
+                                    end
+                                    if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) then
                                         break
                                     end
                                 end
-                                table.remove(tAmphibiousOrHoverScouts, 1)
-                                if iAvailableScoutRef then
-                                    table.remove(tAvailableScouts, iAvailableScoutRef)
-                                end
-                                if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) then
-                                    break
-                                end
                             end
                         end
                     end
-                end
 
-                if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-                    tLZTeamData[M28Map.refbWantLandScout] = false
-                    if table.getn(tAvailableScouts) > 1 then
-                        --Look for further away zones in this island wanting land scouts
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-                            for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                                local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
-                                if tTeamTargetLZData[M28Map.refbWantLandScout] then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]) end
-                                    GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
-                                    tTeamTargetLZData[M28Map.refbWantLandScout] = false
-                                    table.remove(tAvailableScouts, 1)
-                                    if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                    if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                        tLZTeamData[M28Map.refbWantLandScout] = false
+                        if table.getn(tAvailableScouts) > 1 then
+                            --Look for further away zones in this island wanting land scouts
+                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                                for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                                    local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+                                    if tTeamTargetLZData[M28Map.refbWantLandScout] then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]) end
+                                        GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
+                                        tTeamTargetLZData[M28Map.refbWantLandScout] = false
+                                        table.remove(tAvailableScouts, 1)
+                                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                                    end
+                                    --subrefLZNumber = 1 --Land zone reference number
+                                    --subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable, returns a table [x]=1,2,3...; which returns the land zone reference for each land zone that will go through on a path from these
+                                    --subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
                                 end
-                                --subrefLZNumber = 1 --Land zone reference number
-                                --subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable, returns a table [x]=1,2,3...; which returns the land zone reference for each land zone that will go through on a path from these
-                                --subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
                             end
                         end
-                    end
-                    if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-                        --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
-                        for iScout, oScout in tAvailableScouts do
-                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
-                                --Patrol the land zone
-                                M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
-                            else
-                                --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
-                                if not(oScout:IsUnitState('Moving')) then
-                                    M28Orders.UpdateRecordedOrders(oScout)
-                                    if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
-                                        --Want ot get somewhere to move to as a backup
-                                        if tLZData[M28Map.subrefLZMexCount] > 0 then
-                                            M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefMidpoint], 5, false, 'BackupMid')
-                                        else
-                                            --Do we have an adjacent LZ? If so move here
-                                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
-                                                GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefTScoutsTravelingHere)
+                        if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                            --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
+                            for iScout, oScout in tAvailableScouts do
+                                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                                    --Patrol the land zone
+                                    M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                                else
+                                    --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
+                                    if not(oScout:IsUnitState('Moving')) then
+                                        M28Orders.UpdateRecordedOrders(oScout)
+                                        if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
+                                            --Want ot get somewhere to move to as a backup
+                                            if tLZData[M28Map.subrefLZMexCount] > 0 then
+                                                M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefMidpoint], 5, false, 'BackupMid')
                                             else
-                                                --No adjacent LZs, and no mexes in this LZ, so just move randomly
-                                                M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 5, false, 'BackupRnd')
+                                                --Do we have an adjacent LZ? If so move here
+                                                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                                                    GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefTScoutsTravelingHere)
+                                                else
+                                                    --No adjacent LZs, and no mexes in this LZ, so just move randomly
+                                                    M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 5, false, 'BackupRnd')
+                                                end
                                             end
                                         end
                                     end
@@ -1218,6 +1241,19 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 end
             end
         end
+        if M28Utilities.IsTableEmpty(toEscortScouts) == false then
+            local bRemoveAssignment = false
+            for iScout, oScout in toEscortScouts do
+                --If target is underwater and we are not amphibious/hover, then no longer assign
+                if M28UnitInfo.IsUnitUnderwater(oScout[refoLandScoutTarget]) and not(EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oScout.UnitId)) then
+                    oScout[refoLandScoutTarget][M28ACU.refoAssignedLandScout] = nil
+                    oScout[refoLandScoutTarget] = nil
+                else
+                    M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout[refoLandScoutTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(oScout[refoLandScoutTarget]:GetPosition(), oScout:GetPosition()), 8, true, false, true), 1.5, false, 'ScACU'..oScout[refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[refoLandScoutTarget]))
+                end
+            end
+        end
+
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3278,39 +3314,47 @@ end
 
 function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauRef, sOrderDesc, bAmphibious, iDefaultDistOverride)
     --iDefaultDistOverride - if specified, then doesnt require a backup dist to move back, and will use this if no backup dist is available
-    local iBackupDist = 0
-    local bValidTowardsLocation = false
-    if oUnit[M28UnitInfo.refbCanKite] then
-        iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
-    end
-
-    if iBackupDist >= 6 or iDefaultDistOverride then
-
-
-        local iDistToMove
-        if iDefaultDistOverride and iBackupDist >= 3 then iDistToMove = math.min(iBackupDist - 1)
-        elseif not(iDefaultDistOverride) then iDistToMove = iBackupDist - 1
-        else iDistToMove = iDefaultDistOverride
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local iBackupDist = 0
+        local bValidTowardsLocation = false
+        if oUnit[M28UnitInfo.refbCanKite] then
+            iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
         end
-        local tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint), iDistToMove, true, false)
-        if tPotentialMoveLocation then
-            if bAmphibious then
-                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandOrPlateauRef then
-                    bValidTowardsLocation = true
+
+        if iBackupDist >= 6 or iDefaultDistOverride then
+
+
+            local iDistToMove
+            if iDefaultDistOverride and iBackupDist >= 3 then iDistToMove = math.min(iBackupDist - 1)
+            elseif not(iDefaultDistOverride) then iDistToMove = iBackupDist - 1
+            else iDistToMove = iDefaultDistOverride
+            end
+            local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+            local tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToRally, iDistToMove, true, false)
+            if tPotentialMoveLocation then
+                if bAmphibious then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandOrPlateauRef then
+                        bValidTowardsLocation = true
+                    end
+                else
+                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialMoveLocation) == iIslandOrPlateauRef then
+                        bValidTowardsLocation = true
+                    end
                 end
-            else
-                if NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialMoveLocation) == iIslandOrPlateauRef then
-                    bValidTowardsLocation = true
+                if bValidTowardsLocation then
+                    --If arent already moving in this direction then stop for 1 tick, as backing up doesnt work properly otherwise
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                    if tLastOrder and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetAngleDifference(iAngleToRally, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) < 15) then
+                        M28Orders.IssueTrackedClearCommands(oUnit)
+                        WaitTicks(1)
+                    end
+                    M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
                 end
             end
-            if bValidTowardsLocation then
-
-                M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
-            end
         end
-    end
-    if not(bValidTowardsLocation) then
-        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, sOrderDesc..'R', false)
+        if not(bValidTowardsLocation) then
+            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, sOrderDesc..'R', false)
+        end
     end
 end
 
@@ -4704,7 +4748,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Giving kiting retreat order to fatboy, iCurDistToBackup='..iCurDistToBackup) end
                                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                M28Orders.IssueTrackedMove(oUnit, tFatboyRetreatLocation, math.min(math.max(1, iCurDistToBackup - 3), 8), false, 'FatbKit', false)
+                                                ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tFatboyRetreatLocation, iPlateau, 'FatbKit', true)
+                                                --M28Orders.IssueTrackedMove(oUnit, tFatboyRetreatLocation, math.min(math.max(1, iCurDistToBackup - 3), 8), false, 'FatbKit', false)
                                             end
                                         end
                                         --Finished considering fatboy specific logic (if relevant), iwll now proceed with normal logic for all units (and fatboy if we didnt give it specific orders)
@@ -4817,7 +4862,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             --M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'UnderWARA', false)
                                                         else
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetrU'..iLandZone)
+                                                            ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetrU'..iLandZone)
                                                             --M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AKRetrU'..iLandZone)
                                                         end
                                                     else
@@ -4827,7 +4872,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             --M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'UnderWARB', false)
                                                         else
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef],'KRetrU'..iLandZone)
+                                                            ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef],'KRetrU'..iLandZone)
                                                             --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'KRetrU'..iLandZone)
                                                         end
                                                     end
@@ -4839,15 +4884,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), (iBackupDist or 9) - 1, true, false, M28Map.bIsCampaignMap)
                                                         if M28Utilities.IsTableEmpty(tTemporaryRetreatLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tTemporaryRetreatLocation) == iPlateau then
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                            M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 6, false, 'AKRetNE'..iLandZone)
+                                                            ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tTemporaryRetreatLocation, iPlateau, 'AKRetNE'..iLandZone, true, math.min(iBackupDist, 9))
+                                                            --M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 6, false, 'AKRetNE'..iLandZone)
                                                         else
-                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tAmphibiousRallyPoint, iPlateau, 'AKRetFA', true, 9)
+                                                            ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tAmphibiousRallyPoint, iPlateau, 'AKRetFA', true, math.min(iBackupDist, 9))
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                             --M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AKRetFA'..iLandZone)
                                                         end
                                                     else
                                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                        BackupUnitTowardsRallyIfAvailable(oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetr'..iLandZone)
+                                                        ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetr'..iLandZone)
                                                         --M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AKRetr'..iLandZone)
                                                     end
 
@@ -4870,13 +4916,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                             M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 4, false, 'KRetNE'..iLandZone)
                                                         else
-                                                            BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'KRetFA')
+                                                            ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'KRetFA')
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                             --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'KRetFA'..iLandZone)
                                                         end
                                                     else
                                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                        BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'KRetr'..iLandZone)
+                                                        ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'KRetr'..iLandZone)
                                                         --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'KRetr'..iLandZone)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will move unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to rally point (kiting retreat), rallypoint='..repru(tRallyPoint)..'; unit position='..repru(oUnit:GetPosition())) end
                                                     end
@@ -7023,7 +7069,8 @@ function RetreatOtherUnits(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tOt
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try backing up for fatboy or similar unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tRetreatLocationToUse='..repru(tRetreatLocationToUse)..'; oNearestEnemyCombatToRallyPoint='..oNearestEnemyCombatToRallyPoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyCombatToRallyPoint)) end
                         bDoneKitingRetreat = true
-                        M28Orders.IssueTrackedMove(oUnit, tRetreatLocationToUse, 3, false, 'SpFBlsRetr')
+                        ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tRetreatLocationToUse, iPlateau, 'SpFBlsRetr', true, math.min(9, iBackupDist))
+                        --M28Orders.IssueTrackedMove(oUnit, tRetreatLocationToUse, 3, false, 'SpFBlsRetr')
                     end
                 end
             end
