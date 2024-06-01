@@ -7350,7 +7350,16 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
 
                         --Remove this location from the shortlist
-                        if bTravelToSameIsland then
+                        if oUnit[refbCombatDrop] then
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist]) == false then --redundancy
+                                for iEntry, tiPlateauAndLandZone in M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist] do
+                                    if tiPlateauAndLandZone[2] == iLandZoneToTravelTo and tiPlateauAndLandZone[1] == iPlateauToTravelTo then
+                                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], iEntry)
+                                        break
+                                    end
+                                end
+                            end
+                        elseif bTravelToSameIsland then
                             for iEntry, tiPlateauAndLandZone in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
                                 if tiPlateauAndLandZone[2] == iLandZoneToTravelTo then
                                     table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
