@@ -716,7 +716,14 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         end
                     end
                     if bHadEnemyHuman then
-                        AddPotentialMessage( 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                        --Check enemy has ACU (i.e. it is unlikely to be a draw)
+                        for iBrain, oBrain in ArmyBrains do
+                            if not(oBrain:IsDefeated()) and not(oBrain.M28IsDefeated) and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) and oBrain:GetCurrentUnits(categories.COMMAND) > 0 then
+                                LOG('Brain '..oBrain.Nickname..' has an ACU and isnt defeated')
+                                AddPotentialMessage( 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                                break
+                            end
+                        end
                         AddPotentialMessage( 'Time for me to go back to fighting other bots :(')
                         if oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 then
                             AddPotentialMessage( 'I hope M27 doesnt see my humiliation this day')

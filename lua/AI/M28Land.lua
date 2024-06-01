@@ -3364,7 +3364,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 488 and iLandZone == 14 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
@@ -7101,7 +7101,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 488 and iLandZone == 14 then bDebugMessages = true end
 
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -7619,25 +7619,52 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and tLZTeamData[M28Map.subrefLZTValue] >= 200) or tLZData[M28Map.subrefbPacifistArea] then
             local bWantIndirectSupport = false
             if not(tLZData[M28Map.subrefbPacifistArea]) then
-                if tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true end
+                if tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has a structure with a DF range so want indirect fire support') end
+                    bWantIndirectSupport = true
+                end
                 if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] > 0 or tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0 then bWantDFSupport = true end
                 --If havent flagged for any support but enemy has units in this LZ (presumably non-combat) and we have no combat units, then flag for support
                 if not(bWantIndirectSupport) and not(bWantDFSupport) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] == 0 and tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] == 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.MOBILE * categories.LAND, tLZTeamData[M28Map.subrefTEnemyUnits])) == false then
                         bWantDFSupport = true
                     elseif M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.STRUCTURE, tLZTeamData[M28Map.subrefTEnemyUnits])) == false then
+                        if bDebugMessages == true then
+                            local tEnemyBuildings = EntityCategoryFilterDown(categories.STRUCTURE, tLZTeamData[M28Map.subrefTEnemyUnits])
+                            for iBuilding, oBuilding in tEnemyBuildings do
+                                LOG(sFunctionRef..': Flagging we want indirect due to enemy having buildings in this zone, enemy building iBuilding='..iBuilding..'; oBuilding='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding))
+                            end
+                        end
                         bWantIndirectSupport = true
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectSupport after initial checks based on enemy units in the zone='..tostring(bWantIndirectSupport)) end
                 --If enemy has PD in this or adjacent zone then flag we want indirect support
                 if not(bWantIndirectSupport) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We wouldnt normally want indirect fire support for this zone, but if MML have been firing near TMD or shield then will flag we want indirect support, time since last firing near TMD or shield='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100)) end
                     if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bWantIndirectSupport = true end
                     if not(bWantIndirectSupport) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Not fired near TMD recently, checking we dont have too much IF in the zone before considering adjacent zone PD, tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='.. tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
                         if tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] <= math.min(2000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech], tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] * 3) then
                             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                local iAdjacentMobileDFThreat = 0
+                                local iAdjacentPDOrStructureThreat = 0
                                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                     local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                    if tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true break end
+                                    iAdjacentMobileDFThreat = iAdjacentMobileDFThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
+                                    if tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then
+                                        iAdjacentPDOrStructureThreat = iAdjacentPDOrStructureThreat + math.max((tAltLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0), tAltLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has a DF building in an adjacent zone so want IF support, iAdjacentMobileDFThreat cumulative='..iAdjacentMobileDFThreat..'; Enemy PD threat='..tAltLZTeamData[M28Map.subrefThreatEnemyDFStructures]..'; iAdjacentPDOrStructureThreat='..iAdjacentPDOrStructureThreat..'; Enemy structure mass='..tAltLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) end
+                                        if iAdjacentMobileDFThreat >= 1000 and iAdjacentMobileDFThreat >= iAdjacentPDOrStructureThreat * 4 then
+                                            --Dont build indirect fire just because of the PD Threat
+                                        else
+                                            bWantIndirectSupport = true break
+                                        end
+                                    end
+                                end
+                                if iAdjacentPDOrStructureThreat > 0 and iAdjacentPDOrStructureThreat > iAdjacentMobileDFThreat / 4 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Overall we want indirect fire due to level of PD threat') end
+                                    bWantIndirectSupport = true
                                 end
                             end
                         end
@@ -7645,7 +7672,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                                 for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
                                     local tAdjLZTeamData = M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam]
-                                    if tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true break end
+                                    if tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has a nearby firebase type zone so want IF support') end
+                                        bWantIndirectSupport = true break
+                                    end
                                 end
                             end
                         end
