@@ -7237,7 +7237,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     else
                                         M28Orders.IssueTrackedMove(oUnit, oUnit[refoAssignedUnitToGuard]:GetPosition(), 3, false, 'SpecG', false)
                                     end
-
+                                elseif oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport or oUnit:IsUnitState('Attached') then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is either attached or abut to load into a transport so will ignore') end
                                     --M28Orders.IssueTrackedGuard(oUnit, oUnit[refoAssignedUnitToGuard], false, 'SpecG', false)
                                 else
                                     --NOTE: If making changes to below line condition, then update simialr line in M28Team

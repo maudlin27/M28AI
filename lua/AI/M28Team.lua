@@ -200,10 +200,13 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --subrefiOurAirAAThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
+    refiTimeOfLastTransportCombatShortlistUpdate = 'M28TmAirCmTrSL' --Gametimeseconds we last updated list of potential combat drop locations
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
     reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist = 'M28TeamAirTransCurIslShortlist' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations on the same island as a base that want a drop due to how far away they are
     reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
+    reftiPotentialCombatDropZonesByPlateau = 'M28TeamATrCmDZ' --[x] is plateau, [y]=1,2,...x, returns LZ ref for plateau to consider dropping if enemy has vulnerable mexes
+    reftTransportCombatPlateauLandZoneDropShortlist = 'M28TeamATCurCmbShlst' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations where after evaluating enemy threat we want to send a combat drop
     reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
     refiLastFailedIslandAndZoneDropTime = 'M28TeamTrLstFailDByIZ' --[x] is the island, [y] is the land zone, returns gametimeseconds where we last had a transport die while tryign to drop
@@ -3512,7 +3515,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForEngineers] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyTMD] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyPotentialTMLTargets] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiAvailableMobileShieldThreat] = 0

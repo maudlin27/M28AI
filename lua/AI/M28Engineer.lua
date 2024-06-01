@@ -8266,14 +8266,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 elseif iActionToAssign == refActionLoadOntoTransport then
                     if iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                         --Load onto first transport in LZ needing engis (max 1 engi per transport)]
-                        for iTransport, oTransport in tLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Trying to load engi into transport, iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..'; Engineer='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')..'; Transport engis wanted='..oTransport[M28Air.refiEngisWanted]..'; Transport cargo capacity='..M28Air.GetTransportEngiCargoAndRemainingCapacity(oTransport, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])) end
-                            M28Orders.IssueTrackedTransportLoad(tEngineersOfTechWanted[iEngiCount], oTransport, false, sOrderRef, false)
-                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority) --(not using bmarkasspare as dont want to change orders for an engiener loading into transport)
-                            UpdateBPTracking()
-                            if bDebugMessages == true then LOG(sFunctionRef..': Post sending order to load onto transport, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
-                            if iEngiCount <= 0 or iTotalBuildPowerWanted <= 0 then
-                                break
+                        for iTransport, oTransport in tLZOrWZTeamData[M28Map.reftoTransportsWaitingForUnits] do
+                            if (oTransport[M28Air.refiEngisWanted] or 0) > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Trying to load engi into transport, iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..'; Engineer='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')..'; Transport engis wanted='..oTransport[M28Air.refiEngisWanted]..'; Transport cargo capacity='..M28Air.GetTransportEngiCargoAndRemainingCapacity(oTransport, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])) end
+                                M28Orders.IssueTrackedTransportLoad(tEngineersOfTechWanted[iEngiCount], oTransport, false, sOrderRef, false)
+                                TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority) --(not using bmarkasspare as dont want to change orders for an engiener loading into transport)
+                                UpdateBPTracking()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Post sending order to load onto transport, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                                if iEngiCount <= 0 or iTotalBuildPowerWanted <= 0 then
+                                    break
+                                end
                             end
                         end
                     end
@@ -9109,13 +9111,17 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
 end
 
 function GetEngisWantedForTransports(tLZTeamData)
-    local iTransports = table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers])
+    local iTransports = table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForUnits])
     local iEngisWanted = 0
     for iEntry = iTransports, 1, -1 do
-        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][iEntry])) or (tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][iEntry][M28Air.refiEngisWanted] or 0) <= 0 then
-            table.remove(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers], iEntry)
+        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoTransportsWaitingForUnits][iEntry])) then
+            table.remove(tLZTeamData[M28Map.reftoTransportsWaitingForUnits], iEntry)
+        elseif (tLZTeamData[M28Map.reftoTransportsWaitingForUnits][iEntry][M28Air.refiEngisWanted] or 0) <= 0 then
+            if (tLZTeamData[M28Map.reftoTransportsWaitingForUnits][iEntry][M28Air.refiCombatUnitsWanted] or 0) <= 0 then
+                table.remove(tLZTeamData[M28Map.reftoTransportsWaitingForUnits], iEntry)
+            end
         else
-            iEngisWanted = iEngisWanted + tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][iEntry][M28Air.refiEngisWanted]
+            iEngisWanted = iEngisWanted + tLZTeamData[M28Map.reftoTransportsWaitingForUnits][iEntry][M28Air.refiEngisWanted]
         end
     end
     return iEngisWanted
@@ -9874,16 +9880,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Early game transport wanting engineer (takes priority over factory if we have at least 2 in this zone)
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false then
         --Check the table is still valid
         local iEngisWantedForTransports = GetEngisWantedForTransports(tLZTeamData)
         if bDebugMessages == true then LOG(sFunctionRef..': iEngisWantedForTransports after refresh='..iEngisWantedForTransports) end
         if iEngisWantedForTransports > 0 then
-            if bDebugMessages == true then LOG(sFunctionRef..': want engineers to load onto transport if early game, will first check if we have at least 2 factories in this zone and if the transport has a lifetime count of 1 and we only have 1 transport, size of transport table='..table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers])..'; Time='..GetGameTimeSeconds()) end
-            if table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == 1 and GetGameTimeSeconds() <= 900 then
+            if bDebugMessages == true then LOG(sFunctionRef..': want engineers to load onto transport if early game, will first check if we have at least 2 factories in this zone and if the transport has a lifetime count of 1 and we only have 1 transport, size of transport table='..table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForUnits])..'; Time='..GetGameTimeSeconds()) end
+            if table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == 1 and GetGameTimeSeconds() <= 900 then
                 local bFirstTransport = true
-                if (M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][1] or 1)) > 1 then bFirstTransport = false end
+                if (M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForUnits][1] or 1)) > 1 then bFirstTransport = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': bFirstTransport='..tostring(bFirstTransport)) end
                 if bFirstTransport then
                     if not(tFactoriesInLZ) or iFactoriesInLZ == 0 then
@@ -10213,8 +10219,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Transports waiting for engineers
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false then
         --Check the table is still valid
         local iEngisWantedForTransports = GetEngisWantedForTransports(tLZTeamData)
         if bDebugMessages == true then LOG(sFunctionRef..': iEngisWantedForTransports after refresh='..iEngisWantedForTransports) end

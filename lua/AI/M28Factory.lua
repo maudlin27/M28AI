@@ -989,9 +989,26 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Engineers for transport - build engineers as high priority if no enemies in this zone
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers as have transport waiting for them') end
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
+        local bTransportWaitingForEngi = false
+        local iCombatUnitsWanted = 0
+        for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
+            if (oTransport[M28Air.refiEngisWanted] or 0) > 0 or not(oTransport[M28Air.refbCombatDrop]) then
+                bTransportWaitingForEngi = true
+                break
+            else
+                iCombatUnitsWanted = iCombatUnitsWanted + (oTransport[M28Air.refiCombatUnitsWanted] or 0)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)) end
+        if bTransportWaitingForEngi then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        else
+            --Avoid overbuilding t1 arti too much - will allow slight overbuild though to cover the risk of t1 arti being killed for unrelated reason and delaying the transport too much
+            if iCombatUnitsWanted > 0 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) or table.getn(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) <= iCombatUnitsWanted) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then return sBPIDToBuild end
+            end
+        end
     end
 
     --Core expansions - build 1 tank if havent already (t1 facs only)
@@ -3524,7 +3541,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --early-game Transport (high priority)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) then
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false and iFactoryTechLevel <= 2 then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and iFactoryTechLevel <= 2 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
                 else
                     local iCurTransports = 0
@@ -4011,7 +4028,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Transport if locations to drop
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 then
+                if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 300 and GetGameTimeSeconds() >= 750 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0) then
                     if GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 120 then
                         local iAlreadyBuilding = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTransport, false)
                         if iAlreadyBuilding == 0 then
