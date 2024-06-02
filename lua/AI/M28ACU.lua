@@ -484,7 +484,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:IsUnitState('Building') then bDebugMessages = true end
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
@@ -1656,7 +1656,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 162 then bDebugMessages = true end
+    if oACU:IsUnitState('Building') then bDebugMessages = true end
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -4007,7 +4007,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if GetGameTimeSeconds() >= 162 then bDebugMessages = true end
+    if oACU:IsUnitState('Building') then bDebugMessages = true end
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -4166,6 +4166,7 @@ function GetACUOrder(aiBrain, oACU)
                 local oClosestEnemyByDist
                 local oClosestEnemyUntilInRange
                 local oClosestMobileThreatUntilInRange
+                local bEnemyInACURange = false
                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
                     iCurRange = math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
@@ -4182,6 +4183,7 @@ function GetACUOrder(aiBrain, oACU)
                         iClosestMobileThreatUntilInRange = iCurDistUntilInRange
                         oClosestMobileThreatUntilInRange = oUnit
                     end
+                    if iCurDist <= (oACU[M28UnitInfo.refiDFRange] or 0) then bEnemyInACURange = true end
                 end
                 local iOurRange = (oACU[M28UnitInfo.refiDFRange] or 0)
                 local bCampaignRetreatInstead = false
@@ -4209,17 +4211,18 @@ function GetACUOrder(aiBrain, oACU)
                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to go with early game orders despite enemy having units in this zone, subrefTThreatEnemyCombatTotal='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; iOurRange='..iOurRange..'; iClosestUntilInRange='..iClosestUntilInRange..'; iClosestMobileThreatUntilInRange='..iClosestMobileThreatUntilInRange..'; bCampaignRetreatInstead='..tostring(bCampaignRetreatInstead)) end
                 --Ignore nearby enemy if will be a while before in our range, with the threshold depending on if it is is a mobile threat or not
                 if not(bCampaignRetreatInstead) then
-                    if iClosestMobileThreatUntilInRange > 25 and (iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15 or (iCurDistUntilInRange >= 10 and M28Map.bIsCampaignMap)) then
+                    local tFactoriesOwned = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                    local bHaveNoFactory = true
+                    if M28Utilities.IsTableEmpty(tFactoriesOwned) == false then
+                        for iFactory, oFactory in tFactoriesOwned do
+                            if oFactory:GetFractionComplete() == 1 then bHaveNoFactory = false break end
+                        end
+                    end
+
+                    if ((iClosestMobileThreatUntilInRange > 25 or (bHaveNoFactory and (iClosestMobileThreatUntilInRange > 20 or (M28Map.bIsCampaignMap and iClosestMobileThreatUntilInRange >= 10)))) and ((iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15) or (iCurDistUntilInRange >= 10 and M28Map.bIsCampaignMap))) or (bHaveNoFactory and not(bEnemyInACURange) and (oACU:IsUnitState('Building') or oACU:IsUnitState('Repairing')) and oACU:GetWorkProgress() >= 0.85) then
                         bProceedWithLogic = false
                         GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
                     elseif iClosestMobileThreatUntilInRange > 25 or (aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 3 and iClosestMobileThreatUntilInRange > 1) or aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 6 then
-                        local tFactoriesOwned = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-                        local bHaveNoFactory = true
-                        if M28Utilities.IsTableEmpty(tFactoriesOwned) == false then
-                            for iFactory, oFactory in tFactoriesOwned do
-                                if oFactory:GetFractionComplete() == 1 then bHaveNoFactory = false break end
-                            end
-                        end
                         if bHaveNoFactory then
                             bProceedWithLogic = false
                             GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
