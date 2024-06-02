@@ -1162,6 +1162,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderLoadOntoTransport, [subrefoOrderUnitTarget] = oOrderTarget})
             IssueTransportLoad({oUnit}, oOrderTarget)
             oOrderTarget[M28Air.refiTransportTimeSpentWaiting] = math.max(0, (oOrderTarget[M28Air.refiTransportTimeSpentWaiting] or 0) - 15)
+            oUnit[M28Air.refiTimeLastGivenOrderToLoadOntoTransport] = GetGameTimeSeconds()
             if bDebugMessages == true then LOG(sFunctionRef..': Just sent transport load order') end
             if not(bDontTryBackup) then ForkThread(DelayedTransportReloadCheck, oUnit, oOrderTarget) end --Found this caused more problems than it solved when it  just reissued the order; however per sprouto's suggestion warping the engineer first solves most issues where this happens; is on a 10s delay so should be slower than a human
             --Treat engi as having a high priority action now

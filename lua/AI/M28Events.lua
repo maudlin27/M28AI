@@ -1992,7 +1992,17 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                         end
                         --Clear engineers that just built this
-
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
+                        --Check if we have transports wanting combat drops
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false then
+                            for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
+                                if (oTransport[M28Air.refiCombatUnitsWanted] or 0) > 0 then
+                                    ForkThread(M28Air.LoadCombatUnitOntoTransport, oJustBuilt)
+                                    break
+                                end
+                            end
+                        end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                         if not(M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat]) then
                             if M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3) >= 30 then
@@ -2013,146 +2023,146 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Update economy tracking (this function will check if it is an economic unit as part of it)
                     M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
                     if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
-                        table.insert(M28Engineer.tAllScathis, oJustBuilt)
+                    table.insert(M28Engineer.tAllScathis, oJustBuilt)
                     end
 
                     if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oJustBuilt.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
-                        ForkThread(M28Air.DetachSatellite,oJustBuilt, 1)
+                    if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                    ForkThread(M28Air.DetachSatellite,oJustBuilt, 1)
                     end
 
 
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                        M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
+                    M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) then
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer))
-                        end
-                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
-                        --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryMobileLandFactory, oEngineer.UnitId) and EntityCategoryContains(categories.MOBILE - categories.AIR, oJustBuilt.UnitId) then
-                            --Also give unit a move order (queued onto its existing order)
-                            if M28Utilities.IsTableEmpty(oEngineer[M28Factory.reftFactoryRallyPoint]) then
-                                M28Factory.SetFactoryRallyPoint(oEngineer)
-                            end
+                    if bDebugMessages == true then
+                    LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer))
+                    end
+                    ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+                    --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryMobileLandFactory, oEngineer.UnitId) and EntityCategoryContains(categories.MOBILE - categories.AIR, oJustBuilt.UnitId) then
+                    --Also give unit a move order (queued onto its existing order)
+                    if M28Utilities.IsTableEmpty(oEngineer[M28Factory.reftFactoryRallyPoint]) then
+                    M28Factory.SetFactoryRallyPoint(oEngineer)
+                    end
 
-                            M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
+                    M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
 
-                            M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
-                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
-                            if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
-                                --Want some MAA to stick by fatboy so theyre protected by its shield
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
-                                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
-                                end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.MOBILE, oEngineer.UnitId) then
-                                --Consider assigning T2 MAA to ACU
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
-                                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
-                                end
-                            end
-                        end
+                    M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
+                    if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
+                    --Want some MAA to stick by fatboy so theyre protected by its shield
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
+                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
+                    end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.MOBILE, oEngineer.UnitId) then
+                    --Consider assigning T2 MAA to ACU
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
+                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
+                    end
+                    end
+                    end
 
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to clear refiFirstTimeOfLastOrder='..(oEngineer[M28Factory.refiFirstTimeOfLastOrder] or 'nil')..' for facotyr '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' at game time '..GetGameTimeSeconds()) end
-                        if oEngineer[M28Factory.refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oEngineer[M28Factory.refiFirstTimeOfLastOrder] > 0.1 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Clearing refiFirstTimeOfLastOrder for the factory') end
-                            oEngineer[M28Factory.refiFirstTimeOfLastOrder] = nil
-                        end --Clear time as only want to use this to track incase have blocking unit
-                        oEngineer[M28Factory.refiTotalBuildCount] = (oEngineer[M28Factory.refiTotalBuildCount] or 0) + 1
-                        oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
-                        --If T3 support factory just built a T1 unit, then consider gifting it to a teammate
-                        if EntityCategoryContains(M28UnitInfo.categories.SUPPORTFACTORY * categories.TECH3, oEngineer.UnitId) and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) then
-                            --Do we lack HQs for this brain and are dealing with an air or naval fac (since land fac should rebuild anyway)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oEngineer.UnitId) then
-                                if oEngineer:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] == 0 then
-                                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
-                                end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
-                                if oEngineer:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] == 0 then
-                                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
-                                end
-                            end
-                        end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to clear refiFirstTimeOfLastOrder='..(oEngineer[M28Factory.refiFirstTimeOfLastOrder] or 'nil')..' for facotyr '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' at game time '..GetGameTimeSeconds()) end
+                    if oEngineer[M28Factory.refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oEngineer[M28Factory.refiFirstTimeOfLastOrder] > 0.1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Clearing refiFirstTimeOfLastOrder for the factory') end
+                    oEngineer[M28Factory.refiFirstTimeOfLastOrder] = nil
+                    end --Clear time as only want to use this to track incase have blocking unit
+                    oEngineer[M28Factory.refiTotalBuildCount] = (oEngineer[M28Factory.refiTotalBuildCount] or 0) + 1
+                    oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
+                    --If T3 support factory just built a T1 unit, then consider gifting it to a teammate
+                    if EntityCategoryContains(M28UnitInfo.categories.SUPPORTFACTORY * categories.TECH3, oEngineer.UnitId) and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) then
+                    --Do we lack HQs for this brain and are dealing with an air or naval fac (since land fac should rebuild anyway)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oEngineer.UnitId) then
+                    if oEngineer:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] == 0 then
+                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
+                    end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
+                    if oEngineer:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] == 0 then
+                    ForkThread(M28Team.ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ, oEngineer:GetAIBrain(), oEngineer.UnitId)
+                    end
+                    end
+                    end
 
-                        --External factories that have just built an air unit - unload the air unit
-                        if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) and EntityCategoryContains(categories.AIR - categories.EXPERIMENTAL, oJustBuilt.UnitId) and oEngineer.Parent.UnitId then
-                            local oParentUnit = oEngineer.Parent
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just built unit state='..M28UnitInfo.GetUnitState(oJustBuilt)..'; Will try and unload from the engineer; reprs='..reprs(oEngineer)..'; oParentUnit UnitID='..(oParentUnit.UnitId or 'nil')) end
-                            local tCargo = oParentUnit:GetCargo()
-                            if M28Utilities.IsTableEmpty(tCargo) == false then
-                                M28Orders.ReleaseStoredUnits(oParentUnit, false, 'Carrier', false)
-                            end
-                        end
+                    --External factories that have just built an air unit - unload the air unit
+                    if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId) and EntityCategoryContains(categories.AIR - categories.EXPERIMENTAL, oJustBuilt.UnitId) and oEngineer.Parent.UnitId then
+                    local oParentUnit = oEngineer.Parent
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just built unit state='..M28UnitInfo.GetUnitState(oJustBuilt)..'; Will try and unload from the engineer; reprs='..reprs(oEngineer)..'; oParentUnit UnitID='..(oParentUnit.UnitId or 'nil')) end
+                    local tCargo = oParentUnit:GetCargo()
+                    if M28Utilities.IsTableEmpty(tCargo) == false then
+                    M28Orders.ReleaseStoredUnits(oParentUnit, false, 'Carrier', false)
+                    end
+                    end
 
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
-                        --Clear any engineers trying to build this unit if we just built a building or experimental
-                        if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                            M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
-                        end
+                    --Clear any engineers trying to build this unit if we just built a building or experimental
+                    if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                    M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
+                    end
                     end
 
                     --Logic based on the type of unit built
                     if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oJustBuilt.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
-                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
-                            aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
-                        end
+                    if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
+                    ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
+                    aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
+                    end
                     elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
-                        --Make sure stealth is enabled
-                        M28UnitInfo.EnableUnitStealth(oJustBuilt)
+                    --Make sure stealth is enabled
+                    M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
-                        --Consider gifting power and mexes to a teammate
-                        local aiBrain = oJustBuilt:GetAIBrain()
-                        if aiBrain[M28Economy.refbBuiltParagon] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
-                            local oParagonBrain = oJustBuilt:GetAIBrain()
-                            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-                                for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                    if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
-                                        M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
-                                        break
-                                    end
-                                end
-                            end
-                            --Check if we own any paused non-mexes that we own, and unpause them
-                            if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) == false then
-                                for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
-                                    for iPaused, oPaused in tUnits do
-                                        if M28UnitInfo.IsUnitValid(oPaused) and oPaused:GetAIBrain() == oParagonBrain then
-                                            M28UnitInfo.PauseOrUnpauseEnergyUsage(oPaused, false, false, oParagonBrain.M28Team)
-                                        end
-                                    end
-                                end
-                            end
-                        end
+                    --Consider gifting power and mexes to a teammate
+                    local aiBrain = oJustBuilt:GetAIBrain()
+                    if aiBrain[M28Economy.refbBuiltParagon] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                    local oParagonBrain = oJustBuilt:GetAIBrain()
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                    for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                    M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
+                    break
+                    end
+                    end
+                    end
+                    --Check if we own any paused non-mexes that we own, and unpause them
+                    if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) == false then
+                    for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
+                    for iPaused, oPaused in tUnits do
+                    if M28UnitInfo.IsUnitValid(oPaused) and oPaused:GetAIBrain() == oParagonBrain then
+                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oPaused, false, false, oParagonBrain.M28Team)
+                    end
+                    end
+                    end
+                    end
+                    end
                     end
 
                     --Mobile land units - give a micro move order so they dont block the factory
                     if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
-                        ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
+                    ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
                     end
 
                     --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
                     if M28UnitInfo.IsUnitValid(oJustBuilt) and aiBrain[M28Overseer.refbCloseToUnitCap] and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 25 then
-                        M28Overseer.CheckUnitCap(aiBrain)
+                    M28Overseer.CheckUnitCap(aiBrain)
                     end
 
                     --air fac restriction - review if campaign in case things have changed if are dealing with the player (dont do for campaign AI though as they sometimes have different settings)
                     if M28Overseer.bAirFactoriesCantBeBuilt and M28Map.bIsCampaignMap and not(aiBrain.CampaignAI) then
-                        local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
-                        if M28Utilities.IsTableEmpty(tACUs) == false then
-                            local sAirFac = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tACUs[1])
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': Just built '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Time='..GetGameTimeSeconds()..'; sAirFac='..(sAirFac or 'nil'))
-                                if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
-                            end
-                            if sAirFac and not(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex())) then
-                                M28Overseer.bAirFactoriesCantBeBuilt = false
-                            end
-                        end
+                    local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tACUs) == false then
+                    local sAirFac = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tACUs[1])
+                    if bDebugMessages == true then
+                    LOG(sFunctionRef..': Just built '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Time='..GetGameTimeSeconds()..'; sAirFac='..(sAirFac or 'nil'))
+                    if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
                     end
+                    if sAirFac and not(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex())) then
+                    M28Overseer.bAirFactoriesCantBeBuilt = false
+                        end
+                        end
+                        end
                 else
                     --Non-M28 only units
 
@@ -2316,9 +2326,26 @@ function OnTransportLoad(oUnit, oTransport, bone)
                     if oTransport[M28Air.refiEngisWanted] then
                         oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
                     end
+                else
+                    oTransport[M28Air.refiCombatUnitsWanted] = math.max(0, (oTransport[M28Air.refiCombatUnitsWanted] or 0) - 1)
                 end
                 --Clear the last assigned unit
                 oTransport[M28Air.refoTransportUnitTryingToLoad] = nil
+                --Clear any LZTeamData tracking
+                if oUnit[M28Air.reftCombatDropPlateauAndZone] then
+                    local tLZData = M28Map.tAllPlateaus[oUnit[M28Air.reftCombatDropPlateauAndZone][1]][M28Map.subrefPlateauLandZones][oUnit[M28Air.reftCombatDropPlateauAndZone][2]]
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) == false then
+                        for iEntry, oEntry in tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport] do
+                            if oEntry == oUnit then
+                                table.remove(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport], iEntry)
+                                break
+                            end
+                        end
+                    end
+                    oUnit[M28Air.reftCombatDropPlateauAndZone] = nil
+                    oUnit[M28Engineer.refiAssignedAction] = nil
+                end
             end
 
         end
@@ -2334,6 +2361,7 @@ function OnTransportUnload(oUnit, oTransport, bone)
                 oUnit[M28Air.refiTimeLastDropped] = GetGameTimeSeconds()
             end
         end
+        if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport then oUnit[M28Engineer.refiAssignedAction] = nil end
     end
 end
 

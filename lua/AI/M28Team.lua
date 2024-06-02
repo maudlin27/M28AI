@@ -200,10 +200,13 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --subrefiOurAirAAThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
+    refiTimeOfLastTransportCombatShortlistUpdate = 'M28TmAirCmTrSL' --Gametimeseconds we last updated list of potential combat drop locations
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
     reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist = 'M28TeamAirTransCurIslShortlist' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations on the same island as a base that want a drop due to how far away they are
     reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
+    reftiPotentialCombatDropZonesByPlateau = 'M28TeamATrCmDZ' --[x] is plateau, [y]=1,2,...x, returns LZ ref for plateau to consider dropping if enemy has vulnerable mexes
+    reftTransportCombatPlateauLandZoneDropShortlist = 'M28TeamATCurCmbShlst' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations where after evaluating enemy threat we want to send a combat drop
     reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
     refiLastFailedIslandAndZoneDropTime = 'M28TeamTrLstFailDByIZ' --[x] is the island, [y] is the land zone, returns gametimeseconds where we last had a transport die while tryign to drop
@@ -3281,36 +3284,39 @@ function ConsiderGettingUpgrades(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored]..'; Stalling energy='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingEnergy])..'; Stalling mass='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingMass])..'; tTeamData[iM28Team][subrefiTeamGrossMass]='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; tTeamData[iM28Team][subrefiTeamGrossEnergy]='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]='..tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]..'; tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]) end
-    if tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.6 and (GetGameTimeSeconds() >= 150 or (GetGameTimeSeconds() >= 60 and GetGameTimeSeconds() >= 150 / tTeamData[iM28Team][refiHighestBrainResourceMultiplier]) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 and tTeamData[iM28Team][subrefiTeamNetEnergy] >= 3 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.95) or (M28Map.bIsLowMexMap and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.99 or (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Have enough energy that we will check for priority upgrades and then normal upgrades') end
-        tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] = 0
-        tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] = 0
+    if tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.6 and (GetGameTimeSeconds() >= 150 or (GetGameTimeSeconds() >= 60 and GetGameTimeSeconds() >= 150 / tTeamData[iM28Team][refiHighestBrainResourceMultiplier]) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 and tTeamData[iM28Team][subrefiTeamNetEnergy] >= 3 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.95) or (M28Map.bIsLowMexMap and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.99 or (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) then
+        --Further general eco conditions on upgrading early game
+        if GetGameTimeSeconds() >= 300 or M28Map.bIsCampaignMap or GetGameTimeSeconds() >= 60 + 240 / (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) - 30 * math.min(3, math.max(0, tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1.5)) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.4) or M28Map.bIsLowMexMap or M28Overseer.bNoRushActive then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have enough energy that we will check for priority upgrades and then normal upgrades') end
+            tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] = 0
+            tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] = 0
 
-        --Priority upgrades even with poor eco:
-        if (not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))) then
-            ConsiderPriorityLandFactoryUpgrades(iM28Team)
+            --Priority upgrades even with poor eco:
+            if (not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))) then
+                ConsiderPriorityLandFactoryUpgrades(iM28Team)
 
-            ConsiderPriorityAirFactoryUpgrades(iM28Team)
+                ConsiderPriorityAirFactoryUpgrades(iM28Team)
 
-            ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+                ConsiderPriorityNavalFactoryUpgrades(iM28Team)
 
-            --Consider priority mex upgrades (e.g. we are falling far behind enemy on eco)
-            ConsiderPriorityMexUpgrades(iM28Team)
+                --Consider priority mex upgrades (e.g. we are falling far behind enemy on eco)
+                ConsiderPriorityMexUpgrades(iM28Team)
 
-            ConsiderNormalUpgrades(iM28Team)
-        elseif tTeamData[iM28Team][subrefbTeamIsStallingMass] then
-            --Want to keep upgrading mexes even if stalling mass
-            --Also still consider upgrading HQ if have no upgrading HQs
-            if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] then
-                if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityLandFactoryUpgrades(iM28Team) else ConsiderPriorityAirFactoryUpgrades(iM28Team) end
-                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
-                    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityAirFactoryUpgrades(iM28Team) else ConsiderPriorityLandFactoryUpgrades(iM28Team) end
+                ConsiderNormalUpgrades(iM28Team)
+            elseif tTeamData[iM28Team][subrefbTeamIsStallingMass] then
+                --Want to keep upgrading mexes even if stalling mass
+                --Also still consider upgrading HQ if have no upgrading HQs
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] then
+                    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityLandFactoryUpgrades(iM28Team) else ConsiderPriorityAirFactoryUpgrades(iM28Team) end
                     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
-                        ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+                        if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityAirFactoryUpgrades(iM28Team) else ConsiderPriorityLandFactoryUpgrades(iM28Team) end
+                        if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                            ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+                        end
                     end
                 end
+                ConsiderPriorityMexUpgrades(iM28Team)
             end
-            ConsiderPriorityMexUpgrades(iM28Team)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3509,7 +3515,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForEngineers] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyTMD] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyPotentialTMLTargets] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiAvailableMobileShieldThreat] = 0

@@ -4756,9 +4756,13 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                     if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another land zone so order it to travel there') end
                     M28Orders.IssueTrackedMove(oScout, M28Map.tAllPlateaus[oScout[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oScout[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefMidpoint], 16, false, 'NTLZ'..oScout[M28Land.reftiPlateauAndLZToMoveTo][2])
                 else
-                    --Scout has no nearby enemies to run from, and isnt traveling to a water zone, so it should be available for use
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ or WZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
-                    table.insert(tAvailableScouts, oScout)
+                    if oScout[M28Land.refoLandScoutTarget] and M28UnitInfo.IsUnitValid(oScout[M28Land.refoLandScoutTarget]) then
+                        M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout[M28Land.refoLandScoutTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(oScout[M28Land.refoLandScoutTarget]:GetPosition(), oScout:GetPosition()), 8, true, false, true), 1.5, false, 'ScWACU'..oScout[M28Land.refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[M28Land.refoLandScoutTarget]))
+                    else
+                        --Scout has no nearby enemies to run from, and isnt traveling to a water zone, so it should be available for use
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ or WZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
+                        table.insert(tAvailableScouts, oScout)
+                    end
                 end
             end
         end
