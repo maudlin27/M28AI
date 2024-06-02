@@ -41,6 +41,8 @@ function OnPlayerDefeated(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)) end
         aiBrain.M28IsDefeated = true
 
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
+
         --Was it an M28AI?
         if aiBrain.M28AI then
             --Give resources to teammates

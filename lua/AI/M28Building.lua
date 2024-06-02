@@ -1451,6 +1451,15 @@ function OnMexConstructionStarted(oUnit)
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    --If 100% complete mex and fullshare is enabled then wait 2 ticks before running logic due to issue where the new unit cna be created before the logic re the old one dying triggers
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; Is game in full share='..tostring(ScenarioInfo.Options.Share == 'FullShare')..'; Time since last teammate death='..(GetGameTimeSeconds() - (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeOfLastTeammateDeath] or 0))..'; Fraction complete='..oUnit:GetFractionComplete()) end
+    if oUnit:GetFractionComplete() == 1 and ScenarioInfo.Options.Share == 'FullShare' and GetGameTimeSeconds() - (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeOfLastTeammateDeath] or 0) <= 20 then
+        if bDebugMessages == true then LOG(sFunctionRef..': A player has recently died so delaying logic for mex that is fully complete') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(3)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
     if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
         while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

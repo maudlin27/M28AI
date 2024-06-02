@@ -45,6 +45,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiHighestBrainBuildMultiplier = 'M28HighestBPMult' --Highest AiX BP modifier on team (as a number)
     refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if true will try and avoid t2 mex and spam land
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
+    refiTimeOfLastTeammateDeath = 'M28TeamLstTmD' --gametimeseconds that a teammate last died (based on ACU dying in demoralisation)
 
     --Team economy subrefs
     refiPausedUnitCount = 'M28TeamPausTo' --total number of paused units
