@@ -4905,6 +4905,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     end
 
     local iTotalMassAtStartOfCodeInZone = tLZOrWZData[M28Map.subrefTotalMassReclaim] --used to give error message if 0 and we couldnt find reclaim
+    if iTotalMassAtStartOfCodeInZone == 0 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; bWantEnergyNotMass='..tostring(bWantEnergyNotMass or false)..'; bOnlyConsiderReclaimInRangeOfEngineer='..tostring(bOnlyConsiderReclaimInRangeOfEngineer or false)..'; iMinIndividualValueOverride='..(iMinIndividualValueOverride or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Total mass in zone='..tLZOrWZData[M28Map.subrefTotalMassReclaim]..'; Total significant mass='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; tLZOrWZData[M28Map.subrefHighestIndividualReclaim]='..(tLZOrWZData[M28Map.subrefHighestIndividualReclaim] or 'nil')..'; iTotalMassAtStartOfCodeInZone='..(iTotalMassAtStartOfCodeInZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefReclaimSegments]) == false then
         local iClosestSegmentDist = 100000
@@ -8211,6 +8212,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         --GetEngineerToReclaimNearbyArea(oEngineer,                       iPriorityOverride,   tLZOrWZTeamData, iPlateauOrPondOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
                         GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], iCurPriority, tLZOrWZTeamData, iPlateauOrPond,           iLandOrWaterZone,      bWantEnergyNotMass, false, vOptionalVariable[2], bIsWaterZone)
                         UpdateBPTracking()
+                        if tLZOrWZTeamData[M28Map.subrefTotalMassReclaim] <= 0.1 then break end
                     end
                 elseif iActionToAssign == refActionReclaimFriendlyUnit or iActionToAssign == refActionReclaimEnemyUnit then
                     --Search for nearest unit in LZ units to be reclaimed

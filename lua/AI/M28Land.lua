@@ -2189,7 +2189,7 @@ function MoveToStealthTarget(oStealth, tEnemyBase, tOptionalStealthLZTeamData, t
 end
 
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMobileShieldsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2259,7 +2259,9 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     end
     if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
         --Assign available shields to units in this zone wanting shielding
-        ShieldUnitsInLandZone(tLZTeamData, tShieldsToAssign)
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
+            ShieldUnitsInLandZone(tLZTeamData, tShieldsToAssign)
+        end
         if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
 
 
@@ -2508,7 +2510,9 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
 
     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
         --Stealth units in this zone first
-        StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
+            StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
+        end
         if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
             --Cycle through every land zone and record priority ones to Stealth
             if bDebugMessages == true then LOG(sFunctionRef..': Will give orders to tStealthsToAssign, size of table='..table.getn(tStealthsToAssign)) end

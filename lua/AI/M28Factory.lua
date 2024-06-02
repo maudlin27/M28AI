@@ -265,7 +265,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     local sFunctionRef = 'AdjustBlueprintForOverrides'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'urb03031' then bDebugMessages = true end
 
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
@@ -391,7 +391,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 if bDebugMessages == true then LOG(sFunctionRef..': Have lots of units of this category already, iCurUnitsOfCategory='..iCurUnitsOfCategory) end
                 sBPIDToBuild = nil
             end
-        elseif sBPIDToBuild then
+        end
+        if sBPIDToBuild then
             if EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, sBPIDToBuild) then
                 if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 60 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of this category already, naval surface, cur units='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
@@ -403,6 +404,13 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                     sBPIDToBuild = nil
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, sBPIDToBuild) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 150 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are near unit cap and have lots of units of this category, cur units of category='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
+                    sBPIDToBuild = nil
+                end
+            end
+            if sBPIDToBuild then
+                --If we have ctrlk'd a unit due to the unit cap recently, and this contains the same category, then dont build
+                if GetGameTimeSeconds() - (aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] or -100) <= 90 and M28Utilities.DoesCategoryContainCategory(categories[sBPIDToBuild], aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], false) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We are close to unit can and last ctrlkd a unit within last 90s, and this unit category is consistent with one of the categories ctrlkd') end
                     sBPIDToBuild = nil
                 end
             end
@@ -4161,7 +4169,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'urb03031' then bDebugMessages = true end
 
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())

@@ -59,6 +59,7 @@ refiLastUnitCapTimeCheck = 'M28UnitCapChk' --Gametimeseconds that the brain last
 refbWillDoDelayedUnitCapCheck = 'M28UnitCapD' --true if we are already doing a delayed unit cap check
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
+refiTimeOfLastUnitCapDeath = 'M28OverseerTmLstCpDth' --time we last ctrlkd a unit due to the unit cap
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
@@ -901,6 +902,7 @@ function CheckUnitCap(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > math.max(30, iUnitCap * 0.35) then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
             local iCumulativeCategory = tiCategoryToDestroy[4]
+            local bKilledUnit = false
             for iAdjustmentLevel = 4, -1, -1 do
                 if iAdjustmentLevel < 4 then
                     iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
@@ -933,6 +935,7 @@ function CheckUnitCap(aiBrain)
                                             end
                                         end
                                         M28Orders.IssueTrackedKillUnit(oUnit)
+                                        bKilledUnit = true
 
                                         if iCurUnitsDestroyed >= iMaxToDestroy then
                                             if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
@@ -950,6 +953,7 @@ function CheckUnitCap(aiBrain)
                     end
                 end
             end
+            if bKilledUnit then aiBrain[refiTimeOfLastUnitCapDeath] = GetGameTimeSeconds() end
             aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
             if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
             if iCurUnitsDestroyed >= iMaxToDestroy and bReconsiderShortly then
