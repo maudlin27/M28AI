@@ -151,6 +151,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftLongRangeEnemyDFUnits = 'M28LREUn'
     reftoEnemyT2Arti = 'M28LRArt' --Table of all enemy T2 arti (regardless of kills) - note firebase adj is used for those that are more dangerous
     refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
+    reftoAlliedQuantumOptics = 'M28QOU' --Table of M28 allied quanutm optics units
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
@@ -3375,7 +3376,7 @@ function TeamEconomyRefresh(iM28Team)
 
             --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
             --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
-            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
+            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
             if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal) end
         end
         tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
@@ -3844,14 +3845,14 @@ function ConsiderGiftingStorageToTeammate(oEnergyStorage)
 
     local aiBrain = oEnergyStorage:GetAIBrain()
     local iTeam = aiBrain.M28Team
-    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..aiBrain.Nickname..' has just built energy storage '..oEnergyStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnergyStorage)..'; active M28 brain count for team '..iTeam..' = '..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; Total no. of storage for this brain='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..'; lowest storage count for team='..tTeamData[iTeam][subrefiLowestEnergyStorageCount]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..aiBrain.Nickname..' has just built energy storage '..oEnergyStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnergyStorage)..'; active M28 brain count for team '..iTeam..' = '..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; Total no. of storage for this brain='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)..'; lowest storage count for team='..tTeamData[iTeam][subrefiLowestEnergyStorageCount]) end
     if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
-        local iOurEnergyStorage = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)
+        local iOurEnergyStorage = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)
         if iOurEnergyStorage >= 2 and iOurEnergyStorage > 1 + tTeamData[iTeam][subrefiLowestEnergyStorageCount] then
             for iBrain, oBrain in  tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                if not(oBrain == aiBrain) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) + 1 < iOurEnergyStorage then
+                if not(oBrain == aiBrain) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics) + 1 < iOurEnergyStorage then
                     --We have 2 less energy storage so want to give this storage to them
-                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' only has '..oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..' energy storage so will gift this storage to them') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' only has '..oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)..' energy storage type buildings so will gift this storage to them') end
                     TransferUnitsToPlayer({ oEnergyStorage }, oBrain:GetArmyIndex(), false)
                     ForkThread(TeamEconomyRefresh, iTeam)
                     break

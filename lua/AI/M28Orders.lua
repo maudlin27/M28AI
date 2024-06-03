@@ -1060,14 +1060,15 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bSuspectedFailedLoad='..tostring(bSuspectedFailedLoad or false)) end
-    if bSuspectedFailedLoad then
+    if bSuspectedFailedLoad and M28UnitInfo.IsUnitValid(oOrderTarget) then
         --Warp to the transport then retry
         local tWarpLocation = oOrderTarget:GetPosition()
-        tWarpLocation[2] = GetSurfaceHeight(tWarpLocation[1], tWarpLocation[3])
-        Warp(oUnit, tWarpLocation, oUnit:GetOrientation())
-        IssueTrackedTransportLoad(oUnit, oOrderTarget, false, 'BackupTL', true, true)
+        if GetTerrainHeight(tWarpLocation[1], tWarpLocation[3]) >= M28Map.GetMapWaterHeight() or EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oUnit.UnitId) then
+            tWarpLocation[2] = GetSurfaceHeight(tWarpLocation[1], tWarpLocation[3])
+            Warp(oUnit, tWarpLocation, oUnit:GetOrientation())
+            IssueTrackedTransportLoad(oUnit, oOrderTarget, false, 'BackupTL', true, true)
+        end
     end
-
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -74,6 +74,9 @@ refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge or
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
 refbProtectingAllArtiLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 
+--Special buildings
+refbActiveOpticsManager = 'M28BuildActOptMan' --true if have active quantum optics manager
+
 function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShieldsWantedOverride)
     --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, except for death which is handled elsewhere now
     --oUnit construction is started (done via OnConstructionStarted)
@@ -4205,5 +4208,103 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
     end
     M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function QuantumOpticsManager(aiBrain, oUnit)
+    --Call via forkthread
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'QuantumOpticsManager'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) and not (oUnit[refbActiveOpticsManager]) then
+        local iTeam = aiBrain.M28Team
+        oUnit[refbActiveOpticsManager] = true
+        local oBP = oUnit:GetBlueprint()
+        local iIntelRange = (oBP.Intel.RemoteViewingRadius or oBP.Intel.VisionRadius)
+        local iThresholdForAdjacentScry = iIntelRange * 2 * 1.3 --i.e. if we wouldnt cover all of the zone even with a 30% increase in the scry size, then we will scry the 4 corners
+        local iDelayInSeconds = math.max(1, (oBP.Intel.ReactivateTime or 1) * 0.1)
+        local iScryRelocationSize = iIntelRange * 1.45
+
+        local iEntryCount
+        local iEntryToScout
+        local iCurLZOrWZ, iCurPlateauOrZero, iCurZoneSizeX, iCurZoneSizeZ
+        function ReadyToScry()
+            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and aiBrain:GetEconomyStored('ENERGY') >= 14000 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                return true
+            else
+                return false
+            end
+        end
+        local tAdjAreaToScout
+
+        function ScryAdjacentAreaWhenReady(tBaseTarget, iXAdjust, iZAdjust)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iDelayInSeconds)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            while not(ReadyToScry) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(iDelayInSeconds)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            tAdjAreaToScout = {tBaseTarget[1] + (iXAdjust or 0), tBaseTarget[2], tBaseTarget[3] + (iZAdjust or 0)}
+            tAdjAreaToScout[2] = GetSurfaceHeight(tBaseTarget[1], tBaseTarget[3])
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Scrying adjacent area, tBaseTarget='..repru(tBaseTarget)..'; iXAdjust='..(iXAdjust or 'nil')..'; iZAdjust='..(iZAdjust or 'nil')..'; tAdjAreaToScout='..repru(tAdjAreaToScout)..'; Time='..GetGameTimeSeconds())
+                M28Utilities.DrawLocation(tAdjAreaToScout, nil, nil, iIntelRange)
+            end
+            oUnit:OnTargetLocation(tAdjAreaToScout)
+        end
+
+        while M28UnitInfo.IsUnitValid(oUnit) do
+            if oUnit:GetFractionComplete() == 1 then
+                if ReadyToScry() then
+                    M28Air.UpdateScoutingShortlist(iTeam)
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]) == false then
+                        --Pick a random location on the shortlist
+                        iEntryCount = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist])
+                        iEntryToScout = math.random(1, iEntryCount)
+                        iCurPlateauOrZero = M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist][iEntryToScout][1]
+                        iCurLZOrWZ = M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist][iEntryToScout][2]
+                        local tLZOrWZData, tLZOrWZTeamData
+                        if iCurPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            iCurZoneSizeX = ((tLZOrWZData[M28Map.subrefWZMaxSegX] or 0) - (tLZOrWZData[M28Map.subrefWZMinSegX] or 0)) * M28Map.iLandZoneSegmentSize
+                            iCurZoneSizeZ = ((tLZOrWZData[M28Map.subrefWZMaxSegZ] or 0) - (tLZOrWZData[M28Map.subrefWZMinSegZ] or 0)) * M28Map.iLandZoneSegmentSize
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            iCurZoneSizeX = ((tLZOrWZData[M28Map.subrefLZMaxSegX] or 0) - (tLZOrWZData[M28Map.subrefLZMinSegX] or 0)) * M28Map.iLandZoneSegmentSize
+                            iCurZoneSizeZ = ((tLZOrWZData[M28Map.subrefLZMaxSegZ] or 0) - (tLZOrWZData[M28Map.subrefLZMinSegZ] or 0)) * M28Map.iLandZoneSegmentSize
+                        end
+
+                        --Scout the midpoint
+                        if bDebugMessages == true then LOG(sFunctionRef..': Scrying midpoint, tLZOrWZData[M28Map.subrefMidpoint]='..repru(tLZOrWZData[M28Map.subrefMidpoint])..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil'))
+                            M28Utilities.DrawLocation(tLZOrWZData[M28Map.subrefMidpoint], nil, nil, iIntelRange)
+                        end
+                        oUnit:OnTargetLocation(tLZOrWZData[M28Map.subrefMidpoint]) --See M27 function ScryTarget for alternative ways of doing this that were attempted
+                        --Update to reflect we have had visual of the target
+                        tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
+                        --Large zones - scry to either side once ready
+                        if iCurZoneSizeX > iThresholdForAdjacentScry then
+                            --Scry each adjacent threshold; based on visualisation (sketchup as cant be bothered with the maths), for a 100 radius circle will cover most (but not all) of the surrounding area if the next scry location is 145 in each direction (north, east, south, west)
+                            ScryAdjacentAreaWhenReady(tLZOrWZData[M28Map.subrefMidpoint], -iScryRelocationSize, 0)
+                            ScryAdjacentAreaWhenReady(tLZOrWZData[M28Map.subrefMidpoint], iScryRelocationSize, 0)
+                        end
+                        if iCurZoneSizeZ > iThresholdForAdjacentScry then
+                            ScryAdjacentAreaWhenReady(tLZOrWZData[M28Map.subrefMidpoint], 0, -iScryRelocationSize)
+                            ScryAdjacentAreaWhenReady(tLZOrWZData[M28Map.subrefMidpoint], 0, iScryRelocationSize)
+                        end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': No locations on shortlist to scout')
+                    end
+                end
+            end
+
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iDelayInSeconds)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

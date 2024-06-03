@@ -193,6 +193,7 @@ tiActionCategory = {
     --refActionBuildEmergencyPD - will use custom code as sometimes want T1 PD
     [refActionBuildEmergencyArti] = M28UnitInfo.refCategoryFixedT2Arti,
     [refActionBuildQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
+    [refActionBuildQuantumOptics] = M28UnitInfo.refCategoryQuantumOptics,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
     [refActionBuildTML] = M28UnitInfo.refCategoryTML,
     [refActionAssistShield] = M28UnitInfo.refCategoryFixedShield * categories.TECH3,
@@ -248,6 +249,7 @@ tiActionOrder = {
     [refActionBuildEmergencyPD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyArti] = M28Orders.refiOrderIssueBuild,
     [refActionBuildQuantumGateway] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildQuantumOptics] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildTML] = M28Orders.refiOrderIssueBuild,
     [refActionLoadOntoTransport] = M28Orders.refiOrderLoadOntoTransport, --sometimes will be a move order
@@ -274,7 +276,7 @@ tiActionOrder = {
 tiActionAdjacentCategory = {
     [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH2 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
     [refActionBuildSecondPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
-    [refActionBuildThirdPower] = M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
+    [refActionBuildThirdPower] = M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryQuantumOptics,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex,
     [refActionBuildAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
     [refActionBuildSecondAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
@@ -283,6 +285,7 @@ tiActionAdjacentCategory = {
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Power,
     [refActionBuildT3MassFab] = M28UnitInfo.refCategoryT3Power,
+    [refActionBuildQuantumOptics] = M28UnitInfo.refCategoryT3Power,
 }
 
 --Include any actions where we wont be building a category or searching for a category to assist
@@ -4905,7 +4908,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     end
 
     local iTotalMassAtStartOfCodeInZone = tLZOrWZData[M28Map.subrefTotalMassReclaim] --used to give error message if 0 and we couldnt find reclaim
-    if iTotalMassAtStartOfCodeInZone == 0 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; bWantEnergyNotMass='..tostring(bWantEnergyNotMass or false)..'; bOnlyConsiderReclaimInRangeOfEngineer='..tostring(bOnlyConsiderReclaimInRangeOfEngineer or false)..'; iMinIndividualValueOverride='..(iMinIndividualValueOverride or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Total mass in zone='..tLZOrWZData[M28Map.subrefTotalMassReclaim]..'; Total significant mass='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; tLZOrWZData[M28Map.subrefHighestIndividualReclaim]='..(tLZOrWZData[M28Map.subrefHighestIndividualReclaim] or 'nil')..'; iTotalMassAtStartOfCodeInZone='..(iTotalMassAtStartOfCodeInZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefReclaimSegments]) == false then
         local iClosestSegmentDist = 100000
@@ -10248,7 +10251,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --Is the number of storage in this LZ <= lowest storage count?
-        local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local iStorageInThisLZ = 0
         if M28Utilities.IsTableEmpty(toStorageInThisLZ) == false then
             for iUnit, oUnit in toStorageInThisLZ do
@@ -11538,7 +11541,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Do we have enough storage to 1-shot any enemy unit?
         if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] < math.max(1, math.ceil((M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] / 0.9 - 1000) / (0.25 * M28Building.iEnergyStorageExpectedCapacity))) then
             --Is the number of storage in this LZ <= lowest storage count?
-            local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local iStorageInThisLZ
             if M28Utilities.IsTableEmpty(toStorageInThisLZ) == false then
                 iStorageInThisLZ = table.getn(toStorageInThisLZ)
@@ -12127,6 +12130,20 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and assign '..iBPWanted..' to building a quantum gateway') end
                 end
+            end
+        end
+    end
+
+    --Quantum optics if we need help with scouting
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowPower) and not(bSaveMassForMML) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 15000) and tLZTeamData[M28Map.refiRadarCoverage] > 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
+        --Are we likely to have aeon here?
+        if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+            --Do we already have a quantum optics?
+            if not(M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics])) then
+                iBPWanted = 45
+                if not(bHaveLowMass) then iBPWanted = 90 end
+                HaveActionToAssign(refActionBuildQuantumOptics, 3, iBPWanted)
             end
         end
     end

@@ -1110,7 +1110,6 @@ function ManageMassStalls(iTeam)
             end
 
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > (0.005 + iMassStallPercentAdjust) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then
-                --aiBrain[refbStallingEnergy] = false
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Have enough mass stored or income to start unpausing things')
                 end
@@ -2300,7 +2299,7 @@ function GetEnergyStorageMaximum(aiBrain, bDetailedUpdate)
         return aiBrain[refiMaxEnergyStorage]
     else
         if bDetailedUpdate then
-            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * M28Building.iEnergyStorageExpectedCapacity + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100
+            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * M28Building.iEnergyStorageExpectedCapacity + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100 + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryQuantumOptics) * 10000
         end
         return aiBrain[refiMaxEnergyStorage]
     end

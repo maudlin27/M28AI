@@ -419,7 +419,7 @@ function OnUnitDeath(oUnit)
                             oUnit:DoUnitCallbacks('OnKilled')
                         end
 
-                        -------M28 specific logic---------
+                -------M28 specific logic---------
                         --Is the unit owned by M28AI?
                         if oUnit:GetAIBrain().M28AI then
                             oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] = (oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] or 0) - 1
@@ -569,6 +569,18 @@ function OnUnitDeath(oUnit)
                                     for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
                                         if oRecorded == oUnit then
                                             table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+
+                            if oUnit[M28Building.refbActiveOpticsManager] then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics]) == false then
+                                    for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics] do
+                                        if oUnit == oRecorded then
+                                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics], iRecorded)
                                             break
                                         end
                                     end
@@ -1989,6 +2001,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, oJustBuilt.UnitId) then
+                                M28Team.TeamEconomyRefresh(iTeam)
+                            end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, oJustBuilt.UnitId) then
+                            --I.e. for energy storage units not caught by energy storage above or experimental level (paragon) - i.e. first two categories are just a redundancy
+                            M28Team.TeamEconomyRefresh(iTeam)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
@@ -2690,6 +2708,22 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityT2Arti, true)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumOptics, oUnit.UnitId) then
+                        local iTeam = aiBrain.M28Team
+                        local bAlreadyRecorded = false
+                        if not(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics]) then M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics] = {}
+                        else
+                            for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics] do
+                                if oRecorded == oUnit then
+                                    bAlreadyRecorded = true
+                                    break
+                                end
+                            end
+                        end
+                        if not(bAlreadyRecorded) then
+                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics], oUnit)
+                            ForkThread(M28Building.QuantumOpticsManager, aiBrain, oUnit)
+                        end
                     end
 
 
