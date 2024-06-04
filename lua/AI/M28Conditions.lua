@@ -464,7 +464,6 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrderPosition)
                                 local tPotentialBuildLocations = M28Engineer.GetPotentialBuildLocationsNearLocation(oEngineer:GetAIBrain(), tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.GetBuildingSize(sLastBlueprint), nil)
                                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
-                                    bDebugMessages = true
                                     local tBestLocation = M28Engineer.GetBestBuildLocationForTarget(oEngineer, sLastBlueprint, tLastOrderPosition, tPotentialBuildLocations, 50, false, false)
                                     if M28Utilities.IsTableEmpty(tBestLocation) == false then
                                         local iPriority = (oEngineer[M28Engineer.refiAssignedActionPriority] or 1000)
@@ -487,7 +486,6 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
             oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
             if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerBuildWithoutFocusUnitPosition]) <= 0.01 then
                 --Engineer is stuck, clear its orders and treat as available
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerBuildWithoutFocusUnitCount]='..oEngineer[refiEngineerBuildWithoutFocusUnitCount]) end
                 M28Orders.IssueTrackedClearCommands(oEngineer)
                 oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = nil

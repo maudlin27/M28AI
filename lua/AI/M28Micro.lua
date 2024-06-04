@@ -147,7 +147,21 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
             end
             local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
             local iCurDistToMove
+            local iTotalTimeWaited = 0
+            local bFirstCycle = true
             while iDistanceAlreadyMoved < iDistanceToMove and M28UnitInfo.IsUnitValid(oUnit) do
+
+                if bFirstCycle then
+                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        iTotalTimeWaited = iTotalTimeWaited + 1
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
+                    end
+                end
+
+
                 iCurDistToMove = math.min(iBackupDist - 1, math.max(1, iDistanceToMove - iDistanceAlreadyMoved))
                 local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, iCurDistToMove + iDistanceAlreadyMoved, true, false, true)
                 if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tViaPoint) == iPlateauWanted then
@@ -165,6 +179,7 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                 else
                     break
                 end
+                bFirstCycle = false
             end
         end
         if not(bBackupInsteadOfTurning) or iDistanceToMove < iDistanceAlreadyMoved then

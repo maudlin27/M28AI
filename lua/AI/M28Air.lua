@@ -8963,7 +8963,7 @@ function EnemyT1BomberTracker(oBomber, iTeam)
         local rPotentialTargetRect = M28Utilities.GetRectAroundLocation(tMidpoint, iRadius)
         local tUnitsInRect = GetUnitsInRect(rPotentialTargetRect)
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Checking if have units in rPotentialTargetRect='..repru(rPotentialTargetRect)..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber))
+            LOG(sFunctionRef..': Checking if have units in rPotentialTargetRect='..repru(rPotentialTargetRect)..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Time='..GetGameTimeSeconds())
             M28Utilities.DrawRectangle(rPotentialTargetRect)
         end
         if M28Utilities.IsTableEmpty(tUnitsInRect) == false then

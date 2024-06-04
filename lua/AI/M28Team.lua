@@ -1737,8 +1737,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy land factory against nearby zones depending on if it is close to a friendly base') end
                                 RecordNearbyEnemyLandFactory(oUnit, aiBrain.M28Team)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
-                                --UEF and Cybran bombers - activate special tracking if low lifetime count
-                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
+                                --UEF and Cybran bombers - activate special tracking if low lifetime count (will also do aeon and seraphim since if engineer is stationery e.g. building something it cant reliably dodge them either)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 then --and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
                                     ForkThread(M28Air.EnemyT1BomberTracker, oUnit, aiBrain.M28Team)
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then

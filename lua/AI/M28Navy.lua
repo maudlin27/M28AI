@@ -1519,9 +1519,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                             table.insert(tTempOtherUnits, oUnit)
                             if not(tbBlueprintsAddedToTempTable[oUnit.UnitId]) then
                                 M28Utilities.ErrorHandler('Adding unit ID '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' currently recorded in WZ '..iWaterZone..' with unit state='..M28UnitInfo.GetUnitState(oUnit)..' to table of temp other units - either the unit is a land unit really close to water that we incorrectly think is in water, or it is an amphibious/hover unit that has incorrect caterisation; if the unit runs out of orders then will send it to the rally point', true)
-                                bDebugMessages = true
                                 if bDebugMessages == true then M28Map.DrawSpecificWaterZone(iWaterZone) end
-                                bDebugMessages = false
                                 tbBlueprintsAddedToTempTable[oUnit.UnitId] = true
                             end
                         end

@@ -1965,7 +1965,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     bHaveAliveBaseUnits = true
                 end
             end
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveAliveAttackUnits='..tostring(bHaveAliveAttackUnits)..'; bHaveAliveBaseUnits='..tostring(bHaveAliveBaseUnits)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)) end
             if not(bHaveAliveAttackUnits) and bHaveAliveBaseUnits then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed check if mission active') end
