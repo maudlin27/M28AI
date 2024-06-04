@@ -2349,3 +2349,8 @@ function GetTimeUntilReadyToFireBomb(oUnit)
         return iTimeBetweenShots - iTimeSinceFired
     end
 end
+
+function GetUnitSpeed(oUnit)
+    local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
+    return (math.abs(iVelocityX) + math.abs(iVelocityZ)) * 10 --approximate value - e.g. based on this a fatboy moving diagonally at full speed would cover roughly 2.5 vs a max speed of 1.75
+end

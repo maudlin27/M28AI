@@ -3349,7 +3349,8 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
             local tPotentialMoveLocation
             local iAngleDif = M28Utilities.GetAngleDifference(iAngleToRally, iMoveBackwardsAngle)
             local iAngleActuallyMoving
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking whether to move directly backwards, iAngleToRally='..iAngleToRally..'; iMoveBackwardsAngle='..iMoveBackwardsAngle..'; iAngleDif='..iAngleDif..'; iMaxAngleDifference='..iMaxAngleDifference) end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking whether to move directly backwards, iAngleToRally='..iAngleToRally..'; iMoveBackwardsAngle='..iMoveBackwardsAngle..'; iAngleDif='..iAngleDif..'; iMaxAngleDifference='..iMaxAngleDifference..' Approx Speed (X and Z velocity times 10) = '..M28UnitInfo.GetUnitSpeed(oUnit)) end
             function CheckIfValidLocation()
                 if bAmphibious then
                     if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandOrPlateauRef then
@@ -3380,12 +3381,25 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
                 if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iDistToMove='..iDistToMove..'; bValidTowardsLocation='..tostring(bValidTowardsLocation or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
                     if tLastOrder and tLastOrder[M28Orders.subreftOrderPosition] then LOG(sFunctionRef..': Angle dif between destination and last move order='..M28Utilities.GetAngleDifference(iAngleActuallyMoving, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]))) end
                 end
-                if tLastOrder and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetAngleDifference(iAngleActuallyMoving, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) < 15) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear unit orders and wait 1 tick') end
+                if (tLastOrder and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetAngleDifference(iAngleActuallyMoving, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) < 15)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear unit orders and wait a bit, unit approx speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
+                    local iTotalTimeWaited = 0
                     M28Orders.IssueTrackedClearCommands(oUnit)
-                    WaitTicks(8) --3 tick delay meant this only worked sometimes, and failed in one case with a fatboy; 4-7 tick delay failed initially when fatboy was moving forwards but didn't have issues after that, 8 ticks worked more reliably
+                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        iTotalTimeWaited = iTotalTimeWaited + 1
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
+                    end
+
+                    --Ticks to wait:
+                    --With no 'move 5 degrees towards rally' logic: 3 tick delay meant this only worked sometimes, and failed in one case with a fatboy; 4-7 tick delay failed initially when fatboy was moving forwards but didn't have issues after that, 8 ticks worked more reliably; velocity when 8 ticks worked: X-0.10995483398438 Y0 Z0.13614654541016; with 5 degree logic also still neededed to wait 8 ticks instead of 4 to move backwards
+                    --With 5 degree logic, when velocity slowed to iTotalVelocity=0.073184967041016 was no need to wait any ticks to move ackwards
+                    --Therefore will try waiting 1 tick until speed is sub-1 (speed being total velocity * 10); when did this, with a speed threshold of 1, it failed with fatboy; speed of 0.73837280273438 was ok
+
                 end
-                M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
+            M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
             end
         end
         if not(bValidTowardsLocation) then
