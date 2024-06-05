@@ -2532,6 +2532,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Overseer.ConsiderUpdatingBrainUnitCount(oUnit:GetAIBrain())
                     --Set Easy flag
                     if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
+
                     --Check for upgrading unit transferred to us
                     if oUnit.IsUpgrade then
                         local aiBrain = oUnit:GetAIBrain()

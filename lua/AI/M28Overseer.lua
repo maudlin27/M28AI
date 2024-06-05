@@ -418,6 +418,9 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
+        if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and not(tonumber(ScenarioInfo.Options.M28OvwT or tostring(0)) == 0) then
+            ForkThread(M28Economy.AdjustAIxOverwhelmRate)
+        end
         ForkThread(GlobalOverseer)
     end
 
@@ -1379,7 +1382,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo)
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust)
     --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AiX
     if not(bDontChangeScenarioInfo) then
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
@@ -1397,9 +1400,18 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
             FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
             FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
             FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
+            if iOptionalRecordedUnitResourceAdjust then
+                ForkThread(UpdateGrossIncomeForUnit, oUnit, false, false, iOptionalRecordedUnitResourceAdjust)
+            end
         end
     end
-
+    if not(aiBrain.CheatEnabled) and not(iResourceModifier == 1 and iBuildModifier == 1) then aiBrain.CheatEnabled = true end --redundnacy
+    aiBrain[M28Economy.refiBrainResourceMultiplier] = iResourceModifier
+    aiBrain[M28Economy.refiBrainBuildRateMultiplier] = iBuildModifier
+    if aiBrain.CheatEnabled and aiBrain.M28Team then
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] = iResourceModifier
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] = iBuildModifier
+    end
 end
 
 function CheckForScenarioObjectives()
