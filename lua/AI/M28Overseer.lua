@@ -59,6 +59,7 @@ refiLastUnitCapTimeCheck = 'M28UnitCapChk' --Gametimeseconds that the brain last
 refbWillDoDelayedUnitCapCheck = 'M28UnitCapD' --true if we are already doing a delayed unit cap check
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
+refiTimeOfLastUnitCapDeath = 'M28OverseerTmLstCpDth' --time we last ctrlkd a unit due to the unit cap
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
@@ -390,8 +391,8 @@ function M28BrainCreated(aiBrain)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAiX == 1 then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AiX modifiers to brain '..aiBrain.Nickname) end
+    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAIx == 1 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
         SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end
 
@@ -417,6 +418,9 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
+        if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT then
+            ForkThread(M28Economy.AdjustAIxOverwhelmRate)
+        end
         ForkThread(GlobalOverseer)
     end
 
@@ -586,7 +590,7 @@ function TestCustom(aiBrain)
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
     end--]]
-    --AiX 10.0
+    --AIx 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
 
@@ -901,6 +905,7 @@ function CheckUnitCap(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > math.max(30, iUnitCap * 0.35) then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
             local iCumulativeCategory = tiCategoryToDestroy[4]
+            local bKilledUnit = false
             for iAdjustmentLevel = 4, -1, -1 do
                 if iAdjustmentLevel < 4 then
                     iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
@@ -933,6 +938,7 @@ function CheckUnitCap(aiBrain)
                                             end
                                         end
                                         M28Orders.IssueTrackedKillUnit(oUnit)
+                                        bKilledUnit = true
 
                                         if iCurUnitsDestroyed >= iMaxToDestroy then
                                             if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
@@ -950,6 +956,7 @@ function CheckUnitCap(aiBrain)
                     end
                 end
             end
+            if bKilledUnit then aiBrain[refiTimeOfLastUnitCapDeath] = GetGameTimeSeconds() end
             aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
             if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
             if iCurUnitsDestroyed >= iMaxToDestroy and bReconsiderShortly then
@@ -1375,8 +1382,8 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo)
-    --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AiX
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust)
+    --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AIx
     if not(bDontChangeScenarioInfo) then
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
         ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
@@ -1393,9 +1400,18 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
             FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
             FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
             FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
+            if iOptionalRecordedUnitResourceAdjust then
+                ForkThread(UpdateGrossIncomeForUnit, oUnit, false, false, iOptionalRecordedUnitResourceAdjust)
+            end
         end
     end
-
+    if not(aiBrain.CheatEnabled) and not(iResourceModifier == 1 and iBuildModifier == 1) then aiBrain.CheatEnabled = true end --redundnacy
+    aiBrain[M28Economy.refiBrainResourceMultiplier] = iResourceModifier
+    aiBrain[M28Economy.refiBrainBuildRateMultiplier] = iBuildModifier
+    if aiBrain.CheatEnabled and aiBrain.M28Team then
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] = iResourceModifier
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] = iBuildModifier
+    end
 end
 
 function CheckForScenarioObjectives()
@@ -1961,7 +1977,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     bHaveAliveBaseUnits = true
                 end
             end
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveAliveAttackUnits='..tostring(bHaveAliveAttackUnits)..'; bHaveAliveBaseUnits='..tostring(bHaveAliveBaseUnits)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)) end
             if not(bHaveAliveAttackUnits) and bHaveAliveBaseUnits then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed check if mission active') end
@@ -2183,13 +2198,13 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         aiBrain.M28AI = true
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 4')
-        if ScenarioInfo.Options.CmApplyAiX == 1 then
+        if ScenarioInfo.Options.CmApplyAIx == 1 then
             aiBrain.CheatEnabled = true
         end
         if ScenarioInfo.Options.CmM28Easy == 1 then
             aiBrain.M28Easy = true
         end
-        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAiX='..(ScenarioInfo.Options.CmApplyAiX or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end
@@ -2383,7 +2398,7 @@ function DecideOnGeneralMapStrategy(aiBrain)
     --5-10km 1v1 but not winter duel, and can path to enemy by land
     if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..aiBrain.Nickname..'; Map size='..M28Map.iMapSize..'; Players at start='.. M28Team.iPlayersAtGameStart..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) end
     if M28Map.iMapSize >= 225 and M28Map.iMapSize <= 512 and M28Team.iPlayersAtGameStart <= 4 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-        --Dont stay at t1 if we have a high AiX modifier or no mexes on map, or a campaign map
+        --Dont stay at t1 if we have a high AIx modifier or no mexes on map, or a campaign map
         if bDebugMessages == true then LOG(sFunctionRef..': Is low mex map='..tostring(M28Map.bIsLowMexMap)..'; Resource mult='..(aiBrain[M28Economy.refiBrainResourceMultiplier] or 1)..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)) end
         if not(M28Map.bIsLowMexMap) and (aiBrain[M28Economy.refiBrainResourceMultiplier] or 1) <= 1.7 and not(M28Map.bIsCampaignMap) then
             --Are there lots of mexes outside the core bases to fight over, and most are in the core base plateau?

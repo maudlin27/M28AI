@@ -1515,10 +1515,13 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                     elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
                         --Structure logic - handled separately e.g. via M28Factory for factories
                     else
-                        table.insert(tTempOtherUnits, oUnit)
-                        if not(tbBlueprintsAddedToTempTable[oUnit.UnitId]) then
-                            M28Utilities.ErrorHandler('Adding unit ID '..oUnit.UnitId..' to table of temp other units - either the unit is a land unit really close to water that we incorrectly think is in water, or it is an amphibious/hover unit that has incorrect caterisation; if the unit runs out of orders then will send it to the rally point', true)
-                            tbBlueprintsAddedToTempTable[oUnit.UnitId] = true
+                        if not(oUnit:IsUnitState('Attached')) then
+                            table.insert(tTempOtherUnits, oUnit)
+                            if not(tbBlueprintsAddedToTempTable[oUnit.UnitId]) then
+                                M28Utilities.ErrorHandler('Adding unit ID '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' currently recorded in WZ '..iWaterZone..' with unit state='..M28UnitInfo.GetUnitState(oUnit)..' to table of temp other units - either the unit is a land unit really close to water that we incorrectly think is in water, or it is an amphibious/hover unit that has incorrect caterisation; if the unit runs out of orders then will send it to the rally point', true)
+                                if bDebugMessages == true then M28Map.DrawSpecificWaterZone(iWaterZone) end
+                                tbBlueprintsAddedToTempTable[oUnit.UnitId] = true
+                            end
                         end
                     end
                 end
@@ -3171,7 +3174,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; Is table of avaialble subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]='..tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange) end
+        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; Is table of avaialble subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]='..tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..', will set iScenario1AntiNavyRangeThreshold equal to enemy best antinavy range') end
         if oNearestEnemyNonHoverToFriendlyBase and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             local bAttackAndKite = false
             local iScenario1AntiNavyRangeThreshold = iEnemyBestAntiNavyRange
@@ -3202,6 +3205,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         bAttackAndKite = true
                     end
                 end
+                if bAttackAndKite then iScenario1AntiNavyRangeThreshold = 5 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if in scenario 1 or 2 for subs, tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible]='..tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible]..'; tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy]='..tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy]..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iAdjacentAlliedCombatThreat='.. iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; bAttackAndKite='..tostring(bAttackAndKite)) end
             if bAttackAndKite then
@@ -3216,6 +3220,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then bCheckIfNearestUnitVisible = true end
 
                 for iUnit, oUnit in tAvailableSubmarines do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Scenario 1 main unit loop, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Antinavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iScenario1AntiNavyRangeThreshold='..(iScenario1AntiNavyRangeThreshold or 'nil')) end
                     if oUnit[M28UnitInfo.refiAntiNavyRange] > iScenario1AntiNavyRangeThreshold then
                         table.insert(tUnitsToSupport, oUnit)
                         --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat
@@ -3293,7 +3298,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false, true), 5, false, 'WSSRSup'..iWaterZone)
                             end
                         else
-                            M28Utilities.ErrorHandler('We somehow think we outrange the enemy with subs, but have no subs units with a long range')
+                            M28Utilities.ErrorHandler('We somehow think we outrange the enemy with subs, but have no subs units with a long range, iWZ='..iWaterZone)
                         end
                     end
                 end
@@ -3422,7 +3427,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
             function KitingRetreatOfUnit(oUnit)
                 --Enemy has DF units and they are already in our range so retreat
-                if bDebugMessages == true then LOG(sFunctionRef..': Are close to enemies, iRangeToUseForChecks before reduction='..iRangeToUseForChecks..'; Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': KitingRetreatOfUnit: Are close to enemies, Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 --If we havent fired for a while and are in a core WZ then try an attack order instead
                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                 if tWZTeamData[M28Map.subrefWZbCoreBase] and GetGameTimeSeconds() - 2 - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100) > oUnit[M28UnitInfo.refiTimeBetweenDFShots] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 16 then

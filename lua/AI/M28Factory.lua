@@ -391,7 +391,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 if bDebugMessages == true then LOG(sFunctionRef..': Have lots of units of this category already, iCurUnitsOfCategory='..iCurUnitsOfCategory) end
                 sBPIDToBuild = nil
             end
-        elseif sBPIDToBuild then
+        end
+        if sBPIDToBuild then
             if EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, sBPIDToBuild) then
                 if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 60 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of this category already, naval surface, cur units='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
@@ -403,6 +404,13 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                     sBPIDToBuild = nil
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, sBPIDToBuild) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 150 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are near unit cap and have lots of units of this category, cur units of category='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
+                    sBPIDToBuild = nil
+                end
+            end
+            if sBPIDToBuild then
+                --If we have ctrlk'd a unit due to the unit cap recently, and this contains the same category, then dont build
+                if GetGameTimeSeconds() - (aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] or -100) <= 90 and M28Utilities.DoesCategoryContainCategory(categories[sBPIDToBuild], aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], false) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We are close to unit can and last ctrlkd a unit within last 90s, and this unit category is consistent with one of the categories ctrlkd') end
                     sBPIDToBuild = nil
                 end
             end
@@ -2713,7 +2721,7 @@ function IsFactoryReadyToBuild(oFactory)
                 --i.e. dont start production in more than 1 factory per zone per tick, so e.g. air facs are less likely to all build asfs at the same time and cause a power stall
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
-                --backup for scenarios where dont want to wait - if high mass and energy and AiX
+                --backup for scenarios where dont want to wait - if high mass and energy and AIx
             elseif aiBrain.CheatEnabled and tonumber(ScenarioInfo.Options.CheatMult or 1.5) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
@@ -4834,7 +4842,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
-    --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AiX modifier - have added code in M28 to counteract/fix
+    --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end

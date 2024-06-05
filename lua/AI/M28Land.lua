@@ -2259,7 +2259,9 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     end
     if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
         --Assign available shields to units in this zone wanting shielding
-        ShieldUnitsInLandZone(tLZTeamData, tShieldsToAssign)
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
+            ShieldUnitsInLandZone(tLZTeamData, tShieldsToAssign)
+        end
         if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
 
 
@@ -2508,7 +2510,9 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
 
     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
         --Stealth units in this zone first
-        StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
+            StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
+        end
         if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
             --Cycle through every land zone and record priority ones to Stealth
             if bDebugMessages == true then LOG(sFunctionRef..': Will give orders to tStealthsToAssign, size of table='..table.getn(tStealthsToAssign)) end
@@ -3312,10 +3316,17 @@ function GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, bGetIndirectThr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauRef, sOrderDesc, bAmphibious, iDefaultDistOverride)
+function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauRef, sOrderDesc, bAmphibious, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride)
     --iDefaultDistOverride - if specified, then doesnt require a backup dist to move back, and will use this if no backup dist is available
+    --iMaxAngleDifForMovingBackwardsOverride - Overrides the maximum angle difference allowed to move backwards in a straight line for the unit instead of moving to tRallyPoint; if this is exceeded, then will try and move to the rally point instead
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'BackupUnitTowardsRallyIfAvailable'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28UnitInfo.IsUnitValid(oUnit) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tRallyPoint='..repru(tRallyPoint)..'; iIslandOrPlateauRef='..iIslandOrPlateauRef..'; sOrderDesc='..sOrderDesc..'; bAmphibious='..tostring(bAmphibious)..'; iDefaultDistOverride='..(iDefaultDistOverride or 'nil')..'; iMaxAngleDifForMovingBackwardsOverride='..(iMaxAngleDifForMovingBackwardsOverride or 'nil')..'; Time='..GetGameTimeSeconds()) end
         local iBackupDist = 0
+        local iMaxAngleDifference = iMaxAngleDifForMovingBackwardsOverride or 35
         local bValidTowardsLocation = false
         if oUnit[M28UnitInfo.refbCanKite] then
             iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
@@ -3325,13 +3336,22 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
 
 
             local iDistToMove
-            if iDefaultDistOverride and iBackupDist >= 3 then iDistToMove = math.min(iBackupDist - 1)
-            elseif not(iDefaultDistOverride) then iDistToMove = iBackupDist - 1
+            if iDefaultDistOverride and iBackupDist >= 3 then iDistToMove = math.min(iBackupDist - 1, iDefaultDistOverride)
+            elseif not(iDefaultDistOverride) then
+                iDistToMove = math.min(iBackupDist - 1, 20)
+                if iBackupDist >= 12 and iBackupDist < 20 then iDisttoMove = iDistToMove - 1.5 end
             else iDistToMove = iDefaultDistOverride
             end
             local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
-            local tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToRally, iDistToMove, true, false)
-            if tPotentialMoveLocation then
+            local iCurUnitFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+            local iMoveBackwardsAngle = iCurUnitFacingDirection - 180
+            if iMoveBackwardsAngle < 0 then iMoveBackwardsAngle = iMoveBackwardsAngle + 360 end
+            local tPotentialMoveLocation
+            local iAngleDif = M28Utilities.GetAngleDifference(iAngleToRally, iMoveBackwardsAngle)
+            local iAngleActuallyMoving
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking whether to move directly backwards, iAngleToRally='..iAngleToRally..'; iMoveBackwardsAngle='..iMoveBackwardsAngle..'; iAngleDif='..iAngleDif..'; iMaxAngleDifference='..iMaxAngleDifference..' Approx Speed (X and Z velocity times 10) = '..M28UnitInfo.GetUnitSpeed(oUnit)) end
+            function CheckIfValidLocation()
                 if bAmphibious then
                     if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandOrPlateauRef then
                         bValidTowardsLocation = true
@@ -3341,21 +3361,52 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
                         bValidTowardsLocation = true
                     end
                 end
-                if bValidTowardsLocation then
-                    --If arent already moving in this direction then stop for 1 tick, as backing up doesnt work properly otherwise
-                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
-                    if tLastOrder and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetAngleDifference(iAngleToRally, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) < 15) then
-                        M28Orders.IssueTrackedClearCommands(oUnit)
-                        WaitTicks(1)
-                    end
-                    M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
+            end
+            if iAngleDif >= 3 and iAngleDif <= iMaxAngleDifference then
+                local iMaxAngleAdjust = math.min(iAngleDif, 5)
+                if iMoveBackwardsAngle > iAngleToRally then iMaxAngleAdjust = -iMaxAngleAdjust end
+                tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iMoveBackwardsAngle + iMaxAngleAdjust, iDistToMove, true, false)
+                CheckIfValidLocation()
+                iAngleActuallyMoving = iMoveBackwardsAngle
+            end
+            --else
+            if not(bValidTowardsLocation) then
+                tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToRally, iDistToMove, true, false)
+                CheckIfValidLocation()
+                iAngleActuallyMoving = iAngleToRally
+            end
+            if tPotentialMoveLocation and bValidTowardsLocation then
+                --If arent already moving in this direction then stop for 1 tick, as backing up doesnt work properly otherwise
+                local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iDistToMove='..iDistToMove..'; bValidTowardsLocation='..tostring(bValidTowardsLocation or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
+                    if tLastOrder and tLastOrder[M28Orders.subreftOrderPosition] then LOG(sFunctionRef..': Angle dif between destination and last move order='..M28Utilities.GetAngleDifference(iAngleActuallyMoving, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]))) end
                 end
+                if (tLastOrder and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetAngleDifference(iAngleActuallyMoving, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) < 15)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear unit orders and wait a bit, unit approx speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
+                    local iTotalTimeWaited = 0
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        iTotalTimeWaited = iTotalTimeWaited + 1
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
+                    end
+
+                    --Ticks to wait:
+                    --With no 'move 5 degrees towards rally' logic: 3 tick delay meant this only worked sometimes, and failed in one case with a fatboy; 4-7 tick delay failed initially when fatboy was moving forwards but didn't have issues after that, 8 ticks worked more reliably; velocity when 8 ticks worked: X-0.10995483398438 Y0 Z0.13614654541016; with 5 degree logic also still neededed to wait 8 ticks instead of 4 to move backwards
+                    --With 5 degree logic, when velocity slowed to iTotalVelocity=0.073184967041016 was no need to wait any ticks to move ackwards
+                    --Therefore will try waiting 1 tick until speed is sub-1 (speed being total velocity * 10); when did this, with a speed threshold of 1, it failed with fatboy; speed of 0.73837280273438 was ok
+
+                end
+            M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.5, 5), false, sOrderDesc..'T', false)
             end
         end
         if not(bValidTowardsLocation) then
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, sOrderDesc..'R', false)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tAvailableCombatUnits, iFriendlyBestMobileDFRange, iFriendlyBestMobileIndirectRange, bWantIndirectReinforcements, tUnavailableUnitsInThisLZ, bDelayOrdersForHover, bHaveCombatUnitsFromAdjZone)
@@ -4748,7 +4799,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Giving kiting retreat order to fatboy, iCurDistToBackup='..iCurDistToBackup) end
                                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tFatboyRetreatLocation, iPlateau, 'FatbKit', true)
+                                                ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tFatboyRetreatLocation, iPlateau, 'FatbKit', true, nil, 60)
                                                 --M28Orders.IssueTrackedMove(oUnit, tFatboyRetreatLocation, math.min(math.max(1, iCurDistToBackup - 3), 8), false, 'FatbKit', false)
                                             end
                                         end
@@ -6836,7 +6887,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     oUnit[refiCurrentAssignmentValue] = 0
                                 else
                                     if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                        M28Orders.IssueTrackedMove(oUnit, tLZData[M28Map.subrefMidpoint], 6, false, 'BkMvLZ'..tSubtable[M28Map.subrefLZNumber]..';'..iLandZone)
+                                        M28Orders.IssueTrackedMove(oUnit, tCurLZData[M28Map.subrefMidpoint], 6, false, 'BkMvLZ'..tSubtable[M28Map.subrefLZNumber]..';'..iLandZone)
                                     end
                                 end
                             end

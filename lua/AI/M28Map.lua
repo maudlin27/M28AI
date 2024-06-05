@@ -4240,7 +4240,7 @@ local function SetupLandZones()
         if iCurColour >= 9 then iCurColour = 1 end
         DrawSpecificLandZone(145, iLandZone)
         LOG(sFunctionRef..': Segment count for LZ '..iLandZone..'='..tLZData[subrefLZTotalSegmentCount]) end
-    end     bDebugMessages = false--]]
+    end     --]]
 
     RecordPathingBetweenZones() --Includes a waitticks(1)
 

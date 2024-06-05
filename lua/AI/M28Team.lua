@@ -41,10 +41,11 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subreftoFriendlyHumanAndAIBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyHumanAndAIBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
     rebTeamOnlyHasCampaignAI = 'M28TeamOnlyCampAI' --True if team only has campaign AI on it (so can e.g. disable the 'check playable area' tests in some scenarios
-    refiHighestBrainResourceMultiplier = 'M28HighestMult' --Highest AiX Resource on team (as a number)
-    refiHighestBrainBuildMultiplier = 'M28HighestBPMult' --Highest AiX BP modifier on team (as a number)
+    refiHighestBrainResourceMultiplier = 'M28HighestMult' --Highest AIx Resource on team (as a number)
+    refiHighestBrainBuildMultiplier = 'M28HighestBPMult' --Highest AIx BP modifier on team (as a number)
     refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if true will try and avoid t2 mex and spam land
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
+    refiTimeOfLastTeammateDeath = 'M28TeamLstTmD' --gametimeseconds that a teammate last died (based on ACU dying in demoralisation)
 
     --Team economy subrefs
     refiPausedUnitCount = 'M28TeamPausTo' --total number of paused units
@@ -110,7 +111,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeLastHadNothingToBuildForLandFactory = 'M28TeamLandFacTimNoBuild' --Gametimeseconds that failed to find something to do with land fac that was our highest tech level
 
     --Intel details
-    subrefbTeamHasOmniVision = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
+    subrefbTeamHasOmniVision = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AIx with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
@@ -150,6 +151,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftLongRangeEnemyDFUnits = 'M28LREUn'
     reftoEnemyT2Arti = 'M28LRArt' --Table of all enemy T2 arti (regardless of kills) - note firebase adj is used for those that are more dangerous
     refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
+    reftoAlliedQuantumOptics = 'M28QOU' --Table of M28 allied quanutm optics units
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
@@ -720,12 +722,12 @@ function CreateNewTeam(aiBrain)
                         tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
                     end
                     --Record brain details in log for ease of reference
-                    local sAiXref = ''
+                    local sAIxref = ''
                     if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
                     if oBrain.CheatEnabled then
-                        sAiXref = ' AiX Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
+                        sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                     end
-                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
+                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                 end
             end
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
@@ -1735,8 +1737,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy land factory against nearby zones depending on if it is close to a friendly base') end
                                 RecordNearbyEnemyLandFactory(oUnit, aiBrain.M28Team)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
-                                --UEF and Cybran bombers - activate special tracking if low lifetime count
-                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
+                                --UEF and Cybran bombers - activate special tracking if low lifetime count (will also do aeon and seraphim since if engineer is stationery e.g. building something it cant reliably dodge them either)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 then --and EntityCategoryContains(categories.UEF + categories.CYBRAN, oUnit.UnitId) then
                                     ForkThread(M28Air.EnemyT1BomberTracker, oUnit, aiBrain.M28Team)
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
@@ -3374,7 +3376,7 @@ function TeamEconomyRefresh(iM28Team)
 
             --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
             --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
-            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
+            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
             if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal) end
         end
         tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
@@ -3843,14 +3845,14 @@ function ConsiderGiftingStorageToTeammate(oEnergyStorage)
 
     local aiBrain = oEnergyStorage:GetAIBrain()
     local iTeam = aiBrain.M28Team
-    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..aiBrain.Nickname..' has just built energy storage '..oEnergyStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnergyStorage)..'; active M28 brain count for team '..iTeam..' = '..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; Total no. of storage for this brain='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..'; lowest storage count for team='..tTeamData[iTeam][subrefiLowestEnergyStorageCount]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..aiBrain.Nickname..' has just built energy storage '..oEnergyStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnergyStorage)..'; active M28 brain count for team '..iTeam..' = '..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; Total no. of storage for this brain='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)..'; lowest storage count for team='..tTeamData[iTeam][subrefiLowestEnergyStorageCount]) end
     if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
-        local iOurEnergyStorage = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)
+        local iOurEnergyStorage = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)
         if iOurEnergyStorage >= 2 and iOurEnergyStorage > 1 + tTeamData[iTeam][subrefiLowestEnergyStorageCount] then
             for iBrain, oBrain in  tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                if not(oBrain == aiBrain) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) + 1 < iOurEnergyStorage then
+                if not(oBrain == aiBrain) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics) + 1 < iOurEnergyStorage then
                     --We have 2 less energy storage so want to give this storage to them
-                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' only has '..oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..' energy storage so will gift this storage to them') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' only has '..oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics)..' energy storage type buildings so will gift this storage to them') end
                     TransferUnitsToPlayer({ oEnergyStorage }, oBrain:GetArmyIndex(), false)
                     ForkThread(TeamEconomyRefresh, iTeam)
                     break

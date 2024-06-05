@@ -464,7 +464,6 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrderPosition)
                                 local tPotentialBuildLocations = M28Engineer.GetPotentialBuildLocationsNearLocation(oEngineer:GetAIBrain(), tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.GetBuildingSize(sLastBlueprint), nil)
                                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
-                                    bDebugMessages = true
                                     local tBestLocation = M28Engineer.GetBestBuildLocationForTarget(oEngineer, sLastBlueprint, tLastOrderPosition, tPotentialBuildLocations, 50, false, false)
                                     if M28Utilities.IsTableEmpty(tBestLocation) == false then
                                         local iPriority = (oEngineer[M28Engineer.refiAssignedActionPriority] or 1000)
@@ -487,7 +486,6 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
             oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
             if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerBuildWithoutFocusUnitPosition]) <= 0.01 then
                 --Engineer is stuck, clear its orders and treat as available
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerBuildWithoutFocusUnitCount]='..oEngineer[refiEngineerBuildWithoutFocusUnitCount]) end
                 M28Orders.IssueTrackedClearCommands(oEngineer)
                 oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = nil
@@ -1210,7 +1208,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                 if bDebugMessages == true then LOG(sFunctionRef..': Have high average number of factories so dont want more') end
             else
                 --Have we failed to build something at existing land and air factories recently?
-                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; Map size='..(M28Map.iMapSize or 'nil')..'; % Stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; AiX='..(M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Highest air fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Time of last energy stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 'nil')..'; Team has air control='..tostring(TeamHasAirControl(iTeam))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; Map size='..(M28Map.iMapSize or 'nil')..'; % Stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; AIx='..(M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Highest air fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Time of last energy stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 'nil')..'; Team has air control='..tostring(TeamHasAirControl(iTeam))) end
                 if iAverageCurAirAndLandFactories >= 2 and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100)) <= 10 and (TeamHasLowMass(iTeam) or GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLandFacHadNothingToBuild] or -100) <= 10)) and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100)) <= 10 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
                     --Dont want more factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Failed ot build anythign at land factory recently, and either failed to build at air factory or want land fac instead of air fac') end

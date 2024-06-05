@@ -2190,7 +2190,7 @@ function FixUnitResourceCheatModifiers(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FixUnitResourceCheatModifiers'
 
-    --As of May 2023, AiX resource multipliers dont apply to upgrades such as for RAS SACUs.  The below attempts to fix this.
+    --As of May 2023, AIx resource multipliers dont apply to upgrades such as for RAS SACUs.  The below attempts to fix this.
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
@@ -2348,4 +2348,9 @@ function GetTimeUntilReadyToFireBomb(oUnit)
         local iTimeSinceFired = GetGameTimeSeconds() - oUnit[refiLastBombFired]
         return iTimeBetweenShots - iTimeSinceFired
     end
+end
+
+function GetUnitSpeed(oUnit)
+    local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
+    return (math.abs(iVelocityX) + math.abs(iVelocityZ)) * 10 --approximate value - e.g. based on this a fatboy moving diagonally at full speed would cover roughly 2.5 vs a max speed of 1.75
 end

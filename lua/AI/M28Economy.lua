@@ -25,7 +25,7 @@ refiGrossEnergyBaseIncome = 'M28EnergyGrossIncome' --against aiBrain
 refiNetEnergyBaseIncome = 'M28EnergyNetIncome' --against aiBrain
 refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
-refiBrainResourceMultiplier = 'M28ResourceMod' --Against aiBrain, e.g. 1.5 if AiX 1.5
+refiBrainResourceMultiplier = 'M28ResourceMod' --Against aiBrain, e.g. 1.5 if AIx 1.5
 refiBrainBuildRateMultiplier = 'M28BuildMod' --against aiBrain
 refbBuiltParagon = 'M28EcBltPa' --against aibrain, true if we have an active paragon
 
@@ -482,19 +482,19 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
         oStorage[refiStorageMassAdjacencyBonus] = 0
         if oStorage:GetFractionComplete() >= 1 then
             local iBaseMassGen
-            local iAiXMod = 1
+            local iAIxMod = 1
             local iAdjacencyMassGen
             local oGenBP
             local iBPMassGen
             local iGenUnitSize
             local iStorageSize = M28UnitInfo.GetBuildingSize(oStorage.UnitId)
-            --Adjust for AiX
+            --Adjust for AIx
             if aiBrain.CheatEnabled then
-                iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                iAIxMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
             end
             oStorage[refiStorageMassAdjacencyBonus] = 0
             --Get all adjacent mexes
-            if bDebugMessages == true then LOG(sFunctionRef..': iAiXMod='..iAiXMod..'; Is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oStorage.AdjacentUnits))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iAIxMod='..iAIxMod..'; Is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oStorage.AdjacentUnits))) end
             if M28Utilities.IsTableEmpty(oStorage.AdjacentUnits) == false then
                 --Cant use filterdown a doesnt work with .adjacentunits
                 for iMassGenUnit, oMassGenUnit in oStorage.AdjacentUnits do
@@ -506,7 +506,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
                             iGenUnitSize = M28UnitInfo.GetBuildingSize(oMassGenUnit.UnitId)
                             --Mass storage adjacency - if covers all of the resource generation on all 4 sides, gives a 50% boost, so is giving 12.5% boost for each side fully covered
                             --Also want to measure in mass per tick not per second, so *0.0125
-                            iAdjacencyMassGen = iBaseMassGen * iAiXMod * 0.0125 * math.min(1, iStorageSize / iGenUnitSize)
+                            iAdjacencyMassGen = iBaseMassGen * iAIxMod * 0.0125 * math.min(1, iStorageSize / iGenUnitSize)
                             oStorage[refiStorageMassAdjacencyBonus] = oStorage[refiStorageMassAdjacencyBonus] + iAdjacencyMassGen
                             iMassChange = iMassChange + iAdjacencyMassGen
                             if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to oMassGenUnit='..(oMassGenUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMassGenUnit)..'; iAdjacencyMassGen for this unit='..(iAdjacencyMassGen or 'nil'))) end
@@ -569,7 +569,9 @@ function ConsiderHydroUpgradeLoop(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
+function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptionalResourceModAdjustmentOverride)
+    --iOptionalResourceModAdjustmentOverride - intended for use with AIX overwhelm where we have already recorded a unit but at the 'wrong' resource rate
+
     --Logs are enabled below
     if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
@@ -589,6 +591,10 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                 if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) then
                     iMassGen = 10000 * 0.1
                     iEnergyGen = 1000000 * 0.1
+                    if iOptionalResourceModAdjustmentOverride then
+                        iMassGen = iMassGen * iOptionalResourceModAdjustmentOverride
+                        iEnergyGen = iEnergyGen * iOptionalResourceModAdjustmentOverride
+                    end
                     local iTeam = oUnit:GetAIBrain().M28Team
                     if bDestroyed then
                         local bRemainingParagon = false
@@ -691,11 +697,11 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                         end
                     end
 
-                    --Adjust for AiX
+                    --Adjust for AIx
                     if aiBrain.CheatEnabled then
-                        local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                        iMassGen = iMassGen * iAiXMod
-                        iEnergyGen = iEnergyGen * iAiXMod
+                        local iAIxMod = iOptionalResourceModAdjustmentOverride or tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
+                        iMassGen = iMassGen * iAIxMod
+                        iEnergyGen = iEnergyGen * iAIxMod
                     end
                 end
                 if bDestroyed then
@@ -736,6 +742,58 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
 
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
+    end
+end
+
+function AdjustAIxOverwhelmRate()
+    --Waits the indicated number of seconds and then adjusts the AIx overwhelm rate
+    local iSecondsToWait = tonumber(ScenarioInfo.Options.M28OvwT) * 60
+    local iRateAdjustment = tonumber(ScenarioInfo.Options.M28OvwR)
+    local iLowerCap = 0.1
+    local iUpperCap = 10.0
+    if iRateAdjustment > 0 then iUpperCap = tonumber(ScenarioInfo.Options.M28OvwC)
+    else iLowerCap = tonumber(ScenarioInfo.Options.M28OvwC)
+    end
+    WaitSeconds(iSecondsToWait)
+
+    if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+        local bChangedModifier
+        local iCurBuildModifier
+        local iCurResourceModifier
+        while M28Utilities.bM28AIInGame do
+            --Set the new modifier
+            bChangedModifier = false
+            iCurResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
+            iCurBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or tostring(1.5))
+            if iRateAdjustment > 0 then
+                if iCurResourceModifier < iUpperCap or iCurBuildModifier < iUpperCap then
+                    iCurResourceModifier = math.min(iCurResourceModifier + iRateAdjustment, iUpperCap)
+                    iCurBuildModifier = math.min(iCurBuildModifier + iRateAdjustment, iUpperCap)
+                    ScenarioInfo.Options.CheatMult = tostring(iCurResourceModifier)
+                    ScenarioInfo.Options.BuildMult = tostring(iCurBuildModifier)
+                    bChangedModifier = true
+                end
+            else
+                if iCurResourceModifier > iLowerCap or iCurBuildModifier > iLowerCap then
+                    iCurResourceModifier = math.max(iCurResourceModifier + iRateAdjustment, iLowerCap)
+                    iCurBuildModifier = math.max(iCurBuildModifier + iRateAdjustment, iLowerCap)
+                    ScenarioInfo.Options.CheatMult = tostring(iCurResourceModifier)
+                    ScenarioInfo.Options.BuildMult = tostring(iCurBuildModifier)
+                    bChangedModifier = true
+                end
+            end
+            if not(bChangedModifier) then
+                break
+            else
+                --Adjust each brain (which should also adjust all units owned by them and updates the team modifier)
+                for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                    if oBrain.CheatEnabled and not(oBrain.M28IsDefeated) then
+                        M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
+                    end
+                end
+            end
+            WaitSeconds(iSecondsToWait)
         end
     end
 end
@@ -1110,7 +1168,6 @@ function ManageMassStalls(iTeam)
             end
 
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > (0.005 + iMassStallPercentAdjust) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then
-                --aiBrain[refbStallingEnergy] = false
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Have enough mass stored or income to start unpausing things')
                 end
@@ -2300,7 +2357,7 @@ function GetEnergyStorageMaximum(aiBrain, bDetailedUpdate)
         return aiBrain[refiMaxEnergyStorage]
     else
         if bDetailedUpdate then
-            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * M28Building.iEnergyStorageExpectedCapacity + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100
+            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * M28Building.iEnergyStorageExpectedCapacity + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100 + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryQuantumOptics) * 10000
         end
         return aiBrain[refiMaxEnergyStorage]
     end
