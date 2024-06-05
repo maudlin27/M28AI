@@ -482,19 +482,19 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
         oStorage[refiStorageMassAdjacencyBonus] = 0
         if oStorage:GetFractionComplete() >= 1 then
             local iBaseMassGen
-            local iAiXMod = 1
+            local iAIxMod = 1
             local iAdjacencyMassGen
             local oGenBP
             local iBPMassGen
             local iGenUnitSize
             local iStorageSize = M28UnitInfo.GetBuildingSize(oStorage.UnitId)
-            --Adjust for AiX
+            --Adjust for AIx
             if aiBrain.CheatEnabled then
-                iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                iAIxMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
             end
             oStorage[refiStorageMassAdjacencyBonus] = 0
             --Get all adjacent mexes
-            if bDebugMessages == true then LOG(sFunctionRef..': iAiXMod='..iAiXMod..'; Is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oStorage.AdjacentUnits))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iAIxMod='..iAIxMod..'; Is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oStorage.AdjacentUnits))) end
             if M28Utilities.IsTableEmpty(oStorage.AdjacentUnits) == false then
                 --Cant use filterdown a doesnt work with .adjacentunits
                 for iMassGenUnit, oMassGenUnit in oStorage.AdjacentUnits do
@@ -506,7 +506,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
                             iGenUnitSize = M28UnitInfo.GetBuildingSize(oMassGenUnit.UnitId)
                             --Mass storage adjacency - if covers all of the resource generation on all 4 sides, gives a 50% boost, so is giving 12.5% boost for each side fully covered
                             --Also want to measure in mass per tick not per second, so *0.0125
-                            iAdjacencyMassGen = iBaseMassGen * iAiXMod * 0.0125 * math.min(1, iStorageSize / iGenUnitSize)
+                            iAdjacencyMassGen = iBaseMassGen * iAIxMod * 0.0125 * math.min(1, iStorageSize / iGenUnitSize)
                             oStorage[refiStorageMassAdjacencyBonus] = oStorage[refiStorageMassAdjacencyBonus] + iAdjacencyMassGen
                             iMassChange = iMassChange + iAdjacencyMassGen
                             if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to oMassGenUnit='..(oMassGenUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMassGenUnit)..'; iAdjacencyMassGen for this unit='..(iAdjacencyMassGen or 'nil'))) end
@@ -697,11 +697,11 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                         end
                     end
 
-                    --Adjust for AiX
+                    --Adjust for AIx
                     if aiBrain.CheatEnabled then
-                        local iAiXMod = iOptionalResourceModAdjustmentOverride or tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
-                        iMassGen = iMassGen * iAiXMod
-                        iEnergyGen = iEnergyGen * iAiXMod
+                        local iAIxMod = iOptionalResourceModAdjustmentOverride or tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
+                        iMassGen = iMassGen * iAIxMod
+                        iEnergyGen = iEnergyGen * iAIxMod
                     end
                 end
                 if bDestroyed then

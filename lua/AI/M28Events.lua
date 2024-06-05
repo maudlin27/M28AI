@@ -682,7 +682,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
             end
-            --Fix AiX modifier
+            --Fix AIx modifier
             if oUnit:GetAIBrain().CheatEnabled then
                 M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
             end

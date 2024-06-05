@@ -695,11 +695,11 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         AddPotentialMessage( 'Time for the training wheels to come off')
                         AddPotentialMessage( 'Well done, but I was going easy on you')
                     else
-                        AddPotentialMessage( 'Bet you couldnt beat an AiX version of me!')
-                        AddPotentialMessage( 'Make me an AiX and Ill show you what I can really do!')
+                        AddPotentialMessage( 'Bet you couldnt beat an AIx version of me!')
+                        AddPotentialMessage( 'Make me an AIx and Ill show you what I can really do!')
                     end
                 elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
-                    AddPotentialMessage( 'Bet you couldnt beat me if I was a 1.5 AiX!')
+                    AddPotentialMessage( 'Bet you couldnt beat me if I was a 1.5 AIx!')
                 elseif not(M28Map.bIsCampaignMap) then
                     AddPotentialMessage( 'Damn, I thought Id be unbeatable with this high a modifier')
                     AddPotentialMessage( 'Impressive')
@@ -824,7 +824,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
                     if bHadAIX then
                         if bHadEnemyHuman then
-                            AddPotentialMessage( 'Maybe you should lower the AiX modifier next time!')
+                            AddPotentialMessage( 'Maybe you should lower the AIx modifier next time!')
                             if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
                                 AddPotentialMessage( 'I thought you were being overconfident challenging me when I had this big a resource bonus')
                             end
@@ -835,7 +835,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         if bHadEnemyHuman then
                             AddPotentialMessage( 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
                             if (oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] or 1) == 1 then
-                                AddPotentialMessage( 'You can set my AiX modifier to below 1.0 for an easier time')
+                                AddPotentialMessage( 'You can set my AIx modifier to below 1.0 for an easier time')
                                 if not(oEnemyM28AIBrain.M28Easy) then AddPotentialMessage( 'If you found me too hard you could practice against M28Easy') end
                             end
                             AddPotentialMessage( 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
@@ -1087,13 +1087,13 @@ function AssignAIPersonalityAndRating(aiBrain)
     end
     if aiBrain.M28AI then
         LOG('AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname)
-        if (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AiX gets stuff in priority to AI
+        if (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AIx gets stuff in priority to AI
             local iBaseRating = 750
             local iApproxRating
             local bIsCheatingAI = aiBrain.CheatEnabled
             local iOmniCheat = 50
-            local iResourceBaseMod = 1700 --i.e. if had AiX 1.5, then its rank shoudl be increased by 50% * this
-            local iBuildRateBaseMod = 1300 --i.e. if had AiX 1.5, then its rank shoudl be increased by 50% * this
+            local iResourceBaseMod = 1700 --i.e. if had AIx 1.5, then its rank shoudl be increased by 50% * this
+            local iBuildRateBaseMod = 1300 --i.e. if had AIx 1.5, then its rank shoudl be increased by 50% * this
             local iHigherThreshold = 2000 --The point at which the AI rating will be increased at a much lower rate to avoid absurd ratings
             local iGeneralRatingFactor = 0.9 --The expected rating should be multiplied by this - e.g. can use to be a bit conservative with the AI expected rating (since it impacts on which player gets units in fullshare)
 
@@ -2192,7 +2192,7 @@ end
 --{LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!', vid = 'X06_Rhiza_T01_03055.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03055', faction = 'Aeon'},
 
 --special:
--- e.g. beat 2.0 AiX cybran with no non ai mods:
+-- e.g. beat 2.0 AIx cybran with no non ai mods:
 --{LOC('<LOC X04_M03_260_010>[{i Brackman}]: Hi, this is Jamieson Price, the voice of Dr. Brackman. Your skills are so impressive that you knocked me out of character, and now I have to re-record my VO! Gimme a moment while I dial it back in ... oh yes ... there we go, much better. Much better.', vid = 'X04_Brackman_M03_05106.sfd', bank = 'X04_VO', cue = 'X04_Brackman_M03_05106', faction = 'Cybran'},
 --Kill scathis with M28 as UEF:
 --{LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.', vid = 'X05_Fletcher_M02_03831.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_03831', faction = 'UEF'},

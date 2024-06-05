@@ -4960,6 +4960,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
 
         if not(bOnlyConsiderReclaimInRangeOfEngineer) then
             for iSegmentCount, tSegmentXZ in tLZOrWZData[M28Map.subrefReclaimSegments] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim in segment X='..tSegmentXZ[1]..'Z'..tSegmentXZ[2]..'='..(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][sReclaimTableRef] or 'nil')..' using sReclaimTableRef='..sReclaimTableRef..'; iMinReclaimIndividualValue='..iMinReclaimIndividualValue..'; bDontCheckSignificantValue='..tostring(bDontCheckSignificantValue or false)..'; iMinSignifSegmentValue='..(iMinSignifSegmentValue or 'nil')..'; Total signif mass='..(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalSignificantMass] or 'nil')) end
                 if M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][sReclaimTableRef] >= iMinReclaimIndividualValue and (bDontCheckSignificantValue or M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalSignificantMass] >= iMinSignifSegmentValue) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering reclaim location at position '..repru(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2]))..'; plyaable area='..repru(M28Map.rMapPlayableArea)..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2])))..'; bDontConsiderPlayableArea='..tostring(bDontConsiderPlayableArea)..'; Mass reclaim in segment='..(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalMass] or 'nil')..'; Signif mass in segment='..(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimTotalSignificantMass] or 'nil')) end
                     if bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2])) then
@@ -5097,9 +5098,9 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                                     --Want to consider reassigning this reclaim segment if the only reclaim in it is in a different plateau
                                     oNearestReclaim = nil
                                     if tiClosestSegmentXZ then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone before reassignment='..reprs(tLZOrWZData[subrefReclaimSegments])) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone before reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])) end
                                         M28Map.ReassignReclaimSegment(tiClosestSegmentXZ[1], tiClosestSegmentXZ[2], tLZOrWZData)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone after reassignment='..reprs(tLZOrWZData[subrefReclaimSegments])) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone after reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])) end
                                     end
                                 end
                             end
@@ -5144,8 +5145,8 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
                 end
             else
-                if bDebugMessages == true then LOG(sFunctionRef..': Time since last zone refresh='..GetGameTimeSeconds() - (tLZOrWZData[M28Map.subrefLastReclaimRefresh] or 0)..'; LZ total recalim='..(tLZOrWZData[M28Map.subrefTotalMassReclaim] or 0)) end
-                if not(bWantEnergyNotMass) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Time since last zone refresh='..GetGameTimeSeconds() - (tLZOrWZData[M28Map.subrefLastReclaimRefresh] or 0)..'; LZ total recalim='..(tLZOrWZData[M28Map.subrefTotalMassReclaim] or 0)..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
+                if not(bWantEnergyNotMass) and not(bOnlyConsiderReclaimInRangeOfEngineer) then
                     if iTotalMassAtStartOfCodeInZone == 0 then M28Utilities.ErrorHandler('We tried getting an engi to reclaim mass in a zone when there is no mass, P'..iPlateauOrPond..'Z'..iLandOrWaterZone..';WZ='..tostring(bIsWaterZone or false), true)
                     else
                         if GetGameTimeSeconds() - (tLZOrWZData[M28Map.subrefLastComprehensiveReclaimRefresh] or 0) >= 3 then
@@ -5153,7 +5154,14 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                             M28Map.RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone, true)
                             if bDebugMessages == true then LOG(sFunctionRef..': Total mass after refresh of reclaim='..tLZOrWZData[M28Map.subrefTotalMassReclaim]) end
                         elseif GetGameTimeSeconds() - (tLZOrWZData[M28Map.subrefLastComprehensiveReclaimRefresh] or 0) < 1 then
-                            M28Utilities.ErrorHandler('Couldnt find anything to reclaim but we have refreshed the zone in the last second', true)
+                            if (tLZOrWZData[M28Map.subrefTotalMassReclaim] or 0) < iTotalMassAtStartOfCodeInZone then --or (iTotalSignificantMassAtStartOfCodeInZone > (tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 0) and iMinReclaimIndividualValue > (tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 0)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find anything to reclaim but we have refreshed the zone in the last second, mass value post refresh is below 1, tLZOrWZData[M28Map.subrefTotalMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalMassReclaim] or 'nil')..'; iTotalMassAtStartOfCodeInZone='..iTotalMassAtStartOfCodeInZone) end
+                            elseif iMinIndividualValueOverride and iMinIndividualValueOverride > M28Map.iLowestMassThreshold and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': ACU was trying to get high value reclaim if there was any, since there isnt ACU should just proceed to other orders') end
+                            else
+                                M28Utilities.ErrorHandler('Couldnt find anything to reclaim but we have refreshed the zone in the last second, mass value post refresh was less than pre refresh', true)
+                            end
+
                         end
                     end
                 end
@@ -10520,7 +10528,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
 
-    --Quantum gateway in a high AiX scenario
+    --Quantum gateway in a high AIx scenario
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(10, tLZData[M28Map.subrefLZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 900 then
         --Get quantum gateway if we dont already have one
@@ -12091,14 +12099,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Quantum gateway for high AiX modifier and campaign, once we are at T3 mexes for the LZ
+    --Quantum gateway for high AIx modifier and campaign, once we are at T3 mexes for the LZ
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build quantum gateway, MexCountByTech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; mass storage locations empty?='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
     if not(bHaveLowPower) and not(bSaveMassForMML) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 11) or (M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 13))
             and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 6 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0))
             and (M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZOrWZMassStorageLocationsAvailable]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 or (M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14))
             and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30) then
-        --Are we in campaign (where ecoing more important) or AiX 1.2+?
+        --Are we in campaign (where ecoing more important) or AIx 1.2+?
         local iHighestCheatModifier = 1
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -12125,7 +12133,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurQuantumGateways='..iCurQuantumGateways) end
-                --Get 1 quantumn gateway (or 2+ if we have 1.5+ AiX modifier)
+                --Get 1 quantumn gateway (or 2+ if we have 1.5+ AIx modifier)
                 if iCurQuantumGateways == 0 or (iCurQuantumGateways < 3 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 1.4 and iCurQuantumGateways < 0.4 + M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
                     HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and assign '..iBPWanted..' to building a quantum gateway') end

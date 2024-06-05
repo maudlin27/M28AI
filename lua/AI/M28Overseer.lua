@@ -391,8 +391,8 @@ function M28BrainCreated(aiBrain)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAiX == 1 then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AiX modifiers to brain '..aiBrain.Nickname) end
+    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAIx == 1 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
         SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end
 
@@ -418,7 +418,7 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
-        if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and not(tonumber(ScenarioInfo.Options.M28OvwT or tostring(0)) == 0) then
+        if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT then
             ForkThread(M28Economy.AdjustAIxOverwhelmRate)
         end
         ForkThread(GlobalOverseer)
@@ -590,7 +590,7 @@ function TestCustom(aiBrain)
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
     end--]]
-    --AiX 10.0
+    --AIx 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
 
@@ -1383,7 +1383,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
 end
 
 function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust)
-    --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AiX
+    --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AIx
     if not(bDontChangeScenarioInfo) then
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
         ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
@@ -2198,13 +2198,13 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         aiBrain.M28AI = true
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 4')
-        if ScenarioInfo.Options.CmApplyAiX == 1 then
+        if ScenarioInfo.Options.CmApplyAIx == 1 then
             aiBrain.CheatEnabled = true
         end
         if ScenarioInfo.Options.CmM28Easy == 1 then
             aiBrain.M28Easy = true
         end
-        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAiX='..(ScenarioInfo.Options.CmApplyAiX or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end
@@ -2398,7 +2398,7 @@ function DecideOnGeneralMapStrategy(aiBrain)
     --5-10km 1v1 but not winter duel, and can path to enemy by land
     if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..aiBrain.Nickname..'; Map size='..M28Map.iMapSize..'; Players at start='.. M28Team.iPlayersAtGameStart..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) end
     if M28Map.iMapSize >= 225 and M28Map.iMapSize <= 512 and M28Team.iPlayersAtGameStart <= 4 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-        --Dont stay at t1 if we have a high AiX modifier or no mexes on map, or a campaign map
+        --Dont stay at t1 if we have a high AIx modifier or no mexes on map, or a campaign map
         if bDebugMessages == true then LOG(sFunctionRef..': Is low mex map='..tostring(M28Map.bIsLowMexMap)..'; Resource mult='..(aiBrain[M28Economy.refiBrainResourceMultiplier] or 1)..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)) end
         if not(M28Map.bIsLowMexMap) and (aiBrain[M28Economy.refiBrainResourceMultiplier] or 1) <= 1.7 and not(M28Map.bIsCampaignMap) then
             --Are there lots of mexes outside the core bases to fight over, and most are in the core base plateau?
