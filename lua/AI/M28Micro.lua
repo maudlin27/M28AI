@@ -152,13 +152,14 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
             while iDistanceAlreadyMoved < iDistanceToMove and M28UnitInfo.IsUnitValid(oUnit) do
 
                 if bFirstCycle then
-                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                    while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
                         iTotalTimeWaited = iTotalTimeWaited + 1
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
                     end
+                    if not(M28UnitInfo.IsUnitValid(oUnit)) then break end
                 end
 
 
