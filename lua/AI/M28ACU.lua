@@ -2231,7 +2231,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -2247,6 +2247,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             else iDistThreshold = 60
             end
         end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Adding table of enemy units to consider targeting, is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))) end
         local bCheckCurTarget = false
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
@@ -4030,8 +4031,37 @@ function GetACUOrder(aiBrain, oACU)
     --Refresh ACU last orders as some functions will check last order to decide if it was given an order
     M28Orders.UpdateRecordedOrders(oACU)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))..'; refbFocusOnT1Spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; oACU[M28UnitInfo.refbUsingDefaultWeaponPriority]='..tostring(oACU[M28UnitInfo.refbUsingDefaultWeaponPriority] or false)..'; Is table of snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))..'; refbFocusOnT1Spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
+    --Check weapon priority
+    if not(oACU[M28UnitInfo.refbUsingDefaultWeaponPriority]) then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+            M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACU, false)
+            oACU[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
+        end
+    elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
+        --Double-check if have nearby snipe target that is enemy ACU since we are using default priority
+        local iClosestSnipeTarget = 10000
+        local iCurSnipeTargetDist
+        local oClosestSnipeTarget
+        for iSnipeTarget, oSnipeTarget in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
+            if M28UnitInfo.IsUnitValid(oSnipeTarget) then
+                iCurSnipeTargetDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oSnipeTarget:GetPosition())
+                if iCurSnipeTargetDist < iClosestSnipeTarget then
+                    iClosestSnipeTarget = iCurSnipeTargetDist
+                    oClosestSnipeTarget = oSnipeTarget
+                end
+            end
+        end
+
+        if iClosestSnipeTarget <= oACU[M28UnitInfo.refiCombatRange] + 1 then
+            local iTargetHealthPercent = M28UnitInfo.GetUnitHealthPercent(oClosestSnipeTarget)
+            if iTargetHealthPercent <= 0.5 or (iTargetHealthPercent <= M28UnitInfo.GetUnitHealthPercent(oACU) - 0.2) then
+                M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACUSnipe, false)
+                oACU[M28UnitInfo.refbUsingDefaultWeaponPriority] = false
+            end
+        end
+    end
 
     --Check for mobile shields
     CheckForNearbyMobileShieldToRequisition(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero)
@@ -4455,6 +4485,22 @@ function GetACUOrder(aiBrain, oACU)
                                             end
                                         end
                                     end
+                                    if bConsiderMexesAndReclaim then
+                                        --If have DF enemies in our range or their range then dont consider reclaim
+                                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                            local iCurEnemyDist
+                                            for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                if M28UnitInfo.IsUnitValid(oEnemy) then
+                                                    iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
+                                                    if iCurEnemyDist < math.max((oACU[M28UnitInfo.refiDFRange] or 0), oEnemy[M28UnitInfo.refiDFRange] or 0) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is only '..iCurEnemyDist..' away from us so wont consider mex building or reclaim after all') end
+                                                        bConsiderMexesAndReclaim = false
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                                 --[[GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
                                 local iTravelDistFromRallyToClosestFriendlyBase
@@ -4524,7 +4570,6 @@ function GetACUOrder(aiBrain, oACU)
                                     M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs') --v82 and earlier - the 'move to rally point' line was commented out in place of this; have switched back to enabling it (v83); if it causes issues then try and think of better solution than just running to base which I suspect was a placeholder
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; are in same zone as rally point so will go to base instead, ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
-                            elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone, or running from Experimental')
                             end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Will run to GE template')
                         end
@@ -5062,8 +5107,12 @@ function ManageACU(aiBrain, oACUOverride)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
 
-        --If this is an ACU then add to table of friendly ACUs
-        if EntityCategoryContains(categories.COMMAND, oACU.UnitId) then table.insert(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftM28ACUs], oACU) end
+        --If this is an ACU then add to table of friendly ACUs, and set weapon prioritisation
+        if EntityCategoryContains(categories.COMMAND, oACU.UnitId) then
+            table.insert(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftM28ACUs], oACU)
+            M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACU, false)
+            oACU[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
+        end
 
         if oACU[M28UnitInfo.refbEasyBrain] then
             --Enable autoovercharge if have easy mode ACU

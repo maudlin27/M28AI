@@ -4309,6 +4309,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                             bAddAsSnipeTarget = true
                             for iUnit, oUnit in tNearbyAvailableACUs do
                                 oUnit[M28ACU.refbUseACUAggressively] = true
+                                --Note - ACU code has logic to set ACU target priorities if there is a nearby snipe target
                             end
                         end
                     end
