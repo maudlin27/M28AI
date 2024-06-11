@@ -2469,10 +2469,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         if (iLandZone or 0) == 0 then
                             iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
                             if (iWaterZone or 0) > 0 then
-                                sWZOrLZRef = 'WZ'..iWaterZone
+                                sWZOrLZRef = 'P0WZ'..iWaterZone
                             end
                         else
-                            sWZOrLZRef = 'LZ'..iLandZone
+                            sWZOrLZRef = 'P'..(iPlateau or 'x')..'LZ'..iLandZone
                         end
                     end
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef) end

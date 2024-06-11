@@ -6579,9 +6579,13 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                                     end
                                     if not(bAlreadyIncluded) then
                                         --A transport is 120 mass, an engi is 52 mass, so want >200 mass for it to be worthwhile to consider dropping engi (on assumption will also be some lower value reclaim to give a profit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to include iIsland='..iIsland..'; iSignificantReclaimValue='..iSignificantReclaimValue..'; iReclaimWantedForTransportDrop='..iReclaimWantedForTransportDrop) end
                                         if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop then
                                             --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations, mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)..'; iSignificantReclaimValue='..iSignificantReclaimValue) end
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations, mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)..'; iSignificantReclaimValue='..iSignificantReclaimValue)
+                                                M28Map.DrawSpecificLandZone(iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland][1], math.random(1, 8))
+                                            end
                                             table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
                                             tbPlateausWithPlayerStartOrIslandDrop[iPlateau] = true
                                         end
