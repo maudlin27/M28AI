@@ -1140,6 +1140,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                 tEnd = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 tiWaterZones[iEndLandOrWaterZone] = true
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': tStart='..repru(tStart)..'; tEnd='..repru(tEnd)) end
             local iAngleStartToEnd = M28Utilities.GetAngleFromAToB(tStart, tEnd)
             local iSearchInterval = 15
             local iSearchDistance = math.floor(M28Utilities.GetDistanceBetweenPositions(tStart, tEnd) / iSearchInterval) * iSearchInterval
@@ -6780,8 +6781,13 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
             local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Closest plateau and land or water zone to unit position: Unit position='..repru(oUnit:GetPosition())..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
             for iEntry, tiPlateauAndIsland in tShortlist do
-                --Get the closest land zone to oUnit
+                --Get the closest land zone to oUnit for this particular plateau and island; then using that land zone, work out the island distance, and reecord if that island is closest to our transport (with mexless islands being treated as further away)
                 iClosestDist = 100000
+                iClosestNoMexDist= 100000
+                iClosestLZ = nil
+                iClosestNoMexLZ = nil
+                
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
                 for iLZEntry, iLandZone in M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]] do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]
                     --Only consider LZs with mexes so we land close to where we likely want to be
@@ -6799,7 +6805,10 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                         end
                     end
                 end
-                if not(iClosestLZ) then iClosestLZ = iClosestNoMexLZ end
+                if not(iClosestLZ) then
+                    iClosestLZ = iClosestNoMexLZ
+                    iClosestDist = iClosestNoMexDist + 500
+                end
                 --Is it safe to travel here?
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; iClosestLZ='..(iClosestLZ or 'nil')..'; tiPlateauAndIsland[1]='..(tiPlateauAndIsland[1] or 'nil'))

@@ -838,7 +838,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                                 AddPotentialMessage( 'You can set my AIx modifier to below 1.0 for an easier time')
                                 if not(oEnemyM28AIBrain.M28Easy) then AddPotentialMessage( 'If you found me too hard you could practice against M28Easy') end
                             end
-                            AddPotentialMessage( 'If Im too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
+                            AddPotentialMessage( 'If I\'m too hard, check out the other custom AI at https://wiki.faforever.com/en/Development/AI/Custom-AIs')
                         end
                     end
                     if bHaveNonM28Teammates then
