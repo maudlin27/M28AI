@@ -917,7 +917,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, self.UnitId) and M28UnitInfo.IsUnitValid(self) and (self:GetFractionComplete() <= 0.7 or (self:GetFractionComplete() <= 0.85 and M28UnitInfo.GetUnitHealthPercent(self) <= 0.5)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect, oUnitCausingDamage.UnitId) then
                         M28Engineer.ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(self,  M28Engineer.refActionBuildEmergencyPD)
-                    --Special voice message for fletcher fatboy damaged by soulripper
+                        --Special voice message for fletcher fatboy damaged by soulripper
+                    elseif self[M28Air.refiTargetZoneForDrop] and EntityCategoryContains(M28UnitInfo.refCategoryTransport, self.UnitId) then
+                        self[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
                     elseif oUnitCausingDamage.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.CYBRAN * categories.EXPERIMENTAL, oUnitCausingDamage.UnitId) and self:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
                         ForkThread(M28Chat.SendMessage, self:GetAIBrain(), 'SoulripperDmgFatboy', LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!'), 1, 600, false, true, 'X05_Fletcher_M02_04945', 'X05_VO')
                     end
