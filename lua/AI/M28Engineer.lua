@@ -12713,6 +12713,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local iFactoriesWanted = 0
     local iExistingFactory = 0
     local bExistingFactoryIsComplete = false
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to determine factories wanted, tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZFortify] then
         local tExistingFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -12826,6 +12827,19 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 iFactoriesWanted = math.max(iFactoriesWanted, 2)
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Factories wanted after considering='..iFactoriesWanted) end
+    elseif tLZData[M28Map.subrefLZMexCount] >= 4 and not(bAdjacentToCoreZone) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Zone has lots of mexes even though it isnt an expansino zone, consider if we want land fac for it') end
+        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 then
+            --Can we path to enemy base with land and lack T3 air?
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] or tLZTeamData[M28Map.refiModDistancePercent] >= 0.25) then
+                if M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone, false) then
+                    iFactoriesWanted = 1
+                    if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 then iFactoriesWanted = 2 end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Factories wanted for non core expansion='..iFactoriesWanted) end
     end
 
     --Do we want emergency PD?

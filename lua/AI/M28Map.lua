@@ -975,7 +975,7 @@ local function RecordAllPlateaus()
     local iStartSegmentX, iStartSegmentZ
     local bSearchingForBoundary
     local iCurCount
-    local tSegmentPosition
+    local tSegmentPositionMin, tSegmentPositionMax
     local iReclaimSegmentStartX, iReclaimSegmentStartZ, iReclaimSegmentEndX, iReclaimSegmentEndZ
     local sPathing = refPathingTypeHover
 
@@ -994,8 +994,10 @@ local function RecordAllPlateaus()
                 tAllPlateaus[iSegmentGroup][subrefPlateauMexes][iCurPlateauMex] = tMex
             end
             tAllPlateaus[iSegmentGroup][subrefPlateauTotalMexCount] = iCurPlateauMex
-            --Record additional information if the plateau has mexes:
+            --Record additional information if the plateau has mexes (v101 - removed this so we can drop mexless plateaus with reclaim):
             if iCurPlateauMex > 0 then
+                --NOTE: Minor plateaus will have details added later on after zones have been recorded along with zone min and max values
+                                
                 --Record information on the size of the plateau:
                 --Start from mex, and move up on map to determine top point; then move left to determine left point, and right to determine right point etc.
                 --i.e. dont want to go through every segment on map since could take ages if lots of plateaus and may only be dealing with small area
@@ -1118,43 +1120,47 @@ local function RecordAllPlateaus()
                 iMaxSegmentX = iStartSegmentX + iCurCount - 1
 
                 --Have now got the min and max land segment X and Z values for the plateau
-                tSegmentPosition = GetPositionFromPathingSegments(iMinSegmentX, iMinSegmentZ)
-                tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ] = {tSegmentPosition[1], tSegmentPosition[3]}
-                iReclaimSegmentStartX, iReclaimSegmentStartZ = GetReclaimSegmentsFromLocation(tSegmentPosition)
+                tSegmentPositionMin = GetPositionFromPathingSegments(iMinSegmentX, iMinSegmentZ)
+                tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ] = {tSegmentPositionMin[1], tSegmentPositionMin[3]}                
 
-                tSegmentPosition = GetPositionFromPathingSegments(iMaxSegmentX, iMaxSegmentZ)
-                tAllPlateaus[iSegmentGroup][subrefPlateauMaxXZ] = {tSegmentPosition[1], tSegmentPosition[3]}
-                iReclaimSegmentEndX, iReclaimSegmentEndZ = GetReclaimSegmentsFromLocation(tSegmentPosition)
+                tSegmentPositionMax = GetPositionFromPathingSegments(iMaxSegmentX, iMaxSegmentZ)
+                tAllPlateaus[iSegmentGroup][subrefPlateauMaxXZ] = {tSegmentPositionMax[1], tSegmentPositionMax[3]}
 
-
-                --Record all reclaim segments that are part of the plateau
-                tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments] = {}
-                for iCurReclaimSegmentX = iReclaimSegmentStartX, iReclaimSegmentEndX do
-                    tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX] = {}
-                    for iCurReclaimSegmentZ = iReclaimSegmentStartZ, iReclaimSegmentEndZ do
-                        if iSegmentGroup == NavUtils.GetTerrainLabel(sPathing,GetReclaimLocationFromSegment(iCurReclaimSegmentX, iCurReclaimSegmentZ)) then
-                            tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX][iCurReclaimSegmentZ] = true
-                        end
-                    end
-                end
-                --Clear any empty values
-                for iCurReclaimSegmentX = iReclaimSegmentStartX, iReclaimSegmentEndX do
-                    if tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX] and M28Utilities.IsTableEmpty(tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX]) then tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX] = nil end
-                end
-
-                --Record midpoint of the plateau
-                local iXRadius = (tAllPlateaus[iSegmentGroup][subrefPlateauMaxXZ][1] - tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ][1])*0.5
-                local iZRadius = (tAllPlateaus[iSegmentGroup][subrefPlateauMaxXZ][2] - tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ][2])*0.5
-                tAllPlateaus[iSegmentGroup][subrefPlateauMidpoint] = {tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ][1] + iXRadius, 0, tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ][2] + iZRadius}
-                tAllPlateaus[iSegmentGroup][subrefPlateauMidpoint][2] = GetTerrainHeight(tAllPlateaus[iSegmentGroup][subrefPlateauMidpoint][1], tAllPlateaus[iSegmentGroup][subrefPlateauMidpoint][3])
-                --CIrcle radius will be the square/rectangle diagonal, so (square radius^2*2)^0.5 for a square, or (x^2+z^2)^0.5
-
-                tAllPlateaus[iSegmentGroup][subrefPlateauMaxRadius] = (iXRadius^2+iZRadius^2)^0.5
+                RecordPlateauReclaimSegmentsMidpointAndRadius(iSegmentGroup, sPathing, tSegmentPositionMin, tSegmentPositionMax)
             end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, listing tAllPlateaus='..repru(tAllPlateaus)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordPlateauReclaimSegmentsMidpointAndRadius(iPlateau, sPathing, tSegmentPositionMin, tSegmentPositionMax)
+    iReclaimSegmentStartX, iReclaimSegmentStartZ = GetReclaimSegmentsFromLocation(tSegmentPositionMin)
+    iReclaimSegmentEndX, iReclaimSegmentEndZ = GetReclaimSegmentsFromLocation(tSegmentPositionMax)
+
+    --Record all reclaim segments that are part of the plateau
+    tAllPlateaus[iPlateau][subrefPlateauReclaimSegments] = {}
+    for iCurReclaimSegmentX = iReclaimSegmentStartX, iReclaimSegmentEndX do
+        tAllPlateaus[iPlateau][subrefPlateauReclaimSegments][iCurReclaimSegmentX] = {}
+        for iCurReclaimSegmentZ = iReclaimSegmentStartZ, iReclaimSegmentEndZ do
+            if iPlateau == NavUtils.GetTerrainLabel(sPathing,GetReclaimLocationFromSegment(iCurReclaimSegmentX, iCurReclaimSegmentZ)) then
+                tAllPlateaus[iPlateau][subrefPlateauReclaimSegments][iCurReclaimSegmentX][iCurReclaimSegmentZ] = true
+            end
+        end
+    end
+    --Clear any empty values
+    for iCurReclaimSegmentX = iReclaimSegmentStartX, iReclaimSegmentEndX do
+        if tAllPlateaus[iPlateau][subrefPlateauReclaimSegments][iCurReclaimSegmentX] and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauReclaimSegments][iCurReclaimSegmentX]) then tAllPlateaus[iPlateau][subrefPlateauReclaimSegments][iCurReclaimSegmentX] = nil end
+    end
+
+    --Record midpoint of the plateau
+    local iXRadius = (tAllPlateaus[iPlateau][subrefPlateauMaxXZ][1] - tAllPlateaus[iPlateau][subrefPlateauMinXZ][1])*0.5
+    local iZRadius = (tAllPlateaus[iPlateau][subrefPlateauMaxXZ][2] - tAllPlateaus[iPlateau][subrefPlateauMinXZ][2])*0.5
+    tAllPlateaus[iPlateau][subrefPlateauMidpoint] = {tAllPlateaus[iPlateau][subrefPlateauMinXZ][1] + iXRadius, 0, tAllPlateaus[iPlateau][subrefPlateauMinXZ][2] + iZRadius}
+    tAllPlateaus[iPlateau][subrefPlateauMidpoint][2] = GetTerrainHeight(tAllPlateaus[iPlateau][subrefPlateauMidpoint][1], tAllPlateaus[iPlateau][subrefPlateauMidpoint][3])
+    --CIrcle radius will be the square/rectangle diagonal, so (square radius^2*2)^0.5 for a square, or (x^2+z^2)^0.5
+
+    tAllPlateaus[iPlateau][subrefPlateauMaxRadius] = (iXRadius^2+iZRadius^2)^0.5
 end
 
 ---@param iPlateau number
@@ -3058,6 +3064,7 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
         end
     end
     for iPlateau, tPlateauSubtable in tAllPlateaus do
+        if bDebugMessages == true then LOG(sFunctionRef..': About to record the midpoint and other data for land zones in plateau '..iPlateau) end
         for iZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
             RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tiStartPointsByPlateauAndZone[iPlateau][iZone])
         end
@@ -4147,14 +4154,50 @@ function RecordWaterZonePatrolPaths()
 end
 
 local function RecordMinorPlateaus()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordMinorPlateaus'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local bIsMinor
     iPlateauCount = 0
     local iCurPlateauCycle = 0
+    local iMinSegmentX, iMinSegmentZ, iMaxSegmentX, iMaxSegmentZ, tSegmentPositionMin, tSegmentPositionMax
+    local bValidLZs
+    local sPathing = refPathingTypeHover
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         iPlateauCount = iPlateauCount + 1
         iCurPlateauCycle = iCurPlateauCycle + 1
         if iCurPlateauCycle > 10 then iCurPlateauCycle = 1 end
         bIsMinor = false
+        if not(tPlateauSubtable[subrefPlateauMaxRadius]) then
+            --record details for the plateau - first get the min and max x positions based on land zones
+            iMinSegmentX = 1000000
+            iMaxSegmentX = 0
+            iMinSegmentZ = 1000000
+            iMaxSegmentZ = 0
+            bValidLZs = false
+            if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauLandZones]) == false then
+                bValidLZs = true
+                for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating min and max values for iPlateau='..iPlateau..' iLandZone='..iLandZone..'; tLZData[subrefLZMinSegX]='..(tLZData[subrefLZMinSegX] or 'nil')..'; tLZData[subrefLZMinSegZ]='..(tLZData[subrefLZMinSegZ] or 'nil')) end
+                    iMinSegmentX = math.min(iMinSegmentX, tLZData[subrefLZMinSegX])
+                    iMinSegmentZ = math.min(iMinSegmentZ, tLZData[subrefLZMinSegZ])
+                    iMaxSegmentX = math.max(iMaxSegmentX, tLZData[subrefLZMaxSegX])
+                    iMaxSegmentZ = math.max(iMaxSegmentZ, tLZData[subrefLZMaxSegZ])
+                end
+            end
+            if bValidLZs then
+                --Have now got the min and max land segment X and Z values for the plateau
+                tSegmentPositionMin = GetPositionFromPathingSegments(iMinSegmentX, iMinSegmentZ)
+                tAllPlateaus[iPlateau][subrefPlateauMinXZ] = {tSegmentPositionMin[1], tSegmentPositionMin[3]}
+
+                tSegmentPositionMax = GetPositionFromPathingSegments(iMaxSegmentX, iMaxSegmentZ)
+                tAllPlateaus[iPlateau][subrefPlateauMaxXZ] = {tSegmentPositionMax[1], tSegmentPositionMax[3]}
+
+                RecordPlateauReclaimSegmentsMidpointAndRadius(iPlateau, sPathing, tSegmentPositionMin, tSegmentPositionMax)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished attempting to record plateau min and max position data for plateau '..iPlateau..'; bValidLZs='..tostring(bValidLZs)..'; tPlateauSubtable[subrefPlateauMaxRadius]='..(tPlateauSubtable[subrefPlateauMaxRadius] or 'nil')) end
+        end
         if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) == 0 and (tPlateauSubtable[subrefLandZoneCount] <= 5 and tPlateauSubtable[subrefPlateauMaxRadius] <= 50 and (tPlateauSubtable[subrefLandZoneCount] <= 2 or tPlateauSubtable[subrefPlateauMaxRadius] <= 25)) then
             bIsMinor = true
         end
@@ -4175,6 +4218,7 @@ local function RecordMinorPlateaus()
             M28Chat.SendMessage(oFirstM28Brain, 'MinorPlateau', 'This map has a lot of cliffs :(', 120, 100000, false, true)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 local function SetupLandZones()
@@ -4298,13 +4342,13 @@ function RecordIslands()
 
         --First record every island where there are mexes in the plateau or the location is relatively large
         for iPlateau, tPlateauSubtable in tAllPlateaus do
-            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]..'; Max radius='..(tPlateauSubtable[subrefPlateauMaxRadius] or 'nil')) end
             if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) > 0 or (tPlateauSubtable[subrefPlateauMaxRadius] or 0) >= 50 then
                 tPlateauSubtable[subrefPlateauIslandLandZones] = {}
                 tPlateauSubtable[subrefPlateauIslandMexCount] = { }
                 local tLandZonesWithoutIslands = {}
                 for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')..'; LZData[subrefMidpoint]='..repru(tLZData[subrefMidpoint])) end
                     tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint])
                     if (tLZData[subrefLZIslandRef] or -1) > 0 then
                         if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end

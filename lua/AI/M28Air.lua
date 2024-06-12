@@ -804,6 +804,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local bSendUnitForRefueling
             local iSegmentX, iSegmentZ
             local iTeam = oBrain.M28Team
+            local bProceed
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
@@ -882,80 +883,98 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     table.insert(tSpecialLogicUnits, oUnit)
                                     if bDebugMessages == true then LOG(sFunctionRef..': AirAA unit is in combat') end
                                 else
-                                    bSendUnitForRefueling = false
-                                    --Consider if want to send unit to refuel
-                                    if not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oUnit.UnitId)) then
-                                        if oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] then
-                                            bSendUnitForRefueling = true
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit is expecting to take damage from projectiles so will send for refueling') end
-                                        else
-                                            if oUnit.GetFuelRatio then
-                                                iFuelPercent = oUnit:GetFuelRatio()
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit fuel ratio='..iFuelPercent) end
-                                            else iFuelPercent = 1
+                                    bProceed = true
+                                    --Transports - treat as unavailable if have a target island or WZ drop point and are close to it
+                                    if (oUnit[refiTargetZoneForDrop] or oUnit[refiTargetIslandForDrop]) and M28Utilities.IsTableEmpty(oUnit:GetCargo()) == false then
+                                        --Are we close to the destination?
+                                        local tOrderTarget = oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]
+                                        if tOrderTarget and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
+                                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Combat drop='..tostring(oUnit[refbCombatDrop] or false)) end
+                                            if iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
+                                                bProceed = false
+                                                table.insert(tInUseUnits, oUnit)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Adding to table of in use units') end
                                             end
-                                            if iFuelPercent < iLowFuelThreshold and iFuelPercent >= 0 then
-                                                --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
-                                                if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
-                                                    bSendUnitForRefueling = true
-                                                end
-                                            else
-                                                iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
-                                                if iHealthPercent <= iLowHealthThreshold then
-                                                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
-                                                        bSendUnitForRefueling = true
-                                                    end
-                                                elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
-                                                    --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
-                                                    if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
-                                                        bSendUnitForRefueling = true
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar, oUnit.UnitId) then
-                                        --If have shield but its health is low then send for refueling
-                                        local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-                                        if iMaxShield > 0 and iCurShield <= iMaxShield * 0.15 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit has low shield so will send to recharge') end
-                                            bSendUnitForRefueling = true
-                                        elseif iMaxShield == 0 then
-                                            local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
-                                            local iLowHealthThreshold = 0.2
-                                            if iHealthRegen >= 50 then iLowHealthThreshold = 0.3 end
-                                            if oUnit[M28UnitInfo.refbWantToHealUp] then
-                                                iLowHealthThreshold = math.max(0.5, iLowHealthThreshold)
-                                            end
-                                            if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
-                                                bSendUnitForRefueling = true
-                                                oUnit[M28UnitInfo.refbWantToHealUp] = true
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit low health so want it to try and heal up') end
-                                            else
-                                                oUnit[M28UnitInfo.refbWantToHealUp] = nil
-                                            end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..iHealthRegen..'; iLowHealthThreshold='..iLowHealthThreshold) end
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; bSendUnitForRefueling='..tostring(bSendUnitForRefueling)) end
-                                    else
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit:GetFuelRatio() < iLowFuelThreshold and (oUnit:GetFuelRatio() < 0.05 or M28Utilities.IsTableEmpty(oUnit:GetCargo())) then
-                                            bSendUnitForRefueling = true --will unload and ctrl-K transports that are low on fuel
                                         end
                                     end
+                                    if bProceed then
 
-                                    if bDebugMessages == true then LOG(sFunctionRef..': bSendUnitForRefueling='..tostring(bSendUnitForRefueling or false)) end
-                                    if bSendUnitForRefueling then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit will be sent for refueling') end
-                                        table.insert(tUnitsForRefueling, oUnit)
-                                    else
-                                        --Unit is available
-                                        if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
-                                            table.insert(tSpecialLogicUnits, oUnit)
+                                        bSendUnitForRefueling = false
+                                        --Consider if want to send unit to refuel
+                                        if not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oUnit.UnitId)) then
+                                            if oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] then
+                                                bSendUnitForRefueling = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit is expecting to take damage from projectiles so will send for refueling') end
+                                            else
+                                                if oUnit.GetFuelRatio then
+                                                    iFuelPercent = oUnit:GetFuelRatio()
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit fuel ratio='..iFuelPercent) end
+                                                else iFuelPercent = 1
+                                                end
+                                                if iFuelPercent < iLowFuelThreshold and iFuelPercent >= 0 then
+                                                    --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has low fuel so will send for refueling') end
+                                                        bSendUnitForRefueling = true
+                                                    end
+                                                else
+                                                    iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
+                                                    if iHealthPercent <= iLowHealthThreshold then
+                                                        if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
+                                                            bSendUnitForRefueling = true
+                                                        end
+                                                    elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
+                                                        --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
+                                                        if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
+                                                            bSendUnitForRefueling = true
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar, oUnit.UnitId) then
+                                            --If have shield but its health is low then send for refueling
+                                            local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
+                                            if iMaxShield > 0 and iCurShield <= iMaxShield * 0.15 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit has low shield so will send to recharge') end
+                                                bSendUnitForRefueling = true
+                                            elseif iMaxShield == 0 then
+                                                local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
+                                                local iLowHealthThreshold = 0.2
+                                                if iHealthRegen >= 50 then iLowHealthThreshold = 0.3 end
+                                                if oUnit[M28UnitInfo.refbWantToHealUp] then
+                                                    iLowHealthThreshold = math.max(0.5, iLowHealthThreshold)
+                                                end
+                                                if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
+                                                    bSendUnitForRefueling = true
+                                                    oUnit[M28UnitInfo.refbWantToHealUp] = true
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit low health so want it to try and heal up') end
+                                                else
+                                                    oUnit[M28UnitInfo.refbWantToHealUp] = nil
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..iHealthRegen..'; iLowHealthThreshold='..iLowHealthThreshold) end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; bSendUnitForRefueling='..tostring(bSendUnitForRefueling)) end
                                         else
-                                            if bDebugMessages == true then LOG(sFunctionRef..' Unit will be made available') end
-                                            table.insert(tAvailableUnits, oUnit)
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit:GetFuelRatio() < iLowFuelThreshold and (oUnit:GetFuelRatio() < 0.05 or M28Utilities.IsTableEmpty(oUnit:GetCargo())) then
+                                                bSendUnitForRefueling = true --will unload and ctrl-K transports that are low on fuel
+                                            end
+                                        end
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': bSendUnitForRefueling='..tostring(bSendUnitForRefueling or false)) end
+                                        if bSendUnitForRefueling then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit will be sent for refueling') end
+                                            table.insert(tUnitsForRefueling, oUnit)
+                                        else
+                                            --Unit is available
+                                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
+                                                table.insert(tSpecialLogicUnits, oUnit)
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..' Unit will be made available') end
+                                                table.insert(tAvailableUnits, oUnit)
+                                            end
                                         end
                                     end
                                 end
@@ -1121,6 +1140,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                 tEnd = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 tiWaterZones[iEndLandOrWaterZone] = true
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': tStart='..repru(tStart)..'; tEnd='..repru(tEnd)) end
             local iAngleStartToEnd = M28Utilities.GetAngleFromAToB(tStart, tEnd)
             local iSearchInterval = 15
             local iSearchDistance = math.floor(M28Utilities.GetDistanceBetweenPositions(tStart, tEnd) / iSearchInterval) * iSearchInterval
@@ -6579,9 +6599,13 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                                     end
                                     if not(bAlreadyIncluded) then
                                         --A transport is 120 mass, an engi is 52 mass, so want >200 mass for it to be worthwhile to consider dropping engi (on assumption will also be some lower value reclaim to give a profit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to include iIsland='..iIsland..'; iSignificantReclaimValue='..iSignificantReclaimValue..'; iReclaimWantedForTransportDrop='..iReclaimWantedForTransportDrop) end
                                         if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop then
                                             --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations, mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)..'; iSignificantReclaimValue='..iSignificantReclaimValue) end
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations, mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)..'; iSignificantReclaimValue='..iSignificantReclaimValue)
+                                                M28Map.DrawSpecificLandZone(iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland][1], math.random(1, 8))
+                                            end
                                             table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
                                             tbPlateausWithPlayerStartOrIslandDrop[iPlateau] = true
                                         end
@@ -6757,8 +6781,13 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
             local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Closest plateau and land or water zone to unit position: Unit position='..repru(oUnit:GetPosition())..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
             for iEntry, tiPlateauAndIsland in tShortlist do
-                --Get the closest land zone to oUnit
+                --Get the closest land zone to oUnit for this particular plateau and island; then using that land zone, work out the island distance, and reecord if that island is closest to our transport (with mexless islands being treated as further away)
                 iClosestDist = 100000
+                iClosestNoMexDist= 100000
+                iClosestLZ = nil
+                iClosestNoMexLZ = nil
+
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
                 for iLZEntry, iLandZone in M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]] do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]
                     --Only consider LZs with mexes so we land close to where we likely want to be
@@ -6776,7 +6805,10 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                         end
                     end
                 end
-                if not(iClosestLZ) then iClosestLZ = iClosestNoMexLZ end
+                if not(iClosestLZ) then
+                    iClosestLZ = iClosestNoMexLZ
+                    iClosestDist = iClosestNoMexDist + 500
+                end
                 --Is it safe to travel here?
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; iClosestLZ='..(iClosestLZ or 'nil')..'; tiPlateauAndIsland[1]='..(tiPlateauAndIsland[1] or 'nil'))
@@ -7041,7 +7073,22 @@ function ManageTransports(iTeam, iAirSubteam)
     end
     local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start, time='..GetGameTimeSeconds()..'; Is table of available transports empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))..'; tRallyPoint='..repru(tRallyPoint)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start, time='..GetGameTimeSeconds()..'; Is table of available transports empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))..'; tRallyPoint='..repru(tRallyPoint)..'; Is table of unavailable units empty='..tostring(M28Utilities.IsTableEmpty(tUnavailableUnits))) end
+
+    --First manage 'busy' transports - i.e. consider dropping early
+    if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
+        for iUnit, oUnit in tUnavailableUnits do
+            local tCargo = oUnit:GetCargo()
+            if M28Utilities.IsTableEmpty(tCargo) == false then
+                local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit)
+                if bDropNow then
+                    --Drop early
+                    M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergBDr', false)
+                end
+            end
+        end
+    end
+
     if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
         --Cycle through each transport, and decide the best island to try and drop to - first sort transports by distance so are less likely to have a far away transport go to a aplteau that a closer one can reach
 
@@ -7383,51 +7430,13 @@ function ManageTransports(iTeam, iAirSubteam)
                     if M28Utilities.IsTableEmpty(tCargo) == false then
                         --Consider proceeding
                         local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                        local bUnloadAtRallyOrOtherZone = true
-                        local bDropDueToAirAA = false
                         if bDebugMessages == true then LOG(sFunctionRef..': Last order='..reprs(tLastOrder)..'; Is last order tyep unoad transport='..tostring(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport)) end
-                        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
-                            --Consider dropping immediately due to enemy AirAA threat
-                            local tCurZoneData, tCurZoneTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                            if bDebugMessages == true then LOG(sFunctionRef..': enemy AirAA threat in this zone='..(tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
-                            if (tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 and (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.reftLZEnemyAirUnits]) == false then
-                                local iAirAAThreshold = math.max(10, ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) - 60) * 0.3 * M28UnitInfo.GetUnitHealthPercent(oUnit))
-                                if tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] > iAirAAThreshold then
 
-                                    --Check for nearby enemy airaa units by distance
-                                    local iClosestEnemyAirAA = 10000
-                                    for iEnemy, oEnemy in tCurZoneTeamData[M28Map.reftLZEnemyAirUnits] do
-                                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) then
-                                            iClosestEnemyAirAA = math.min(iClosestEnemyAirAA, M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()))
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA) end
-                                    if iClosestEnemyAirAA <= 35 then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
-                                        M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergDr', false)
-                                        bDropDueToAirAA = true
-                                        bUnloadAtRallyOrOtherZone = false
-                                    end
-                                end
-                            end
-                            if not(bDropDueToAirAA) then
-                                local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
-                                if iDistToTarget <= 30 then
-                                    --Might as well unload - significant risk we just die if we return by this stage anyway
-                                    bUnloadAtRallyOrOtherZone = false
-                                elseif iDistToTarget <= 250 then
-                                    local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
-                                    local iCargoSize = table.getn(tCargo)
-                                    if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
-                                        bUnloadAtRallyOrOtherZone = false
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
-                                end
-                            end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a cargo, bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)..'; Last order destination='..repru(tLastOrder[M28Orders.subreftOrderPosition])) end
-                        if bUnloadAtRallyOrOtherZone then
+                        local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit)
+                        if bDropNow then
+                            M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergDr', false)
+                        elseif not(bAlwaysDropAtTarget) then
+                            --Consider dropping at rally point instead
                             --If far from rally then look for nearest zone to unload at
                             local iTransportPlateauOrZero, iTransportLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                             local tTransportLZOrWZData, tTransportLZOrWZTeamData
@@ -7472,8 +7481,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                        elseif not(bDropDueToAirAA) then
-                            --Cant identify where we are, go to last unnload position if we have one (to avoid getting stuck in a loop), otherwise go to rally
+                        else
                             if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
                                 M28Orders.IssueTrackedTransportUnload(oUnit, tLastOrder[M28Orders.subreftOrderPosition], 10, false, 'TRUnlB2', false)
                             else
@@ -7481,7 +7489,7 @@ function ManageTransports(iTeam, iAirSubteam)
                             end
                         end
                     else
-                        --Go to rally point
+                        --Go to rally point as have no cargo and nowhere we want to drop
                         oUnit[refbCombatDrop] = false
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TIdle', false)
                     end
@@ -7508,6 +7516,73 @@ function ManageTransports(iTeam, iAirSubteam)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam)
+    --Return bDropNow, bAlwaysDropAtTarget values (i.e. true if should drop now; false true if should proceed to target regardless since we are close; and false false if should either proceed with other logic such as retreating to rally (if no where to drop) or proceeding with the drop (if unit alreayd has drop order queued up and is close enough to be busy)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ShouldTransportDropEarlyOrAlwaysDropAtTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+    if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
+        --Consider dropping immediately due to enemy AirAA threat
+        local tCurZoneData, tCurZoneTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': enemy AirAA threat in this zone='..(tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
+        if (tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 and (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+            local iAirAAThreshold = math.max(10, ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) - 60) * 0.3 * M28UnitInfo.GetUnitHealthPercent(oUnit))
+            if tCurZoneTeamData[M28Map.refiEnemyAirAAThreat] > iAirAAThreshold then
+
+                --Check for nearby enemy airaa units by distance
+                local iClosestEnemyAirAA = 10000
+                for iEnemy, oEnemy in tCurZoneTeamData[M28Map.reftLZEnemyAirUnits] do
+                    if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) then
+                        iClosestEnemyAirAA = math.min(iClosestEnemyAirAA, M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()))
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA) end
+                if iClosestEnemyAirAA <= 35 then
+                    --If combat drop then require us to be dropping on land
+                    if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
+                        return true, false
+                    end
+                end
+            end
+        end
+        --We arent worried about a nearby AirAA threat; what about groundAA threat?
+        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
+        if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.GetUnitHealthPercent] or 0) <= 8 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
+            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true, false
+            elseif iDistToTarget <= 40 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false, true --i.e. carry on to destination
+            else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false, false --i.e. consider retreating or changing targets if called this as part of retreat to rally logic
+            end
+        elseif iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
+            --Might as well proceed to destination and unload - significant risk we just die if we return by this stage anyway, while a combat drop loses its effectiveness if keep changing our mind
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return false, true
+        elseif iDistToTarget <= 250 then
+            local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
+            local tCargo = oUnit:GetCargo()
+            local iCargoSize = table.getn(tCargo)
+            if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
+                --Might as well proceed to destination and unload given minimal enemy combat threat
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false, true
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false, false
 end
 
 function ManageNovax(iTeam, iAirSubteam)

@@ -62,7 +62,7 @@ refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was c
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit; false if it mustnt be reclaimed (e.g. campaign objective to defend); nil otherwise
 refiTeamsWithThisAsReclaimTarget = 'M28UnitTmsReclT' --[x] = 1,2,3...x; returns the M28Team ref (for any team that has this as a reclaim target via the normal 'on unit detected/add to zone' logic)
-refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
+refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields and transports
 reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
 reftActiveTeleportLocation = 'M28UnitTTrLoc' --Location of the last teleport command (for both M28 and non-M28 units)
 refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt
@@ -125,6 +125,8 @@ refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLER
 refWeaponPriorityT2Arti = {'ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'CRUISER, ANTISHIELD', 'INDIRECTFIRE', 'SHIELD', 'VOLATILE', 'TECH3 STRUCTURE', 'TECH3 MOBILE', 'ALLUNITS'}
 refWeaponPriorityFatboy = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'MOBILE SHIELD, MOBILE ARTILLERY TECH3', 'MOBILE NAVAL TECH3, MOBILE NAVAL TECH2', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
 refWeaponPriorityMegalith = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'TECH3 STRUCTURE DEFENSE DIRECTFIRE', 'MOBILE SHIELD', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
+refWeaponPriorityACU = {'DIRECTFIRE TECH1 MOBILE, INDIRECTFIRE TECH1 MOBILE', 'DIRECTFIRE, INDIRECTFIRE MOBILE', 'MOBILE', 'ALLUNITS'}
+refWeaponPriorityACUSnipe = {'COMMAND', 'DIRECTFIRE TECH1 MOBILE, INDIRECTFIRE TECH1 MOBILE', 'DIRECTFIRE, INDIRECTFIRE MOBILE', 'MOBILE', 'ALLUNITS'}
 refbUsingDefaultWeaponPriority = 'M28UDfW' --true if using default weapon priroity (for unit with multiple options - e.g. gunships)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused

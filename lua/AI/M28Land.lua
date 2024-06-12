@@ -1124,7 +1124,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 --Early game - prioritise zones with combat threat if we only have one scout available
                 local bPrioritiseLandZonesWithFriendlyCombat = false
                 local tFirstPlateauOrLZIfWantCombat
-                if GetGameTimeSeconds() <= 360 and table.getn(tAvailableScouts) == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bPrioritiseLandZonesWithFriendlyCombat = true end
+                if table.getn(tAvailableScouts) == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (GetGameTimeSeconds() <= 360 or tLZTeamData[M28Map.refiRadarCoverage] <= 100) then bPrioritiseLandZonesWithFriendlyCombat = true end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Will first allocate scouts to any adjacent land zones that want a scout. Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
