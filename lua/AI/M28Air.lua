@@ -6786,7 +6786,7 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 iClosestNoMexDist= 100000
                 iClosestLZ = nil
                 iClosestNoMexLZ = nil
-                
+
                 if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
                 for iLZEntry, iLandZone in M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]] do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]

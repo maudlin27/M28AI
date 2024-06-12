@@ -28,7 +28,6 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
 
     local bMoveInStages = false --set to true later if hardly have any time to run, but in reality this functionality isn't expected to be used in most cases, left in since took a while to get it to work to a basic level, but turns out it's probably better to just move in a straight line rather than trying multiple move orders
 
-
     local tUnitPosition = oUnit:GetPosition()
     local oBP = oUnit:GetBlueprint()
     local iUnitSpeed = (oBP.Physics.MaxSpeed or 0)
@@ -922,11 +921,9 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
     if not(oUnit[refbActiveCircleMicro]) then
 
         --KEY CONFIG SETTINGS: (these will work sometimes but not always against an aeon strat)
-        local iInitialAngleAdj = 15
-        local iInitialDistanceAdj = -1
         local iDistanceAwayToMove = (iCircleSizeOverride or 2)
-        local iAngleMaxSingleAdj = 120
-        local iTicksBetweenOrders = (iTickWaitOverride or 1) --prev 4
+        local iAngleMaxSingleAdj = 20 --pre v101 was 120; see v101 devlog for testing that did; in 2 scenarios 20 degrees performed the best, although I suspect given the variance that in some scenarios it could be worse
+        local iTicksBetweenOrders = (iTickWaitOverride or 1) --prev 4 (pre the change to readjust move orders instead of clearing I think)
 
         if iDistanceAwayToMove > oUnit:GetBlueprint().Physics.MaxSpeed * 1.5 then
             iAngleMaxSingleAdj = math.max(25, iAngleMaxSingleAdj * 2.5 / iDistanceAwayToMove)
@@ -953,10 +950,15 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
         local iRecentMicroThreshold = 1
         local iGameTime = GetGameTimeSeconds()
         if oUnit[M28UnitInfo.refbSpecialMicroActive] and iGameTime - oUnit[M28UnitInfo.refiGameTimeMicroStarted] < iRecentMicroThreshold then bRecentMicro = true end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iStartTime='..iStartTime..'; iCurFacingDirection='..iCurFacingDirection..'; tUnitStartPosition='..repru(tUnitStartPosition)..'; bRecentMicro='..tostring((bRecentMicro or false))..'; bDontClearCommandsFirst='..tostring(bDontClearCommandsFirst or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 'nil')..'; GameTime='..iGameTime..'; Dif='..iGameTime-(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 0)..'; bDontTreatAsMicroAction='..tostring((bDontTreatAsMicroAction or false))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iStartTime='..iStartTime..'; iCurFacingDirection='..iCurFacingDirection..'; tUnitStartPosition='..repru(tUnitStartPosition)..'; bRecentMicro='..tostring((bRecentMicro or false))..'; bDontClearCommandsFirst='..tostring(bDontClearCommandsFirst or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 'nil')..'; GameTime='..iGameTime..'; Dif='..iGameTime-(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 0)..'; bDontTreatAsMicroAction='..tostring((bDontTreatAsMicroAction or false))..'; iAngleMaxSingleAdj='..iAngleMaxSingleAdj..'; iTicksBetweenOrders='..iTicksBetweenOrders) end
         if bRecentMicro == false and not(bDontClearCommandsFirst) then
-            M28Orders.IssueTrackedClearCommands(oUnit)
-            if bDebugMessages == true then LOG(sFunctionRef..': Issued clear commands order to the unit') end
+            M28Orders.UpdateRecordedOrders(oUnit)
+            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+            if not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove) then
+                M28Orders.IssueTrackedClearCommands(oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Issued clear commands order to the unit') end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Unit last order was a move order so wont clear orders')
+            end
         end
         if not(bDontTreatAsMicroAction) then
             TrackTemporaryUnitMicro(oUnit, iTimeToRun, refbActiveCircleMicro)
