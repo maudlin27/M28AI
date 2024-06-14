@@ -47,6 +47,7 @@ refiTotalMassForSnipe = 'M28FacMassSnp' --If we have a snipe target, then will b
 
 --Variables against brain
 refiHighestFactoryBuildCount = 'M28FacBrTotBC' --against aiBrain, Highest build count of a factory
+refbJustBuiltFirstT1Bomber = 'M28AirBlt1B' --true if we have just built the first t1 bomber (Changes to false after 5s)
 
 function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
     --Much more simplified version of 'GetBlueprintThatCanBuildOfCategory', for cases where we dont yet have the engineer so want a potential blueprint to work with
@@ -3272,6 +3273,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
+        --1-off air scout to help bomber find engineers if we have just built a bomber
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority low power first air scout to support engi hunter check, iFactoryTechLevel='..iFactoryTechLevel..'; Time of last engi hunter order='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] or 0)..'; Lifetime air scout='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout)..'; Number of bombers we own='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Factory[refbJustBuiltFirstT1Bomber]='..tostring(oFactory[refbJustBuiltFirstT1Bomber] or false)..'; Air scouts under construction in team='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')) end
+        if iFactoryTechLevel == 1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and oFactory[refbJustBuiltFirstT1Bomber] and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') <= 0.65) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber) > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) > 0 and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout) == 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an air scout') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+        end
+
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': AIr fac engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; subrefTbWantBP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP] or false))
@@ -3420,6 +3429,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     or (iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false and iBrainAirScouts < math.min(2, table.getn(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout])))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
             end
+        end
+
+        --Air scout if we have a t1 bomber engi hunter active and havent built any air scouts before
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority first air scout to support engi hunter check, iFactoryTechLevel='..iFactoryTechLevel..'; Time of last engi hunter order='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] or 0)..'; Lifetime air scout='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout)..'; Number of bombers we own='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Factory[refbJustBuiltFirstT1Bomber]='..tostring(oFactory[refbJustBuiltFirstT1Bomber] or false)) end
+        if iFactoryTechLevel < 3 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (oFactory[refbJustBuiltFirstT1Bomber] or GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] or 0) <= 3) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an air scout') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
         end
 
         --Enemy ground threat and haven't built many bombers and enemy lacks AirAA and we havent built many gunships or bombers
@@ -3921,7 +3938,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                         for iUnit, oUnit in tLZTeamData[M28Map.subreftoActiveUpgrades] do
                             if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) and M28UnitInfo.GetUnitTechLevel(oUnit) >= iFactoryTechLevel then
-                                    iUpgradingAirFactoriesOfThisTechOrBetter = iUpgradingAirFactoriesOfThisTechOrBetter + 1
+                                iUpgradingAirFactoriesOfThisTechOrBetter = iUpgradingAirFactoriesOfThisTechOrBetter + 1
                             end
                         end
                     end

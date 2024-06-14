@@ -272,6 +272,7 @@ tAirSubteamData = {}
     refiTimeLastConsideredGiftingASFToAlly = 'M28ATimLstGift' --Gametimeseconds that we last considered gifting asfs for this subteam
     refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
+    reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
 
 
 --Land subteam data varaibles (used for factory production logic)

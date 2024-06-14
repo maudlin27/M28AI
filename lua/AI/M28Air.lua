@@ -3611,6 +3611,8 @@ function ApplyEngiHuntingBomberLogic(oUnit, iAirSubteam, iTeam)
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] = GetGameTimeSeconds()
+
     local tBomberTable = {oUnit}
     local tEnemyTargets = {}
     --Engi hunter logic - search outwards from the bomber for the closest engineer that doesnt have groundAA protecting it
@@ -7206,6 +7208,32 @@ function ManageTransports(iTeam, iAirSubteam)
                         iWaterZoneToTravelTo = GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
                         iLandZoneToTravelTo = nil --redundancy
                         iPlateauToTravelTo = 0 --redundancy
+                    end
+                else
+                    --Consider far away land zones with 3+ mexes in them if the target plateau only has 1 mex
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
+                    if iPlateauToTravelTo and iLandZoneToTravelTo and M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] <= 1 then
+                        local bUseFarAwayZoneInstead = false
+                        local iOrigIsland, iOrigPlateau, iOrigLZ
+                        iOrigIsland = iIslandToTravelTo
+                        iOrigPlateau = iPlateauToTravelTo
+                        iOrigLZ = iLandZoneToTravelTo
+                        iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
+                        --If the mod dist of this is <= 0.55 and it has 3+ mexes then pick this instead
+                        if iPlateauToTravelTo and iLandZoneToTravelTo then
+                            local tFarAwayLZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
+                            local tFarAwayLZTeamData = tFarAwayLZData[M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Far away zone mod dist='..tFarAwayLZTeamData[M28Map.refiModDistancePercent]..'; Mex count='..tFarAwayLZData[M28Map.subrefLZMexCount]) end
+                            if tFarAwayLZData[M28Map.subrefLZMexCount] >= 3 and  tFarAwayLZTeamData[M28Map.refiModDistancePercent] <= 0.55 then
+                                bUseFarAwayZoneInstead = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will use far away zone instead, P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
+                            end
+                        end
+                        if not(bUseFarAwayZoneInstead) then
+                            iIslandToTravelTo = iOrigIsland
+                            iPlateauToTravelTo = iOrigPlateau
+                            iLandZoneToTravelTo = iOrigLZ
+                        end
                     end
                 end
                 if not(iIslandToTravelTo) and not(iWaterZoneToTravelTo) then

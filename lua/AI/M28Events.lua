@@ -2040,6 +2040,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if not(M28Team.tLandSubteamData[oJustBuilt:GetAIBrain().M28LandSubteam][M28Team.refbConsideredScoutFactionRestrictions]) then
                             M28Team.UpdateFactionBlueprintBlacklist(oJustBuilt:GetAIBrain().M28LandSubteam)
                         end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oJustBuilt.UnitId) then
+                        if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 then
+                            oEngineer[M28Factory.refbJustBuiltFirstT1Bomber] = true
+                            M28Utilities.DelayChangeVariable(oEngineer, M28Factory.refbJustBuiltFirstT1Bomber, false, 5)
+                        end
                     end
 
                     --Update economy tracking (this function will check if it is an economic unit as part of it)
