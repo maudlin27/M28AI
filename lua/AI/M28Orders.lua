@@ -1063,7 +1063,7 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
     if bSuspectedFailedLoad and M28UnitInfo.IsUnitValid(oOrderTarget) then
         --Warp to the transport then retry
         local tWarpLocation = oOrderTarget:GetPosition()
-        if GetTerrainHeight(tWarpLocation[1], tWarpLocation[3]) >= M28Map.GetMapWaterHeight() or EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oUnit.UnitId) then
+        if GetTerrainHeight(tWarpLocation[1], tWarpLocation[3]) >= M28Map.iMapWaterHeight or EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oUnit.UnitId) then
             tWarpLocation[2] = GetSurfaceHeight(tWarpLocation[1], tWarpLocation[3])
             Warp(oUnit, tWarpLocation, oUnit:GetOrientation())
             IssueTrackedTransportLoad(oUnit, oOrderTarget, false, 'BackupTL', true, true)
