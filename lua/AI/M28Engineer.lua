@@ -1502,7 +1502,7 @@ end
 function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget)
     --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
     --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
-    --bAlreadyTriedAlternatives - set to true if we have already called this function via this function
+    --bAlreadyTriedAlternatives - set to true if we have already called this function via this function, or we dont want to try other locations
     --bTryToBuildAtTarget - if set to true, then if tTargetLocation is buildable for sBlueprintToBuild will return this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBestBuildLocationForTarget'
@@ -4580,7 +4580,8 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     local sFunctionRef = 'TrackEngineerAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    --if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'url02083' and iActionToAssign == refActionBuildEmergencyPD then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
+    if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'url02085' and GetGameTimeSeconds() >= 8*60 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
 
     --Special logic (done in a genric way in case end up with more scenarios like this) - if action to assign currnetly is special shield logic and we have a different action to assign then clear engineer tracking (as we have an override that prevents it being cleared via orders)
     if oEngineer[refiAssignedAction] and not(oEngineer[refiAssignedAction] == iActionToAssign) then ClearEngineerTracking(oEngineer) end
@@ -4591,7 +4592,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     oEngineer[refbHasSpareAction] = bMarkAsSpare
 
     --Track experimental construction
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iActionToAssign='..iActionToAssign..'; oEngineer[refbBuildingExperimental]='..tostring(oEngineer[refbBuildingExperimental])..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iActionToAssign='..iActionToAssign..'; oEngineer[refbBuildingExperimental]='..tostring(oEngineer[refbBuildingExperimental])..'; Last order blueprint='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionManageGameEnderTemplate or iActionToAssign == refActionBuildAirExperimental then
         if not(oEngineer[refbBuildingExperimental]) then --dont want engineers on GE template to keep being added to table
             table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
@@ -7616,6 +7617,137 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
+    --If an engineer is given a build order for emergency PD, this should also be called via a fork thread; want to add to table of units in the zone for emergency PD so can monitor
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderEmergencyPDReassignment'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngiGivenPDOrder='..(oEngiGivenPDOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngiGivenPDOrder) or 'nil')) end
+    if M28UnitInfo.IsUnitValid(oEngiGivenPDOrder) then
+        --Add to table if not already there
+        local bAlreadyRecorded = false
+        if not(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) then
+            tLZTeamData[M28Map.subreftoEmergencyPDEngineers] = {}
+        else
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                    if oEngi == oEngiGivenPDOrder then bAlreadyRecorded = true break end
+                end
+            end
+        end
+        if not(bAlreadyRecorded) then table.insert(tLZTeamData[M28Map.subreftoEmergencyPDEngineers], oEngiGivenPDOrder) end
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic]='..tostring(tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] or false)..'; Is table of emergency PD engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]))) end
+        if not(tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic]) then
+            tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = true
+            local aiBrain = oEngiGivenPDOrder:GetAIBrain()
+            local iClosestEngiToTarget, iCurDist
+            local iTableSize
+            local bT2PlusConstructionStarted
+            WaitSeconds(3)
+            if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of emergency PD engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]))) end
+            while M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false do
+                --Update the table of engineers, removing any who no longer have an emergency PD order, or are dead
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(2)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                    iClosestEngiToTarget = 10000
+                    local tbEngisToRemove = {}
+                    iTableSize = table.getn(tLZTeamData[M28Map.subreftoEmergencyPDEngineers])
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to loop through every engineer and check if it should be removed from emergency PD engineers, iTableSize='..iTableSize..'; Time='..GetGameTimeSeconds()) end
+                    for iCurEngi = iTableSize, 1, -1 do
+                        local oEngi = tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi]
+                        if not(M28UnitInfo.IsUnitValid(oEngi)) or not(oEngi[refiAssignedAction] == refActionBuildEmergencyPD) or M28Utilities.IsTableEmpty(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) then
+                            tbEngisToRemove[iCurEngi] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': engineer '..(oEngi.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngi) or 'nil')..' is either invalid, doesnt have an action to build emergency PD, or its last order doesnt have an order position, oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Last order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                        else
+                            --Are we building? if so then remove all engis building at the same location
+                            if oEngi:IsUnitState('Building') or oEngi:IsUnitState('Repairing') then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing, oEngi='..(oEngi.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngi) or 'nil')) end
+                                tbEngisToRemove[iCurEngi] = true
+                                --Remove all other units trying to build at the same location
+                                local oUnitTarget = oEngi:GetFocusUnit()
+                                if oUnitTarget then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil')..'; Tech level='..M28UnitInfo.GetUnitTechLevel(oUnitTarget)) end
+                                    if M28UnitInfo.GetUnitTechLevel(oUnitTarget) >= 2 then bT2PlusConstructionStarted = true end
+                                    for iSecondEngi = iTableSize, 1, -1 do
+                                        if not(tbEngisToRemove[iSecondEngi]) then
+                                            if bT2PlusConstructionStarted then
+                                                tbEngisToRemove[iSecondEngi] = true
+                                            else
+                                                local oSecondEngi = tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iSecondEngi]
+                                                if not(M28UnitInfo.IsUnitValid(oSecondEngi)) or not(oSecondEngi[refiAssignedAction] == refActionBuildEmergencyPD) then
+                                                    tbEngisToRemove[iSecondEngi] = true
+                                                else
+                                                    --Is second engi trying to build at same location?
+                                                    local tLastOrder = oSecondEngi[M28Orders.reftiLastOrders][oSecondEngi[M28Orders.refiOrderCount]]
+                                                    if tLastOrder[M28Orders.subrefsOrderBlueprint] and tLastOrder[M28Orders.subrefsOrderBlueprint] == oUnitTarget.UnitId and M28Utilities.GetDistanceBetweenPositions(oUnitTarget:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 1.4 then
+                                                        tbEngisToRemove[iSecondEngi] = true
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            else
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tbEngisToRemove) == false then
+                        for iCurEngi = iTableSize, 1, -1 do
+                            if tbEngisToRemove[iCurEngi] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Removing engineer '..(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi]) or 'nil')..' from table of engis building emergency PD, engi last order blueprint='..(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi][M28Orders.reftiLastOrders][tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi][M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')) end
+                                table.remove(tLZTeamData[M28Map.subreftoEmergencyPDEngineers], iCurEngi)
+                            end
+                        end
+                    end
+
+                    --If we still have engis, then determine the closest to the target, if it is far away the reassess the build location
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                        local tClosestTarget, oClosestEngi
+                        for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])
+                            if iCurDist < iClosestEngiToTarget then
+                                iClosestEngiToTarget = iCurDist
+                                local tEngiTarget = oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                                tClosestTarget = {tEngiTarget[1], tEngiTarget[2], tEngiTarget[3]}
+                                oClosestEngi = oEngi
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestEngiToTarget='..iClosestEngiToTarget..'; Time='..GetGameTimeSeconds()) end
+                        if iClosestEngiToTarget <= 10 then
+                            --If the desired build location has mobile units in it, then get a new build location
+                            local rRect = M28Utilities.GetRectAroundLocation(tClosestTarget, 1)
+                            local tUnitsAtTarget = GetUnitsInRect(rRect)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are there units around the target? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsAtTarget))) end
+                            if M28Utilities.IsTableEmpty(tUnitsAtTarget) == false then
+                                local sBlueprint, tAltPDLocation = GetBlueprintAndLocationToBuild(aiBrain, oClosestEngi, refActionBuildEmergencyPD, M28UnitInfo.refCategoryPD, oClosestEngi:GetBlueprint().Economy.MaxBuildDistance, nil, oClosestEngi:GetPosition(), false, nil, nil, false, tLZData, tLZTeamData, true, oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': tAltPDLocation='..repru(tAltPDLocation)..'; tClosestTarget='..repru(tClosestTarget)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, (tAltPDLocation or {0,0,0}))) end
+                                if M28Utilities.IsTableEmpty(tAltPDLocation) == false and sBlueprint == oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] then
+                                    --Reassign all engineers with the same target
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will reassign all engineers with the same target, tClosestTarget='..repru(tClosestTarget)) end
+                                    local toEngineersToReassign = {}
+                                    for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if engineer shoudl be reassigned due to being close to the closeset enti to target build location, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Dist to order position='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                                        if M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) <= 1.5 then
+                                            M28Orders.IssueTrackedBuild(oEngi, tAltPDLocation, sBlueprint, false, 'RedoEmPD')
+                                            TrackEngineerAction(oEngi, refActionBuildEmergencyPD, true, 1, nil, nil, false)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if not(bT2PlusConstructionStarted) then
+                tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, toAvailableEngineersByTech, toAssignedEngineers, bIsWaterZone, iSpecificFactionRequiredOverride, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
     --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -7920,6 +8052,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if tEngineersOfTechWanted[iEngiCount]:CanBuild(sBlueprintToBuild) then
                                     --Can build
                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tOrderPosition, sBlueprintToBuild, false, sOrderRef..'B')
+                                    if iActionToAssign == refActionBuildEmergencyPD then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': asstance changed to building - about to start forked thread for emergency PD reassignment for engi '..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
+                                        ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
+                                    end
                                 else
                                     --Assist the engineer for lower tech enginers
                                     M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
@@ -8107,7 +8243,14 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, false, sOrderRef)
                                                 end
                                                 TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, true, iCurPriority, nil, nil, bMarkAsSpare)
+                                                --Special logic for emergency PD where want to reassess periodically
+                                                if iActionToAssign == refActionBuildEmergencyPD then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to start forked thread for emergency PD reassignment for engi '..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
+                                                    ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
+                                                end
                                                 UpdateBPTracking()
+
+
                                                 --Mex specific - build a separate unit
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Were building a mex at tBuildLocation='..repru(tBuildLocation)..'; however have already assigned an engineer and have more to assign, so will build at a different mex now') end
@@ -10882,6 +11025,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+
 
     --Nearby enemy ground threat and we dont already have at least 2 T2 PD (more in later game scenarios)
     iCurPriority = iCurPriority + 1
