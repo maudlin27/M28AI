@@ -4580,8 +4580,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     local sFunctionRef = 'TrackEngineerAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'url02083' and iActionToAssign == refActionBuildEmergencyPD then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
-    if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'url02085' and GetGameTimeSeconds() >= 8*60 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
+
 
     --Special logic (done in a genric way in case end up with more scenarios like this) - if action to assign currnetly is special shield logic and we have a different action to assign then clear engineer tracking (as we have an override that prevents it being cleared via orders)
     if oEngineer[refiAssignedAction] and not(oEngineer[refiAssignedAction] == iActionToAssign) then ClearEngineerTracking(oEngineer) end
@@ -15927,15 +15926,17 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
     local iDistToPointToMove = iDistToTarget
-    local iDistToMove = math.max(32, iDistToTarget * 0.6)
+    local iDistToMove = math.max(32, iDistToTarget * 0.6) --will adjust later on
     if iDistToTarget - iDistToMove >= 60 then
-        iDistToMove = iDistToTarget - 60
+        iDistToMove = iDistToTarget - 60 --will adjust below e.g. if are using land travel logic
     end
+
+
     local iAngleFromTargetToMidpoint
     local bUseLandTravelPath
     local tFullPath, iPathSize, iDistance
@@ -15951,12 +15952,13 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bUseLandTravelPath then
 
         iDistToMove = math.max(math.min(30, iDistance), math.min(iDistance * 0.6, iDistToTarget))
+        if iDistToMove > 60 then iDistToMove = math.max(60, iDistToMove * 0.95) end
         local iCurPathDistance = 0
         local iCumulativePathDistance = 0
         table.insert(tFullPath, 1, tNearestEnemy)
         table.insert(tFullPath, tLZMidpoint)
         if bDebugMessages == true then
-            if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iDistToTarget (straightline)='..iDistToTarget..'; tFullPath='..repru(tFullPath)..'; Will draw full path') end
+            if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iDistToTarget (straightline)='..iDistToTarget..'; tFullPath='..repru(tFullPath)..'; Will draw full path, iDistToMove='..iDistToMove) end
             for iEntry, tViaPoint in tFullPath do
                 if iEntry > 1 then
                     ForkThread(M28Utilities.ForkedDrawLine, tFullPath[iEntry - 1], tViaPoint, 2, 100)
