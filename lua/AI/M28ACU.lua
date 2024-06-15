@@ -4808,6 +4808,8 @@ function GetACUOrder(aiBrain, oACU)
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
                                                                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and iPlateauOrZero > 0 and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                                                                     --(Do nothing further - will ahve given the order)
+                                                                    --If enemy ACU in this zone, then consider getting emergency support
+                                                                    ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                                                                 else
                                                                     if oACU[refbDoingInitialBuildOrder] then
                                                                         GetACUEarlyGameOrders(aiBrain, oACU)
@@ -5147,9 +5149,10 @@ function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tL
     local sFunctionRef = 'ConsiderIfACUNeedsEmergencySupport'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Enemies in this or adjacent LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; Core bse='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)) end
-    if iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28UnitInfo.GetUnitHealthPercent(oACU) < 0.98 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
-        --ACU is damaged to some extent, outside core zone, and there are enemy ground units nearby
+    if iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28UnitInfo.GetUnitHealthPercent(oACU) < 0.98 and (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) or ((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 200 and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or 0) <= 10)) then
+        --ACU is damaged to some extent, outside core zone (or in core zone with enemies and in combat), and there are enemy ground units nearby
         local iEnemyCombatThreat = (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
         local iTeam = oACU:GetAIBrain().M28Team
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then

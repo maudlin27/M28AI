@@ -277,7 +277,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         if iLastOrderType == M28Orders.refiOrderIssueMove then
                             if oEngineer[M28Engineer.refiAssignedAction] and (M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
                                 --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
-                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
+                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or  oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionAttackMoveToLandZone then
                                     local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
                                     if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
@@ -1304,7 +1304,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         end
     end
     if bWantMoreFactories then
-        --Double-check - if we would want an air fac, and already have one, and arent at T2 air yet, then dont get more factories
+        --Double-check - if we would want an air fac, and already have one, and arent at T2 air yet, then dont get more factories unless we have at least 40% stored mass and 99% energy
         if iAverageCurAirAndLandFactories >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 1 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
             local iAirFacsInLZ = 0
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
@@ -1317,7 +1317,10 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     end
                 end
             end
-            if iAirFacsInLZ >= 1 then bWantMoreFactories = false end
+            if iAirFacsInLZ >= 1 and (iAirFacsInLZ >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 or ((iAirFacsInLZ >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.55) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.9)) then
+                bWantMoreFactories = false
+                if bDebugMessages == true then LOG(sFunctionRef..': We already have '..iAirFacsInLZ..' air fac and dont have t2 air yet, so will hold off getting more air facs') end
+            end
         end
     end
 

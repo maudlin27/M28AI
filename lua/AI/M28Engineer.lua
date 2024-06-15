@@ -136,7 +136,7 @@ refActionBuildT3MexOnly = 53
 refActionAssistMexUpgrade = 54
 refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
 refActionBuildMassFab = 56 --For T2 mass fabs to be built by mass storage
-refActionMoveToLandZone = 57
+refActionMoveToLandZone = 57 --have an attackmove variation below
 refActionRunToLandZone = 58
 refActionMoveToWaterZone = 59
 refActionRunToWaterZone = 60
@@ -157,6 +157,7 @@ refActionBuildTorpLauncher = 74
 refActionManageGameEnderTemplate = 75 --if there's an available template for building t3 arti or a gameender, then this action shoudl be used
 refActionBuildAirExperimental = 76 --e.g. used for water zones
 refActionRepairAllyUnit = 77 --can be used to give engineers orders to repair a unit in another zone
+refActionAttackMoveToLandZone = 78 --works similar to movetolandzone but with an attackmove order
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -270,6 +271,7 @@ tiActionOrder = {
     [refActionManageGameEnderTemplate] = M28Orders.refiOrderIssueBuild, --will use custom logic
     [refActionBuildAirExperimental] = M28Orders.refiOrderIssueBuild,
     [refActionRepairAllyUnit] = M28Orders.refiOrderIssueRepair,
+    [refActionAttackMoveToLandZone] = M28Orders.refiOrderIssueAggressiveMove,
 }
 
 --Adjacent categories to search for for a particular action
@@ -304,6 +306,7 @@ tbActionsThatDontHaveCategory = {
     [refActionRepairUnit] = true,
     [refActionSpecialShieldDefence] = true,
     [refActionRepairAllyUnit] = true,
+    [refActionAttackMoveToLandZone] = true,
     --Not set for refActionManageGameEnderTemplate as will treat it as having a category ref equal to the action ref itself
 }
 
@@ -1502,7 +1505,7 @@ end
 function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget)
     --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
     --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
-    --bAlreadyTriedAlternatives - set to true if we have already called this function via this function
+    --bAlreadyTriedAlternatives - set to true if we have already called this function via this function, or we dont want to try other locations
     --bTryToBuildAtTarget - if set to true, then if tTargetLocation is buildable for sBlueprintToBuild will return this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBestBuildLocationForTarget'
@@ -3942,7 +3945,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)..'; oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] ='..repru(oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] )) end
-                if oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] and not(oEngineer[refiAssignedAction] == refActionMoveToLandZone) and not(oEngineer:IsUnitState('Reclaiming')) then
+                if oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] and not(oEngineer[refiAssignedAction] == refActionMoveToLandZone) and not(oEngineer[refiAssignedAction] == refActionAttackMoveToLandZone) and not(oEngineer:IsUnitState('Reclaiming')) then
                     local iTargetPlateau = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][1]
                     local iTargetZone = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][2]
 
@@ -4591,7 +4594,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     oEngineer[refbHasSpareAction] = bMarkAsSpare
 
     --Track experimental construction
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iActionToAssign='..iActionToAssign..'; oEngineer[refbBuildingExperimental]='..tostring(oEngineer[refbBuildingExperimental])..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iActionToAssign='..iActionToAssign..'; oEngineer[refbBuildingExperimental]='..tostring(oEngineer[refbBuildingExperimental])..'; Last order blueprint='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental or iActionToAssign == refActionManageGameEnderTemplate or iActionToAssign == refActionBuildAirExperimental then
         if not(oEngineer[refbBuildingExperimental]) then --dont want engineers on GE template to keep being added to table
             table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
@@ -7616,6 +7619,137 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint, iPlateau, iLandZone, tLZTeamData)
+    --If an engineer is given a build order for emergency PD, this should also be called via a fork thread; want to add to table of units in the zone for emergency PD so can monitor
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderEmergencyPDReassignment'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngiGivenPDOrder='..(oEngiGivenPDOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngiGivenPDOrder) or 'nil')) end
+    if M28UnitInfo.IsUnitValid(oEngiGivenPDOrder) then
+        --Add to table if not already there
+        local bAlreadyRecorded = false
+        if not(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) then
+            tLZTeamData[M28Map.subreftoEmergencyPDEngineers] = {}
+        else
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                    if oEngi == oEngiGivenPDOrder then bAlreadyRecorded = true break end
+                end
+            end
+        end
+        if not(bAlreadyRecorded) then table.insert(tLZTeamData[M28Map.subreftoEmergencyPDEngineers], oEngiGivenPDOrder) end
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic]='..tostring(tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] or false)..'; Is table of emergency PD engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]))) end
+        if not(tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic]) then
+            tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = true
+            local aiBrain = oEngiGivenPDOrder:GetAIBrain()
+            local iClosestEngiToTarget, iCurDist
+            local iTableSize
+            local bT2PlusConstructionStarted
+            WaitSeconds(3)
+            if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of emergency PD engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]))) end
+            while M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false do
+                --Update the table of engineers, removing any who no longer have an emergency PD order, or are dead
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(2)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                    iClosestEngiToTarget = 10000
+                    local tbEngisToRemove = {}
+                    iTableSize = table.getn(tLZTeamData[M28Map.subreftoEmergencyPDEngineers])
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to loop through every engineer and check if it should be removed from emergency PD engineers, iTableSize='..iTableSize..'; Time='..GetGameTimeSeconds()) end
+                    for iCurEngi = iTableSize, 1, -1 do
+                        local oEngi = tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi]
+                        if not(M28UnitInfo.IsUnitValid(oEngi)) or not(oEngi[refiAssignedAction] == refActionBuildEmergencyPD) or M28Utilities.IsTableEmpty(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) then
+                            tbEngisToRemove[iCurEngi] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': engineer '..(oEngi.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngi) or 'nil')..' is either invalid, doesnt have an action to build emergency PD, or its last order doesnt have an order position, oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Last order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                        else
+                            --Are we building? if so then remove all engis building at the same location
+                            if oEngi:IsUnitState('Building') or oEngi:IsUnitState('Repairing') then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing, oEngi='..(oEngi.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngi) or 'nil')) end
+                                tbEngisToRemove[iCurEngi] = true
+                                --Remove all other units trying to build at the same location
+                                local oUnitTarget = oEngi:GetFocusUnit()
+                                if oUnitTarget then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil')..'; Tech level='..M28UnitInfo.GetUnitTechLevel(oUnitTarget)) end
+                                    if M28UnitInfo.GetUnitTechLevel(oUnitTarget) >= 2 then bT2PlusConstructionStarted = true end
+                                    for iSecondEngi = iTableSize, 1, -1 do
+                                        if not(tbEngisToRemove[iSecondEngi]) then
+                                            if bT2PlusConstructionStarted then
+                                                tbEngisToRemove[iSecondEngi] = true
+                                            else
+                                                local oSecondEngi = tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iSecondEngi]
+                                                if not(M28UnitInfo.IsUnitValid(oSecondEngi)) or not(oSecondEngi[refiAssignedAction] == refActionBuildEmergencyPD) then
+                                                    tbEngisToRemove[iSecondEngi] = true
+                                                else
+                                                    --Is second engi trying to build at same location?
+                                                    local tLastOrder = oSecondEngi[M28Orders.reftiLastOrders][oSecondEngi[M28Orders.refiOrderCount]]
+                                                    if tLastOrder[M28Orders.subrefsOrderBlueprint] and tLastOrder[M28Orders.subrefsOrderBlueprint] == oUnitTarget.UnitId and M28Utilities.GetDistanceBetweenPositions(oUnitTarget:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 1.4 then
+                                                        tbEngisToRemove[iSecondEngi] = true
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            else
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tbEngisToRemove) == false then
+                        for iCurEngi = iTableSize, 1, -1 do
+                            if tbEngisToRemove[iCurEngi] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Removing engineer '..(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi]) or 'nil')..' from table of engis building emergency PD, engi last order blueprint='..(tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi][M28Orders.reftiLastOrders][tLZTeamData[M28Map.subreftoEmergencyPDEngineers][iCurEngi][M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')) end
+                                table.remove(tLZTeamData[M28Map.subreftoEmergencyPDEngineers], iCurEngi)
+                            end
+                        end
+                    end
+
+                    --If we still have engis, then determine the closest to the target, if it is far away the reassess the build location
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
+                        local tClosestTarget, oClosestEngi
+                        for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])
+                            if iCurDist < iClosestEngiToTarget then
+                                iClosestEngiToTarget = iCurDist
+                                local tEngiTarget = oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                                tClosestTarget = {tEngiTarget[1], tEngiTarget[2], tEngiTarget[3]}
+                                oClosestEngi = oEngi
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestEngiToTarget='..iClosestEngiToTarget..'; Time='..GetGameTimeSeconds()) end
+                        if iClosestEngiToTarget <= 10 then
+                            --If the desired build location has mobile units in it, then get a new build location
+                            local rRect = M28Utilities.GetRectAroundLocation(tClosestTarget, 1)
+                            local tUnitsAtTarget = GetUnitsInRect(rRect)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are there units around the target? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsAtTarget))) end
+                            if M28Utilities.IsTableEmpty(tUnitsAtTarget) == false then
+                                local sBlueprint, tAltPDLocation = GetBlueprintAndLocationToBuild(aiBrain, oClosestEngi, refActionBuildEmergencyPD, M28UnitInfo.refCategoryPD, oClosestEngi:GetBlueprint().Economy.MaxBuildDistance, nil, oClosestEngi:GetPosition(), false, nil, nil, false, tLZData, tLZTeamData, true, oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': tAltPDLocation='..repru(tAltPDLocation)..'; tClosestTarget='..repru(tClosestTarget)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, (tAltPDLocation or {0,0,0}))) end
+                                if M28Utilities.IsTableEmpty(tAltPDLocation) == false and sBlueprint == oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] then
+                                    --Reassign all engineers with the same target
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will reassign all engineers with the same target, tClosestTarget='..repru(tClosestTarget)) end
+                                    local toEngineersToReassign = {}
+                                    for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if engineer shoudl be reassigned due to being close to the closeset enti to target build location, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Dist to order position='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                                        if M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) <= 1.5 then
+                                            M28Orders.IssueTrackedBuild(oEngi, tAltPDLocation, sBlueprint, false, 'RedoEmPD')
+                                            TrackEngineerAction(oEngi, refActionBuildEmergencyPD, true, 1, nil, nil, false)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if not(bT2PlusConstructionStarted) then
+                tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, toAvailableEngineersByTech, toAssignedEngineers, bIsWaterZone, iSpecificFactionRequiredOverride, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
     --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -7920,6 +8054,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if tEngineersOfTechWanted[iEngiCount]:CanBuild(sBlueprintToBuild) then
                                     --Can build
                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tOrderPosition, sBlueprintToBuild, false, sOrderRef..'B')
+                                    if iActionToAssign == refActionBuildEmergencyPD then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': asstance changed to building - about to start forked thread for emergency PD reassignment for engi '..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
+                                        ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
+                                    end
                                 else
                                     --Assist the engineer for lower tech enginers
                                     M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
@@ -8107,7 +8245,14 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, false, sOrderRef)
                                                 end
                                                 TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, true, iCurPriority, nil, nil, bMarkAsSpare)
+                                                --Special logic for emergency PD where want to reassess periodically
+                                                if iActionToAssign == refActionBuildEmergencyPD then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to start forked thread for emergency PD reassignment for engi '..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
+                                                    ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
+                                                end
                                                 UpdateBPTracking()
+
+
                                                 --Mex specific - build a separate unit
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Were building a mex at tBuildLocation='..repru(tBuildLocation)..'; however have already assigned an engineer and have more to assign, so will build at a different mex now') end
@@ -8139,7 +8284,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 end
             else --Dont have a category to search for
                 --Order specific logic
-                if iActionToAssign == refActionMoveToLandZone then
+                if iActionToAssign == refActionMoveToLandZone or iActionToAssign == refActionAttackMoveToLandZone then
                     local iTargetLZ
                     local iPlateauToMoveTo
                     if bIsWaterZone then
@@ -8162,7 +8307,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             if bDebugMessages == true then
                                 LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateauOrPond '..iPlateauOrPond..'; iTargetLZ='..iTargetLZ)
                             end
-                            M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
+                            if iActionToAssign == refActionAttackMoveToLandZone then
+                                M28Orders.IssueTrackedAggressiveMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
+                            else
+                                M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
+                            end
                             TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, {iPlateauToMoveTo, iTargetLZ}, nil, bMarkAsSpare)
                             UpdateBPTracking()
                         end
@@ -8206,7 +8355,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iBestProgress='..iBestProgress..'; Is oBestProgress valid='..tostring(M28UnitInfo.IsUnitValid(oBestProgress))..'; Best progress ID='..(oBestProgress.UnitId or 'nil')..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is oBestProgress valid='..tostring(M28UnitInfo.IsUnitValid(oBestProgress))..'; Best progress ID='..(oBestProgress.UnitId or 'nil')..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                         if oBestProgress then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to assist unit '..oBestProgress.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestProgress)) end
@@ -10882,6 +11031,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+
 
     --Nearby enemy ground threat and we dont already have at least 2 T2 PD (more in later game scenarios)
     iCurPriority = iCurPriority + 1
@@ -14168,7 +14318,7 @@ end--]]
     end
 
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider spare engi actions at time='..GetGameTimeSeconds()..', iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
     --Spare engi - assist any upgrading unit
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
@@ -14239,6 +14389,7 @@ end--]]
 
             if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; If have available engis then will look for other zones wanting them, time='..GetGameTimeSeconds()..'; Is table of other land and water zones by distance empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
             if iHighestTechEngiAvailable > 0 then
+                local iZoneWithAnyReclaimOrCoreBase, iPlateauOrZeroOfZoneWithReclaimOrCoreBase, bZoneHasOnlyEnergyReclaim
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all other land and water zones, reprs='..reprs(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance])) end
                     for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -14252,23 +14403,41 @@ end--]]
                                 tAdjLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
                                 tAdjLZOrWZTeamData = tAdjLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Wnats BP='..tostring(tAdjLZOrWZTeamData[M28Map.subrefTbWantBP])..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint]))) end
-                            if tAdjLZOrWZTeamData[M28Map.subrefTbWantBP] and NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint])) then
-                                local iCurBPWanted = 0
-                                local iMinTechWanted = 3
-                                for iTech, iBP in tAdjLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted] do
-                                    iMinTechWanted = math.min(iMinTechWanted, iTech)
-                                    iCurBPWanted = iCurBPWanted + iBP
-                                end
-                                if iCurBPWanted > 0 and iHighestTechEngiAvailable >= iMinTechWanted then
-                                    if tSubtable[M28Map.subrefbIsWaterZone] then
-                                        --HaveActionToAssign(iActionToAssign,   iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable,                      bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
-                                        HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, iCurBPWanted,      tSubtable[M28Map.subrefiLandOrWaterZoneRef],true, true,nil,nil, false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
-                                    else
-                                        HaveActionToAssign(refActionMoveToLandZone, iMinTechWanted, iCurBPWanted, tSubtable[M28Map.subrefiLandOrWaterZoneRef], true, true,                    nil,                            nil,            false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(tSubtable[M28Map.subrefiLandOrWaterZoneRef] or 'nil')..'; Wnats BP='..tostring(tAdjLZOrWZTeamData[M28Map.subrefTbWantBP])..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint]))..'; On same plateau='..tostring(NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau)..'; Mass reclaim='..(tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 'nil')..'; Energy reclaim='..(tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 'nil')) end
+                            if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint])) then
+                                if tAdjLZOrWZTeamData[M28Map.subrefTbWantBP] then
+                                    local iCurBPWanted = 0
+                                    local iMinTechWanted = 3
+                                    for iTech, iBP in tAdjLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted] do
+                                        iMinTechWanted = math.min(iMinTechWanted, iTech)
+                                        iCurBPWanted = iCurBPWanted + iBP
                                     end
-                                    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                                    if iHighestTechEngiAvailable == 0 then break end
+                                    if iCurBPWanted > 0 and iHighestTechEngiAvailable >= iMinTechWanted then
+                                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                                            --HaveActionToAssign(iActionToAssign,   iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable,                      bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+                                            HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, iCurBPWanted,      tSubtable[M28Map.subrefiLandOrWaterZoneRef],true, true,nil,nil, false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+                                        else
+                                            HaveActionToAssign(refActionMoveToLandZone, iMinTechWanted, iCurBPWanted, tSubtable[M28Map.subrefiLandOrWaterZoneRef], true, true,                    nil,                            nil,            false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+                                        end
+                                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                                        if iHighestTechEngiAvailable == 0 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': No longer have available engis so exiting loop') end
+                                            break
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to record this zone as a potential destination for any further spare engineers') end
+                                if (not(iZoneWithAnyReclaimOrCoreBase) or bZoneHasOnlyEnergyReclaim) and ((tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 or (tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tAdjLZOrWZTeamData[M28Map.subrefLZSValue] >= 100)) then
+                                    --if (tSubtable[M28Map.subrefiPlateauOrPond] == iPlateau and not(tSubtable[M28Map.subrefbIsWaterZone])) or (tSubtable[M28Map.subrefbIsWaterZone] and NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording first plateau or pond and zone with reclaim in in case we want for spare engi action, or core base, total mass reclaim='..(tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0)..'; Is core base='..tostring(tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Zone='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Energy reclaim in this zone='..(tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 0)) end
+                                    iZoneWithAnyReclaimOrCoreBase = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                                    if  tSubtable[M28Map.subrefbIsWaterZone] then iPlateauOrZeroOfZoneWithReclaimOrCoreBase = 0
+                                    else iPlateauOrZeroOfZoneWithReclaimOrCoreBase = tSubtable[M28Map.subrefiPlateauOrPond]
+                                    end
+                                    if (tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0) == 0 and not(tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
+                                        bZoneHasOnlyEnergyReclaim = true
+                                    end
                                 end
                             end
                         end
@@ -14279,9 +14448,9 @@ end--]]
 
                 --Reclaim area if is any reclaim
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                if bDebugMessages == true then LOG(sFunctionRef..': Spare engi action - reclaim area if any mass or energy in it, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Mass='..(tLZData[M28Map.subrefTotalMassReclaim] or 0)..'; Energy='..(tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Spare engi action - reclaim area if any mass or energy in it, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Mass='..(tLZData[M28Map.subrefTotalMassReclaim] or 0)..'; Energy='..(tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0)..'; iZoneWithAnyReclaimOrCoreBase='..(iZoneWithAnyReclaimOrCoreBase or 'nil')..'; tLZData[M28Map.subrefLZTotalEnergyReclaim]='..tLZData[M28Map.subrefLZTotalEnergyReclaim]..'; Team energy % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) end
                 if iHighestTechEngiAvailable > 0 then
-                    if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 then
+                    if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 then --treat energy reclaim as likely having some mass in it as well but of such a low value the normal mass check wont have picked it up
                         HaveActionToAssign(refActionReclaimArea, 1, 90, {(tLZData[M28Map.subrefTotalMassReclaim] or 0) == 0, nil}, true, true, nil, nil, false)
                         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                     end
@@ -14304,10 +14473,33 @@ end--]]
                                         if tAdjLZTeamData[M28Map.subrefLZbCoreBase] or tAdjLZTeamData[M28Map.subrefTbWantBP] then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Minor zone spare engi overflow - will send to adjacent zone '..iAdjLZ..'; iPlateau='..iPlateau..'; iBPToSend='..iBPToSend) end
                                             HaveActionToAssign(refActionMoveToLandZone, 1, iBPToSend, iAdjLZ, true, nil, nil, nil, true)
+                                            iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                                             break
                                         end
                                     end
                                 end
+                            end
+                        end
+                        --Other zones with reclaim or further away core bases
+                        if iHighestTechEngiAvailable > 0 and iZoneWithAnyReclaimOrCoreBase and iZoneWithAnyReclaimOrCoreBase then
+                            local iBPToSend = math.max(iTotalAvailableEngineerBP - 40, math.min(iTotalAvailableEngineerBP - 5, 60), 5)
+                            if iHighestTechEngiAvailable > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will move (or attack move for land zone) to closest zone with reclaim or core base, current P='..iPlateau..'Z'..iLandZone..'; iZoneWithAnyReclaimOrCoreBase='..(iZoneWithAnyReclaimOrCoreBase or 'nil')..'; iPlateauOrZeroOfZoneWithReclaimOrCoreBase='..iPlateauOrZeroOfZoneWithReclaimOrCoreBase) end
+                                if iPlateauOrZeroOfZoneWithReclaimOrCoreBase == 0 then
+                                    HaveActionToAssign(refActionMoveToWaterZone, 1, iBPToSend,      iZoneWithAnyReclaimOrCoreBase,true, true,nil,nil, false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+                                else
+                                    HaveActionToAssign(refActionAttackMoveToLandZone, 1, iBPToSend, iZoneWithAnyReclaimOrCoreBase, true, true,                    nil,                            nil,            false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+                                end
+                                iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                            end
+                        end
+                        if iHighestTechEngiAvailable > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            --send 1 engi to attack move to each adjacent land zone
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will tell an engi to attack move to an adjacent zone, iAdjLZ='..iAdjLZ..'; P='..iPlateau) end
+                                HaveActionToAssign(refActionAttackMoveToLandZone, 1, 5, iAdjLZ, true, true,                    nil,                            nil,            false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
+                                iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                                if iHighestTechEngiAvailable == 0 then break end
                             end
                         end
                     end
@@ -15783,15 +15975,17 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
     local iDistToPointToMove = iDistToTarget
-    local iDistToMove = math.max(32, iDistToTarget * 0.6)
+    local iDistToMove = math.max(32, iDistToTarget * 0.6) --will adjust later on
     if iDistToTarget - iDistToMove >= 60 then
-        iDistToMove = iDistToTarget - 60
+        iDistToMove = iDistToTarget - 60 --will adjust below e.g. if are using land travel logic
     end
+
+
     local iAngleFromTargetToMidpoint
     local bUseLandTravelPath
     local tFullPath, iPathSize, iDistance
@@ -15807,12 +16001,13 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bUseLandTravelPath then
 
         iDistToMove = math.max(math.min(30, iDistance), math.min(iDistance * 0.6, iDistToTarget))
+        if iDistToMove > 60 then iDistToMove = math.max(60, iDistToMove * 0.95) end
         local iCurPathDistance = 0
         local iCumulativePathDistance = 0
         table.insert(tFullPath, 1, tNearestEnemy)
         table.insert(tFullPath, tLZMidpoint)
         if bDebugMessages == true then
-            if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iDistToTarget (straightline)='..iDistToTarget..'; tFullPath='..repru(tFullPath)..'; Will draw full path') end
+            if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iDistToTarget (straightline)='..iDistToTarget..'; tFullPath='..repru(tFullPath)..'; Will draw full path, iDistToMove='..iDistToMove) end
             for iEntry, tViaPoint in tFullPath do
                 if iEntry > 1 then
                     ForkThread(M28Utilities.ForkedDrawLine, tFullPath[iEntry - 1], tViaPoint, 2, 100)

@@ -272,6 +272,7 @@ tAirSubteamData = {}
     refiTimeLastConsideredGiftingASFToAlly = 'M28ATimLstGift' --Gametimeseconds that we last considered gifting asfs for this subteam
     refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
+    reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -2584,8 +2585,11 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
                 end
                 if not(bWantUpgrade) then
                     --Prioritise air fac if we already have T2 land and at least 4 mass per tick and 70 power per tick, or if we have 6 mass and 100 power, provided no current HQ upgrades
+                    if bDebugMessages == true then LOG(sFunctionRef..': Our highest tech level='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; Enemy highest tech='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]..'; Gross energy='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; Highest resource mult='.. tTeamData[iM28Team][refiHighestBrainResourceMultiplier]..'; Team T2+ engi lifetime count='..M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryEngineer - categories.TECH1)) end
 
-                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] >= 2 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 100 * tTeamData[iM28Team][subrefiActiveM28BrainCount])) then
+                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] >= 2 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 102 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainResourceMultiplier]))
+                            and (tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] <= tTeamData[iM28Team][subrefiHighestEnemyAirTech] or (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainResourceMultiplier] and M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryEngineer - categories.TECH1) >= 3 + 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))
+                    then
                         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                             if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 then
                                 --Do we have any active air factory upgrades? (redundancy - should already have excluded via above)
