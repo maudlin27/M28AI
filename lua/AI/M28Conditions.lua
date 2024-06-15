@@ -277,7 +277,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         if iLastOrderType == M28Orders.refiOrderIssueMove then
                             if oEngineer[M28Engineer.refiAssignedAction] and (M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
                                 --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
-                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
+                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or  oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionAttackMoveToLandZone then
                                     local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
                                     if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
