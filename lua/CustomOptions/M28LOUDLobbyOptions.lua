@@ -6,7 +6,7 @@
 LobbyGlobalOptions = {
     {
         default = 1,
-        label = "M28 Teams",
+        label = "M28: M28 Teams",
         help = "Which teams should M28 apply to?",
         key = "M28Teams",
         --pref = 'lob_teams_combo',
@@ -28,8 +28,8 @@ LobbyGlobalOptions = {
 
     {
         default = 11,
-        label = "AIx Cheat Multiplier",
-        help = "Set the cheat multiplier for the cheating AIs.",
+        label = "M28: AIx Cheat Multiplier",
+        help = "Set the cheat multiplier for the M28 AIs (if AIx is enabled)",
         key = 'CheatMult',
         --pref = 'lob_teams_combo',
         --type = 'index',
@@ -520,8 +520,8 @@ LobbyGlobalOptions = {
     },
     {
         default = 11,
-        label = "AIx Build Multiplier",
-        help = "Set the build rate multiplier for the cheating AIs.",
+        label = "M28: AIx Build Multiplier",
+        help = "Set the build rate multiplier for M28 AIs (if AIx is enabled)",
         key = 'BuildMult',
         --pref = 'lob_teams_combo',
         --type = 'index',
@@ -1012,8 +1012,8 @@ LobbyGlobalOptions = {
     },
     {
         default = 6,
-        label = "M28AIx Overwhelm rate",
-        help = "Adjust M28AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
+        label = "M28: AIx Overwhelm rate",
+        help = "Adjust M28 AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
         key = 'M28OvwR',
         --pref = 'lob_teams_combo',
         --type = 'index',
@@ -1079,7 +1079,7 @@ LobbyGlobalOptions = {
     },
     {
         default = 16,
-        label = "M28AIx Overwhelm interval",
+        label = "M28: AIx Overwhelm interval",
         help = "Time in minutes between each AIx overwhelm adjustment",
         key = 'M28OvwT',
         --pref = 'lob_teams_combo',
@@ -1221,7 +1221,7 @@ LobbyGlobalOptions = {
     },
     {
         default = 11,
-        label = "M28AIx Overwhelm limit",
+        label = "M28: AIx Overwhelm limit",
         help = "Stops changing the AIx overwhelm modifier once this AIx modifier is reached",
         key = 'M28OvwC',
         --pref = 'lob_teams_combo',
