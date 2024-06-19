@@ -13,7 +13,7 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
@@ -68,7 +68,7 @@ end
 
 function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
     --returns nil if cant find any blueprints that can build
-    --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
+    --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint; moved to M28UnitInfo.IsUnitRestricted for LOUD compatibility
     --NOTE: bGetSlowest is forced to be true for t1 land factories
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
@@ -114,11 +114,11 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
     else
-        local Game = import("/lua/game.lua")
+        --local Game = import("/lua/game.lua")
         local iArmyIndex = aiBrain:GetArmyIndex()
         for _, sBlueprint in tBlueprints do
             if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..sBlueprint..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))) end
-            if oFactory:CanBuild(sBlueprint) == true and not(Game.IsRestricted(sBlueprint, iArmyIndex)) then
+            if oFactory:CanBuild(sBlueprint) == true and not(M28UnitInfo.IsUnitRestricted(sBlueprint, iArmyIndex)) then
                 --Check we can build the desired category
                 if not(iOptionalCategoryThatMustBeAbleToBuild) then bCanBuildRequiredCategory = true
                 else

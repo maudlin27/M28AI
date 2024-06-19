@@ -13,7 +13,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
@@ -2997,7 +2997,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
                         end
                         local bWantNovaxInsteadOfArti = false
-                        if iCurNovaxCount == 0 and not(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNovaxCentre) <= 2 then
+                        if iCurNovaxCount == 0 and not(M28UnitInfo.IsUnitRestricted('xeb2402', aiBrain:GetArmyIndex())) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNovaxCentre) <= 2 then
                             bWantNovaxInsteadOfArti = true
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering UEF specific, iCurFatboyCount='..iCurFatboyCount..'; iCurNovaxCount='..iCurNovaxCount..'; iCurT3AritCount='..iCurT3ArtiCount) end
@@ -8209,8 +8209,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     if not(iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield) then
                                         if sBlueprint and (GetGameTimeSeconds() <= 300 or GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] or -300) >= 300) then
                                             --Couldnt find a build locaiton, but might be valid particularly later in the game or on small island maps, so only show as a warning message every 5m
-                                            local Game = import("/lua/game.lua")
-                                            if not(Game.IsRestricted(sBlueprint, M28Team.GetFirstActiveM28Brain(iTeam))) then
+                                            if not(M28UnitInfo.IsUnitRestricted(sBlueprint, M28Team.GetFirstActiveM28Brain(iTeam))) then
                                                 local bShowError = true
                                                 if M28Map.bIsCampaignMap and EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprint) then
                                                     --Is the first unbuilt mex location outside the playable area?

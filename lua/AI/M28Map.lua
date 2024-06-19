@@ -6,7 +6,7 @@
 
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils --import("/lua/sim/navutils.lua")
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')

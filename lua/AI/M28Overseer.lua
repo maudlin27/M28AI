@@ -220,8 +220,8 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
             bCantBuild = true
             if bDebugMessages == true then LOG(sFunctionRef..': Blueprint is nil so will set that cant build') end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
-            if import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(M28UnitInfo.IsUnitRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
+            if M28UnitInfo.IsUnitRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
                 bCantBuild = true
             end
         end
@@ -531,7 +531,7 @@ function TestCustom(aiBrain)
             tsLotsOfStrings[iCurEntry][iNextEntry] = 'Test of string 1'..'Test of string 2'..'Test of string 3'
         end
     end--]]
-    --local NavUtils = import("/lua/sim/navutils.lua")
+    --local NavUtils = M28Utilities.NavUtils
     --local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
     --LOG(sFunctionRef..': iLandTravelDistance='..iLandTravelDistance)
     --LOG(sFunctionRef..': All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
@@ -573,7 +573,7 @@ function TestCustom(aiBrain)
     --LOG('Repru of WZData other pathing='..reprs(tWZData[M28Map.subrefWZOtherWaterZones]))
 
     --Setons hover label testing
-    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    --[[local NavUtils = M28Utilities.NavUtils
     local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
     for iLocation, tLocation in tLocations do
         M28Utilities.DrawLocation(tLocation, iLocation)
@@ -665,7 +665,7 @@ function TestCustom(aiBrain)
     end--]]
 
     --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
-    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    --[[local NavUtils = M28Utilities.NavUtils
     local tPosition = { 260.06228637695, 67.514915466309, 148.83508300781 }
     M28Utilities.DrawLocation(tPosition)
     LOG('NavUtils for tPosition='..(NavUtils.GetLabel('Land', tPosition) or 'nil'))--]]

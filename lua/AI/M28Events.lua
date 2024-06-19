@@ -2183,9 +2183,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                     local sAirFac = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tACUs[1])
                     if bDebugMessages == true then
                     LOG(sFunctionRef..': Just built '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Time='..GetGameTimeSeconds()..'; sAirFac='..(sAirFac or 'nil'))
-                    if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
+                    if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(M28UnitInfo.IsUnitRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
                     end
-                    if sAirFac and not(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex())) then
+                    if sAirFac and not(M28UnitInfo.IsUnitRestricted(sAirFac, aiBrain:GetArmyIndex())) then
                     M28Overseer.bAirFactoriesCantBeBuilt = false
                         end
                         end
@@ -2424,6 +2424,13 @@ end
 function OnCreate(oUnit, bIgnoreMapSetup)
     --LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
+        if not(oUnit.UnitId) then --LOUD compatibility
+            if M28Utilities.bLoudModActive then
+                if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
+                oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
+            end
+        end
+
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

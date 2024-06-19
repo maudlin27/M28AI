@@ -16,7 +16,7 @@ local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired

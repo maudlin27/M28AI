@@ -1586,10 +1586,9 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' cant build sUpgradeBP='..sUpgradeBP..' e.g. due to unit restrictions') end
             sUpgradeBP = nil
         else
-            local Game = import("/lua/game.lua")
             local iArmyIndex = oUnitToUpgrade.Army
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' checking if is restricted for sUpgradeBP='..sUpgradeBP..', isrestricted='..tostring(Game.IsRestricted(sUpgradeBP, iArmyIndex))) end
-            if Game.IsRestricted(sUpgradeBP, iArmyIndex) then
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' checking if is restricted for sUpgradeBP='..sUpgradeBP..', isrestricted='..tostring(IsUnitRestricted(sUpgradeBP, iArmyIndex))) end
+            if IsUnitRestricted(sUpgradeBP, iArmyIndex) then
                 sUpgradeBP = nil
             end
         end
@@ -2355,4 +2354,18 @@ end
 function GetUnitSpeed(oUnit)
     local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
     return (math.abs(iVelocityX) + math.abs(iVelocityZ)) * 10 --approximate value - e.g. based on this a fatboy moving diagonally at full speed would cover roughly 2.5 vs a max speed of 1.75
+end
+
+--LOUD will reference a different function to check if a unit is restricted; this is so we can just reference M28UnitInfo.IsUnitRestricted(unit, index)
+IsUnitRestricted = function(oUnit, iArmyIndex)
+end
+
+if M28Utilities.bLoudModActive then
+    IsUnitRestricted = function(oUnit)
+        return import('/lua/game.lua').UnitRestricted(nil, oUnit.UnitId)
+    end
+else
+    IsUnitRestricted = function(oUnit, iArmyIndex)
+        return import('/lua/game.lua').IsRestricted(oUnit.UnitId, iArmyIndex)
+    end
 end

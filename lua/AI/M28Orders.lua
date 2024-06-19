@@ -1104,7 +1104,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
         --Issue - if try and continue with queuing up a transport load order, it results in the engineers and transport stuck, with engieners showing as having the order, but not moving
         --bAddToExistingQueue = true
     elseif not(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) > 12 then
-        local NavUtils = import("/lua/sim/navutils.lua")
+        local NavUtils = M28Utilities.NavUtils
         local iHoverLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
         if bDebugMessages == true then LOG(sFunctionRef..': iHoverLabelWanted='..(iHoverLabelWanted or 'nil')) end
         if iHoverLabelWanted then

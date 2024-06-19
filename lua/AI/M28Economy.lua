@@ -15,7 +15,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
@@ -131,7 +131,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     else
         --Dont have an upgrade ID; if the unit has an UpgradesTo value in the blueprint and that unit is restricted, then dont show an error
         local sExpectedUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
-        if sExpectedUpgradeID and import("/lua/game.lua").IsRestricted(sExpectedUpgradeID, oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
+        if sExpectedUpgradeID and M28UnitInfo.IsUnitRestricted(sExpectedUpgradeID, oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
             --Restricted e.g. due to campaign or other settings
         else
             M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. (oUnitToUpgrade.UnitId or 'nil'))
