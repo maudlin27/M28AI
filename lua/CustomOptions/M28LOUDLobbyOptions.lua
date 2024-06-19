@@ -9,8 +9,8 @@ LobbyGlobalOptions = {
         label = "M28 Teams",
         help = "Which teams should M28 apply to?",
         key = "M28Teams",
-        pref = 'lob_teams_combo',
-        type = 'index', --'edit',
+        --pref = 'lob_teams_combo',
+        --type = 'index', --'edit',
         --valid = '^%d+$',
         values = {
             {
@@ -25,132 +25,14 @@ LobbyGlobalOptions = {
             },
         },
     },
-    {
-        default = 1,
-        label = "M28 Easy?",
-        help = "Should M28Easy be used?",
-        key = "M28LdEasy",
-        pref = 'lob_teams_combo',
-        type = 'index', --'edit',
-        --valid = '^%d+$',
-        values = {
-            {
-                text = "No",
-                help = "Use normal M28AI",
-                key = 1,
-            },
-            {
-                text = "Yes",
-                help = "Use M28Easy",
-                key = 2,
-            },
-        },
-    },
 
-    {
-        default = 2,
-        label = "Unit Cap",
-        help = "Set the maximum number of units that can be in play",
-        key = 'UnitCap',
-        pref = 'lob_teams_combo',
-        type = 'index',
-        --value_text = "<LOC lobui_0719>%s",
-        --value_help = "<LOC lobui_0171>%s units per player may be in play",
-        values = {
-            {
-                text = '125',
-                help = 'Unit cap',
-                key = 1,
-            },
-            {
-                text = '250',
-                help = 'Unit cap',
-                key = 2,
-            },
-            {
-                text = '375',
-                help = 'Unit cap',
-                key = 3,
-            },
-            {
-                text = '500',
-                help = 'Unit cap',
-                key = 4,
-            },
-            {
-                text = '625',
-                help = 'Unit cap',
-                key = 5,
-            },
-            {
-                text = '750',
-                help = 'Unit cap',
-                key = 6,
-            },
-            {
-                text = '875',
-                help = 'Unit cap',
-                key = 7,
-            },
-            {
-                text = '1000',
-                help = 'Unit cap',
-                key = 8,
-            },
-            {
-                text = '1250',
-                help = 'Unit cap',
-                key = 9,
-            },
-            {
-                text = '1500',
-                help = 'Unit cap',
-                key = 10,
-            },
-            {
-                text = '2000',
-                help = 'Unit cap',
-                key = 11,
-            },
-            {
-                text = '2500',
-                help = 'Unit cap',
-                key = 12,
-            },
-            {
-                text = '3000',
-                help = 'Unit cap',
-                key = 13,
-            },
-            {
-                text = '4000',
-                help = 'Unit cap',
-                key = 14,
-            },
-            {
-                text = '5000',
-                help = 'Unit cap',
-                key = 15,
-            },
-            {
-                text = '7500',
-                help = 'Unit cap',
-                key = 16,
-            },
-            {
-                text = '10000',
-                help = 'Unit cap',
-                key = 17,
-            },
-        },
-    },
     {
         default = 11,
         label = "AIx Cheat Multiplier",
         help = "Set the cheat multiplier for the cheating AIs.",
         key = 'CheatMult',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "%s",
         --value_help = "<LOC aisettings_0003>Cheat multiplier of %s",
         values = {
@@ -641,8 +523,8 @@ LobbyGlobalOptions = {
         label = "AIx Build Multiplier",
         help = "Set the build rate multiplier for the cheating AIs.",
         key = 'BuildMult',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "%s",
         --value_help = "<LOC aisettings_0056>Build multiplier of %s",
         values = {
@@ -1133,8 +1015,8 @@ LobbyGlobalOptions = {
         label = "M28AIx Overwhelm rate",
         help = "Adjust M28AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
         key = 'M28OvwR',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "%s",
         --value_help = "Amount to change the cheat modifiers by",
         values = {
@@ -1200,15 +1082,15 @@ LobbyGlobalOptions = {
         label = "M28AIx Overwhelm interval",
         help = "Time in minutes between each AIx overwhelm adjustment",
         key = 'M28OvwT',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "%s",
         --value_help = "Minutes between each change",
         values = {
             {
                 text = '0.5',
                 help = 'Minutes between overwhelm adj',
-                key = 0.5,
+                key = 1,
             },
             {
                 text = '1',
@@ -1342,8 +1224,8 @@ LobbyGlobalOptions = {
         label = "M28AIx Overwhelm limit",
         help = "Stops changing the AIx overwhelm modifier once this AIx modifier is reached",
         key = 'M28OvwC',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "%s",
         --value_help = "Resource and build multiplier limit",
         values = {
@@ -1855,8 +1737,8 @@ LobbyGlobalOptions = {
         label = "M28: Use M28Easy?",
         help = 'Applies M28Easy logic instead of M28AI; M28Easy disables most micro',
         key = 'CmM28Easy',
-        pref = 'lob_teams_combo',
-        type = 'index',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
         --value_text = "",
         --value_help = "Use M28Easy logic, disabling most micro?",
         values = {
