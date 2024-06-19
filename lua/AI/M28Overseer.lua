@@ -391,7 +391,7 @@ function M28BrainCreated(aiBrain)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAIx == 1 then
+    elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
         if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
         SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end

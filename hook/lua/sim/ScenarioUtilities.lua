@@ -8,9 +8,9 @@ local M28OldACreateArmyGroupAsPlatoon = CreateArmyGroupAsPlatoon
 ---@param strGroup string
 ---@param formation any
 ---@param tblNode table
----@param platoon Platoon
+---@param platoon --Platoon
 ---@param balance any
----@return Platoon|nil
+---@return --Platoon|nil
 CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
     --LOG('CreateArmyGroupAsPlatoon start')
     local oPlatoon = M28OldACreateArmyGroupAsPlatoon(strArmy, strGroup, formation, tblNode, platoon, balance)
@@ -41,7 +41,11 @@ InitializeArmies = function()
                     if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 2 or iTeam == 4 or iTeam == 6 or iTeam == 8 then
                         LOG('Will apply M28 logic to the AI')
                         oBrain.M28AI = true
+                        if ScenarioInfo.Options.CmM28Easy == 1 then
+                            oBrain.M28Easy = true
+                        end
                         M28Utilities.bM28AIInGame = true
+                        if ScenarioInfo.Options.CmApplyAIx == 1 then oBrain.CheatEnabled = true end
                         ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
                     end
                 end
@@ -153,7 +157,7 @@ InitializeArmies = function()
 
                 --LOG("*AI DEBUG Reviewing Brain "..repr(brain.Nickname).." "..repr(brain) )
 
-                if self.ArmyIndex != brain.ArmyIndex and brain.Nickname != 'civilian' and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
+                if not(self.ArmyIndex == brain.ArmyIndex) and not(brain.Nickname == 'civilian') and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
 
             local place = brain:GetStartVector3f()
             local threatlayer = 'AntiAir'
@@ -359,7 +363,7 @@ InitializeArmies = function()
                     local enemyIsCiv = ScenarioInfo.ArmySetup[strEnemy].Civilian
 
                     -- if another army and you AND they are NOT NEUTRAL civilians --
-                    if iArmy != iEnemy and strArmy != 'NEUTRAL_CIVILIAN' and strEnemy != 'NEUTRAL_CIVILIAN' then
+                    if not(iArmy == iEnemy) and not(strArmy == 'NEUTRAL_CIVILIAN') and not(strEnemy == 'NEUTRAL_CIVILIAN') then
 
                 if (armyIsCiv or enemyIsCiv) and civOpt == 'neutral' then
                 SetAlliance( iArmy, iEnemy, 'Neutral')
@@ -368,7 +372,7 @@ InitializeArmies = function()
                 end
 
                 -- in order to be ALLIED - players must be on specific teams --
-                if ScenarioInfo.ArmySetup[strArmy].Team != 1 then
+                if not(ScenarioInfo.ArmySetup[strArmy].Team == 1) then
 
                 if ScenarioInfo.ArmySetup[strArmy].Team == ScenarioInfo.ArmySetup[strEnemy].Team then
                 SetAlliance( iArmy, iEnemy, 'Ally')
@@ -398,7 +402,7 @@ InitializeArmies = function()
                     InitializeSkirmishSystems( GetArmyBrain(strArmy) )
                 end
 
-                if (not armyIsCiv and bCreateInitial) or (armyIsCiv and civOpt != 'removed') then
+                if (not armyIsCiv and bCreateInitial) or (armyIsCiv and not(civOpt == 'removed')) then
 
             local commander = (not ScenarioInfo.ArmySetup[strArmy].Civilian)
             local cdrUnit
