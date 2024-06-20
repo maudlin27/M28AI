@@ -3,15 +3,32 @@
 --- Created by maudlin27.
 --- DateTime: 16/11/2022 07:26
 ---
+local file_exists = function(name)
+    local file = DiskGetFileInfo(name)
+    if file == false or file == nil then
+        return false
+    else
+        return true
+    end
+    --[[local f = io.open(name, "r")
+    if f then
+        f:close()
+        return true
+    else
+        return false
+    end--]]
+end
+
+NavUtils = false
+if file_exists('/lua/sim/navutils.lua') then NavUtils = import('/lua/sim/navutils.lua')
+else NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
+end
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 --local NavUtils = import("/lua/sim/navutils.lua")
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
-NavUtils = false
-if file_exists('/lua/sim/navutils.lua') then NavUtils = import('/lua/sim/navutils.lua')
-else NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
-end
+
 
     --Global variables:
     tErrorCountByMessage = {} --WHenever we have an error, then the error message is a key that gets included in this table
