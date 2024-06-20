@@ -5,14 +5,25 @@
 ---
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
-local M28OldACUUnit = ACUUnit
-ACUUnit = Class(M28OldACUUnit) {
-    OnKilled = function(self, instigator, type, overkillRatio)
-        M28Events.OnKilled(self, instigator, type, overkillRatio)
-        M28OldACUUnit.OnKilled(self, instigator, type, overkillRatio)
-    end,
-    CreateEnhancement = function(self, enh)
-        ForkThread(M28Events.OnEnhancementComplete, self, enh)
-        return M28OldACUUnit.CreateEnhancement(self, enh)
+local function safeGetGlobal(varName)
+    local success, value = pcall(function() return _G[varName] end)
+    if success then
+        return value
+    else
+        return nil
     end
-}
+end
+
+local M28OldACUUnit = safeGetGlobal('ACUUnit') or function()  end
+if safeGetGlobal('ACUUnit') then
+    _G.ACUUnit = Class(M28OldACUUnit) {
+        OnKilled = function(self, instigator, type, overkillRatio)
+            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            M28OldACUUnit.OnKilled(self, instigator, type, overkillRatio)
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28OldACUUnit.CreateEnhancement(self, enh)
+        end
+    }
+end

@@ -4,7 +4,7 @@
 --------------------------------------------------------------------------------
 UnitBlueprint {
     Description = "M28 template size 20",
-    Categories = { 'INVULNERABLE', 'UNTARGETABLE'},
+    Categories = { 'INVULNERABLE', 'UNTARGETABLE', 'EXTERNALFACTORYUNIT', 'SUPPORTFACTORY', 'ORBITALSYSTEM', 'RASPRESET', 'PERSONALSHIELD', 'STEALTHFIELD', 'BOT', 'BOMB', 'HIGHPRIAIR', 'NAVALCARRIER', 'PRODUCTFA'}, --have included FAF custom categories here so references to them dont crash the game
        Defense = { Health = 0, MaxHealth = 0 },
        Display = { Mesh = { LODs = { { LODCutoff = 1, ShaderName = 'Unit'} } }, HideLifebars = true },
      Footprint = {
