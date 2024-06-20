@@ -3,7 +3,29 @@
 --- Created by maudlin27.
 --- DateTime: 25/06/2023 18:40
 ---
-local M28OldACreateArmyGroupAsPlatoon = CreateArmyGroupAsPlatoon
+
+local function safeGetGlobal(varName)
+    local success, value = pcall(function() return _G[varName] end)
+    if success then
+        return value
+    else
+        return nil
+    end
+end
+
+local M28OldACreateArmyGroupAsPlatoon = safeGetGlobal("CreateArmyGroupAsPlatoon") or function() end
+
+if safeGetGlobal("CreateArmyGroupAsPlatoon") then
+    _G.CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
+        --LOG('CreateArmyGroupAsPlatoon start')
+        local oPlatoon = M28OldACreateArmyGroupAsPlatoon(strArmy, strGroup, formation, tblNode, platoon, balance)
+
+        ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ScenarioPlatoonCreated, oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
+        return oPlatoon
+    end
+end
+
+--[[local M28OldACreateArmyGroupAsPlatoon = CreateArmyGroupAsPlatoon
 ---@param strArmy string
 ---@param strGroup string
 ---@param formation any
@@ -18,12 +40,12 @@ CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, plato
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ScenarioPlatoonCreated, oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
     return oPlatoon
 end
+    --]]
 
 
 local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
-local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local OrigInitializeArmies = InitializeArmies
 InitializeArmies = function()
@@ -46,7 +68,7 @@ InitializeArmies = function()
                         end
                         M28Utilities.bM28AIInGame = true
                         if ScenarioInfo.Options.CmApplyAIx == 1 then oBrain.CheatEnabled = true end
-                        ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
+                        --ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
                     end
                 end
             end
