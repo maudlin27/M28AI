@@ -45,7 +45,7 @@ end
 
 local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
---local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local OrigInitializeArmies = InitializeArmies
 InitializeArmies = function()
@@ -58,9 +58,8 @@ InitializeArmies = function()
                 if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
                     --If we have no team, or our team is an odd number, then use M28
                     local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
-                    LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam)
-                    --For some reason the .Team odd and even values are switched from what is shown in the lobby
-                    if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 2 or iTeam == 4 or iTeam == 6 or iTeam == 8 then
+                    LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam..'; ScenarioInfo.Options.M28Teams='..(ScenarioInfo.Options.M28Teams or 'nil'))
+                    if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7 then
                         LOG('Will apply M28 logic to the AI')
                         oBrain.M28AI = true
                         if ScenarioInfo.Options.CmM28Easy == 1 then
@@ -68,7 +67,7 @@ InitializeArmies = function()
                         end
                         M28Utilities.bM28AIInGame = true
                         if ScenarioInfo.Options.CmApplyAIx == 1 then oBrain.CheatEnabled = true end
-                        --ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
+                        ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
                     end
                 end
             end
