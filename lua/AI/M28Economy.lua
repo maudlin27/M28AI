@@ -820,11 +820,11 @@ function RefreshEconomyGrossValues(aiBrain)
 end
 
 function RefreshEconomyData(aiBrain)
-   local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyData'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    aiBrain[refiNetEnergyBaseIncome] = math.min(aiBrain[refiGrossEnergyBaseIncome] - aiBrain:GetEconomyRequested('ENERGY'), aiBrain:GetEconomyTrend('ENERGY'))
-    aiBrain[refiNetMassBaseIncome] = math.min(aiBrain[refiGrossMassBaseIncome] - aiBrain:GetEconomyRequested('MASS'), aiBrain:GetEconomyTrend('MASS'))
+    aiBrain[refiNetEnergyBaseIncome] = math.min((aiBrain[refiGrossEnergyBaseIncome] or 0) - aiBrain:GetEconomyRequested('ENERGY'), aiBrain:GetEconomyTrend('ENERGY'))
+    aiBrain[refiNetMassBaseIncome] = math.min((aiBrain[refiGrossMassBaseIncome] or 0) - aiBrain:GetEconomyRequested('MASS'), aiBrain:GetEconomyTrend('MASS'))
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished refreshing economy data, time='..GetGameTimeSeconds()..'; Energy gross='..aiBrain[refiGrossEnergyBaseIncome]..'; Energy net='..aiBrain[refiNetEnergyBaseIncome]..'; Mass gross='..aiBrain[refiGrossMassBaseIncome]..'; Mass net='..aiBrain[refiNetMassBaseIncome]..'; aiBrain:GetEconomyRequested(\'MASS\')='..aiBrain:GetEconomyRequested('MASS')..'; aiBrain:GetEconomyTrend(\'MASS\')='..aiBrain:GetEconomyTrend('MASS')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1848,6 +1848,9 @@ function ManageEnergyStalls(iTeam)
                     --Decide on order to pause/unpause
 
                     local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoryAndActionsToPauseWhenStalling(iTeam)
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': tCategoriesByPriority='..reprs(tCategoriesByPriority)) end
+                    bDebugMessages = false
 
                     local iEnergyPerTickSavingNeeded
                     if bPauseNotUnpause then

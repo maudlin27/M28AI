@@ -3,7 +3,7 @@
 --- Created by maudlin27.
 --- DateTime: 25/06/2023 18:40
 ---
-
+--safeGetGlobal provided by ChatGPT
 local function safeGetGlobal(varName)
     local success, value = pcall(function() return _G[varName] end)
     if success then
@@ -42,17 +42,19 @@ CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, plato
 end
     --]]
 
-
-local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
+M28Utilities.ConsiderIfLoudActive()
+
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local OrigInitializeArmies = InitializeArmies
 InitializeArmies = function()
-    M28ParentDetails.ConsiderIfLoudActive()
+    --M28ParentDetails.ConsiderIfLoudActive() --done earlier now
     LOG('M28 InitializeArmies start, M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false))
     if M28Utilities.bLoudModActive then
         if ArmyBrains then
+            import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
             for iBrain, oBrain in ArmyBrains do
                 LOG('oBrain='..(oBrain.Nickname or 'nil')..'; ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI'))
                 if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then

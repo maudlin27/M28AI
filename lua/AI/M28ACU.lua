@@ -293,7 +293,7 @@ end
 
 function ACUActionBuildPower(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildPower'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild = M28UnitInfo.refCategoryPower
@@ -310,7 +310,7 @@ end
 
 function ACUActionBuildMex(aiBrain, oACU, iAreaToSearchOverride)
     local sFunctionRef = 'ACUActionBuildMex'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iMaxAreaToSearch = iAreaToSearchOverride
     --Increase search range if still doing initial build order, as this suggests we have mexes in our initial land zone that we havent built on yet
@@ -567,12 +567,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         --Are we already building something?
         if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
         if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Repairing')) and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.95 or not(oACU:IsUnitState('Reclaiming'))) then
-
+            bDebugMessages = true
             M28Air.UpdateTransportLocationShortlist(iTeam) --Redundancy
 
             --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
 
-            if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; ACU pos='..repru(oACU:GetPosition())) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; ACU pos='..repru(oACU:GetPosition())..'; Cur mexes='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)..'; Cur Pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
             if (iPlateauOrZero or 0) > 0 and iLZOrWZ > 0 then
                 --Do we want to build a mex, hydro or factory?
                 if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
@@ -653,6 +653,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 * iResourceMod and (aiBrain:GetEconomyStored('ENERGY') >= 100 or aiBrain[M28Economy.refiNetEnergyBaseIncome] > -0.1) and ((tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9) < 5 or aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5 or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 * aiBrain[M28Economy.refiGrossMassBaseIncome]) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
                         --Do nothing - have bene given an order to build a neaby mex
                         if bDebugMessages == true then LOG(sFunctionRef..': Want more mex as have decent base power level, tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; energy %='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+                        --LOUD - consider mexes further away and get in proportion to pgens initially
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
 
                         --Do we want to build a hydro (so get mexes first then hydro) or build pgen?
@@ -714,7 +715,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --Per discord gameplay and training pinned build order for going land facs with no hydro:
                             --ACU:      Landfac - 2 PG - 2 Mex - 1 PG - 2 Mex - 3 PG - Landfac - PG - Landfac
                             if bDebugMessages == true then LOG(sFunctionRef..': No hydro locations so will build power or mex depending on income') end
-                            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
+                            --LOUD special build order
+                            if M28Utilities.bLoudModActive and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)) and aiBrain:GetEconomyStored('MASS') <= math.min(200, aiBrain:GetEconomyStored('ENERGY') * 4) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 50) then
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD build order = want to get mex sooner than normal') end
+                            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build initial PGens') end
                                 ACUActionBuildPower(aiBrain, oACU)
                             else
@@ -770,6 +775,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     ACUActionBuildMex(aiBrain, oACU)
                                 end
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and build power as redundancy') end
                                     ACUActionBuildPower(aiBrain, oACU)
                                     if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
                                         oACU[refbDoingInitialBuildOrder] = false
@@ -2542,7 +2548,7 @@ end
 function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDistanceFromBuildRangeToConsider)
     --Do we have unclaimed mexes in the LZ? If so then build a mex on them.  However first check we dont alreayd have engineers trying to do this. also exception if we are overflowing mass and are in a core base
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderBuildingMex'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2614,7 +2620,7 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': bHaveMexWithinACUBuildRange='..tostring(bHaveMexWithinACUBuildRange)..'; bHaveEngineersAssignedAlready='..tostring(bHaveEngineersAssignedAlready)) end
-                if not(bHaveEngineersAssignedAlready) or bHaveMexWithinACUBuildRange then
+                if not(bHaveEngineersAssignedAlready) or bHaveMexWithinACUBuildRange or (M28Utilities.bLoudModActive and aiBrain[M28Economy.refiGrossMassBaseIncome] < aiBrain[M28Economy.refiGrossEnergyBaseIncome] / 8) then
                     ACUActionBuildMex(oACU:GetAIBrain(), oACU, iSearchRange)
                     local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
                     if bDebugMessages == true then LOG(sFunctionRef..': Have tried telling ACU to build mex, tLastOrder='..reprs(tLastOrder)) end
@@ -4003,7 +4009,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
@@ -5036,13 +5042,18 @@ function ManageACU(aiBrain, oACUOverride)
     local iACUSearchCategory = categories.COMMAND
     while not(oACU) do
         local tOurACU = aiBrain:GetListOfUnits(iACUSearchCategory, false, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Searching for ACUs at time='..GetGameTimeSeconds()..'; Is tOurACU empty='..tostring(M28Utilities.IsTableEmpty(tOurACU))) end
         if M28Utilities.IsTableEmpty(tOurACU) == false then
             for _, oUnit in tOurACU do
-                oACU = oUnit
-                break
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an ACU so will break') end
+                    oACU = oUnit
+                    break
+                end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Looking for ACU that we own, is oACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Looking for ACU that we own, is oACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))..'; oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')) end
         if oACU then
             oACU[refbDoingInitialBuildOrder] = true
             break
@@ -5053,16 +5064,16 @@ function ManageACU(aiBrain, oACUOverride)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if iWaitCount >= 360 then --No ACU after 6m, see if we have any SACU we could use instead
             iACUSearchCategory = iACUSearchCategory + categories.SUBCOMMANDER
-           -- if iWaitCount >= 480 then
-                --iACUSearchCategory = iACUSearchCategory + M28UnitInfo.refCategoryEngineer
-                if iWaitCount >= 600 then
-                    M28Utilities.ErrorHandler('No ACU or SACU after '..iWaitCount..' ticks so will abort')
-                    break
-                end
+            -- if iWaitCount >= 480 then
+            --iACUSearchCategory = iACUSearchCategory + M28UnitInfo.refCategoryEngineer
+            if iWaitCount >= 600 then
+                M28Utilities.ErrorHandler('No ACU or SACU after '..iWaitCount..' ticks so will abort')
+                break
+            end
             --end
         end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')) end
     if oACU then
 
         --Wait until ok for us to give orders

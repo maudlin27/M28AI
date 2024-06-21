@@ -4,7 +4,7 @@
 --------------------------------------------------------------------------------
 UnitBlueprint {
     Description = "M28 template size 22",
-    Categories = { 'INVULNERABLE', 'UNTARGETABLE', 'NAVAL', 'NAVALCARRIER', 'EXTERNALFACTORY'},
+    Categories = { 'INVULNERABLE', 'UNTARGETABLE', 'NAVAL', 'NAVALCARRIER', 'EXTERNALFACTORY', 'STEALTHFIELD', 'STEALTH'},
        Defense = { Health = 0, MaxHealth = 0 },
        Display = { Mesh = { LODs = { { LODCutoff = 1, ShaderName = 'Unit'} } }, HideLifebars = true },
      Footprint = {

@@ -301,6 +301,7 @@ refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCa
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
+refCategoryStealth = categories.STEALTHFIELD + categories.STEALTH
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
@@ -319,7 +320,7 @@ function GetUnitLifetimeCount(oUnit)
     if iCount == nil then
         if oUnit.GetAIBrain and oUnit.GetUnitId then
             local aiBrain = oUnit:GetAIBrain()
-            local sUnitId = oUnit.UnitId
+            local sUnitId = (oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)
             if aiBrain.M28LifetimeUnitCount == nil then aiBrain.M28LifetimeUnitCount = {} end
             if aiBrain.M28LifetimeUnitCount[sUnitId] == nil then
                 aiBrain.M28LifetimeUnitCount[sUnitId] = 1
@@ -2363,11 +2364,14 @@ end
 IsUnitRestricted = function(oUnit, iArmyIndex)
 end
 
+--if not(M28Utilities.bLoudModActive) and not(M28Utilities.bFAFActive) and not(M28Utilities.bSteamActive) then M28Utilities.
 if M28Utilities.bLoudModActive then
     IsUnitRestricted = function(oUnit)
         return import('/lua/game.lua').UnitRestricted(nil, oUnit.UnitId)
     end
 else
+    local a, s = pcall(assert, false, 'we dont think LOUD is active, audit trail')
+    WARN(a, s)
     IsUnitRestricted = function(oUnit, iArmyIndex)
         return import('/lua/game.lua').IsRestricted(oUnit.UnitId, iArmyIndex)
     end

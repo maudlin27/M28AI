@@ -237,7 +237,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if not(bUnitRestrictionsArePresent) then
         --Check if campaign or map has any active restrictions
         if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
-        if M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
+        if M28Utilities.bFAFActive and M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
             bUnitRestrictionsArePresent = true
         end
     end
@@ -377,7 +377,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -408,6 +408,7 @@ function M28BrainCreated(aiBrain)
     if not(bInitialSetup) then
         bInitialSetup = true
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
+        _G.reprs = rawget(_G, 'reprs') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
@@ -423,7 +424,7 @@ function M28BrainCreated(aiBrain)
         end
         ForkThread(GlobalOverseer)
     end
-
+    LOG('Calling overseer manager via a fork')
     ForkThread(OverseerManager, aiBrain)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -753,7 +754,7 @@ function Initialisation(aiBrain)
     end
     WaitTicks(1) --make sure brain setup will have run
     aiBrain[refbInitialised] = true
-    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated())) end
+    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)) end
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)
@@ -782,6 +783,7 @@ function Initialisation(aiBrain)
     ForkThread(DelayedCheckOfUnitsAtStartOfGame)
     ForkThread(DecideOnGeneralMapStrategy, aiBrain)
     ForkThread(M28Chat.ConsiderPerTeamStartMessage, aiBrain)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished initialisation') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1164,20 +1166,28 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheckProfiling)
-
-    --Make sure map setup will be done
-    WaitTicks(1)
-    while not(M28Map.bMapLandSetupComplete) do
-        WaitTicks(1)
-    end
-
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+    --Make sure map setup will be done
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    while not(M28Map.bMapLandSetupComplete) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Waiting for maplandsetup to be done, time='..GetGameTimeSeconds()) end
+    end
+
+
+
+
 
     --Initialise main systems
+    if bDebugMessages == true then LOG(sFunctionRef..': About to cork of initialization') end
     ForkThread(Initialisation, aiBrain)
 
     --Wait until we can give orders before doing main logic
@@ -1192,6 +1202,7 @@ function OverseerManager(aiBrain)
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
     if M28Config.M28RunMemoryProfiling then ForkThread(M28Profiler.ShowFileMemoryUsage) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to run main overseer loop') end
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 

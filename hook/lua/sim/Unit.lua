@@ -8,6 +8,11 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 do --Per Balthazaar - encasing the code in do .... end means that you dont have to worry about using unique variables
     local M28OldUnit = Unit
     Unit = Class(M28OldUnit) {
+        OnCreate = function(self)
+            LOG('M28OnCreate triggering from unit.lua')
+            M28OldUnit.OnCreate(self)
+            ForkThread(M28Events.OnCreate, self)
+        end,
         OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
             M28Events.OnKilled(self, instigator, type, overkillRatio)
             M28OldUnit.OnKilled(self, instigator, type, overkillRatio)
@@ -77,10 +82,6 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
 
             ForkThread(M28Events.OnDetectedBy, self, index)
             return M28OldUnit.OnDetectedBy(self, index)
-        end,
-        OnCreate = function(self)
-            M28OldUnit.OnCreate(self)
-            ForkThread(M28Events.OnCreate, self)
         end,
         CreateEnhancement = function(self, enh)
             ForkThread(M28Events.OnEnhancementComplete, self, enh)
