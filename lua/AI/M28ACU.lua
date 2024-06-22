@@ -293,7 +293,7 @@ end
 
 function ACUActionBuildPower(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildPower'
-    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild = M28UnitInfo.refCategoryPower
@@ -310,7 +310,7 @@ end
 
 function ACUActionBuildMex(aiBrain, oACU, iAreaToSearchOverride)
     local sFunctionRef = 'ACUActionBuildMex'
-    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iMaxAreaToSearch = iAreaToSearchOverride
     --Increase search range if still doing initial build order, as this suggests we have mexes in our initial land zone that we havent built on yet
@@ -567,7 +567,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         --Are we already building something?
         if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
         if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Repairing')) and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.95 or not(oACU:IsUnitState('Reclaiming'))) then
-            bDebugMessages = true
             M28Air.UpdateTransportLocationShortlist(iTeam) --Redundancy
 
             --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
@@ -717,7 +716,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': No hydro locations so will build power or mex depending on income') end
                             --LOUD special build order
                             if M28Utilities.bLoudModActive and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)) and aiBrain:GetEconomyStored('MASS') <= math.min(200, aiBrain:GetEconomyStored('ENERGY') * 4) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 50) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': LOUD build order = want to get mex sooner than normal') end
                             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build initial PGens') end
@@ -2548,7 +2546,7 @@ end
 function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDistanceFromBuildRangeToConsider)
     --Do we have unclaimed mexes in the LZ? If so then build a mex on them.  However first check we dont alreayd have engineers trying to do this. also exception if we are overflowing mass and are in a core base
 
-    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderBuildingMex'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4009,7 +4007,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())

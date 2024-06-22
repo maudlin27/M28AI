@@ -70,7 +70,14 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
         sPlateauAndZoneDesc = ':P='..(iPlateauOrZero or 0)..'Z='..(iLandOrWaterZone or 0)
     end
-    if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder) end --redundancy
+    if M28Config.M28ShowUnitNames then --redundancy
+        if M28Utilities.bLoudModActive then
+            --Be clear which units belong to M28
+            oUnit:SetCustomName('M28:'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+        else
+            oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+        end
+    end
 end
 
 function IssueTrackedClearCommands(oUnit)

@@ -236,7 +236,11 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
     if not(bUnitRestrictionsArePresent) then
         --Check if campaign or map has any active restrictions
-        if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
+        if M28Utilities.bFAFActive then
+            if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Not in FAF so normal method of checking for unit restrictions wont work') end
+        end
         if M28Utilities.bFAFActive and M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
             bUnitRestrictionsArePresent = true
         end
@@ -377,7 +381,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = fa;se if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -408,7 +412,22 @@ function M28BrainCreated(aiBrain)
     if not(bInitialSetup) then
         bInitialSetup = true
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
-        _G.reprs = rawget(_G, 'reprs') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
+        _G.reprs = rawget(_G, 'reprs') or
+                function(tTable)
+                    if tTable == nil then
+                        return 'nil'
+                    else
+                        local tEntries = {}
+                        for iEntry, vValue in tTable do
+                            if type(tTable) == "table" then
+                                table.insert(tEntries, 'iEntry '..iEntry..' is a table')
+                            else
+                                table.insert(tEntries, 'iEntry '..iEntry..'='..vValue)
+                            end
+                        end
+                        return repr(tEntries)
+                    end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
+                end
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')

@@ -1564,9 +1564,13 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
             if tsSupportFactoryBP[sFactoryBP] then
                 if bDebugMessages == true then LOG(sFunctionRef..': Support factoryBP='..tsSupportFactoryBP[sFactoryBP]) end
                 sUpgradeBP = tsSupportFactoryBP[sFactoryBP]
-                if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade='..sFactoryBP..GetUnitLifetimeCount(oUnitToUpgrade)..'; Checking if can upgrade to sUpgradeBP='..sUpgradeBP..'; oUnitToUpgrade:CanBuild(sUpgradeBP)='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))) end
-                if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Cant build '..sUpgradeBP) end
+                if (M28Utilities.bFAFActive or __blueprints[sUpgradeBP]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade='..sFactoryBP..GetUnitLifetimeCount(oUnitToUpgrade)..'; Checking if can upgrade to sUpgradeBP='..sUpgradeBP..'; oUnitToUpgrade:CanBuild(sUpgradeBP)='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))) end
+                    if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cant build '..sUpgradeBP) end
+                        sUpgradeBP = nil
+                    end
+                else
                     sUpgradeBP = nil
                 end
             end

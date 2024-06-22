@@ -1848,9 +1848,7 @@ function ManageEnergyStalls(iTeam)
                     --Decide on order to pause/unpause
 
                     local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoryAndActionsToPauseWhenStalling(iTeam)
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': tCategoriesByPriority='..reprs(tCategoriesByPriority)) end
-                    bDebugMessages = false
 
                     local iEnergyPerTickSavingNeeded
                     if bPauseNotUnpause then

@@ -2466,11 +2466,18 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
         if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade='..tostring(bInitiallyWantUpgrade)) end
         if bInitiallyWantUpgrade then
             if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+
                 local bWantUpgrade = false
                 local iExistingBrainsWithHQUpgrades = 0
                 local tbBrainsWithActiveUpgradeByIndex = {}
-                for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHQ.UnitId) then tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true end
+                if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                    for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHQ.UnitId) then
+                            if not(oHQ:GetAIBrain():IsDefeated()) then
+                                tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true
+                            end
+                        end
+                    end
                 end
 
                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -2558,9 +2565,13 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
             if not(bWaitUntilBuiltMoreUnits) then
                 if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
                     local tbBrainsWithActiveUpgradeByIndex = {}
-                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) == false then
+                    if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                         for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHQ.UnitId) then tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHQ.UnitId) then
+                                if not(oHQ:GetAIBrain():IsDefeated()) then
+                                    tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true
+                                end
+                            end
                         end
                     end
                     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
