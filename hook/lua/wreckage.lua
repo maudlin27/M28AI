@@ -5,8 +5,38 @@
 ---
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
-local M28CreateWreckage = CreateWreckage
+--[[local M28CreateWreckage = CreateWreckage
 function CreateWreckage(bp, position, orientation, mass, energy, time, deathHitBox)
     ForkThread(M28Events.OnCreateWreck, position, mass, energy)
     return M28CreateWreckage(bp, position, orientation, mass, energy, time, deathHitBox)
+end--]]
+
+
+local function safeGetGlobal(varName)
+    local success, value = pcall(function() return _G[varName] end)
+    if success then
+        return value
+    else
+        return nil
+    end
+end
+
+local M28CreateWreckage = safeGetGlobal('CreateWreckage') or function() end
+
+if safeGetGlobal('CreateWreckage') then
+    function CreateWreckage(bp, position, orientation, mass, energy, time, deathHitBox)
+        ForkThread(M28Events.OnCreateWreck, position, mass, energy)
+        return M28CreateWreckage(bp, position, orientation, mass, energy, time, deathHitBox)
+    end
+else
+    local M28Wreckage = Wreckage
+    Wreckage = Class(M28Wreckage) {
+        OnCreate = function(self)
+            --LOG('M28OnCreate triggering from unit.lua')
+            M28Wreckage.OnCreate(self)
+            if self.CachePosition and (self.MaxMassReclaim or self.MaxEnergyReclaim) then
+                ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim or self.MaxEnergyReclaim)
+            end
+        end,
+    }
 end

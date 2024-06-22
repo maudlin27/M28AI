@@ -73,7 +73,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryPower, iCategoryCondition, false) then bDebugMessages = true end
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option)
     if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)

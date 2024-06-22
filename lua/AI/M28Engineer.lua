@@ -1125,7 +1125,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 then
+        bDebugMessages = true
+        if bBuildCheapestStructure then M28Utilities.ErrorHandler('Want cheapest pgen despite having T2 engi, gross aiBrain energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team gross='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy]) end
+    end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname) end
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
