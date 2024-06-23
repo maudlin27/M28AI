@@ -1126,7 +1126,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 then
-        bDebugMessages = true
         if bBuildCheapestStructure then M28Utilities.ErrorHandler('Want cheapest pgen despite having T2 engi, gross aiBrain energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team gross='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy]) end
     end
 

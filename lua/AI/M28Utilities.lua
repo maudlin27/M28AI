@@ -431,7 +431,12 @@ function GetRoughDistanceBetweenPositions(tPosition1, tPosition2)
 end
 
 function GenerateUniqueColourTable(iTableSize)
-    local FAFColour = import("/lua/shared/color.lua")
+    local FAFColour
+    if FileIsValid('/lua/shared/color.lua') then
+        FAFColour = import('/lua/shared/color.lua')
+    else
+        FAFColour = import('/mods/M28AI/lua/AI/LOUD/M28SharedColor.lua')
+    end
     local tColourTable = {}
     local tInterval = {{0.13, 0.23, 0.37}, {0.13,0.37,0.23},{0.23,0.13,.37},{0.23,0.37,0.13},{0.37,0.13,0.23},{0.37,0.23,0.13}}
     local tiIntervalToUse = tInterval[math.random(table.getn(tInterval))]
@@ -855,5 +860,14 @@ function DrawCircleAroundPoint(tLocation, iColour, iDisplayCount, iCircleSize)
         if iCurDrawCount > iMaxDrawCount then return end
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait 2 ticks then refresh the drawing') end
         coroutine.yield(2) --Any more and circles will flash instead of being constant
+    end
+end
+
+function FileIsValid(sFileRelativePathAndName)
+    local file = DiskGetFileInfo(sFileRelativePathAndName)
+    if file == false or file == nil then
+        return false
+    else
+        return true
     end
 end

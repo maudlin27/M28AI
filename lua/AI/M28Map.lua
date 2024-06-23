@@ -2400,6 +2400,32 @@ local function AssignMexesALandZone()
     local iClosestStraightLineIndex
     local iClosestStraightLineTravelDist
 
+
+    --Work out the closest mex for the brain index
+    local iClosestMexToFirstPlayer = 1000
+    if M28Utilities.IsTableEmpty(tRelevantStartPointsByIndex) == false then
+        for iIndex, tStartPosition in tRelevantStartPointsByIndex do
+            local tiStartPlateauAndZone = tiStartIndexPlateauAndLZ[iIndex]
+            local iCurMexDist
+            if M28Utilities.IsTableEmpty(tAllPlateaus[tiStartPlateauAndZone[1]][subrefPlateauMexes]) == false then
+                for iMex, tMex in tAllPlateaus[tiStartPlateauAndZone[1]][subrefPlateauMexes] do
+                    --Only consider if mex isnt underwater
+                    if tMex[2] >= iMapWaterHeight then
+                        iCurMexDist = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPosition)
+                        if iCurMexDist < iClosestMexToFirstPlayer then iClosestMexToFirstPlayer = iCurMexDist end
+                    end
+                end
+            end
+            if iClosestMexToFirstPlayer < 1000 then break end --only want to consider the first
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the closest dist of a mex to the first player, iClosestMexToFirstPlayer='..iClosestMexToFirstPlayer..'; iStraightLineThreshold='..iStraightLineThreshold) end
+    if iClosestMexToFirstPlayer > iStraightLineThreshold * 0.8 and iClosestMexToFirstPlayer <= 200 then
+        iStraightLineThreshold = math.max(iClosestMexToFirstPlayer * 1.15, iClosestMexToFirstPlayer + 15)
+        iTravelDistThreshold = math.max(iTravelDistThreshold + 10, iStraightLineThreshold * 1.15, iStraightLineThreshold + 20)
+        if bDebugMessages == true then LOG(sFunctionRef..': Changing straight line threshold to '..iStraightLineThreshold..'; iTravelDistThreshold='..iTravelDistThreshold) end
+    end
+
     local tbStartingMexesRecordedByPlateau = {} --Tracks if we have already recorded a mex as near a brain start so we dont try and re-record it
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
@@ -4308,7 +4334,6 @@ local function SetupLandZones()
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end--]]
     ForkThread(RecordBackupGameEnderLocation)
-
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
