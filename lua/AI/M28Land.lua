@@ -4136,7 +4136,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid oNearestEnemyToFriendlyBase='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))..'; Are there enemies in adjacnet WZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
 
-            if not(oNearestEnemyToFriendlyBase) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
+            if not(oNearestEnemyToFriendlyBase) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
                 --Consider adjacent water zone enemies (will only consider mobile - i.e. wont update nearest structure unless we're already considering the WZ for a nearest enemy to midpoint)
                 local iCurWZ, iCurPond
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do

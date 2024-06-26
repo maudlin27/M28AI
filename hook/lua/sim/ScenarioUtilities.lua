@@ -163,7 +163,7 @@ InitializeArmies = function()
             if self.TeamSize > ScenarioInfo.biggestTeamSize then
                 ScenarioInfo.biggestTeamSize = TeamSize
             end
-            if self.M28AI or self.M28Easy then return end --ADDED TO SEE IF MEANS WE TAKE OVER
+            if self.M28AI or self.M28Easy then return end
             -- don't do anything else for a human player
             if self.BrainType == 'Human' then
                 return

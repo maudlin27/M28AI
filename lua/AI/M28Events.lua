@@ -2547,9 +2547,15 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         end
                     end
 
-                    --Non-M28 specific for constructed units
+                    --Constructed units (general, i.e. all AI not just M28)
                     if oUnit:GetFractionComplete() == 1 then
                         M28Building.RecordUnitShieldCoverage(oUnit)
+                        if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                            --Cover off scenario where loaded SMD is xferred between players, since M28 will think an SMD has died and a new one created, i.e. want to avoid abuse of M28s logic by making it think they have no SMD coverage (when it knows htey do)
+                            if oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() > 1 or oUnit:GetWorkProgress() >= 0.8 then
+                                oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 - M28Building.iTimeForSMDToBeConstructed
+                            end
+                        end
                     end
 
 
