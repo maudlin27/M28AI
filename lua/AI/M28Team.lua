@@ -2680,7 +2680,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local iExistingT1MexUpgrades = 0
     local iExistingT2MexUpgrades = 0
     if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.95 and tTeamData[iM28Team][subrefiTeamNetEnergy] > 1 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.98 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 4) then
-        if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+        if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingMexes])  then
             for iUpgradingMex, oUpgradingMex in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
                 if EntityCategoryContains(categories.TECH1, oUpgradingMex.UnitId) then
                     iExistingT1MexUpgrades = iExistingT1MexUpgrades + 1

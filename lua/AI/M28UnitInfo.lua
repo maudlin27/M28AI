@@ -1718,6 +1718,10 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
     --LOG('AddOrRemove from paused table after considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPausedNotUnpause='..tostring(bPauseNotUnpause)..'; Is paused='..tostring(oUnit[refbPaused])..'; Pause priority='..(oUnit[refiPausedPriority] or 'nil'))
 end
 
+function ForkedPauseUnit(oUnit, bPauseNotUnpause)
+    oUnit:SetPaused(bPauseNotUnpause)
+end
+
 function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
     --iPausePriority - only needed if are pausing the unit
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1741,7 +1745,11 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
             end
-            oUnit:SetPaused(bPauseNotUnpause)
+            if M28Utilities.bLoudModActive then
+                ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
+            else
+                oUnit:SetPaused(bPauseNotUnpause)
+            end
             oUnit[refbPaused] = bPauseNotUnpause
             --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled as was leading to false cases where unit was paused but this triggered
             --if oUnit[refbPaused] and not(oUnit:IsPaused()) then
@@ -1788,7 +1796,11 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                 if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
                     if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
                 end
-                oUnit:SetPaused(bPauseNotUnpause)
+                if M28Utilities.bLoudModActive then
+                    ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
+                else
+                    oUnit:SetPaused(bPauseNotUnpause)
+                end
                 oUnit[refbPaused] = bPauseNotUnpause
                 --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled in v75 due to case with energy pause where unit would be paused but :IsPaused would return flase
                 --[[if oUnit[refbPaused] and not(oUnit:IsPaused()) then

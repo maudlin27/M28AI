@@ -1327,7 +1327,7 @@ function ManageMassStalls(iTeam)
                             elseif iCategoryRef == iSpecialSurplusUpgradeCategory then
                                 --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade. also dont pause anything that is >=85% complete
                                 tRelevantUnits = {}
-                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                                if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) then
                                     local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
                                     --Want to allow multiple upgrading mexes for a brain if we have lots of mexes
                                     if iMexesToPause > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 10 and M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])) then
@@ -1933,7 +1933,7 @@ function ManageEnergyStalls(iTeam)
                                 if iCategoryRef == iSpecialSurplusUpgradeCategory then
                                     --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
                                     tRelevantUnits = {}
-                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) == false then
+                                    if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) then
                                         local iMexesToPause
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
                                             iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])
@@ -2673,7 +2673,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                             end
                         end
                     end
-                    if tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZMexCount] >= math.max(2, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] * 0.5)) or (iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / (2 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * M28UnitInfo.GetUnitTechLevel(oMex)))))  then
+                    if tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZMexCount] >= math.max(2, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] * 0.5)) or (iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 and (not(M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])) or table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / (2 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * M28UnitInfo.GetUnitTechLevel(oMex)))))  then
                         --Do we have any active mex upgrades?
                         if bDebugMessages == true then LOG(sFunctionRef..': active mex upgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is team table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))..'; Gross mass for brain='..oMex:GetAIBrain()[refiGrossMassBaseIncome])
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
