@@ -10,27 +10,28 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
     Unit = Class(M28OldUnit) {
         OnCreate = function(self)
             --LOG('M28OnCreate triggering from unit.lua')
-            M28OldUnit.OnCreate(self)
+            if M28OldUnit.OnCreate then M28OldUnit.OnCreate(self) end
             ForkThread(M28Events.OnCreate, self)
         end,
         OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
-            --LOG('M28OnKilled triggering from unit.lua')
+            LOG('M28OnKilled triggering from unit.lua, self='..(self.UnitId or 'nil'))
+            if M28OldUnit.OnKilled then M28OldUnit.OnKilled(self, instigator, type, overkillRatio) end
+            LOG('M28OnKilled about to call M28Events.OnKilled now')
             M28Events.OnKilled(self, instigator, type, overkillRatio)
-            M28OldUnit.OnKilled(self, instigator, type, overkillRatio)
         end,
         OnReclaimed = function(self, reclaimer)
             --LOG('M28OnReclaimed triggering from unit.lua')
-            M28Events.OnKilled(self, reclaimer)
+            if M28OldUnit.OnReclaimed then M28Events.OnKilled(self, reclaimer) end
             M28OldUnit.OnReclaimed(self, reclaimer)
         end,
         OnDecayed = function(self)
             --LOG('M28OnDecayed triggering from unit.lua, Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-            M28Events.OnUnitDeath(self)
+            if M28OldUnit.OnUnitDeath then M28Events.OnUnitDeath(self) end
             M28OldUnit.OnDecayed(self)
         end,
         OnKilledUnit = function(self, unitKilled, massKilled)
             --LOG('M28OnKilledUnit triggering from unit.lua')
-            M28Events.OnKilled(unitKilled, self)
+            if M28OldUnit.OnKilled then M28Events.OnKilled(unitKilled, self) end
             M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
         end,
         --[[OnFailedToBeBuilt = function(self)
@@ -39,7 +40,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,--]]
         OnDestroy = function(self)
             --LOG('M28OnDestroy triggering from unit.lua')
-            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            if M28OldUnit.OnUnitDeath then M28Events.OnUnitDeath(self) end --Any custom code we want to run
             M28OldUnit.OnDestroy(self) --Normal code
         end,
         --[[OnWorkEnd = function(self, work)
@@ -48,18 +49,18 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,--]]
         OnDamage = function(self, instigator, amount, vector, damageType)
             --LOG('M28OnDamage triggering from unit.lua')
-            M28OldUnit.OnDamage(self, instigator, amount, vector, damageType)
+            if M28OldUnit.OnDamage then M28OldUnit.OnDamage(self, instigator, amount, vector, damageType) end
             M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
         end,
         OnSiloBuildEnd = function(self, weapon)
             --LOG('M28OnSiloBuildEnd triggering from unit.lua')
-            M28OldUnit.OnSiloBuildEnd(self, weapon)
+            if M28OldUnit.OnSiloBuildEnd then M28OldUnit.OnSiloBuildEnd(self, weapon) end
             M28Events.OnMissileBuilt(self, weapon)
         end,
         OnStartBuild = function(self, built, order, ...)
             --LOG('M28OnStartBuild triggering from unit.lua')
             ForkThread(M28Events.OnConstructionStarted, self, built, order)
-            return M28OldUnit.OnStartBuild(self, built, order, unpack(arg))
+            if M28OldUnit.OnStartBuild then return M28OldUnit.OnStartBuild(self, built, order, unpack(arg)) end
         end,
 
         OnStopBuild = function(self, unit)
@@ -67,7 +68,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then
                 ForkThread(M28Events.OnConstructed, self, unit)
             end
-            return M28OldUnit.OnStopBuild(self, unit)
+            if M28OldUnit.OnStopBuild then return M28OldUnit.OnStopBuild(self, unit) end
         end,
 
         OnTransportAttach = function(self, attachBone, unit) --LOUD specific function

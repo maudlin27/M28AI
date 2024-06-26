@@ -871,3 +871,10 @@ function FileIsValid(sFileRelativePathAndName)
         return true
     end
 end
+
+
+function DelayedFunction(iDelayInSeconds, fnFunction, tArguments)
+    --Call via forkthread, tArugments is a table with the arguments needed for fnFunction
+    WaitSeconds(iDelayInSeconds)
+    fnFunction(unpack(tArguments))
+end
