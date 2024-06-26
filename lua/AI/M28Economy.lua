@@ -2758,7 +2758,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                 end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we arent upgrading due to low power') end
-                ForkThread(M28Utilities.DelayedFunction, 10, oJustBuilt)
+                ForkThread(M28Utilities.DelayedFunction, 10, ConsiderUpgradingMexDueToCompletion, {oJustBuilt})
             end
         end
     end

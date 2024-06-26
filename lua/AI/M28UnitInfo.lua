@@ -2388,8 +2388,6 @@ if M28Utilities.bLoudModActive then
         return import('/lua/game.lua').UnitRestricted(nil, oUnit.UnitId)
     end
 else
-    local a, s = pcall(assert, false, 'we dont think LOUD is active, audit trail')
-    WARN(a, s)
     IsUnitRestricted = function(oUnit, iArmyIndex)
         return import('/lua/game.lua').IsRestricted(oUnit.UnitId, iArmyIndex)
     end

@@ -3345,7 +3345,7 @@ function TeamEconomyRefresh(iM28Team)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for team '..iM28Team..' at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
     if M28Map.bMapLandSetupComplete and M28Map.bWaterZoneInitialCreation then
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
         tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
@@ -3391,7 +3391,7 @@ function TeamEconomyRefresh(iM28Team)
             --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
             --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
             tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal..'; oBrain:IsDefeated()='..tostring(oBrain:IsDefeated())..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)) end
         end
         tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
         tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = iEnergyPercentTotal / math.max(1, iEnergyBrainCount)
@@ -3416,7 +3416,27 @@ function TeamEconomyRefresh(iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 then
             if bDebugMessages == true then LOG(sFunctionRef..': Are overflowing mass so will try and manage by clearing engineers with reclaim orders') end
-            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')) end
+            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then
+                local iTeamMaxMassStorage = 0
+                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                    iTeamMaxMassStorage = iTeamMaxMassStorage + oBrain[M28Economy.refiMaxMassStorage]
+                end
+                if iTeamMaxMassStorage < 200 then
+                    --E.g. sandbox games we might still have units but no storage capacity
+                    if tTeamData[iM28Team][subrefiTeamNetMass] < 0 then
+                        tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = 0.2 --Avoids some of the 'we are overflowing mass majorly' logic
+                    else
+                        tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = 0.5 --Avoids some of the 'we are overflowing mass majorly' logic
+                    end
+                else
+                    M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')..'; Active M28 on team='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; iTeamMaxMassStorage='..iTeamMaxMassStorage)
+                    if bDebugMessages == true then
+                        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                            LOG(sFunctionRef..': oBrain='..oBrain.Nickname..'; Is defeated='..tostring(oBrain:IsDefeated())..'; M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; Cur units='..oBrain:GetCurrentUnits(categories.ALLUNITS)..'; ScenarioInfo.Options.Victory='..(ScenarioInfo.Options.Victory or 'nil'))
+                        end
+                    end
+                end
+            end
             ForkThread(M28Economy.ManageMassOverflow, iM28Team)
         end
     end

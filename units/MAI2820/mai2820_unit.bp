@@ -28,6 +28,10 @@ UnitBlueprint {
             SkirtOffsetX = 0,
             SkirtOffsetZ = 0
         },
+        --SelectionSize needed to avoid error in FAF for externalfactoryunit (while externalfactoryunit needed in category to prevent error in LOUD)
+        SelectionSizeX = 0,
+            SelectionSizeY = 0,
+            SelectionSizeZ = 0,
    ScriptClass = 'Unit',
   ScriptModule = '/lua/sim/unit.lua',
 }

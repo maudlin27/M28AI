@@ -37,91 +37,105 @@ bSteamActive = false
 function ConsiderIfLoudActive()
     LOG('About to consider whether LOUD is active')
     if not(bFAFActive) and not(bSteamActive) then
-        bLoudModActive = true
-        --Run 1-off setup
-        --'lua/system/utils.lua':
-        --table.unhash(t) code copied from FAF project - see above for assumed copyright for this
-        function table.unhash(t)
-            if not t then return {} end -- prevents looping over nil table
-            local r = {}
-            local n = 1
-            for k, v in t do
-                if v then
-                    r[n] = k -- faster than table.insert(r, k)
-                    n = n + 1
-                end
+        --Further check for if FAF active
+        local file_exists = function(name)
+            local file = DiskGetFileInfo(name)
+            if file == false or file == nil then
+                return false
+            else
+                return true
             end
-            return r
         end
-
-        --'/lua/system/debug.lua':
-        local type = type
-
-        --- Determines the size in bytes of the given element
-        ---@param element any
-        ---@param ignore? table<string, boolean>     # List of key names to ignore of all (referenced) tables
-        ---@return number
-        debug.allocatedrsize = function(element, ignore)
-            ignore = ignore or { }
-
-            -- has no allocated bytes
-            if element == nil then
-                return 0
+        if file_exists('/lua/sim/navutils.lua') then
+            bFAFActive = true
+            bLoudModActive = false --redundancy
+        else
+            bLoudModActive = true
+            --Run 1-off setup
+            --'lua/system/utils.lua':
+            --table.unhash(t) code copied from FAF project - see above for assumed copyright for this
+            function table.unhash(t)
+                if not t then return {} end -- prevents looping over nil table
+                local r = {}
+                local n = 1
+                for k, v in t do
+                    if v then
+                        r[n] = k -- faster than table.insert(r, k)
+                        n = n + 1
+                    end
+                end
+                return r
             end
 
-            -- applies to tables and strings, to prevent counting them multiple times
-            local seen = {}
+            --'/lua/system/debug.lua':
+            local type = type
 
-            -- prepare stack to prevent recursion
-            local allocatedSize = 0
-            local stack = { element }
-            local head = 2
+            --- Determines the size in bytes of the given element
+            ---@param element any
+            ---@param ignore? table<string, boolean>     # List of key names to ignore of all (referenced) tables
+            ---@return number
+            debug.allocatedrsize = function(element, ignore)
+                ignore = ignore or { }
 
-            while head > 1 do
+                -- has no allocated bytes
+                if element == nil then
+                    return 0
+                end
 
-                head = head - 1
-                local value = stack[head]
-                stack[head] = nil
+                -- applies to tables and strings, to prevent counting them multiple times
+                local seen = {}
 
-                local size = debug.allocatedsize(value)
+                -- prepare stack to prevent recursion
+                local allocatedSize = 0
+                local stack = { element }
+                local head = 2
 
-                -- size of usual value
-                if size == 0 then
-                    allocatedSize = allocatedSize + 8
+                while head > 1 do
 
-                    -- size of string
-                elseif type(value) ~= 'table' then
-                    if not seen[value] then
-                        seen[value] = true
-                        allocatedSize = allocatedSize + size
-                    end
+                    head = head - 1
+                    local value = stack[head]
+                    stack[head] = nil
 
-                    -- size of table
-                else
-                    if not seen[value] then
-                        allocatedSize = allocatedSize + size
-                        seen[value] = true
-                        for k, v in value do
-                            if not ignore[k] then
-                                stack[head] = v
-                                head = head + 1
+                    local size = debug.allocatedsize(value)
+
+                    -- size of usual value
+                    if size == 0 then
+                        allocatedSize = allocatedSize + 8
+
+                        -- size of string
+                    elseif type(value) ~= 'table' then
+                        if not seen[value] then
+                            seen[value] = true
+                            allocatedSize = allocatedSize + size
+                        end
+
+                        -- size of table
+                    else
+                        if not seen[value] then
+                            allocatedSize = allocatedSize + size
+                            seen[value] = true
+                            for k, v in value do
+                                if not ignore[k] then
+                                    stack[head] = v
+                                    head = head + 1
+                                end
                             end
                         end
                     end
                 end
+
+                return allocatedSize
             end
 
-            return allocatedSize
-        end
+            -- Rounds a number to specified double precision
+            function math.round(num,idp)
+                if not idp then
+                    return math.floor(num+.5)
+                end
 
-        -- Rounds a number to specified double precision
-        function math.round(num,idp)
-            if not idp then
-                return math.floor(num+.5)
+                idp = math.pow(10,idp)
+                return math.floor(num*idp+.5)/idp
             end
-
-            idp = math.pow(10,idp)
-            return math.floor(num*idp+.5)/idp
         end
 
 

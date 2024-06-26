@@ -14,9 +14,9 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnCreate, self)
         end,
         OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
-            LOG('M28OnKilled triggering from unit.lua, self='..(self.UnitId or 'nil'))
+            --LOG('M28OnKilled triggering from unit.lua, self='..(self.UnitId or 'nil'))
             if M28OldUnit.OnKilled then M28OldUnit.OnKilled(self, instigator, type, overkillRatio) end
-            LOG('M28OnKilled about to call M28Events.OnKilled now')
+            --LOG('M28OnKilled about to call M28Events.OnKilled now')
             M28Events.OnKilled(self, instigator, type, overkillRatio)
         end,
         OnReclaimed = function(self, reclaimer)
