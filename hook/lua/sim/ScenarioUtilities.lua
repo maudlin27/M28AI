@@ -48,7 +48,100 @@ M28Utilities.ConsiderIfLoudActive()
 
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
-local OrigInitializeArmies = InitializeArmies
+local OrigInitializeSkirmishSystems = InitializeSkirmishSystems
+InitializeSkirmishSystems = function(self)
+    if M28Utilities.bLoudModActive then
+        import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
+        local oBrain = self
+        LOG('oBrain='..(oBrain.Nickname or 'nil')..'; ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI'))
+        if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
+            --If we have no team, or our team is an odd number, then use M28
+            local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
+            LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam..'; ScenarioInfo.Options.M28Teams='..(ScenarioInfo.Options.M28Teams or 'nil'))
+            if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7 then
+                LOG('Will apply M28 logic to the AI')
+                oBrain.M28AI = true
+                if ScenarioInfo.Options.CmM28Easy == 1 then
+                    oBrain.M28Easy = true
+                end
+                M28Utilities.bM28AIInGame = true
+                if ScenarioInfo.Options.CmApplyAIx == 1 then oBrain.CheatEnabled = true end
+                ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
+            end
+        end
+
+        if self.M28AI or self.M28Easy then
+            self.CheatingAI = false
+
+            -- store which team we're on
+            if ScenarioInfo.ArmySetup[self.Name].Team == 1 then
+                self.Team = -1 * self.ArmyIndex  -- no team specified
+            else
+                self.Team = ScenarioInfo.ArmySetup[self.Name].Team  -- specified team number
+            end
+
+            local Opponents = 0
+            local TeamSize = 1
+
+            -- calculate team sizes
+            for index, playerInfo in ArmyBrains do
+
+                if ArmyIsCivilian(playerInfo.ArmyIndex) or index == self.ArmyIndex then continue end
+
+                if IsAlly( index, self.ArmyIndex) then
+                    TeamSize = TeamSize + 1
+                else
+                    Opponents = Opponents + 1
+                end
+
+            end
+
+            local color = ScenarioInfo.ArmySetup[self.Name].WheelColor
+
+            SetArmyColor(self.ArmyIndex, color[1], color[2], color[3])
+
+            -- Don't need WheelColor anymore, so delete it
+            ScenarioInfo.ArmySetup[self.Name].WheelColor = nil
+
+            if ScenarioInfo.Options.AIFactionColor == 'on' and self.BrainType ~= 'Human' then
+                -- These colours are based on the lobby faction dropdown icons
+                if self.FactionIndex == 1 then
+                    SetArmyColor(self.ArmyIndex, 44, 159, 200)
+                elseif self.FactionIndex == 2 then
+                    SetArmyColor(self.ArmyIndex, 104, 171, 77)
+                elseif self.FactionIndex == 3 then
+                    SetArmyColor(self.ArmyIndex, 255, 0, 0)
+                elseif self.FactionIndex == 4 then
+                    SetArmyColor(self.ArmyIndex, 254, 189, 44)
+                end
+            end
+
+            -- number of Opponents in the game
+            self.NumOpponents = Opponents
+
+            -- default outnumbered ratio
+            self.OutnumberedRatio = 1
+
+            -- number of players in the game
+            self.Players = ScenarioInfo.Options.PlayerCount
+
+            LOG("*AI DEBUG "..self.Nickname.." Team "..self.Team.." Teamsize is "..TeamSize.." Opponents is "..Opponents)
+
+            self.TeamSize = TeamSize
+
+            if self.TeamSize > ScenarioInfo.biggestTeamSize then
+                ScenarioInfo.biggestTeamSize = TeamSize
+            end
+            return
+        else
+            OrigInitializeSkirmishSystems(self)
+        end
+    else
+        OrigInitializeSkirmishSystems(self)
+    end
+end
+
+--[[local OrigInitializeArmies = InitializeArmies
 InitializeArmies = function()
     --M28ParentDetails.ConsiderIfLoudActive() --done earlier now
     LOG('M28 InitializeArmies start, M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false))
@@ -574,4 +667,4 @@ InitializeArmies = function()
     else
         OrigInitializeArmies()
     end
-end
+end--]]
