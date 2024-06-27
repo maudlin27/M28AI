@@ -19,7 +19,17 @@ local function safeGetGlobal(varName)
     end--]]
 end
 
-local M28OldACreateArmyGroupAsPlatoon = safeGetGlobal('CreateArmyGroupAsPlatoon') or function() end --CreateArmyGroupAsPlatoon --safeGetGlobal("CreateArmyGroupAsPlatoon") or function() end
+local function AltGetGlobal(varName)
+    local success, value = pcall(function() return _G[varName] end)
+    if success then
+        return value
+    else
+        return nil
+    end
+end
+
+local M28OldACreateArmyGroupAsPlatoon
+if safeGetGlobal('CreateArmyGroupAsPlatoon') then M28OldACreateArmyGroupAsPlatoon = CreateArmyGroupAsPlatoon end --safeGetGlobal('CreateArmyGroupAsPlatoon') or function() end
 
 if M28OldACreateArmyGroupAsPlatoon then
     --_G.CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
@@ -58,9 +68,11 @@ M28Utilities.ConsiderIfLoudActive()
 
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
-local OrigInitializeSkirmishSystems = safeGetGlobal('InitializeSkirmishSystems') or function()  end
+--LOG('safeGetGlobal InitializeSkirmishSystems ='..tostring(safeGetGlobal('InitializeSkirmishSystems') or false)..'; AltGetGlobal(varName)='..tostring(AltGetGlobal('InitializeSkirmishSystems' or false)))
 
-if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems') then
+--NOTE: For some reason we cant do a non-destructiveh ook of InitializeSkirmishSystems, as the safeGetGlobal and other attempts dont trigger when this is loaded in LOUD; will therefore do destructive hook
+--if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems') then
+    --OrigInitializeSkirmishSystems = InitializeSkirmishSystems
     InitializeSkirmishSystems = function(self)
         LOG('Hook active for InitializeSkirmishSystems')
         if M28Utilities.bLoudModActive then
@@ -323,7 +335,6 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
             LOG('Calling normal OrigInitializeSkirmishSystems logic for brain '..self.Nickname)
             OrigInitializeSkirmishSystems(self)
         end
-    end
 end
 
 --[[local OrigInitializeArmies = InitializeArmies
