@@ -70,7 +70,14 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
         sPlateauAndZoneDesc = ':P='..(iPlateauOrZero or 0)..'Z='..(iLandOrWaterZone or 0)
     end
-    if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder) end --redundancy
+    if M28Config.M28ShowUnitNames then --redundancy
+        if M28Utilities.bLoudModActive then
+            --Be clear which units belong to M28
+            oUnit:SetCustomName('M28:'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+        else
+            oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+        end
+    end
 end
 
 function IssueTrackedClearCommands(oUnit)
@@ -1104,7 +1111,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
         --Issue - if try and continue with queuing up a transport load order, it results in the engineers and transport stuck, with engieners showing as having the order, but not moving
         --bAddToExistingQueue = true
     elseif not(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) > 12 then
-        local NavUtils = import("/lua/sim/navutils.lua")
+        local NavUtils = M28Utilities.NavUtils
         local iHoverLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
         if bDebugMessages == true then LOG(sFunctionRef..': iHoverLabelWanted='..(iHoverLabelWanted or 'nil')) end
         if iHoverLabelWanted then

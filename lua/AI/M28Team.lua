@@ -7,7 +7,7 @@
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
@@ -401,8 +401,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     local sFunctionRef = 'UpdateUpgradeTrackingOfUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade='..(oUnitDoingUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade) or 'nil')..' owned by brain '..oUnitDoingUpgrade:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade='..(oUnitDoingUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade) or 'nil')..' owned by brain '..oUnitDoingUpgrade:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) M28Utilities.ErrorHandler('Audit trail', true, true) end
 
     local sUpgradeTableRef
     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitDoingUpgrade.UnitId) then
@@ -2466,11 +2465,18 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
         if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade='..tostring(bInitiallyWantUpgrade)) end
         if bInitiallyWantUpgrade then
             if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+
                 local bWantUpgrade = false
                 local iExistingBrainsWithHQUpgrades = 0
                 local tbBrainsWithActiveUpgradeByIndex = {}
-                for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHQ.UnitId) then tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true end
+                if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                    for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHQ.UnitId) then
+                            if not(oHQ:GetAIBrain():IsDefeated()) then
+                                tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true
+                            end
+                        end
+                    end
                 end
 
                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -2558,9 +2564,13 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
             if not(bWaitUntilBuiltMoreUnits) then
                 if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
                     local tbBrainsWithActiveUpgradeByIndex = {}
-                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) == false then
+                    if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                         for iHQ, oHQ in tTeamData[iM28Team][subreftTeamUpgradingHQs] do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHQ.UnitId) then tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHQ.UnitId) then
+                                if not(oHQ:GetAIBrain():IsDefeated()) then
+                                    tbBrainsWithActiveUpgradeByIndex[oHQ:GetAIBrain():GetArmyIndex()] = true
+                                end
+                            end
                         end
                     end
                     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -2670,7 +2680,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local iExistingT1MexUpgrades = 0
     local iExistingT2MexUpgrades = 0
     if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.95 and tTeamData[iM28Team][subrefiTeamNetEnergy] > 1 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.98 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 4) then
-        if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+        if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][subreftTeamUpgradingMexes])  then
             for iUpgradingMex, oUpgradingMex in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
                 if EntityCategoryContains(categories.TECH1, oUpgradingMex.UnitId) then
                     iExistingT1MexUpgrades = iExistingT1MexUpgrades + 1
@@ -3335,7 +3345,7 @@ function TeamEconomyRefresh(iM28Team)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for team '..iM28Team..' at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
     if M28Map.bMapLandSetupComplete and M28Map.bWaterZoneInitialCreation then
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
         tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
@@ -3381,7 +3391,7 @@ function TeamEconomyRefresh(iM28Team)
             --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
             --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
             tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal..'; oBrain:IsDefeated()='..tostring(oBrain:IsDefeated())..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)) end
         end
         tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
         tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = iEnergyPercentTotal / math.max(1, iEnergyBrainCount)
@@ -3406,7 +3416,27 @@ function TeamEconomyRefresh(iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 then
             if bDebugMessages == true then LOG(sFunctionRef..': Are overflowing mass so will try and manage by clearing engineers with reclaim orders') end
-            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')) end
+            if tTeamData[iM28Team][subrefiTeamMassStored] < 200 then
+                local iTeamMaxMassStorage = 0
+                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                    iTeamMaxMassStorage = iTeamMaxMassStorage + oBrain[M28Economy.refiMaxMassStorage]
+                end
+                if iTeamMaxMassStorage < 200 then
+                    --E.g. sandbox games we might still have units but no storage capacity
+                    if tTeamData[iM28Team][subrefiTeamNetMass] < 0 then
+                        tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = 0.2 --Avoids some of the 'we are overflowing mass majorly' logic
+                    else
+                        tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = 0.5 --Avoids some of the 'we are overflowing mass majorly' logic
+                    end
+                else
+                    M28Utilities.ErrorHandler('We think we are overflowing mass but we have less than 200 stored; if have engineer in core base we should try and build mass storage soon, iM28Team='..(iM28Team or 'nil')..'; Active M28 on team='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; iTeamMaxMassStorage='..iTeamMaxMassStorage)
+                    if bDebugMessages == true then
+                        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                            LOG(sFunctionRef..': oBrain='..oBrain.Nickname..'; Is defeated='..tostring(oBrain:IsDefeated())..'; M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; Cur units='..oBrain:GetCurrentUnits(categories.ALLUNITS)..'; ScenarioInfo.Options.Victory='..(ScenarioInfo.Options.Victory or 'nil'))
+                        end
+                    end
+                end
+            end
             ForkThread(M28Economy.ManageMassOverflow, iM28Team)
         end
     end

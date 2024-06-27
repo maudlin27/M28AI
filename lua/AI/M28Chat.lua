@@ -1,3 +1,12 @@
+local file_exists = function(name)
+    local file = DiskGetFileInfo(name)
+    if file == false or file == nil then
+        return false
+    else
+        return true
+    end
+end
+
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
@@ -5,9 +14,12 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
-local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local SUtils = import('/lua/AI/sorianutilities.lua')
+local SimSyncUtils
+if file_exists('/lua/simsyncutils.lua') then SimSyncUtils = import('/lua/simsyncutils.lua')
+else SimSyncUtils = import('/mods/M28AI/lua/AI/LOUD/M28SimSyncUtils.lua')
+end
 
 tiM28VoiceTauntByType = {} --[x] = string for the type of voice taunt (functionref), returns gametimeseconds it was last issued
 bConsideredSpecificMessage = false --set to true by any AI, e.g. for start of game messages (not implemented, see M27 for example implementation)
@@ -1009,7 +1021,7 @@ function SendForkedAudioMessage(sCue, sBank, iDelayInSeconds, iOptionalTeamArmyI
         WaitSeconds(iDelayInSeconds)
     end
     iTimeOfLastAudioMessage = GetGameTimeSeconds()
-    local SyncVoice = import("/lua/simsyncutils.lua").SyncVoice
+    local SyncVoice = SimSyncUtils.SyncVoice
     if not(iOptionalTeamArmyIndex) or (GetFocusArmy() > 0 and not(IsEnemy(GetFocusArmy(), iOptionalTeamArmyIndex))) then --Thanks to Jip for explaining this is how to get an audio message to only play for particular players
         --WARNING: Only affect UI here; any code affecting the SIM will cause a desync (per Jip)
         SyncVoice({Cue = sCue, Bank = sBank})
@@ -1087,7 +1099,7 @@ function AssignAIPersonalityAndRating(aiBrain)
     end
     if aiBrain.M28AI then
         LOG('AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname)
-        if (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AIx gets stuff in priority to AI
+        if M28Utilities.bFAFActive and (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AIx gets stuff in priority to AI
             local iBaseRating = 750
             local iApproxRating
             local bIsCheatingAI = aiBrain.CheatEnabled
@@ -1112,7 +1124,9 @@ function AssignAIPersonalityAndRating(aiBrain)
                 iApproxRating = iApproxRating * iGeneralRatingFactor
                 --Round to the nearest 25:
                 iApproxRating = math.round(iApproxRating / 25) * 25
-                ScenarioInfo.Options.Ratings[aiBrain.Nickname] = iApproxRating --only affects things like full share since scoreboards likely use the value at start of game before AI have been created
+                if M28Utilities.bFAFActive then
+                    ScenarioInfo.Options.Ratings[aiBrain.Nickname] = iApproxRating --only affects things like full share since scoreboards likely use the value at start of game before AI have been created
+                end
             end
         end
     end

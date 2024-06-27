@@ -13,7 +13,7 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
@@ -68,12 +68,11 @@ end
 
 function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
     --returns nil if cant find any blueprints that can build
-    --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint
+    --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint; moved to M28UnitInfo.IsUnitRestricted for LOUD compatibility
     --NOTE: bGetSlowest is forced to be true for t1 land factories
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option)
     if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
@@ -114,11 +113,11 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
     else
-        local Game = import("/lua/game.lua")
+        --local Game = import("/lua/game.lua")
         local iArmyIndex = aiBrain:GetArmyIndex()
         for _, sBlueprint in tBlueprints do
             if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..sBlueprint..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))) end
-            if oFactory:CanBuild(sBlueprint) == true and not(Game.IsRestricted(sBlueprint, iArmyIndex)) then
+            if oFactory:CanBuild(sBlueprint) == true and not(M28UnitInfo.IsUnitRestricted(sBlueprint, iArmyIndex)) then
                 --Check we can build the desired category
                 if not(iOptionalCategoryThatMustBeAbleToBuild) then bCanBuildRequiredCategory = true
                 else
@@ -267,7 +266,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
+    local iCurEngineers
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
@@ -306,7 +305,6 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
             end
         end
-
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
             --Engineers - dont build if we have spare engineers at our current LZ
             local iMaxSpareWanted = 1
@@ -319,7 +317,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             end
             --Smaller maps - try and build engis in proportion to tanks at t1 stage
             if iFactoryTechLevel < 2 and sBPIDToBuild and M28Map.iMapSize <= 256 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-                local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
+                if not(iCurEngineers) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
                 local iCurCombat = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat)
                 if iCurEngineers > math.max(10, iCurCombat) and aiBrain:GetEconomyStoredRatio('MASS') < 0.6 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are at t1 stage so want to get more tanks if too bad a proportion, iCurEngineers='..iCurEngineers..'; iCurCombat='..iCurCombat) end
@@ -368,14 +366,18 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjustment for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' for if close to unit cap, sBPIDToBuild='..(sBPIDToBuild or 'nil')..'; aiBrain[M28Overseer.refbCloseToUnitCap]='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; aiBrain[M28Overseer.refiExpectedRemainingCap]='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
+        if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
         if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild)) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 150 and (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 100 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.95)) then
             --Exception - build T2 engineers if we dont have many T3 engineers and have at least 10 leeway and havent been destroying these units
             if aiBrain[M28Overseer.refiExpectedRemainingCap] >= 20 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH2, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 25 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 2 and (not(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed]) or not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) then
                 --Are trying to build a T2 engi and havent been destroying any yet, so still build it
                 --i.e. do nothing
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 3 then
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 5 and (iCurEngineers <= 3 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 3) then
                 --Do nothing - want some t3 engineers so can build t3 and experimental units
                 --Another exception, more for campaign maps - if factory tech level is our highest tech level, and it isnt a destroyed unit category, then still build
+            elseif iCurEngineers >= 200 and (iCurEngineers >= 500 or (iCurEngineers >= GetArmyUnitCap(aiBrain:GetArmyIndex()) * 0.4 and (iCurEngineers >= 400 or iCurEngineers >=  GetArmyUnitCap(aiBrain:GetArmyIndex()) * 0.5))) then
+                if bDebugMessages == true then LOG(sFunctionRef..': have too many engineers so dont want to get more') end
+                sBPIDToBuild = nil
             elseif iFactoryTechLevel >= M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] and not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild)) then
                 --Do nothing - are at highest tech level for this factory and we havent destroyed any units of this type
             else

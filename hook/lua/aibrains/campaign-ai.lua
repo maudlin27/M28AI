@@ -34,7 +34,8 @@ AIBrain = Class(M28OldAIBrain) {
         import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true
         if not(self.M28AI) then
             -- requires navigational mesh
-            import("/lua/sim/NavUtils.lua").Generate()
+            M28Utilities.NavUtils.Generate()
+            --import("/lua/sim/NavUtils.lua").Generate()
 
             -- requires these datastructures to understand the game
             --Jip note 2023-10-28 - these dont need to be loaded if I'm not using them (i.e. if not referencing any of the below in code)

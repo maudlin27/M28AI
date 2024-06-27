@@ -1404,8 +1404,8 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
                 if not(bAlreadyRecorded) then
                     table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tClosestMexLocation)
                     if bDebugMessages == true then
-                        LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
-                        M28Utilities.DrawLocation(tMexLocation)
+                        LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now, tClosestMexLocation='..repru(tClosestMexLocation))
+                        M28Utilities.DrawLocation(tClosestMexLocation)
                     end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end

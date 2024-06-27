@@ -16,7 +16,7 @@ local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
@@ -493,7 +493,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         local tUnitsToConsiderDodgeFor = {}
         function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
-            if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
+            if oCurUnit:GetAIBrain().M28AI and not(oCurUnit:GetAIBrain().M28Easy) and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
                 if EntityCategoryContains(categories.AIR + categories.STRUCTURE, oCurUnit.UnitId) then
                     --Do nothing
                 elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then

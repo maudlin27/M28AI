@@ -272,6 +272,9 @@ refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
 refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
+TestCat1 = categories.NAVAL
+TestCat2 = categories.NAVALCARRIER
+TestCat3 = categories.EXTERNALFACTORY
 refCategoryCarrier = categories.NAVAL * categories.NAVALCARRIER * categories.EXTERNALFACTORY
 refCategoryMobileAircraftFactory = categories.AIR * categories.EXTERNALFACTORYUNIT + categories.NAVALCARRIER * categories.EXTERNALFACTORYUNIT
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
@@ -298,6 +301,7 @@ refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCa
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
+refCategoryStealth = categories.STEALTHFIELD + categories.STEALTH
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
@@ -316,7 +320,7 @@ function GetUnitLifetimeCount(oUnit)
     if iCount == nil then
         if oUnit.GetAIBrain and oUnit.GetUnitId then
             local aiBrain = oUnit:GetAIBrain()
-            local sUnitId = oUnit.UnitId
+            local sUnitId = (oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)
             if aiBrain.M28LifetimeUnitCount == nil then aiBrain.M28LifetimeUnitCount = {} end
             if aiBrain.M28LifetimeUnitCount[sUnitId] == nil then
                 aiBrain.M28LifetimeUnitCount[sUnitId] = 1
@@ -1431,6 +1435,8 @@ function RecordUnitRange(oUnit)
                         end
                     elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
+                        oUnit[refbHasTorpedoDefence] = true
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
@@ -1560,9 +1566,13 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
             if tsSupportFactoryBP[sFactoryBP] then
                 if bDebugMessages == true then LOG(sFunctionRef..': Support factoryBP='..tsSupportFactoryBP[sFactoryBP]) end
                 sUpgradeBP = tsSupportFactoryBP[sFactoryBP]
-                if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade='..sFactoryBP..GetUnitLifetimeCount(oUnitToUpgrade)..'; Checking if can upgrade to sUpgradeBP='..sUpgradeBP..'; oUnitToUpgrade:CanBuild(sUpgradeBP)='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))) end
-                if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Cant build '..sUpgradeBP) end
+                if (M28Utilities.bFAFActive or __blueprints[sUpgradeBP]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade='..sFactoryBP..GetUnitLifetimeCount(oUnitToUpgrade)..'; Checking if can upgrade to sUpgradeBP='..sUpgradeBP..'; oUnitToUpgrade:CanBuild(sUpgradeBP)='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))) end
+                    if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cant build '..sUpgradeBP) end
+                        sUpgradeBP = nil
+                    end
+                else
                     sUpgradeBP = nil
                 end
             end
@@ -1586,10 +1596,9 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' cant build sUpgradeBP='..sUpgradeBP..' e.g. due to unit restrictions') end
             sUpgradeBP = nil
         else
-            local Game = import("/lua/game.lua")
             local iArmyIndex = oUnitToUpgrade.Army
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' checking if is restricted for sUpgradeBP='..sUpgradeBP..', isrestricted='..tostring(Game.IsRestricted(sUpgradeBP, iArmyIndex))) end
-            if Game.IsRestricted(sUpgradeBP, iArmyIndex) then
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' checking if is restricted for sUpgradeBP='..sUpgradeBP..', isrestricted='..tostring(IsUnitRestricted(sUpgradeBP, iArmyIndex))) end
+            if IsUnitRestricted(sUpgradeBP, iArmyIndex) then
                 sUpgradeBP = nil
             end
         end
@@ -1711,6 +1720,10 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
     --LOG('AddOrRemove from paused table after considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPausedNotUnpause='..tostring(bPauseNotUnpause)..'; Is paused='..tostring(oUnit[refbPaused])..'; Pause priority='..(oUnit[refiPausedPriority] or 'nil'))
 end
 
+function ForkedPauseUnit(oUnit, bPauseNotUnpause)
+    oUnit:SetPaused(bPauseNotUnpause)
+end
+
 function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
     --iPausePriority - only needed if are pausing the unit
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1734,7 +1747,11 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
             end
-            oUnit:SetPaused(bPauseNotUnpause)
+            if M28Utilities.bLoudModActive then
+                ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
+            else
+                oUnit:SetPaused(bPauseNotUnpause)
+            end
             oUnit[refbPaused] = bPauseNotUnpause
             --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled as was leading to false cases where unit was paused but this triggered
             --if oUnit[refbPaused] and not(oUnit:IsPaused()) then
@@ -1781,7 +1798,11 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                 if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
                     if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
                 end
-                oUnit:SetPaused(bPauseNotUnpause)
+                if M28Utilities.bLoudModActive then
+                    ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
+                else
+                    oUnit:SetPaused(bPauseNotUnpause)
+                end
                 oUnit[refbPaused] = bPauseNotUnpause
                 --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag - disabled in v75 due to case with energy pause where unit would be paused but :IsPaused would return flase
                 --[[if oUnit[refbPaused] and not(oUnit:IsPaused()) then
@@ -2355,4 +2376,19 @@ end
 function GetUnitSpeed(oUnit)
     local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
     return (math.abs(iVelocityX) + math.abs(iVelocityZ)) * 10 --approximate value - e.g. based on this a fatboy moving diagonally at full speed would cover roughly 2.5 vs a max speed of 1.75
+end
+
+--LOUD will reference a different function to check if a unit is restricted; this is so we can just reference M28UnitInfo.IsUnitRestricted(unit, index)
+IsUnitRestricted = function(oUnit, iArmyIndex)
+end
+
+--if not(M28Utilities.bLoudModActive) and not(M28Utilities.bFAFActive) and not(M28Utilities.bSteamActive) then M28Utilities.
+if M28Utilities.bLoudModActive then
+    IsUnitRestricted = function(oUnit)
+        return import('/lua/game.lua').UnitRestricted(nil, oUnit.UnitId)
+    end
+else
+    IsUnitRestricted = function(oUnit, iArmyIndex)
+        return import('/lua/game.lua').IsRestricted(oUnit.UnitId, iArmyIndex)
+    end
 end

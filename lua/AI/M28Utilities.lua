@@ -3,12 +3,172 @@
 --- Created by maudlin27.
 --- DateTime: 16/11/2022 07:26
 ---
+--******************************************************************************************************
+--** Copyright applying to the function table.unhash(t), math.round and debug.allocatedrsize below
+-- is assumed to be the following, given this is a common licence in forged alliance forever
+-- , which features this code
+-- Copyright (c) 2022  Willem 'Jip' Wijnia
+--**
+--** Permission is hereby granted, free of charge, to any person obtaining a copy
+--** of this software and associated documentation files (the "Software"), to deal
+--** in the Software without restriction, including without limitation the rights
+--** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--** copies of the Software, and to permit persons to whom the Software is
+--** furnished to do so, subject to the following conditions:
+--**
+--** The above copyright notice and this permission notice shall be included in all
+--** copies or substantial portions of the Software.
+--**
+--** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--** AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--** LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+--** OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+--** SOFTWARE.
+
+
+--Note that the LICENSE covers the copyright more generally for this file (outside of the above functions)
+--******************************************************************************************************
+
+bFAFActive = false
+bLoudModActive = false
+bSteamActive = false
+function ConsiderIfLoudActive()
+    LOG('About to consider whether LOUD is active')
+    if not(bFAFActive) and not(bSteamActive) then
+        --Further check for if FAF active
+        local file_exists = function(name)
+            local file = DiskGetFileInfo(name)
+            if file == false or file == nil then
+                return false
+            else
+                return true
+            end
+        end
+        if file_exists('/lua/sim/navutils.lua') then
+            bFAFActive = true
+            bLoudModActive = false --redundancy
+        else
+            bLoudModActive = true
+            --Run 1-off setup
+            --'lua/system/utils.lua':
+            --table.unhash(t) code copied from FAF project - see above for assumed copyright for this
+            function table.unhash(t)
+                if not t then return {} end -- prevents looping over nil table
+                local r = {}
+                local n = 1
+                for k, v in t do
+                    if v then
+                        r[n] = k -- faster than table.insert(r, k)
+                        n = n + 1
+                    end
+                end
+                return r
+            end
+
+            --'/lua/system/debug.lua':
+            local type = type
+
+            --- Determines the size in bytes of the given element
+            ---@param element any
+            ---@param ignore? table<string, boolean>     # List of key names to ignore of all (referenced) tables
+            ---@return number
+            debug.allocatedrsize = function(element, ignore)
+                ignore = ignore or { }
+
+                -- has no allocated bytes
+                if element == nil then
+                    return 0
+                end
+
+                -- applies to tables and strings, to prevent counting them multiple times
+                local seen = {}
+
+                -- prepare stack to prevent recursion
+                local allocatedSize = 0
+                local stack = { element }
+                local head = 2
+
+                while head > 1 do
+
+                    head = head - 1
+                    local value = stack[head]
+                    stack[head] = nil
+
+                    local size = debug.allocatedsize(value)
+
+                    -- size of usual value
+                    if size == 0 then
+                        allocatedSize = allocatedSize + 8
+
+                        -- size of string
+                    elseif type(value) ~= 'table' then
+                        if not seen[value] then
+                            seen[value] = true
+                            allocatedSize = allocatedSize + size
+                        end
+
+                        -- size of table
+                    else
+                        if not seen[value] then
+                            allocatedSize = allocatedSize + size
+                            seen[value] = true
+                            for k, v in value do
+                                if not ignore[k] then
+                                    stack[head] = v
+                                    head = head + 1
+                                end
+                            end
+                        end
+                    end
+                end
+
+                return allocatedSize
+            end
+
+            -- Rounds a number to specified double precision
+            function math.round(num,idp)
+                if not idp then
+                    return math.floor(num+.5)
+                end
+
+                idp = math.pow(10,idp)
+                return math.floor(num*idp+.5)/idp
+            end
+        end
+
+
+
+    end
+end
+if not(bFAFActive) and not(bLoudModActive) and not(bSteamActive) then
+    ConsiderIfLoudActive()
+    --local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
+    --M28ParentDetails.ConsiderIfLoudActive()
+end
+
+local file_exists = function(name)
+    local file = DiskGetFileInfo(name)
+    if file == false or file == nil then
+        return false
+    else
+        return true
+    end
+end
+
+NavUtils = false
+if file_exists('/lua/sim/navutils.lua') then NavUtils = import('/lua/sim/navutils.lua')
+else NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
+end
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+--local NavUtils = import("/lua/sim/navutils.lua")
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
+
+--Global variables:
 tErrorCountByMessage = {} --WHenever we have an error, then the error message is a key that gets included in this table
 
 bM28AIInGame = false --true if have M28 AI in the game (used to avoid considering callback logic further)
@@ -115,8 +275,8 @@ function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     local iCurDrawCount = 0
     local iCount = 0
     while true do
-    iCount = iCount + 1
-    if iCount > 10000 then ErrorHandler('Infinite loop') break end
+        iCount = iCount + 1
+        if iCount > 10000 then ErrorHandler('Infinite loop') break end
         for iValX = 1, 2 do
             for iValZ = 1, 2 do
                 if iValX == 1 then
@@ -285,7 +445,12 @@ function GetRoughDistanceBetweenPositions(tPosition1, tPosition2)
 end
 
 function GenerateUniqueColourTable(iTableSize)
-    local FAFColour = import("/lua/shared/color.lua")
+    local FAFColour
+    if FileIsValid('/lua/shared/color.lua') then
+        FAFColour = import('/lua/shared/color.lua')
+    else
+        FAFColour = import('/mods/M28AI/lua/AI/LOUD/M28SharedColor.lua')
+    end
     local tColourTable = {}
     local tInterval = {{0.13, 0.23, 0.37}, {0.13,0.37,0.23},{0.23,0.13,.37},{0.23,0.37,0.13},{0.37,0.13,0.23},{0.37,0.23,0.13}}
     local tiIntervalToUse = tInterval[math.random(table.getn(tInterval))]
@@ -486,8 +651,8 @@ function ConvertLocationToReference(tLocation)
 end
 
 function RemoveEntriesFromTableForSearch(tArray, fnKeepCurEntry)
---Only included to help locate RemoveEntriesFromArrayBasedOnCondition - below is redundancy in case we actually used this by mistake
---NOTE: Doesnt work on all tables, must be an array, i.e. the key is 1, 2, 3.....x
+    --Only included to help locate RemoveEntriesFromArrayBasedOnCondition - below is redundancy in case we actually used this by mistake
+    --NOTE: Doesnt work on all tables, must be an array, i.e. the key is 1, 2, 3.....x
     RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
 end
 
@@ -507,7 +672,7 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
     --]]
 
     --NOTE: If want something more complex, then just copy the below code and adapt, e.g. if want to add removed entries to a different table
-    
+
     local iRevisedIndex = 1
     local iTableSize = table.getn(tArray)
 
@@ -710,4 +875,20 @@ function DrawCircleAroundPoint(tLocation, iColour, iDisplayCount, iCircleSize)
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait 2 ticks then refresh the drawing') end
         coroutine.yield(2) --Any more and circles will flash instead of being constant
     end
+end
+
+function FileIsValid(sFileRelativePathAndName)
+    local file = DiskGetFileInfo(sFileRelativePathAndName)
+    if file == false or file == nil then
+        return false
+    else
+        return true
+    end
+end
+
+
+function DelayedFunction(iDelayInSeconds, fnFunction, tArguments)
+    --Call via forkthread, tArugments is a table with the arguments needed for fnFunction
+    WaitSeconds(iDelayInSeconds)
+    fnFunction(unpack(tArguments))
 end

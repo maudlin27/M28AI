@@ -6,7 +6,7 @@
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
-local NavUtils = import("/lua/sim/navutils.lua")
+local NavUtils = M28Utilities.NavUtils
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 --local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
@@ -3385,7 +3385,7 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
                     if bDebugMessages == true then LOG(sFunctionRef..': Will clear unit orders and wait a bit, unit approx speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
                     local iTotalTimeWaited = 0
                     M28Orders.IssueTrackedClearCommands(oUnit)
-                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                    while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
                         iTotalTimeWaited = iTotalTimeWaited + 1
@@ -4136,7 +4136,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid oNearestEnemyToFriendlyBase='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))..'; Are there enemies in adjacnet WZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
 
-            if not(oNearestEnemyToFriendlyBase) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
+            if not(oNearestEnemyToFriendlyBase) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
                 --Consider adjacent water zone enemies (will only consider mobile - i.e. wont update nearest structure unless we're already considering the WZ for a nearest enemy to midpoint)
                 local iCurWZ, iCurPond
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
@@ -7371,7 +7371,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Wnat mobile shield for unit') end
                                         end
                                     end
-                                    if iEnemyOmniCoverage <= 20 and not(EntityCategoryContains(categories.STEALTHFIELD + categories.STEALTH, oUnit.UnitId)) then
+                                    if iEnemyOmniCoverage <= 20 and not(EntityCategoryContains(M28UnitInfo.refCategoryStealth, oUnit.UnitId)) then
                                         if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                             if not(oUnit[refoAssignedMobileStealth]) then
                                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
@@ -8047,7 +8047,7 @@ function LandZoneOverseer(iTeam)
         ForkThread(AssignValuesToLandZones, iTeam)
 
         local iWaitCount = 0
-        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 do
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or (M28Utilities.bLoudModActive and GetGameTimeSeconds() <= 6) do
             iWaitCount = iWaitCount + 1
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
@@ -8056,7 +8056,6 @@ function LandZoneOverseer(iTeam)
         end
 
         local iMinorCycleCount = 0
-
         while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
             if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
                 while ScenarioInfo.OpEnded do

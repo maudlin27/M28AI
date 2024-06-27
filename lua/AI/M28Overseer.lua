@@ -220,8 +220,8 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
             bCantBuild = true
             if bDebugMessages == true then LOG(sFunctionRef..': Blueprint is nil so will set that cant build') end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
-            if import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(M28UnitInfo.IsUnitRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
+            if M28UnitInfo.IsUnitRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
                 bCantBuild = true
             end
         end
@@ -236,8 +236,12 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
     if not(bUnitRestrictionsArePresent) then
         --Check if campaign or map has any active restrictions
-        if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
-        if M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
+        if M28Utilities.bFAFActive then
+            if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Not in FAF so normal method of checking for unit restrictions wont work') end
+        end
+        if M28Utilities.bFAFActive and M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
             bUnitRestrictionsArePresent = true
         end
     end
@@ -391,7 +395,7 @@ function M28BrainCreated(aiBrain)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-    elseif aiBrain.CheatEnabled and aiBrain.CampaignAI and ScenarioInfo.Options.CmApplyAIx == 1 then
+    elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
         if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
         SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
     end
@@ -408,6 +412,22 @@ function M28BrainCreated(aiBrain)
     if not(bInitialSetup) then
         bInitialSetup = true
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
+        _G.reprs = rawget(_G, 'reprs') or
+                function(tTable)
+                    if tTable == nil then
+                        return 'nil'
+                    else
+                        local tEntries = {}
+                        for iEntry, vValue in tTable do
+                            if type(tTable) == "table" then
+                                table.insert(tEntries, 'iEntry '..iEntry..' is a table')
+                            else
+                                table.insert(tEntries, 'iEntry '..iEntry..'='..vValue)
+                            end
+                        end
+                        return repr(tEntries)
+                    end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
+                end
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
@@ -423,7 +443,7 @@ function M28BrainCreated(aiBrain)
         end
         ForkThread(GlobalOverseer)
     end
-
+    LOG('Calling overseer manager via a fork')
     ForkThread(OverseerManager, aiBrain)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -531,7 +551,7 @@ function TestCustom(aiBrain)
             tsLotsOfStrings[iCurEntry][iNextEntry] = 'Test of string 1'..'Test of string 2'..'Test of string 3'
         end
     end--]]
-    --local NavUtils = import("/lua/sim/navutils.lua")
+    --local NavUtils = M28Utilities.NavUtils
     --local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
     --LOG(sFunctionRef..': iLandTravelDistance='..iLandTravelDistance)
     --LOG(sFunctionRef..': All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
@@ -573,7 +593,7 @@ function TestCustom(aiBrain)
     --LOG('Repru of WZData other pathing='..reprs(tWZData[M28Map.subrefWZOtherWaterZones]))
 
     --Setons hover label testing
-    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    --[[local NavUtils = M28Utilities.NavUtils
     local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
     for iLocation, tLocation in tLocations do
         M28Utilities.DrawLocation(tLocation, iLocation)
@@ -665,7 +685,7 @@ function TestCustom(aiBrain)
     end--]]
 
     --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
-    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    --[[local NavUtils = M28Utilities.NavUtils
     local tPosition = { 260.06228637695, 67.514915466309, 148.83508300781 }
     M28Utilities.DrawLocation(tPosition)
     LOG('NavUtils for tPosition='..(NavUtils.GetLabel('Land', tPosition) or 'nil'))--]]
@@ -753,7 +773,7 @@ function Initialisation(aiBrain)
     end
     WaitTicks(1) --make sure brain setup will have run
     aiBrain[refbInitialised] = true
-    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated())) end
+    if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)) end
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)
@@ -782,6 +802,7 @@ function Initialisation(aiBrain)
     ForkThread(DelayedCheckOfUnitsAtStartOfGame)
     ForkThread(DecideOnGeneralMapStrategy, aiBrain)
     ForkThread(M28Chat.ConsiderPerTeamStartMessage, aiBrain)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished initialisation') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1164,20 +1185,28 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheckProfiling)
-
-    --Make sure map setup will be done
-    WaitTicks(1)
-    while not(M28Map.bMapLandSetupComplete) do
-        WaitTicks(1)
-    end
-
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+    --Make sure map setup will be done
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    while not(M28Map.bMapLandSetupComplete) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Waiting for maplandsetup to be done, time='..GetGameTimeSeconds()) end
+    end
+
+
+
+
 
     --Initialise main systems
+    if bDebugMessages == true then LOG(sFunctionRef..': About to cork of initialization') end
     ForkThread(Initialisation, aiBrain)
 
     --Wait until we can give orders before doing main logic
@@ -1192,6 +1221,7 @@ function OverseerManager(aiBrain)
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
     if M28Config.M28RunMemoryProfiling then ForkThread(M28Profiler.ShowFileMemoryUsage) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to run main overseer loop') end
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
 
@@ -2204,7 +2234,7 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         if ScenarioInfo.Options.CmM28Easy == 1 then
             aiBrain.M28Easy = true
         end
-        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false))
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false)..'; aiBrain.M28Easy='..tostring(aiBrain.M28Easy or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end

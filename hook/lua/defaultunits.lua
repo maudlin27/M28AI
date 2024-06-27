@@ -4,15 +4,232 @@
 ---
 ---
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
-
-local M28OldACUUnit = ACUUnit
-ACUUnit = Class(M28OldACUUnit) {
-    OnKilled = function(self, instigator, type, overkillRatio)
-        M28Events.OnKilled(self, instigator, type, overkillRatio)
-        M28OldACUUnit.OnKilled(self, instigator, type, overkillRatio)
-    end,
-    CreateEnhancement = function(self, enh)
-        ForkThread(M28Events.OnEnhancementComplete, self, enh)
-        return M28OldACUUnit.CreateEnhancement(self, enh)
+--safeGetGlobal provided by chatGPT
+local function safeGetGlobal(varName)
+    local success, value = pcall(function() return _G[varName] end)
+    if success then
+        return value
+    else
+        return nil
     end
-}
+end
+
+local M28OldACUUnit = safeGetGlobal('ACUUnit') or function()  end
+if safeGetGlobal('ACUUnit') then
+    _G.ACUUnit = Class(M28OldACUUnit) {
+        OnKilled = function(self, instigator, type, overkillRatio)
+            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            M28OldACUUnit.OnKilled(self, instigator, type, overkillRatio)
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28OldACUUnit.CreateEnhancement(self, enh)
+        end
+    }
+end
+
+--NOTE: The below may not be needed for LOUD - added to try and resovle issue with Unit.lua not working, but when switched the Unit.lua hook of OnCreate to earlier on it resolved
+--[[
+local M28StructureUnit = safeGetGlobal('StructureUnit') or function()  end
+if safeGetGlobal('StructureUnit') then
+    _G.StructureUnit = Class(M28StructureUnit) {
+        OnKilled = function(self, instigator, type, overkillRatio)
+            LOG('StructureUnit OnKilled from default.units.lua')
+            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            M28StructureUnit.OnKilled(self, instigator, type, overkillRatio)
+        end,
+        CreateEnhancement = function(self, enh)
+            LOG('StructureUnit CreateEnhancement from default.units.lua')
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28StructureUnit.CreateEnhancement(self, enh)
+        end,
+        OnReclaimed = function(self, reclaimer)
+            LOG('StructureUnit OnReclaimed from default.units.lua')
+            M28Events.OnKilled(self, reclaimer)
+            M28StructureUnit.OnReclaimed(self, reclaimer)
+        end,
+        OnDecayed = function(self)
+            LOG('StructureUnit OnDecayed from default.units.lua')
+            LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnUnitDeath(self)
+            M28StructureUnit.OnDecayed(self)
+        end,
+        OnKilledUnit = function(self, unitKilled, massKilled)
+            LOG('StructureUnit OnKilledUnit from default.units.lua')
+            M28Events.OnKilled(unitKilled, self)
+            M28StructureUnit.OnKilledUnit(self, unitKilled, massKilled)
+        end,
+        OnDestroy = function(self)
+            LOG('StructureUnit OnDestroy from default.units.lua')
+            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            M28StructureUnit.OnDestroy(self) --Normal code
+        end,
+        OnDamage = function(self, instigator, amount, vector, damageType)
+            LOG('StructureUnit OnDamage from default.units.lua')
+            M28StructureUnit.OnDamage(self, instigator, amount, vector, damageType)
+            M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
+        end,
+        OnSiloBuildEnd = function(self, weapon)
+            LOG('StructureUnit OnSiloBuildEnd from default.units.lua')
+            M28StructureUnit.OnSiloBuildEnd(self, weapon)
+            M28Events.OnMissileBuilt(self, weapon)
+        end,
+        OnStartBuild = function(self, built, order, ...)
+            LOG('StructureUnit OnStartBuild from default.units.lua')
+            ForkThread(M28Events.OnConstructionStarted, self, built, order)
+            return M28StructureUnit.OnStartBuild(self, built, order, unpack(arg))
+        end,
+        OnStartReclaim = function(self, target)
+            LOG('StructureUnit OnStartReclaim from default.units.lua')
+            ForkThread(M28Events.OnReclaimStarted, self, target)
+            return M28StructureUnit.OnStartReclaim(self, target)
+        end,
+        OnStopReclaim = function(self, target)
+            LOG('StructureUnit OnStopReclaim from default.units.lua')
+            ForkThread(M28Events.OnReclaimFinished, self, target)
+            return M28StructureUnit.OnStopReclaim(self, target)
+        end,
+
+        OnStopBuild = function(self, unit)
+            LOG('StructureUnit OnStopBuild from default.units.lua')
+            if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then
+                ForkThread(M28Events.OnConstructed, self, unit)
+            end
+            return M28StructureUnit.OnStopBuild(self, unit)
+        end,
+
+        OnAttachedToTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportLoad, self, transport, bone)
+            return M28StructureUnit.OnAttachedToTransport(self, transport, bone)
+        end,
+        OnDetachedFromTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportUnload, self, transport, bone)
+            return M28StructureUnit.OnDetachedFromTransport(self, transport, bone)
+        end,
+        OnDetectedBy = function(self, index)
+
+            ForkThread(M28Events.OnDetectedBy, self, index)
+            return M28StructureUnit.OnDetectedBy(self, index)
+        end,
+        OnCreate = function(self)
+            M28StructureUnit.OnCreate(self)
+            ForkThread(M28Events.OnCreate, self)
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28StructureUnit.CreateEnhancement(self, enh)
+        end,
+        OnMissileImpactTerrain = function(self, target, position)
+            ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
+            return M28StructureUnit.OnMissileImpactTerrain(self, target, position)
+        end,
+        OnMissileIntercepted = function(self, target, defense, position)
+            ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
+            return M28StructureUnit.OnMissileIntercepted(self, target, defense, position)
+        end,
+        OnTeleportUnit = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
+            return M28StructureUnit.OnTeleportUnit(self, teleporter, location, orientation)
+        end,
+        InitiateTeleportThread = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
+            return M28StructureUnit.InitiateTeleportThread(self, teleporter, location, orientation)
+        end,
+    }
+end
+
+local M28MobileUnit = safeGetGlobal('MobileUnit') or function()  end
+if safeGetGlobal('MobileUnit') then
+    _G.MobileUnit = Class(M28MobileUnit) {
+        OnKilled = function(self, instigator, type, overkillRatio)
+            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            M28MobileUnit.OnKilled(self, instigator, type, overkillRatio)
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28MobileUnit.CreateEnhancement(self, enh)
+        end,
+        OnReclaimed = function(self, reclaimer)
+            M28Events.OnKilled(self, reclaimer)
+            M28MobileUnit.OnReclaimed(self, reclaimer)
+        end,
+        OnDecayed = function(self)
+            LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnUnitDeath(self)
+            M28MobileUnit.OnDecayed(self)
+        end,
+        OnKilledUnit = function(self, unitKilled, massKilled)
+            M28Events.OnKilled(unitKilled, self)
+            M28MobileUnit.OnKilledUnit(self, unitKilled, massKilled)
+        end,
+        OnDestroy = function(self)
+            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            M28MobileUnit.OnDestroy(self) --Normal code
+        end,
+        OnDamage = function(self, instigator, amount, vector, damageType)
+            M28MobileUnit.OnDamage(self, instigator, amount, vector, damageType)
+            M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
+        end,
+        OnSiloBuildEnd = function(self, weapon)
+            M28MobileUnit.OnSiloBuildEnd(self, weapon)
+            M28Events.OnMissileBuilt(self, weapon)
+        end,
+        OnStartBuild = function(self, built, order, ...)
+            ForkThread(M28Events.OnConstructionStarted, self, built, order)
+            return M28MobileUnit.OnStartBuild(self, built, order, unpack(arg))
+        end,
+        OnStartReclaim = function(self, target)
+            ForkThread(M28Events.OnReclaimStarted, self, target)
+            return M28MobileUnit.OnStartReclaim(self, target)
+        end,
+        OnStopReclaim = function(self, target)
+            ForkThread(M28Events.OnReclaimFinished, self, target)
+            return M28MobileUnit.OnStopReclaim(self, target)
+        end,
+
+        OnStopBuild = function(self, unit)
+            if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then
+                ForkThread(M28Events.OnConstructed, self, unit)
+            end
+            return M28MobileUnit.OnStopBuild(self, unit)
+        end,
+
+        OnAttachedToTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportLoad, self, transport, bone)
+            return M28MobileUnit.OnAttachedToTransport(self, transport, bone)
+        end,
+        OnDetachedFromTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportUnload, self, transport, bone)
+            return M28MobileUnit.OnDetachedFromTransport(self, transport, bone)
+        end,
+        OnDetectedBy = function(self, index)
+
+            ForkThread(M28Events.OnDetectedBy, self, index)
+            return M28MobileUnit.OnDetectedBy(self, index)
+        end,
+        OnCreate = function(self)
+            M28MobileUnit.OnCreate(self)
+            ForkThread(M28Events.OnCreate, self)
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            return M28MobileUnit.CreateEnhancement(self, enh)
+        end,
+        OnMissileImpactTerrain = function(self, target, position)
+            ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
+            return M28MobileUnit.OnMissileImpactTerrain(self, target, position)
+        end,
+        OnMissileIntercepted = function(self, target, defense, position)
+            ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
+            return M28MobileUnit.OnMissileIntercepted(self, target, defense, position)
+        end,
+        OnTeleportUnit = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
+            return M28MobileUnit.OnTeleportUnit(self, teleporter, location, orientation)
+        end,
+        InitiateTeleportThread = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
+            return M28MobileUnit.InitiateTeleportThread(self, teleporter, location, orientation)
+        end,
+    }
+end--]]
