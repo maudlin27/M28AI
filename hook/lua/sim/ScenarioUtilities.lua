@@ -34,13 +34,13 @@ if safeGetGlobal('CreateArmyGroupAsPlatoon') then M28OldACreateArmyGroupAsPlatoo
 if M28OldACreateArmyGroupAsPlatoon then
     --_G.CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
     CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
-        LOG('CreateArmyGroupAsPlatoon start')
+        --LOG('CreateArmyGroupAsPlatoon start')
         local oPlatoon = M28OldACreateArmyGroupAsPlatoon(strArmy, strGroup, formation, tblNode, platoon, balance)
 
         ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ScenarioPlatoonCreated, oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
         return oPlatoon
     end
-    --LOG('Hooked CreateArmyGroupAsPlatoon')
+    LOG('Hooked CreateArmyGroupAsPlatoon')
 else
     LOG('Unable to hook CreateArmyGroupAsPlatoon')
 end

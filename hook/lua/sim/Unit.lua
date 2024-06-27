@@ -18,7 +18,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 M28OldUnit.OnReclaimed(self, reclaimer)
             end,
             OnDecayed = function(self)
-                LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+                --LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
                 M28Events.OnUnitDeath(self)
                 M28OldUnit.OnDecayed(self)
             end,
@@ -264,7 +264,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             if M28OldUnit.OnReclaimed then M28OldUnit.OnReclaimed(self, reclaimer) end
         end,
         OnDecayed = function(self)
-            LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            --LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
             M28Events.OnUnitDeath(self)
             if M28OldUnit.OnDecayed then M28OldUnit.OnDecayed(self) end
         end,
