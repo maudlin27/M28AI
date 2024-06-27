@@ -62,7 +62,7 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
         if M28Utilities.bLoudModActive then
             import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
             local oBrain = self
-            LOG('oBrain='..(oBrain.Nickname or 'nil')..'; ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI'))
+            LOG('oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..': ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false))
             if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
                 --If we have no team, or our team is an odd number, then use M28
                 local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
@@ -82,157 +82,82 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
             if self.M28AI or self.M28Easy then
                 self.CheatingAI = false
 
-                -- store which team we're on
-                if ScenarioInfo.ArmySetup[self.Name].Team == 1 then
-                    self.Team = -1 * self.ArmyIndex  -- no team specified
-                else
-                    self.Team = ScenarioInfo.ArmySetup[self.Name].Team  -- specified team number
-                end
+                -- Base counters
+                self.NumBases = 0
+                self.NumBasesLand = 0
+                self.NumBasesNaval = 0
 
-                local Opponents = 0
-                local TeamSize = 1
+                -- Veterancy multiplier
+                self.VeterancyMult = 1.0
 
-                -- calculate team sizes
-                for index, playerInfo in ArmyBrains do
+                -- Create the SelfUpgradeIssued counter
+                -- holds the number of units that have recently issued a self-upgrade
+                -- is used to limit the # of self-upgrades that can be issued in a given time
+                -- to avoid having more than X units trying to upgrade at once
+                self.UpgradeIssued = 0
 
-                    if ArmyIsCivilian(playerInfo.ArmyIndex) or index == self.ArmyIndex then continue end
+                self.UpgradeIssuedLimit = 1
+                self.UpgradeIssuedPeriod = 225
 
-                    if IsAlly( index, self.ArmyIndex) then
-                        TeamSize = TeamSize + 1
-                    else
-                        Opponents = Opponents + 1
-                    end
+                -- if outnumbered increase the number of simultaneous upgrades allowed
+                -- and reduce the waiting period by 2 seconds ( about 10% )
+                if self.OutnumberedRatio > 1.0 then
 
-                end
+                    self.UpgradeIssuedLimit = self.UpgradeIssuedLimit + 1
+                    self.UpgradeIssuedPeriod = self.UpgradeIssuedPeriod - 20
 
-                local color = ScenarioInfo.ArmySetup[self.Name].WheelColor
+                    -- if really outnumbered do this a second time
+                    if self.OutnumberedRatio > 1.5 then
 
-                SetArmyColor(self.ArmyIndex, color[1], color[2], color[3])
+                        self.UpgradeIssuedLimit = self.UpgradeIssuedLimit + 1
+                        self.UpgradeIssuedPeriod = self.UpgradeIssuedPeriod - 20
 
-                -- Don't need WheelColor anymore, so delete it
-                ScenarioInfo.ArmySetup[self.Name].WheelColor = nil
+                        -- if really badly outnumbered then we do it a 3rd time
+                        if self.OutnumberedRatio > 2.0 then
 
-                if ScenarioInfo.Options.AIFactionColor == 'on' and self.BrainType ~= 'Human' then
-                    -- These colours are based on the lobby faction dropdown icons
-                    if self.FactionIndex == 1 then
-                        SetArmyColor(self.ArmyIndex, 44, 159, 200)
-                    elseif self.FactionIndex == 2 then
-                        SetArmyColor(self.ArmyIndex, 104, 171, 77)
-                    elseif self.FactionIndex == 3 then
-                        SetArmyColor(self.ArmyIndex, 255, 0, 0)
-                    elseif self.FactionIndex == 4 then
-                        SetArmyColor(self.ArmyIndex, 254, 189, 44)
+                            self.UpgradeIssuedLimit = self.UpgradeIssuedLimit + 1
+                            self.UpgradeIssuedPeriod = self.UpgradeIssuedPeriod - 20
+
+                        end
                     end
                 end
 
-                -- number of Opponents in the game
-                self.NumOpponents = Opponents
+                LOG("*AI DEBUG "..self.Nickname.." Upgrade Issued Limit is "..self.UpgradeIssuedLimit.." Standard Upgraded Issued Delay Period is "..self.UpgradeIssuedPeriod )
 
-                -- default outnumbered ratio
-                self.OutnumberedRatio = 1
+                -- set the base radius according to map size -- affects platoon formation radius and base alert radius
 
-                -- number of players in the game
-                self.Players = ScenarioInfo.Options.PlayerCount
 
-                LOG("M28InitializeSkirmishSystems *AI DEBUG "..self.Nickname.." Team "..self.Team.." Teamsize is "..TeamSize.." Opponents is "..Opponents)
+                -- record the starting unit cap
+                -- caps of 1000+ trigger some conditions
+                self.StartingUnitCap = GetArmyUnitCap(self.ArmyIndex)
 
-                self.TeamSize = TeamSize
-
-                if self.TeamSize > ScenarioInfo.biggestTeamSize then
-                    ScenarioInfo.biggestTeamSize = TeamSize
-                end
+                --if self.CheatingAI then
+                    import('/lua/ai/aiutilities.lua').SetupAICheat( self )
+                --end
 
                 return
             else
-                LOG('Calling normal OrigInitializeSkirmishSystems logic for brain '..self.Nickname)
+                LOG('Calling normal LOUD OrigInitializeSkirmishSystems logic for brain '..self.Nickname)
                 --OrigInitializeSkirmishSystems(self) --Get an error when using the default function - the below was copied from the LOUD version in early-mid June 2024
 
-                -- store which team we're on
-                if ScenarioInfo.ArmySetup[self.Name].Team == 1 then
-                    self.Team = -1 * self.ArmyIndex  -- no team specified
-                else
-                    self.Team = ScenarioInfo.ArmySetup[self.Name].Team  -- specified team number
-                end
-
-                local Opponents = 0
-                local TeamSize = 1
-
-                -- calculate team sizes
-                for index, playerInfo in ArmyBrains do
-
-                    if ArmyIsCivilian(playerInfo.ArmyIndex) or index == self.ArmyIndex then continue end
-
-                    if IsAlly( index, self.ArmyIndex) then
-                        TeamSize = TeamSize + 1
-                    else
-                        Opponents = Opponents + 1
-                    end
-
-                end
-
-                local color = ScenarioInfo.ArmySetup[self.Name].WheelColor
-
-                SetArmyColor(self.ArmyIndex, color[1], color[2], color[3])
-
-                -- Don't need WheelColor anymore, so delete it
-                ScenarioInfo.ArmySetup[self.Name].WheelColor = nil
-
-                if ScenarioInfo.Options.AIFactionColor == 'on' and self.BrainType ~= 'Human' then
-                    -- These colours are based on the lobby faction dropdown icons
-                    if self.FactionIndex == 1 then
-                        SetArmyColor(self.ArmyIndex, 44, 159, 200)
-                    elseif self.FactionIndex == 2 then
-                        SetArmyColor(self.ArmyIndex, 104, 171, 77)
-                    elseif self.FactionIndex == 3 then
-                        SetArmyColor(self.ArmyIndex, 255, 0, 0)
-                    elseif self.FactionIndex == 4 then
-                        SetArmyColor(self.ArmyIndex, 254, 189, 44)
-                    end
-                end
-
-                -- number of Opponents in the game
-                self.NumOpponents = Opponents
-
-                -- default outnumbered ratio
-                self.OutnumberedRatio = 1
-
-                -- number of players in the game
-                self.Players = ScenarioInfo.Options.PlayerCount
-
-                LOG("*AI DEBUG "..self.Nickname.." Team "..self.Team.." Teamsize is "..TeamSize.." Opponents is "..Opponents)
-
-                self.TeamSize = TeamSize
-
-                if self.TeamSize > ScenarioInfo.biggestTeamSize then
-                    ScenarioInfo.biggestTeamSize = TeamSize
-                end
-                if self.M28AI or self.M28Easy then return end
                 -- don't do anything else for a human player
                 if self.BrainType == 'Human' then
                     return
                 end
 
-                self.OutnumberedRatio = math.max( 1, ScenarioInfo.biggestTeamSize/self.TeamSize )
-
-                if self.OutnumberedRatio > 1 then
-                    LOG("*AI DEBUG "..self.Nickname.." OutnumberedRatio is "..self.OutnumberedRatio)
-                end
-
                 -- put some initial threat at all enemy positions
                 for k,brain in ArmyBrains do
 
-                    --LOG("*AI DEBUG Reviewing Brain "..repr(brain.Nickname).." "..repr(brain) )
+                    if self.ArmyIndex != brain.ArmyIndex and brain.Nickname != 'civilian' and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
 
-                    if not(self.ArmyIndex == brain.ArmyIndex) and not(brain.Nickname == 'civilian') and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
+                local place = brain:GetStartVector3f()
+                local threatlayer = 'AntiAir'
 
-                        local place = brain:GetStartVector3f()
-                        local threatlayer = 'AntiAir'
+                --LOG("*AI DEBUG "..brain.Nickname.." "..brain.BrainType.." enemy found at "..repr(place).." posting Economy threat")
 
-                        --LOG("*AI DEBUG "..brain.Nickname.." "..brain.BrainType.." enemy found at "..repr(place).." posting Economy threat")
-
-                        -- assign 500 ecothreat for 10 minutes
-                        self:AssignThreatAtPosition( place, 5000, 0.005, 'Economy' )
-                    end
+                -- assign 500 ecothreat for 10 minutes
+                self:AssignThreatAtPosition( place, 5000, 0.005, 'Economy' )
+                end
                 end
 
                 if ScenarioInfo.Options.AIResourceSharing == 'off' then
@@ -241,8 +166,6 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
 
                 elseif ScenarioInfo.Options.AIResourceSharing == 'aiOnly' then
 
-                    local allPlayersAI = true
-
                     for i, playerInfo in ArmyBrains do
 
                         -- If this AI is allied to a human, disable resource sharing
@@ -250,9 +173,7 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
 
                             self:SetResourceSharing(false)
                             break
-
                         end
-
                     end
 
                 else
@@ -361,12 +282,11 @@ if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems
 
                 self.ArmyPool = armypool
 
-
                 -- Start the Dead Base Monitor
                 self:ForkThread1( loudUtils.DeadBaseMonitor )
 
-                -- Start the Enemy Picker
-                self:ForkThread1( loudUtils.PickEnemy )
+                -- Start the Enemy Picker (AttackPlanner, etc)
+                self.EnemyPickerThread = self:ForkThread( loudUtils.PickEnemy )
 
                 -- Start the Path Generator
                 self:ForkThread1( loudUtils.PathGeneratorThread )
