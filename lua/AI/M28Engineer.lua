@@ -4261,24 +4261,26 @@ end
 
 function RefreshPartBuiltMexList(tLZOrWZTeamData)
     local iRevisedIndex = 1
-    local iTableSize = table.getn(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes])
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
+        local iTableSize = table.getn(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes])
 
-    for iOrigIndex=1, iTableSize do
-        if M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex]) and tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex]:GetFractionComplete() < 1 then
-            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-            if (iOrigIndex ~= iRevisedIndex) then
-                tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iRevisedIndex] = tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex];
+        for iOrigIndex=1, iTableSize do
+            if M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex]) and tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex]:GetFractionComplete() < 1 then
+                --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                if (iOrigIndex ~= iRevisedIndex) then
+                    tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iRevisedIndex] = tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex];
+                    tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex] = nil;
+                end
+                iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+            else
                 tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex] = nil;
             end
-            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-        else
-            tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes][iOrigIndex] = nil;
         end
-    end
-    if iRevisedIndex < iTableSize then
-        --table.setn(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRevisedIndex - 1)
-        for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
-            table.remove(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRemovalEntry)
+        if iRevisedIndex < iTableSize then
+            --table.setn(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRevisedIndex - 1)
+            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                table.remove(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes], iRemovalEntry)
+            end
         end
     end
 end
