@@ -19,16 +19,20 @@ local function safeGetGlobal(varName)
     end--]]
 end
 
-local M28OldACreateArmyGroupAsPlatoon = safeGetGlobal("CreateArmyGroupAsPlatoon") or function() end
+local M28OldACreateArmyGroupAsPlatoon = safeGetGlobal('CreateArmyGroupAsPlatoon') or function() end --CreateArmyGroupAsPlatoon --safeGetGlobal("CreateArmyGroupAsPlatoon") or function() end
 
-if safeGetGlobal("CreateArmyGroupAsPlatoon") then
-    _G.CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
-        --LOG('CreateArmyGroupAsPlatoon start')
+if M28OldACreateArmyGroupAsPlatoon then
+    --_G.CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
+    CreateArmyGroupAsPlatoon = function(strArmy, strGroup, formation, tblNode, platoon, balance)
+        LOG('CreateArmyGroupAsPlatoon start')
         local oPlatoon = M28OldACreateArmyGroupAsPlatoon(strArmy, strGroup, formation, tblNode, platoon, balance)
 
         ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ScenarioPlatoonCreated, oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
         return oPlatoon
     end
+    --LOG('Hooked CreateArmyGroupAsPlatoon')
+else
+    LOG('Unable to hook CreateArmyGroupAsPlatoon')
 end
 
 --[[local M28OldACreateArmyGroupAsPlatoon = CreateArmyGroupAsPlatoon
