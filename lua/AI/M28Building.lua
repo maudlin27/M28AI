@@ -1302,7 +1302,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tUnitPosition='..repru(tUnitPosition)) end
 
-    if sUnitRef..sLifetimeCount == 'uab11037' then bDebugMessages = true end
+
 
     --local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition)

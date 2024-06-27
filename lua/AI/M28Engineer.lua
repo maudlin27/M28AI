@@ -1124,8 +1124,17 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 then
-        if bBuildCheapestStructure then M28Utilities.ErrorHandler('Want cheapest pgen despite having T2 engi, gross aiBrain energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team gross='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy]) end
+    if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 and bBuildCheapestStructure then
+        --We might also choose to build t1 pgens if we had no T2+ available (i.e. this t2 engi might have been doing a lower priority task so was unavailable, and has been repurposed to building power), in which case switch
+        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; will be building t1 power despite being T2+, engineer action='..(oEngineer[refiAssignedAction] or 'nil')..'; Is engineer available='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true))) end
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] > 34 * M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] then
+            --Switch to T2 as we should have enough energy, and looks like we do have a T2 engineer available; i.e. earlier in the code we set our tech level for power, based on gross energy and available engineers; so its possible we set it at t1 thinking we dont have t2 engineers available and/or for some other reason, hence this will switch back if we both ahve a T2+ engi, and enough gross energy to support building a t2 pgen
+            bBuildCheapestStructure = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Will no loner get the cheapest pgen') end
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] > 75 * M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] then
+                M28Utilities.ErrorHandler('Wanted cheapest pgen despite having T2 engi and what appears to be enough gross energy, will revert back to T2 tech, gross aiBrain energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team gross='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy]..'; oEngineer owner='..oEngineer:GetAIBrain().Nickname, true)
+            end
+        end
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname) end
@@ -9651,7 +9660,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --vOptionalVariable can be used for action specific information to save having to recalculate the same thing - could be a table, nil, or a value
         ConsiderActionToAssign(iActionToAssign, math.max(1, iMinTechLevelWanted), iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers, false, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
     end
-
     if bDebugMessages == true then
         LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iTeam='..(iTeam or 'nil')..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; Team gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Lowest mass % stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; Team mass stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 'nil')..'; Team net mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] or 'nil')..'; Team gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil'))
         LOG(sFunctionRef..': Repeat of log but without the nil backups to help identify errors, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Lowest mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])
@@ -9668,10 +9676,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': iPowerMod='..iPowerMod..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')..'; Brain='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')..'; Resource mod='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiBrainResourceMultiplier] or 'nil')..'; iHighestTechInZone='..iHighestTechInZone..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)) end
 
         local iPlayerCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 23 * iPowerMod * iPlayerCount then iMinTechLevelForPower = 1
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 23 * iPowerMod * iPlayerCount then
+            if bDebugMessages == true then LOG(sFunctionRef..': We have so little base energy that want a few more T1 pgens before trying to get a higher tech') end
+            iMinTechLevelForPower = 1
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 * iPowerMod * iPlayerCount then
             iMinTechLevelForPower = math.min(2, iHighestTechInZone)
-            if bDebugMessages == true then LOG(sFunctionRef..': We have enough gross energy that we can wait for this zones highest tech, iHighestTechInZone='..iHighestTechInZone) end
+            if bDebugMessages == true then LOG(sFunctionRef..': We have enough gross energy that we can get T2 pgens (or wait for a t2 engi to be available), iHighestTechInZone='..iHighestTechInZone) end
         else
             if bHaveLowPower and not(bHaveLowMass) then
                 iMinTechLevelForPower = iHighestTechInZone
@@ -9682,10 +9692,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
         if iMinTechLevelForPower > 1 and bHaveLowPower and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == iMinTechLevelForPower then
-            --Do we have at least 2 engis of the desired tech level in this zone? if not, then lower power requirements by 1 tier
+            --Do we have at least 1 available engi of the desired tech level in this zone? if not, then lower power requirements by 1 tier
             if M28Utilities.IsTableEmpty(toAvailableEngineersByTech[iMinTechLevelForPower]) then
                 iMinTechLevelForPower = iMinTechLevelForPower - 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Lowering power tech required by 1 tier') end
+                if bDebugMessages == true then LOG(sFunctionRef..': We have low power and significant mass so no longer want to wait for a higher tech engi to become available but instad want to just get some power built, Lowering power tech required by 1 tier') end
             end
         end
 

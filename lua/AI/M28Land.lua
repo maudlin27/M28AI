@@ -3385,7 +3385,7 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
                     if bDebugMessages == true then LOG(sFunctionRef..': Will clear unit orders and wait a bit, unit approx speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
                     local iTotalTimeWaited = 0
                     M28Orders.IssueTrackedClearCommands(oUnit)
-                    while M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
+                    while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.GetUnitSpeed(oUnit) >= 0.75 and iTotalTimeWaited <= 9 do
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
                         iTotalTimeWaited = iTotalTimeWaited + 1
