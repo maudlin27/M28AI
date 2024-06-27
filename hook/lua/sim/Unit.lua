@@ -10,8 +10,8 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
     Unit = Class(M28OldUnit) {
         OnCreate = function(self)
             --LOG('M28OnCreate triggering from unit.lua')
-            if M28OldUnit.OnCreate then M28OldUnit.OnCreate(self) end
             ForkThread(M28Events.OnCreate, self)
+            if M28OldUnit.OnCreate then M28OldUnit.OnCreate(self) end
         end,
         OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
             --LOG('M28OnKilled triggering from unit.lua, self='..(self.UnitId or 'nil'))
@@ -21,18 +21,18 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
         OnReclaimed = function(self, reclaimer)
             --LOG('M28OnReclaimed triggering from unit.lua')
-            if M28OldUnit.OnReclaimed then M28Events.OnKilled(self, reclaimer) end
-            M28OldUnit.OnReclaimed(self, reclaimer)
+            M28Events.OnKilled(self, reclaimer)
+            if M28OldUnit.OnReclaimed then M28OldUnit.OnReclaimed(self, reclaimer) end
         end,
         OnDecayed = function(self)
             --LOG('M28OnDecayed triggering from unit.lua, Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-            if M28OldUnit.OnUnitDeath then M28Events.OnUnitDeath(self) end
-            M28OldUnit.OnDecayed(self)
+            M28Events.OnUnitDeath(self)
+            if M28OldUnit.OnDecayed then M28OldUnit.OnDecayed(self) end
         end,
         OnKilledUnit = function(self, unitKilled, massKilled)
-            --LOG('M28OnKilledUnit triggering from unit.lua')
-            if M28OldUnit.OnKilled then M28Events.OnKilled(unitKilled, self) end
-            M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
+            --LOG('M28OnKilledUnit triggering from unit.lua, self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnKilled(unitKilled, self)
+            if M28OldUnit.OnKilled then M28OldUnit.OnKilledUnit(self, unitKilled, massKilled) end
         end,
         --[[OnFailedToBeBuilt = function(self)
             --LOG('OnFailedToBeBuilt: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
@@ -40,8 +40,8 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,--]]
         OnDestroy = function(self)
             --LOG('M28OnDestroy triggering from unit.lua')
-            if M28OldUnit.OnUnitDeath then M28Events.OnUnitDeath(self) end --Any custom code we want to run
-            M28OldUnit.OnDestroy(self) --Normal code
+            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            if M28OldUnit.OnUnitDeath then M28OldUnit.OnDestroy(self) end --Normal code
         end,
         --[[OnWorkEnd = function(self, work)
             M28Events.OnWorkEnd(self, work)
@@ -89,23 +89,31 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         OnDetectedBy = function(self, index)
             --LOG('M28OnDetectedBy triggering from unit.lua')
             ForkThread(M28Events.OnDetectedBy, self, index)
-            return M28OldUnit.OnDetectedBy(self, index)
+            if M28OldUnit.OnDetectedBy then
+                return M28OldUnit.OnDetectedBy(self, index)
+            end
         end,
         CreateEnhancement = function(self, enh)
             --LOG('M28OnCreateEnhancement triggering from unit.lua')
             ForkThread(M28Events.OnEnhancementComplete, self, enh)
-            return M28OldUnit.CreateEnhancement(self, enh)
+            if M28OldUnit.CreateEnhancement then
+                return M28OldUnit.CreateEnhancement(self, enh)
+            end
         end,
 
         OnTeleportUnit = function(self, teleporter, location, orientation)
             --LOG('M28OnTeleportUnit triggering from unit.lua')
             ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
-            return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation)
+            if M28OldUnit.OnTeleportUnit then
+                return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation)
+            end
         end,
         InitiateTeleportThread = function(self, teleporter, location, orientation)
             --LOG('M28InitiateTeleportThread triggering from unit.lua')
             ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
-            return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation)
+            if M28OldUnit.InitiateTeleportThread then
+                return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation)
+            end
         end,
 
 

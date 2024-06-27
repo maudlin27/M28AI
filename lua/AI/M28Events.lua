@@ -106,7 +106,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
         local sFunctionRef = 'OnKilled'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        if oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled) == 'uab11037' then bDebugMessages = true end
         if bDebugMessages == true then LOG(sFunctionRef..': event triggered for unit '..(oUnitKilled.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitKilled) or 'nil')..' owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; Have already run='..tostring(oUnitKilled[refbAlreadyRunUnitKilled] or false)) end
 
         if not(oUnitKilled[refbAlreadyRunUnitKilled]) then
@@ -280,7 +280,7 @@ function OnUnitDeath(oUnit)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uab11037' then bDebugMessages = true end
 
         if bDebugMessages == true then
             LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false))
@@ -337,6 +337,7 @@ function OnUnitDeath(oUnit)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                             --Record mex position first as it is a forked thread so may lose position if the unit dies; however ignore if looks like an upgrading mex unit
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have a mex that has died, checking if it was the upgrading element, .CanTakeDamage='..tostring(oUnit.CanTakeDamage or false)..'; .IsUpgrade='..tostring(oUnit.IsUpgrade or false)) end
                             if not(oUnit.CanTakeDamage == false and oUnit.IsUpgrade == true) then
                                 local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
