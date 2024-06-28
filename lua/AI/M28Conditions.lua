@@ -3078,3 +3078,7 @@ function AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function DoesAINicknameContainM28(sNickname)
+    return M28Utilities.DoesAINicknameContainM28(sNickname)
+end
