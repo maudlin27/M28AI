@@ -82,8 +82,8 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
             if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
                 --If we have no team, or our team is an odd number, then use M28
                 local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
-                LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam..'; ScenarioInfo.Options.M28Teams='..(ScenarioInfo.Options.M28Teams or 'nil')..'; M28Utilities.DoesAINicknameContainM28(oBrain.Nickname)='..tostring(M28Utilities.DoesAINicknameContainM28(oBrain.Nickname)))
-                if M28Utilities.DoesAINicknameContainM28(oBrain.Nickname) or tonumber(ScenarioInfo.Options.M28Teams) == 3 or (tonumber(ScenarioInfo.Options.M28Teams) == 2 and (iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7)) then
+                LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam..'; ScenarioInfo.Options.M28Teams='..(ScenarioInfo.Options.M28Teams or 'nil'))
+                if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7 then
                     LOG('Will apply M28 logic to the AI')
                     oBrain.M28AI = true
                     if ScenarioInfo.Options.CmM28Easy == 1 then
