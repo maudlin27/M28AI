@@ -892,3 +892,20 @@ function DelayedFunction(iDelayInSeconds, fnFunction, tArguments)
     WaitSeconds(iDelayInSeconds)
     fnFunction(unpack(tArguments))
 end
+
+--Below written by ChatGPT; included here instead of in M28Conditions so dont have to load as many modules
+function DoesAINicknameContainM28(sNickname)
+    local suffixes = {
+        "%(AI: M28%)$",
+        "%(AIx: M28%)$",
+        "%(AI: M28 Easy%)$",
+        "%(AIx: M28 Easy%)$"
+    }
+
+    for _, suffix in ipairs(suffixes) do
+        if string.find(sNickname, suffix) then
+            return true
+        end
+    end
+    return false
+end
