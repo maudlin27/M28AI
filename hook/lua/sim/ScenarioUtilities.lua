@@ -63,7 +63,6 @@ end
     --]]
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
-local M28ParentDetails = import('/mods/M28AI/lua/AI/LOUD/M28ParentDetails.lua')
 M28Utilities.ConsiderIfLoudActive()
 
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
@@ -77,6 +76,8 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         LOG('Hook active for InitializeSkirmishSystems')
         if M28Utilities.bLoudModActive then
             import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
+            local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
+            LoudCompatibility.UpdateUnitCategories()
             local oBrain = self
             LOG('oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..': ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false))
             if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
