@@ -26,6 +26,11 @@ refFactionNomads = 5
 refFactionUnrecognised = 6
 tFactionsByName = {[refFactionUEF] = 'UEF', [refFactionAeon] = 'Aeon', [refFactionCybran] = 'Cybran', [refFactionSeraphim] = 'Seraphim', [refFactionNomads] = 'Nomads'}
 
+--Radar values per blueprints (gets updated at start of game)
+iT1RadarSize = 1
+iT2RadarSize = 1
+iT3RadarSize = 1
+
 --Transport clamp types
 refClampSmall = 1
 refClampMedium = 2
@@ -1115,7 +1120,7 @@ function CalculateBlueprintThreatsByType()
             if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating air threat values, result of land and air for '..(oBP.General.UnitName or 'nil')..'='..reprs(tUnitThreatByIDAndType[sUnitId])) end
         end
 
-        local iCount = 0
+        local iCurTechLevel
 
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
@@ -1127,6 +1132,25 @@ function CalculateBlueprintThreatsByType()
                 --if iCount >= 10 then break end
                 ForkThread(RecordBlueprintThreatValues, oBP, sUnitId)
                 ForkThread(CheckBlueprintSizeSupport, oBP, sUnitId)
+                --Update radar values if have them
+                if oBP.Intel.RadarRadius and EntityCategoryContains(refCategoryRadar, sUnitId) then
+                    iCurTechLevel = GetBlueprintTechLevel(sUnitId)
+                    if iCurTechLevel == 1 then if iT1RadarSize <= 1 then iT1RadarSize = oBP.Intel.RadarRadius end end
+                    if iCurTechLevel == 2 then if iT2RadarSize <= math.max(1, iT1RadarSize) then iT2RadarSize = math.max(iT2RadarSize, oBP.Intel.RadarRadius) end end
+                    if iCurTechLevel == 3 then if iT3RadarSize <= math.max(1, iT2RadarSize) then iT3RadarSize = math.max(iT3RadarSize, oBP.Intel.RadarRadius) end end
+
+
+                    --Use hardcoded values if not had things set
+                    if iT1RadarSize <= 1 then iT1RadarSize = 116 end
+                    if iT2RadarSize <= 1 then iT2RadarSize = 200 end
+                    if iT3RadarSize <= 1 then
+                        if M28Utilities.bLoudModActive then
+                            iT3RadarSize = 320
+                        else
+                            iT3RadarSize = 600
+                        end
+                    end
+                end
             end
         end
 
@@ -1268,12 +1292,14 @@ function GetBomberAOEAndStrikeDamage(oUnit)
     local iAOE = 0
     local iStrikeDamage = 0
     local iFiringRandomness
+    local iSalvoModifier
     for sWeaponRef, tWeapon in oBP.Weapon do
-        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' then
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.Label == 'Bomb' then
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
-                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
-                if tWeapon.MuzzleSalvoSize > 2 then iStrikeDamage = iStrikeDamage * 0.5 end
+                iSalvoModifier = (tWeapon.MuzzleSalvoSize or 1)
+                if iSalvoModifier > 2 then tWeapon.MuzzleSalvoSize = (iSalvoModifier - 1) * 0.5 + 1 end
+                iStrikeDamage = tWeapon.Damage * iSalvoModifier
                 iFiringRandomness = (tWeapon.FiringRandomness or 0)
             end
         end
@@ -1440,6 +1466,12 @@ function RecordUnitRange(oUnit)
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'EXFlameCannon01' or oCurWeapon.Label == 'EXFlameCannon02' or oCurWeapon.Label == 'EXEMPArray02' or oCurWeapon.Label == 'EXEMPArray03' or oCurWeapon.Label == 'EXEMPArray04' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'EXAA02' or oCurWeapon.Label == 'EXAA03' or oCurWeapon.Label == 'EXAA04' then
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
+                        --Do nothing - LOUD weapon labels where there is no or negligible damage
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)

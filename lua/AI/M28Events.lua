@@ -1487,7 +1487,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 end
                             end
                             if not(bAlreadyRecorded) then
-                                table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
+                                --Check this isn't a mobile non-scathis unit
+                                if not(EntityCategoryContains(categories.MOBILE, oConstruction.UnitId)) or M28UnitInfo.GetBlueprintMaxGroundRange(oConstruction:GetBlueprint()) >= 500 then
+                                    table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': We have constructed a mobile unit with a short range so wont record as an arti unit')
+                                end
                             end
                             tTemplateRef[M28Map.subrefbFailedToGetArtiLocation] = false
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
