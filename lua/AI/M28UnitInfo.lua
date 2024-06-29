@@ -201,6 +201,8 @@ refCategoryQuantumOptics = categories.INTELLIGENCE * categories.OPTICS * categor
 
 refCategoryUpgraded = refCategoryT2Radar + refCategoryT3Radar + refCategoryT2Sonar + refCategoryT3Sonar + refCategoryFactory * categories.TECH2 + refCategoryFactory * categories.TECH3 + refCategoryFixedShield * categories.TECH3 + refCategoryT2Mex + refCategoryT3Mex
 
+refCategoryAntiNavy = categories.ANTINAVY
+
 --Land units
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
 refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS - categories.SHIELD * categories.STRUCTURE
@@ -229,7 +231,7 @@ refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * cate
 refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryLandCombat * categories.AMPHIBIOUS - categories.ANTISHIELD * categories.AEON --Dont include aeon T3 anti-shield here as it sucks unless against shields
-refCategorySurfaceAmphibiousCombat = refCategoryLandCombat * categories.HOVER + categories.ANTINAVY * categories.LAND * categories.MOBILE - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategorySurfaceAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryAntiNavy * categories.LAND * categories.MOBILE - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryGroundAA = refCategoryMAA + categories.NAVAL * categories.ANTIAIR + categories.STRUCTURE * categories.ANTIAIR + categories.NAVALCARRIER * categories.EXPERIMENTAL
 refCategoryStructureAA = categories.STRUCTURE * categories.ANTIAIR
 refCategoryIndirectT2Plus = categories.MOBILE * categories.LAND * categories.INDIRECTFIRE - categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 - categories.DIRECTFIRE
@@ -248,11 +250,11 @@ refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.AN
 --Air units
 refCategoryAirScout = categories.AIR * categories.SCOUT
 refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - categories.GROUNDATTACK - categories.EXPERIMENTAL
-refCategoryBomber = categories.AIR * categories.BOMBER - categories.ANTINAVY - categories.CANNOTUSEAIRSTAGING --excludes mercies
+refCategoryBomber = categories.AIR * categories.BOMBER - refCategoryAntiNavy - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL
 refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
 refCategoryGunship = categories.AIR * categories.GROUNDATTACK + categories.TARGETCHASER - refCategoryCzar --Targetchaser only used by czar, but some unit mods have it for units that dont have groundattack catgory (e.g. extreme wars)
-refCategoryTorpBomber = categories.AIR * categories.BOMBER * categories.ANTINAVY + (categories.AIR * categories.ANTINAVY - categories.EXPERIMENTAL)
+refCategoryTorpBomber = categories.AIR * categories.BOMBER * refCategoryAntiNavy + (categories.AIR * refCategoryAntiNavy - categories.EXPERIMENTAL)
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
 refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
@@ -263,7 +265,7 @@ refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCza
 
 --Naval units
 refCategoryFrigate = categories.NAVAL * categories.FRIGATE
-refCategoryTorpedoLauncher = categories.ANTINAVY * categories.STRUCTURE
+refCategoryTorpedoLauncher = refCategoryAntiNavy * categories.STRUCTURE
 refCategoryNavalSurface = categories.NAVAL + refCategoryTorpedoLauncher - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
 refCategoryMobileNavalSurface = refCategoryNavalSurface * categories.MOBILE
 refCategoryAllNavy = categories.NAVAL + refCategoryTorpedoLauncher - categories.UNSELECTABLE - categories.UNTARGETABLE
@@ -282,10 +284,10 @@ refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categor
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
 refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
-refCategoryTorpedoLandAndNavy = categories.ANTINAVY * categories.LAND + categories.ANTINAVY * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + categories.ANTINAVY * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
+refCategoryTorpedoLandAndNavy = refCategoryAntiNavy * categories.LAND + refCategoryAntiNavy * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + refCategoryAntiNavy * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
 refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLESHIP * categories.INDIRECTFIRE - categories.BATTLESHIP * categories.SERAPHIM + categories.SERAPHIM * categories.CRUISER * categories.INDIRECTFIRE + categories.SERAPHIM * categories.CARRIER * categories.OVERLAYINDIRECTFIRE * categories.TECH3  --i.e. UEF+Sera cruisers, and nukesubs
-refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * categories.ANTINAVY
-refCategoryCooper = categories.NAVAL * categories.ANTINAVY * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
+refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
+refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
 refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
@@ -295,7 +297,7 @@ refCategoryBombardment = refCategoryFrigate + refCategoryMissileShip + refCatego
 
 --Multi-category:
 --Antinavy mobile units (can include land units - e.g for land factories to build antisub units)
-refCategoryAntiNavy = categories.ANTINAVY * categories.STRUCTURE + categories.ANTINAVY * categories.MOBILE - categories.DESTROYER * categories.UEF --for some reason get error message if just use antinavy, so need to be more restrictive
+refCategoryAntiNavy = refCategoryAntiNavy * categories.STRUCTURE + refCategoryAntiNavy * categories.MOBILE - categories.DESTROYER * categories.UEF --for some reason get error message if just use antinavy, so need to be more restrictive
 --Dangerous to land units, e.g. engieners look for these when deciding reclaim area
 refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCategoryAllNavy + refCategoryBomber + refCategoryGunship + refCategoryPD + refCategoryFixedT2Arti
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
@@ -674,14 +676,14 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             if not(bIndirectFireThreatOnly) then
                                 if bAntiNavyOnly or bSubmersibleOnly then
                                     iMassMod = 0
-                                    if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(categories.ANTINAVY+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
+                                    if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(refCategoryAntiNavy+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
                                         iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
-                                        if EntityCategoryContains(categories.ANTINAVY, oUnit.UnitId) then
+                                        if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 1
-                                        elseif EntityCategoryContains(categories.LAND * categories.ANTINAVY, oUnit.UnitId) then
+                                        elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 0.5 --brick, wagner etc
                                             --UEF units (which are either really bad or good at antinavy)
-                                        elseif EntityCategoryContains(categories.UEF * categories.ANTINAVY, oUnit.UnitId) then
+                                        elseif EntityCategoryContains(categories.UEF * refCategoryAntiNavy, oUnit.UnitId) then
                                             --Destroyer and battlecruiser
                                             if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.25 --valiant
                                             elseif EntityCategoryContains(categories.DIRECTFIRE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.15 --battlecruiser
@@ -690,7 +692,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                                 --Unexpected category
                                                 iMassMod = 0.5
                                             end
-                                        elseif EntityCategoryContains(categories.CYBRAN * categories.ANTINAVY, oUnit.UnitId) then
+                                        elseif EntityCategoryContains(categories.CYBRAN * refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 0.8
                                         elseif EntityCategoryContains(refCategoryMegalith, oUnit.UnitId) then
                                             iMassMod = 0.5
@@ -742,12 +744,12 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
                                     elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
                                     end
-                                    if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(categories.ANTINAVY  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
+                                    if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(refCategoryAntiNavy  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
                                         --Increase mass mod for certain units
                                         if iMassMod < 0.25 then iMassMod = 0.25 end
-                                        if EntityCategoryContains(categories.SUBMERSIBLE + categories.ANTINAVY, oUnit.UnitId) then
+                                        if EntityCategoryContains(categories.SUBMERSIBLE + refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 1 --Subs
-                                        elseif EntityCategoryContains(categories.LAND * categories.ANTINAVY, oUnit.UnitId) then
+                                        elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = math.max(iMassMod, 0.5) --wagners, bricks etc.
                                         elseif EntityCategoryContains(categories.SUBMERSIBLE * categories.SILO * categories.TECH3, oUnit.UnitId) then
                                             iMassMod = math.max(iMassMod, 0.25) --missile ship
@@ -952,7 +954,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif EntityCategoryContains(categories.TRANSPORTATION, sCurUnitBP) then iMassMod = 1 --might be a ghetto
                                     end
                                 end
-                                if bIncludeAirTorpedo == true and EntityCategoryContains(categories.ANTINAVY, sCurUnitBP) == true then iMassMod = 1 end
+                                if bIncludeAirTorpedo == true and EntityCategoryContains(refCategoryAntiNavy, sCurUnitBP) == true then iMassMod = 1 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirTorpedo='..tostring(bIncludeAirTorpedo)..'; iMassMod='..iMassMod) end
 
                                 if bIncludeAirToAir == true and iMassMod < 1 then
@@ -1192,7 +1194,7 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
             end
-            if iCurShield > 0 and not(oUnit.MyShield:IsUp()) then
+            if iCurShield > 0 and ((oUnit.MyShield.IsUp and not(oUnit.MyShield:IsUp())) or (not(oUnit.MyShield.IsUp) and not((oUnit.MyShield:IsOn() and oUnit.MyShield.Enabled))))  then
                 --Occasional bug where shield shows as having health via gethealth, not powerstalling, but shield is actually down - below is to try and capture such cases
                 if not(bDontTreatLowPowerShieldAsZero) or oUnit.MyShield.DepletedByDamage then
                     iCurShield = 0
@@ -1437,8 +1439,10 @@ function RecordUnitRange(oUnit)
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
+                    elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     else
-                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil'))
+                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
                         --LOG('reprs of oCurWeapon='..reprs(oCurWeapon))
                     end

@@ -1078,8 +1078,11 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                 iAdjacencyBuildingRadius = 3
             end
             if tResourceLocations then
+                local iResourceSearchDist = iMaxAreaToSearch + (M28UnitInfo.GetBuildingSize(sBlueprintToBuild) or 0) * 0.5
                 for iCurResource, tCurResource in tResourceLocations do
-                    AddAdjacencyLocationsToPotentialLocations(tCurResource, iAdjacencyBuildingRadius, iNewBuildingRadius)
+                    if M28Utilities.GetDistanceBetweenPositions(tCurResource, tTargetLocation) <= iResourceSearchDist then
+                        AddAdjacencyLocationsToPotentialLocations(tCurResource, iAdjacencyBuildingRadius, iNewBuildingRadius)
+                    end
                 end
             end
         end
@@ -1348,7 +1351,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         else
             --Get adjacency location if we want adjacency
             if oUnitToBuildBy or (iCatToBuildBy and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or not(sBlueprintToBuild) or not(EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1, sBlueprintToBuild)) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(sBlueprintToBuild))) >= 2)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to get potential adjacency locations, sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to get potential adjacency locations, sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
             end

@@ -489,6 +489,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         local iLRThreshold = iLongRangeThreshold
 
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering ranges and underwater mex threat adjustments for WZ'..iWaterZone..', oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
             if oUnit:GetFractionComplete() >= 0.95 and oUnit[M28UnitInfo.refiCombatRange] > 0 then
                 if bDebugMessages == true then
                     local iUnitSegmentX, iUnitSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -507,6 +508,10 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 if oUnit[M28UnitInfo.refiCombatRange] > iLRThreshold then
                     table.insert(tWZTeamData[M28Map.subreftEnemyLongRangeUnits], oUnit)
                 end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and M28UnitInfo.IsUnitUnderwater(oUnit) then
+                --Give a token submersible threat for underwater mexes so we build subs to stop
+                tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0) + 10
+                if bDebugMessages == true then LOG(sFunctionRef..': Increasing submersible threat by 10 for underwater mex, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]) end
             end
         end
     end
@@ -1435,14 +1440,16 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if oUnit:GetFractionComplete() == 1 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Time='..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
                 if oUnit[refbActiveRaider] then
                     --Consider if want shielding or stealth
                     RecordIfUnitWantsShieldOrStealth(oUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': active raider so will just consider if want shield or stealth') end
                 else
                     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                         table.insert(tEngineers, oUnit)
                         bWaterZoneOrAdjHasUnitsWantingScout = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer recorded') end
                     elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
                         --ACU logic - handled via M28ACU file, as amy not want to kite with it
                         bWaterZoneOrAdjHasUnitsWantingScout = true
@@ -2728,7 +2735,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     bEnemyUnitsNearlyInRange = false
                                     if ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6) or (bIgnoreLowThreats and EntityCategoryContains(categories.TECH3 + M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) and M28Utilities.GetDistanceBetweenPositions(tBombardmentMainTarget, oUnit:GetPosition()) > math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0)) then
                                         --Check if enemy has non-air units near us that could hit us or if we can do an issuemove instead of attackmove to get within range of the desired location
-                                        tPotentialEnemyUnits = aiBrain:GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE + categories.ANTINAVY - categories.AIR - M28UnitInfo.refCategoryFixedT3Arti - categories.SILO  - categories.UNSELECTABLE - categories.UNTARGETABLE, oUnit:GetPosition(), 100, 'Enemy')
+                                        tPotentialEnemyUnits = aiBrain:GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE + M28UnitInfo.refCategoryAntiNavy - categories.AIR - M28UnitInfo.refCategoryFixedT3Arti - categories.SILO  - categories.UNSELECTABLE - categories.UNTARGETABLE, oUnit:GetPosition(), 100, 'Enemy')
                                         if M28Utilities.IsTableEmpty(tPotentialEnemyUnits) == false then
                                             for iEnemy, oEnemy in tPotentialEnemyUnits do
                                                 if math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0)) + 5 <= M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) then

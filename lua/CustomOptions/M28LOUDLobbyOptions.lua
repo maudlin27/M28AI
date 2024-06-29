@@ -14,14 +14,19 @@ LobbyGlobalOptions = {
         --valid = '^%d+$',
         values = {
             {
+                text = "No override",
+                help = "Apply the AI per the game lobby player selection",
+                key = 1,
+            },
+            {
                 text = "None and odd",
                 help = "Apply to odd teams and all AI with no team",
-                key = 1,
+                key = 2,
             },
             {
                 text = "All",
                 help = "Apply to all AI",
-                key = 2,
+                key = 3,
             },
         },
     },
