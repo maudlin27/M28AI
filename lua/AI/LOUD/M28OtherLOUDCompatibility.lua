@@ -9,7 +9,30 @@
 --1 issue - LOUD has removed ANTINAVY category, use destroyer and submarine as basic proxy
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 function UpdateUnitCategories()
+    --Land based:
+        --lack of BOT category for experimentals
+    M28UnitInfo.refCategoryMonkeylord = categories.CYBRAN * categories.MOBILE * categories.EXPERIMENTAL * categories.DIRECTFIRE - categories.CONSTRUCTION + categories.url0402
+    M28UnitInfo.refCategoryMegalith = categories.CYBRAN * categories.MOBILE * categories.EXPERIMENTAL * categories.DIRECTFIRE * categories.CONSTRUCTION + categories.xrl0403
+    M28UnitInfo.refCategoryYthotha = M28UnitInfo.refCategoryYthotha + categories.xsl0401
+    M28UnitInfo.refCategoryFatboy = M28UnitInfo.refCategoryFatboy + categories.uel0401
+        --lack of PERSONALSHIELD category:
+    M28UnitInfo.refCategoryObsidian = M28UnitInfo.refCategoryObsidian + categories.ual0202
+    M28UnitInfo.refCategoryPersonalShield = M28UnitInfo.refCategoryPersonalShield + categories.uel0303 + categories.ual0303
+        --STEALTHFIELD
+    M28UnitInfo.refCategoryMobileLandStealth = M28UnitInfo.refCategoryMobileLandStealth + categories.CYBRAN * categories.COUNTERINTELLIGENCE * categories.MOBILE * categories.LAND + categories.url0306
+    M28UnitInfo.refCategoryStealthBoat = M28UnitInfo.refCategoryStealthBoat + categories.CYBRAN * categories.OVERLAYCOUNTERINTEL * categories.NAVAL * categories.DEFENSIVEBOAT + categories.xrs0205
+    M28UnitInfo.refCategoryStealthGenerator = M28UnitInfo.refCategoryStealthGenerator + categories.COUNTERINTELLIGENCE * categories.STRUCTURE * categories.TECH2 + categories.ueb4203 + categories.urb4203 + categories.uab4203 + categories.xsb4203
+        --STEALTH
+    M28UnitInfo.refCategoryStealthAndCloakPersonal = M28UnitInfo.refCategoryStealthAndCloakPersonal + categories.xsl0101
+        --BOMB
+    M28UnitInfo.refCategoryMobileBomb = M28UnitInfo.refCategoryMobileBomb + categories.xrl0302
+    M28UnitInfo.refCategoryMercy = M28UnitInfo.refCategoryMercy + categories.daa0206
+
+    --Naval based:
     M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE
-    --M28UnitInfo.refCategoryAllAmphibiousAndNavy = M28UnitInfo.refCategoryAllAmphibiousAndNavy + categories.SUBMARINE
     M28UnitInfo.refCategorySubmarine = M28UnitInfo.refCategorySubmarine + categories.SUBMARINE
+    M28UnitInfo.refCategoryGroundAA = M28UnitInfo.refCategoryGroundAA + categories.NAVALCARRIER
+    M28UnitInfo.refCategoryBattlecruiser = M28UnitInfo.refCategoryBattlecruiser + categories.CRUISER * categories.UEF * categories.TECH3 * categories.DIRECTFIRE + categories.xes0307
+
+
 end

@@ -1760,7 +1760,7 @@ function ManageEnergyStalls(iTeam)
                         if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 then
                             local iShieldsAndRadarPaused = 0
                             for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
-                                local tShieldsAndRadarPaused = EntityCategoryFilterDown(categories.PERSONALSHIELD + categories.SHIELD + M28UnitInfo.refCategoryRadar, tUnits)
+                                local tShieldsAndRadarPaused = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits + M28UnitInfo.refCategoryRadar, tUnits)
                                 if M28Utilities.IsTableEmpty(tShieldsAndRadarPaused) == false then
                                     LOG(sFunctionRef..': iPriority '..iPriority..' has '..table.getn(tShieldsAndRadarPaused)..' units with shield or radar that are paused')
                                 end

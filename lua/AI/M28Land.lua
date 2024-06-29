@@ -3023,13 +3023,83 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 end
 
 function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRASSACU)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    --Manages SACUs to be assigned engineer type duties (wont always be RAS SACUs - e.g. might be LOUD where we want SACUs to build experimentals
+
     --Gameender duty - have RAS SACUs assist with building a gameender/t3 arti/novax in the zone and associated shielding, if we have an active template
     local bProceed = true
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; Time since last wanted SACU for exp='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0))) end
+
+    --Remove any SACUs that are constructing/repariing a unit
+    if tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 3 then
+        --First check we have no experimental level units under construction in this zone
+        if bDebugMessages == true then LOG(sFunctionRef..': Number of exp under construction in LZ='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true)) end
+        if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true) == 0 then
+            local tbEngineersOfFactionOrNilIfAlreadyAssigned = {}
+            local aiBrain
+            local toSACUByFaction = {}
+            local iCurFaction
+            for iSACU, oSACU in tRASSACU do
+                iCurFaction = M28UnitInfo.GetUnitFaction(oSACU)
+                tbEngineersOfFactionOrNilIfAlreadyAssigned[iCurFaction] = true
+                if not(aiBrain) then aiBrain = oSACU:GetAIBrain() end
+                if not(toSACUByFaction[iCurFaction]) then toSACUByFaction[iCurFaction] = {} end
+                table.insert(toSACUByFaction[iCurFaction], oSACU)
+            end
+
+            local iCategoryWanted, iFactionWanted = M28Engineer.DecideOnExperimentalToBuild(M28Engineer.refActionBuildExperimental, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZData, tLZTeamData, iPlateau, iLandZone)
+            if bDebugMessages == true then LOG(sFunctionRef..': is iCategoryWanted nil='..tostring(iCategoryWanted == nil)..'; is iFactionWanted nil='..tostring(iFactionWanted == nil)) end
+            if iCategoryWanted then
+                local oPrimaryEngineer
+                if iFactionWanted then
+                    oPrimaryEngineer = toSACUByFaction[iFactionWanted][1]
+                else
+                    oPrimaryEngineer = tRASSACU[1]
+                end
+                if oPrimaryEngineer then
+                    local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, M28Engineer.refActionBuildExperimental, iCategoryWanted, 100, nil, nil,                                false,                          nil,                nil,                                false, tLZData, tLZTeamData)
+
+                    --Update SACU table to remove any of the desired faction who can be given other orders
+                    if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation or {})..'; oPrimaryEngineer='..(oPrimaryEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPrimaryEngineer) or 'nil')) end
+                    if sBlueprint and tBuildLocation then
+                        local toBuilders
+                        if iFactionWanted then
+                            for iCurEntry = table.getn(tRASSACU), 1, -1 do
+                                if M28UnitInfo.GetUnitFaction(tRASSACU[iCurEntry]) == iFactionWanted then
+                                    table.remove(tRASSACU, iCurEntry)
+                                end
+                            end
+                            toBuilders = toSACUByFaction[iFactionWanted]
+                        else
+                            toBuilders = tRASSACU
+                        end
+
+                        --Build with all the SACUs wanted
+                        if M28Utilities.IsTableEmpty(toBuilders) == false then
+                            bProceed = false
+                            if iFactionWanted and M28Utilities.IsTableEmpty(tRASSACU) == false then bProceed = true end
+                            for iSACU, oSACU in toBuilders do
+                                local tMoveLocation = M28Engineer.GetLocationToMoveForConstruction(oSACU, tBuildLocation, sBlueprint, 0, false)
+                                if tMoveLocation then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling oSACU '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to move to '..repru(tMoveLocation)..' and then build '..sBlueprint..' at location '..repru(tBuildLocation)) end
+                                    M28Orders.IssueTrackedMoveAndBuild(oSACU, tBuildLocation, sBlueprint, tMoveLocation, 1, false, 'SACUExpMBld')
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to build '..sBlueprint..' at build location '..repru(tBuildLocation)) end
+                                    M28Orders.IssueTrackedBuild(oSACU, tBuildLocation, sBlueprint, false, 'SACUExpBld')
+                                end
+                                --M28Engineer.TrackEngineerAction(oSACU, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if bProceed and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
             if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
                 for iSACU, oSACU in tRASSACU do
@@ -7260,6 +7330,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             local bConsiderMobileShieldsForBuildings = false
             if M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 2 then bConsiderMobileShieldsForBuildings = true end
             local bCurUnitWantsMobileShield
+            local iSACUCategory = M28UnitInfo.refCategoryRASSACU
+            if tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and not(bUseRASInCombat) then iSACUCategory = iSACUCategory + categories.SUBCOMMANDER end
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)) end
                 bCurUnitWantsMobileShield = false
@@ -7294,8 +7366,11 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             table.insert(tMobileShields, oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
                             table.insert(tMobileStealths, oUnit)
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
-                            table.insert(tRASSACU, oUnit)
+                        elseif EntityCategoryContains(iSACUCategory, oUnit.UnitId) and not(bUseRASInCombat) then
+                            --Only include for new orders if not already building something
+                            if not(oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
+                                table.insert(tRASSACU, oUnit)
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] > 0 and EntityCategoryContains(categories.AMPHIBIOUS * categories.MOBILE - categories.AIR, oUnit.UnitId)) then
                             --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                             bIncludeUnit = false

@@ -73,6 +73,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option)
     if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
@@ -656,7 +657,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
 
                 --Absolver override
                 if bConsiderAbsolvers then
-                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.SHIELD + categories.PERSONALSHIELD, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
+                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
                         --Want absolvers unless we are already building some in this zone
                         local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
                         if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * categories.AMPHIBIOUS + iAbsolverCategory * categories.HOVER end
@@ -4799,7 +4800,7 @@ end
 
 function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForQuantumGateway'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -4859,6 +4860,13 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
         end
+    end
+
+    --LOUD specific - build SACUs if needed to build experimentals
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Time since tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0)) end
+    if tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0) <= 10 then
+        if ConsiderBuildingCategory(M28UnitInfo.categories.SUBCOMMANDER, true) then return sBPIDToBuild end
     end
 
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix

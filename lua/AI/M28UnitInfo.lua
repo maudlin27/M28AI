@@ -238,13 +238,15 @@ refCategoryIndirectT2Plus = categories.MOBILE * categories.LAND * categories.IND
 refCategoryIndirectT2Below = categories.MOBILE * categories.INDIRECTFIRE * categories.LAND * categories.TECH1 + categories.MOBILE * categories.INDIRECTFIRE * categories.LAND * categories.TECH2
 refCategoryIndirectT3 = categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH3 - categories.DIRECTFIRE
 --Obsidian special case with shields due to inconsistent categories:
-refCategoryObsidian = categories.AEON * categories.TECH2 * categories.SHIELD * categories.DIRECTFIRE * categories.MOBILE * categories.LAND * categories.TANK --
+refCategoryObsidian = categories.TECH2 * categories.SHIELD * categories.DIRECTFIRE * categories.MOBILE * categories.LAND + categories.PERSONALSHIELD * categories.DIRECTFIRE * categories.TECH2 * categories.MOBILE * categories.LAND
 refCategoryMobileLandShield = categories.LAND * categories.MOBILE * categories.SHIELD - refCategoryObsidian -categories.EXPERIMENTAL  --Miscategorised obsidian tank
 refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
 refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
-refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - categories.BOMB --Mongoose, Hoplite, sniperbot
+refCategoryMobileBomb = categories.BOMB * categories.MOBILE
+refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb --Mongoose, Hoplite, sniperbot
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
+refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 
 
 --Air units
@@ -258,7 +260,7 @@ refCategoryTorpBomber = categories.AIR * categories.BOMBER * refCategoryAntiNavy
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
 refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
-refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2
+refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2 + categories.AIR * categories.MOBILE * categories.BOMB
 refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
@@ -274,13 +276,11 @@ refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
 refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
-TestCat1 = categories.NAVAL
-TestCat2 = categories.NAVALCARRIER
-TestCat3 = categories.EXTERNALFACTORY
 refCategoryCarrier = categories.NAVAL * categories.NAVALCARRIER * categories.EXTERNALFACTORY
 refCategoryMobileAircraftFactory = categories.AIR * categories.EXTERNALFACTORYUNIT + categories.NAVALCARRIER * categories.EXTERNALFACTORYUNIT
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
-refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + categories.STEALTHFIELD * categories.NAVAL --Intended for units we dont want on frontline unless in bombardment mode
+refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
+refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + refCategoryStealthBoat --Intended for units we dont want on frontline unless in bombardment mode
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
 refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
@@ -289,7 +289,6 @@ refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLES
 refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
 refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
-refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
 refCategoryBattleship = categories.BATTLESHIP - refCategoryBattlecruiser - refCategoryMissileShip
 refCategoryBombardment = refCategoryFrigate + refCategoryMissileShip + refCategoryCruiserCarrier * categories.SILO + refCategoryDestroyer + refCategoryBattlecruiser + refCategoryBattleship
@@ -303,7 +302,7 @@ refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCa
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
-refCategoryStealth = categories.STEALTHFIELD + categories.STEALTH
+refCategoryStealth = refCategoryStealthGenerator + refCategoryStealthAndCloakPersonal
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
@@ -887,7 +886,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
                         if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
                             --Does unit have a shield?
-                            if EntityCategoryContains(categories.PERSONALSHIELD + categories.SHIELD, oUnit.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive) then
                                 local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
                                 iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                             else

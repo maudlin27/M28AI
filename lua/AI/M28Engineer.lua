@@ -158,6 +158,7 @@ refActionManageGameEnderTemplate = 75 --if there's an available template for bui
 refActionBuildAirExperimental = 76 --e.g. used for water zones
 refActionRepairAllyUnit = 77 --can be used to give engineers orders to repair a unit in another zone
 refActionAttackMoveToLandZone = 78 --works similar to movetolandzone but with an attackmove order
+refActionAssistQuantumGateway = 79
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -208,7 +209,8 @@ tiActionCategory = {
     [refActionBuildT1TorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher * categories.TECH1,
     [refActionBuildTorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher,
     [refActionManageGameEnderTemplate] = refActionManageGameEnderTemplate, --Special case where if a category is equal to this variable then will apply this logic; done this way so we can convert a 'build experimental' action into this action
-    [refActionBuildAirExperimental] = categories.AIR * categories.EXPERIMENTAL - M28UnitInfo.refCategoryTransport
+    [refActionBuildAirExperimental] = categories.AIR * categories.EXPERIMENTAL - M28UnitInfo.refCategoryTransport,
+    [refActionAssistQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
 }
 
 tiActionOrder = {
@@ -272,6 +274,7 @@ tiActionOrder = {
     [refActionBuildAirExperimental] = M28Orders.refiOrderIssueBuild,
     [refActionRepairAllyUnit] = M28Orders.refiOrderIssueRepair,
     [refActionAttackMoveToLandZone] = M28Orders.refiOrderIssueAggressiveMove,
+    [refActionAssistQuantumGateway] = M28Orders.refiOrderIssueGuard,
 }
 
 --Adjacent categories to search for for a particular action
@@ -1127,6 +1130,9 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 and bBuildCheapestStructure then
         --We might also choose to build t1 pgens if we had no T2+ available (i.e. this t2 engi might have been doing a lower priority task so was unavailable, and has been repurposed to building power), in which case switch
         if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; will be building t1 power despite being T2+, engineer action='..(oEngineer[refiAssignedAction] or 'nil')..'; Is engineer available='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true))) end
@@ -1180,8 +1186,13 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
             end
 
+            --LOUD specific - only SACUs can build experimentals
+            if M28Utilities.bLoudModActive then
+                tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] = GetGameTimeSeconds()
+            end
+
             --If trying to build experimental, then just build any kind of experimental (excl transports and PD, and sera factory (quantum arch from mods))
-            if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
+            if (M28Overseer.bUnitRestrictionsArePresent or M28Utilities.bLoudModActive) and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
                 --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                 local iCategoryToBuild = M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL - M28UnitInfo.refCategoryPD
                 if aiBrain[M28Overseer.refbCloseToUnitCap] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySpecialFactory) >= 1 then
@@ -2714,7 +2725,7 @@ end
 function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
     --Only intended to be used for determiming land experimentals
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -10337,6 +10348,42 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if iFactoriesInLZ < 2 then
             HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted)
         end
+    end
+
+    --Build quantum gateway if using a mod (e.g. LOUD) that requires SACUs to build experimentals
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        iBPWanted = 90
+        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 180 end
+        if tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tLZData[M28Map.subrefLZMexCount]) then iBPWanted = iBPWanted * 0.25 end
+        local oExistingGateway
+        local iClosestCompletion = 0
+        local iClosestDist = 10000
+        local iCurDist
+        local tExistingGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        --If we have part complete gateway then assist this, otherwise assist completed gateway
+        for iGateway, oGateway in tExistingGateway do
+            if oGateway:GetFractionComplete() < 1 then
+                if oGateway:GetFractionComplete() > iClosestCompletion then
+                    iClosestCompletion = oGateway:GetFractionComplete()
+                    oExistingGateway = oGateway
+                end
+            elseif iClosestCompletion == 0 then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oGateway:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oExistingGateway = oGateway
+                end
+            end
+        end
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Building quantum gateway as a high priority so we can get experimentals, oExistingGateway='..(oExistingGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExistingGateway) or 'nil')) end
+        if not(oExistingGateway) then
+            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+        else
+            HaveActionToAssign(refActionAssistQuantumGateway, 1, iBPWanted, oExistingGateway)
+        end
+        bDebugMessages = false
     end
 
     --At least 1 T3 engineers assigned to gameender template if one is active; also assign an extra engineer if we require an engineer of a particular faction and have that engineer available
