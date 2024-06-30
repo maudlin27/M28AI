@@ -349,6 +349,19 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
             if M28OldUnit.InitiateTeleportThread then return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation) end
         end,
+        --LOUD specific
+        OnShieldIsCharging = function(self)
+            ForkThread(M28Events.ShieldRechargeStarted, self)
+            if M28OldUnit.OnShieldIsCharging then return M28OldUnit.OnShieldIsCharging(self) end
+        end,
+        OnShieldEnabled = function(self)
+            ForkThread(M28Events.ShieldEnabled, self)
+            if M28OldUnit.OnShieldEnabled then return M28OldUnit.OnShieldEnabled(self) end
+        end,
+        OnShieldDisabled = function(self)
+            ForkThread(M28Events.ShieldDisabled, self)
+            if M28OldUnit.OnShieldDisabled then return M28OldUnit.OnShieldDisabled(self) end
+        end,
     }
 
 end

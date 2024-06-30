@@ -52,6 +52,7 @@ reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is t
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
+refbShieldDown = 'M28UShDw' --LOUD specific (as FAF has .enabled against the shield itself) - true if shield starts recharging, changed to false once at 100%
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refiTimeOfLastHoverLandCombatOrder = 'M28UnitTimeLstHCO' --hover units will only be given new orders every 6s to try and reduce cases where they end up not moving
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
@@ -1224,9 +1225,13 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
                 end
             end
         end
+        --Support for LOUD mod where units have 0 shield with :GetHealth() but the shield is up
+        if not(M28Utilities.bFAFActive) and iMaxShield > 0 and iCurShield == 0 and oUnit.MyShield:IsOn() and not(oUnit[refbShieldDown]) then
+            iCurShield = math.min(oUnit:GetShieldRatio(true), oUnit:GetShieldRatio(false)) * iMaxShield
+        end
         if bDebugMessages == true then
             LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; ShieldRatio False='..oUnit:GetShieldRatio(false)..'; ShieldRatio true='..oUnit:GetShieldRatio(true)..' iCurShield='..iCurShield)
-            if oUnit.MyShield then LOG('Unit has MyShield; IsUp='..tostring(oUnit.MyShield:IsUp())..'; shield health='..oUnit.MyShield:GetHealth()) end
+            if oUnit.MyShield then LOG('Unit has MyShield; oUnit.MyShield.Enabled='..tostring(oUnit.MyShield.Enabled or false)..'; IsOn='..tostring(oUnit.MyShield:IsOn())..'; shield health='..oUnit.MyShield:GetHealth()) end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return iCurShield, iMaxShield

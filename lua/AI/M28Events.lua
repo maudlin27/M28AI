@@ -3572,3 +3572,17 @@ function OnGameStart()
         --[aiBrain.Name].AIPersonality
     end
 end
+
+function ShieldRechargeStarted(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = true
+end
+
+function ShieldDisabled(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = true
+end
+function ShieldEnabled(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = false
+end
