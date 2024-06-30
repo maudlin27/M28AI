@@ -310,8 +310,8 @@ refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
 refCategoryStealth = refCategoryStealthGenerator + refCategoryStealthAndCloakPersonal
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
-refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
-refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
+refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE - categories.MASSSTORAGE * categories.EXPERIMENTAL
+refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO - categories.MASSSTORAGE * categories.EXPERIMENTAL + refCategoryParagon
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD + refCategoryNavalSurface * categories.BATTLESHIP --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
 refCategoryLongRangeDFLand = refCategoryFatboy + refCategorySniperBot + refCategoryShieldDisruptor
@@ -1303,7 +1303,7 @@ function GetBomberAOEAndStrikeDamage(oUnit)
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
                 iSalvoModifier = (tWeapon.MuzzleSalvoSize or 1)
-                if iSalvoModifier > 2 then tWeapon.MuzzleSalvoSize = (iSalvoModifier - 1) * 0.5 + 1 end
+                if iSalvoModifier > 2 then iSalvoModifier = (iSalvoModifier - 1) * 0.5 + 1 end
                 iStrikeDamage = tWeapon.Damage * iSalvoModifier
                 iFiringRandomness = (tWeapon.FiringRandomness or 0)
             end
@@ -2135,9 +2135,9 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
         if not(tWeapon.WeaponCategory == 'Death') then
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
-                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+                iStrikeDamage = tWeapon.Damage * (tWeapon.MuzzleSalvoSize or 1)
                 if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
-                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, tWeapon.MuzzleSalvoSize * 0.5))
+                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, (tWeapon.MuzzleSalvoSize or 2) * 0.5))
                 end
                 iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
                 iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
