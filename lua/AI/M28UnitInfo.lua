@@ -892,7 +892,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
                         if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
                             --Does unit have a shield?
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive) then
+                            if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive) then
                                 local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
                                 iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                             else
