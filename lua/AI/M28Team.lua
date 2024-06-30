@@ -3924,12 +3924,16 @@ function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
     if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
         local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
         if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
+            local oCurBrain
             for iUnit, oUnit in tNearbyStorage do
-                if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
-                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
-                        TransferUnitsToPlayer({oUnit}, iBrainIndexToGiftTo, false)
+                oCurBrain = oUnit:GetAIBrain()
+                if not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and not(iBrainIndexToGiftTo == oCurBrain:GetArmyIndex()) then
+                    if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
+                            TransferUnitsToPlayer({oUnit}, iBrainIndexToGiftTo, false)
+                        end
                     end
                 end
             end

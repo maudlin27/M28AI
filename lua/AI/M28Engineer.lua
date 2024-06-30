@@ -1979,9 +1979,8 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
             local bDontMove = false
             if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
                 local tBlockingBuildings = EntityCategoryFilterDown(categories.STRUCTURE, tBlockingUnits)
-                local iBlockingSize
                 for iBuilding, oBuilding in tBlockingBuildings do
-                    iBlockingSize = M28UnitInfo.GetBuildingSize(oBuilding.UnitId) * 0.5
+                    iBlockingSize = M28UnitInfo.GetBuildingSize(oBuilding.UnitId or oBuilding:GetBlueprint().BlueprintId) * 0.5
                     local tBuildingPosition = oBuilding:GetPosition()
                     if math.abs(tBuildingPosition[1] - tPotentialMoveLocation[1]) <= iBlockingSize and math.abs(tBuildingPosition[3] - tPotentialMoveLocation[3]) <= iBlockingSize then
                         if bDebugMessages == true then
@@ -10592,7 +10591,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
             iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
-            HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
+            HaveActionToAssign(refActionBuildAirStaging, M28Building.iLowestAirStagingTechAvailable, iBPWanted, nil, false)
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
         end
     end
@@ -14353,7 +14352,7 @@ end--]]
         if iExistingAirStaging < 1 then
             iBPWanted = 5
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
-            HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
+            HaveActionToAssign(refActionBuildAirStaging, M28Building.iLowestAirStagingTechAvailable, iBPWanted, nil, false)
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging for minor zone with iBPWanted='..iBPWanted) end
         end
     end
@@ -14395,7 +14394,7 @@ end--]]
             end
         end
         if not(bHaveAirStaging) then
-            HaveActionToAssign(refActionBuildAirStaging, 1, 10)
+            HaveActionToAssign(refActionBuildAirStaging, M28Building.iLowestAirStagingTechAvailable, 10)
             if bDebugMessages == true then LOG(sFunctionRef..': Low priority air staging builder') end
         end
     end

@@ -1128,6 +1128,8 @@ function CalculateBlueprintThreatsByType()
             sUnitId = oBP.BlueprintId
             if bDebugMessages == true then LOG('Will shortly (via a forked threat) get the blueprint threat for enemy unit sUnitId '..sUnitId..'; tUnitThreatByIDAndType[sUnitId]='..(tUnitThreatByIDAndType[sUnitId] or 'nil')..'; oBP.Economy.BuildCostMass='..(oBP.Economy.BuildCostMass or 'nil')..'; oBP.General.UnitName='..(oBP.General.UnitName or 'nil')..' if it has a build cost mass of at least 1 and we havent already called it') end
 
+            local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+
             if not(tUnitThreatByIDAndType[sUnitId]) and (oBP.Economy.BuildCostMass or 0) > 0 then
                 --iCount = iCount + 1
                 --if iCount >= 10 then break end
@@ -1151,6 +1153,8 @@ function CalculateBlueprintThreatsByType()
                             iT3RadarSize = 600
                         end
                     end
+                elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
+                    M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId))
                 end
             end
         end
@@ -1472,7 +1476,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Damage >= 4 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
+                    elseif oCurWeapon.Damage >= 4 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and (oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' or (oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' and not(oCurWeapon.FireTargetLayerCapsTable.Sub))) and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
                         if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         end
@@ -1482,7 +1486,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'Flamer' or oCurWeapon.Label == 'EXFlameCannon01' or oCurWeapon.Label == 'EXFlameCannon02' or oCurWeapon.Label == 'EXEMPArray02' or oCurWeapon.Label == 'EXEMPArray03' or oCurWeapon.Label == 'EXEMPArray04' or oCurWeapon.Label == 'BolterLeft' or oCurWeapon.Label == 'Cannon' or oCurWeapon.Label == 'DeckGun' or oCurWeapon.Label == 'HeavyBolter' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Label == 'EXAA02' or oCurWeapon.Label == 'EXAA03' or oCurWeapon.Label == 'EXAA04' or oCurWeapon.Label == 'AAGun' or oCurWeapon.Label == 'AAMissile' or oCurWeapon.Label == 'AAMissle' or oCurWeapon.Label == 'GatlingCannon' then
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Air and (oCurWeapon.Label == 'EXAA02' or oCurWeapon.Label == 'EXAA03' or oCurWeapon.Label == 'EXAA04' or oCurWeapon.Label == 'AAGun' or oCurWeapon.Label == 'AAMissile' or oCurWeapon.Label == 'AAMissle' or oCurWeapon.Label == 'GatlingCannon' or oCurWeapon.Label == 'PhalanxGun') then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
