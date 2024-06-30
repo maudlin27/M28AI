@@ -1883,8 +1883,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply special logic for upgrading further mex in the zone after this one, was this a T1 mex='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId))..'; bGiftingToTeammate='..tostring(bGiftingToTeammate or false)) end
                             if not(bGiftingToTeammate) then
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                                    ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                                    --If can upgrade then consider future upgrade
+                                    if oJustBuilt:GetBlueprint().General.UpgradesTo then
+                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                        if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
+                                    end
                                 end
                                 --COnsider upgrading another mex in this zone
                                 ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer)

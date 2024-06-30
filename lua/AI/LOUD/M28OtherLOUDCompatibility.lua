@@ -8,6 +8,12 @@
 
 --1 issue - LOUD has removed ANTINAVY category, use destroyer and submarine as basic proxy
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+
+function UpdateOtherLOUDInformation()
+    local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+    M28Building.bShieldsCanDischarge = false
+end
+
 function UpdateUnitCategories()
     --Land based:
         --lack of BOT category for experimentals

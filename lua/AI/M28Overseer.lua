@@ -417,17 +417,79 @@ function M28BrainCreated(aiBrain)
                     if tTable == nil then
                         return 'nil'
                     else
-                        local tEntries = {}
-                        for iEntry, vValue in tTable do
-                            if type(tTable) == "table" then
-                                table.insert(tEntries, 'iEntry '..iEntry..' is a table')
+                        function GetVariableTypeOrValue(variable, iCurSubtableLevel)
+                            if type(variable) == 'nil' then
+                                return 'nil'
+                            elseif type(variable) == 'number' then
+                                return variable
+                            elseif type(variable) == 'string' then
+                                return variable
+                            elseif type(variable) == 'boolean' then
+                                if variable then return 'True' else return 'False' end
+                            elseif type(variable) == 'function' then
+                                return '<function>'
+                            elseif type(variable) == 'userdata' then
+                                return '<userdata>'
+                            elseif type(variable) == 'thread' then
+                                return '<thread>'
+                            elseif type(variable) == 'table' then
+                                local sCombinedTable = ''
+                                for iEntry, vValue in variable do
+                                    if iCurSubtableLevel and iCurSubtableLevel >= 1 then
+                                        sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
+                                    else
+                                        sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
+                                    end
+                                end
+                                return sCombinedTable
                             else
-                                table.insert(tEntries, 'iEntry '..iEntry..'='..vValue)
+                                return '<unexpected type>'
                             end
                         end
-                        return repr(tEntries)
+
+                        return GetVariableTypeOrValue(tTable)
+
                     end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
                 end
+        if M28Utilities.bLoudModActive then
+            _G.repr = function(tTable)
+                if tTable == nil then
+                    return 'nil'
+                else
+                    function GetVariableTypeOrValue(variable, iCurSubtableLevel)
+                        if type(variable) == 'nil' then
+                            return 'nil'
+                        elseif type(variable) == 'number' then
+                            return variable
+                        elseif type(variable) == 'string' then
+                            return variable
+                        elseif type(variable) == 'boolean' then
+                            if variable then return 'True' else return 'False' end
+                        elseif type(variable) == 'function' then
+                            return '<function>'
+                        elseif type(variable) == 'userdata' then
+                            return '<userdata>'
+                        elseif type(variable) == 'thread' then
+                            return '<thread>'
+                        elseif type(variable) == 'table' then
+                            local sCombinedTable = ''
+                            for iEntry, vValue in variable do
+                                if iCurSubtableLevel and iCurSubtableLevel >= 3 then
+                                    sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
+                                else
+                                    sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
+                                end
+                            end
+                            return sCombinedTable
+                        else
+                            return '<unexpected type>'
+                        end
+                    end
+
+                    return GetVariableTypeOrValue(tTable, 0)
+                end
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
@@ -1184,7 +1246,7 @@ function GetCivilianCaptureTargets(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling)
+    ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2524,7 +2586,7 @@ end
 function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
-    local iTimeInSecondsToStartDetailedDebug = 10000000-- 1362.3 --set to high number if first want to figure out the tick where this happens
+    local iTimeInSecondsToStartDetailedDebug = 2307.1999511719 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true

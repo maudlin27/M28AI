@@ -2869,9 +2869,10 @@ function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading)
     local tPotentialUnits
     --First prioritise T1 mexes
     local tiMexCategory = {[1] = M28UnitInfo.refCategoryT1Mex, [2]=M28UnitInfo.refCategoryT2Mex}
-    for iTech = 1, 2 do
+    if M28Economy.bT3MexCanBeUpgraded then table.insert(tiMexCategory, M28UnitInfo.refCategoryT3Mex) end
+    for iTech, iMexCategory in tiMexCategory do
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            local tPotentialUnits = oBrain:GetListOfUnits(tiMexCategory[iTech], false, true)
+            local tPotentialUnits = oBrain:GetListOfUnits(iMexCategory, false, true)
             AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
         end
         if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then

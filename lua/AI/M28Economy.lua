@@ -49,6 +49,7 @@ refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
+bT3MexCanBeUpgraded = false
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
 
@@ -2627,12 +2628,21 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     if not(iTimeToWait) then
         if EntityCategoryContains(categories.TECH1, oMex.UnitId) then
             iTimeToWait = 7 * 60
-        else
+        elseif EntityCategoryContains(categories.TECH2, oMex.UnitId) then
             if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 10 then
                 iTimeToWait = 8 * 60 + 4 * 60 * (10-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 8 * 60
             end
+        else
+            local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
+            local iMexesInZone = (tLZData[M28Map.subrefLZMexCount] or 0)
+            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 25 then
+                iTimeToWait = 4 * 60 + 5 * 60 * (25-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
+            else
+                iTimeToWait = 4 * 60
+            end
+            if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
@@ -2689,7 +2699,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                                 ) then
                             --Do we have any mexes lower than this tech level? if so then dont upgrade
 
-                            if iMexTechLevel > 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
+                            if iMexTechLevel > 1 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel >= 3 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0)) then
                                 ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
                             else
                                 --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
@@ -2706,6 +2716,8 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                             ForkThread(ConsiderFutureMexUpgrade, oMex, 30)
                         end
                     end
+                else
+                    ForkThread(ConsiderFutureMexUpgrade, oMex, 600)
                 end
 
             else
