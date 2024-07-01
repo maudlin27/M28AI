@@ -283,14 +283,14 @@ function OnUnitDeath(oUnit)
 
 
         if bDebugMessages == true then
-            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false))
+            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false)..'; oUnit[M28Dead]='..tostring(oUnit['M28Dead'] or false))
             if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
         end
         --Is it an ACU?
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             OnACUKilled(oUnit)
         else
-            if oUnit.CachePosition then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above
+            if oUnit.CachePosition and (not(oUnit.UnitId) or not(EntityCategoryContains(categories.ALLUNITS - categories.INSIGNIFICANTUNIT, oUnit.UnitId))) then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Unit killed has a cache position, will draw in blue around it')
                     M28Utilities.DrawLocation(oUnit.CachePosition, nil, 1, 100, nil)
@@ -627,8 +627,8 @@ function OnUnitDeath(oUnit)
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
     end
-end
 
 --function OnWorkEnd(self, work)
     --Have commented out the line that calls this since not currently using it
