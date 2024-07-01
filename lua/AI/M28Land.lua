@@ -3521,8 +3521,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     function IgnoreOrderDueToStuckUnit(oUnit)
         if oUnit[M28UnitInfo.refbUnitStuckAlternating] then
             if (not(oUnit[M28UnitInfo.refbEasyBrain]) or EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId)) and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], oUnit:GetPosition()) >= 15 then
-                --Do nothing - want unit to reach its destination before it gets new orders
-                return true
+                if oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack then
+                    --We wont reach destination with a ground attack so need new orders
+                    return false
+                else
+                    --Do nothing - want unit to reach its destination before it gets new orders
+                    return true
+                end
             end
         end
     end
@@ -6807,6 +6812,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if bDebugMessages == true then LOG(sFunctionRef..': Have no DFLZToSupport, so will set it to iClosestDFLZRef in case that isnt nil, iClosestDFLZRef='..(iClosestDFLZRef or 'nil')) end
                     iDFLZToSupport = iClosestDFLZRef
                 end
+
                 --If we have any negligible zones, then send some units to these first and remove them from the table of DF or IF units
                 if M28Utilities.IsTableEmpty(tiDFLZWithNegligibleEnemies) == false and M28Utilities.IsTableEmpty(tDFUnits) == false then
                     --Cycle through each zone and assign DF units
@@ -6847,7 +6853,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign then
                                 iCurAssignedThreat = iCurAssignedThreat + tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
                                 M28Orders.IssueTrackedMove(tIndirectUnits[iCurUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZIF'..iLandZone..'To'..iOtherLZ, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Assigned DF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Assigned IF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                 table.remove(tIndirectUnits, iCurUnit)
                                 if iCurAssignedThreat >= iMaxThreatToAssign then break end
                             end
@@ -6915,7 +6921,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if not(iIndirectLZToSupport) then
-                    iIndirectLZToSupport = iDFLZToSupport
+                    iIndirectLZToSupport = (iClosestIndirectLZRef or iDFLZToSupport)
                 end
             end
 
@@ -6953,12 +6959,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 tDFUnits = nil
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding where to send IF units, iIndirectLZToSupport='..(iIndirectLZToSupport or 'nil')..'; is table of IF units empty='..tostring(M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tIndirectUnits)))) end
             if iIndirectLZToSupport > 0 and M28Utilities.IsTableEmpty(tIndirectUnits) == false then
                 iIndirectLZToSupport = ReviseTargetLZIfFarAway(tLZData, iTeam, iPlateau, iLandZone, iIndirectLZToSupport, 2)
                 for iUnit, oUnit in tIndirectUnits do
                     if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in a different zone to this so will set its asisgnment value to 0 so it can be assigned by that zone') end
                         oUnit[refiCurrentAssignmentValue] = 0
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Do we want to ignore orders due to having a stuck unit? oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Ignore due to stuck unit='..tostring(IgnoreOrderDueToStuckUnit(oUnit))) end
                         if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                             M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIndirectLZToSupport][M28Map.subrefMidpoint], 6, false, 'IFMovLZ'..iIndirectLZToSupport..';'..iLandZone)
                         end

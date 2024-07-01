@@ -1476,7 +1476,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Damage >= 4 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and (oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' or (oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' and not(oCurWeapon.FireTargetLayerCapsTable.Sub))) and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
+                    elseif oCurWeapon.Damage >= 2 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and (oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' or (oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' and not(oCurWeapon.FireTargetLayerCapsTable.Sub))) and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
                         if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         end
