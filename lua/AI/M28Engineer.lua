@@ -2760,6 +2760,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
+            local iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..aiBrain.Nickname..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))) end
             --Land subteam - use aiBrain.M28LandSubteam
             local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
@@ -2858,15 +2859,15 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             local iTeamNukes = 0
             if bDebugMessages == true then LOG(sFunctionRef..': iTeamLandExperimentals='..iTeamLandExperimentals..'; bCanPathByLand='..tostring(bCanPathByLand)..'; bCanPathAmphibiously='..tostring(bCanPathAmphibiously)..'; bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats='..tostring(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats)..'; iEnemyClosestLandExperimentalOnSamePlateau='..iEnemyClosestLandExperimentalOnSamePlateau..'; Is table of enemy DF units empyt='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))) end
             if iTeamLandExperimentals == 0 and bCanPathByLand and (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < math.min(4, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5))) then
-                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                 if bDebugMessages == true then LOG(sFunctionRef..': We have no land experimentals but can reach the enemy base by land so will consider building one, Is Cybran engineers of faction available='..tostring(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] or false)..'; Lifetime land experimental count='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental)) end
                 if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                     if M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < 2 then
-                        iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
+                        iCategoryWanted = M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories
                         iFactionRequired = M28UnitInfo.refFactionCybran
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a monkeylord') end
                     else
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord
+                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a megalith or other land experimental that isnt a monkeylord')
                         end
                     end
@@ -3033,7 +3034,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax1') end
                             elseif iCurFatboyCount == 0 then
-                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy1') end
                                 --Game-ender for late game scenarios where enemy has their own arti and as a team we have already tried building a number of experimentals
                             elseif not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 170 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 and iCurT3ArtiCount <= M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] and iTeamLandExperimentals >= 2 and (not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 12000) and M28Map.iMapSize >= 512 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryGameEnder) == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) >= 2 * (1.5 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -3047,7 +3048,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax3') end
                             elseif (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or iCurFatboyCount < 2) and iCurFatboyCount < math.min(5, math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3))) and (not(bEnemyHasExperimentalShields) or bEnemyHasFatboys or iCurFatboyCount < iEnemyLandExperimentalCount *0.75) then
-                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy2') end
                             else
                                 --High mass - be more likely to consider mavor
@@ -3097,7 +3098,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         else
                             --Cant path with land - prioritise novax more
                             if iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
-                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy3') end
                             else
                                 --High mass - be more likely to consider mavor
@@ -3216,9 +3217,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get another exp bomber') end
                                 else
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                     --If have Cybran then get megalith in preference to ythotha
-                                    if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then iFactionRequired = M28UnitInfo.refFactionCybran iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord
+                                    if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then iFactionRequired = M28UnitInfo.refFactionCybran iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories
 
                                         --If have Aeon then get GC in preference to Ythotha
                                     elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then iFactionRequired = M28UnitInfo.refFactionAeon end
@@ -3269,15 +3270,15 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
                                 if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get exp air') end
                             elseif not(bCanPathByLand) then
-                                iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
+                                iCategoryWanted = M28UnitInfo.refCategoryMegalith - iGameEnderTemplateCategories --megalith has better torps
                                 if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get mega') end
                             else
                                 if iTeamLandExperimentals == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < 2 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
+                                    iCategoryWanted = M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get monkey') end
                                 else
                                     --Get megalith
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord --i.e. megalith (but slightly more helpful to mods doing it this way)
+                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories --i.e. megalith (but slightly more helpful to mods doing it this way)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get non monkey land exp') end
                                 end
                             end
@@ -3407,11 +3408,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
                                 else
                                     --Dont reset faction requirement as GC is better than most other factions, except cybran
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                     if bDebugMessages == true then LOG(sFunctionRef..': want more land experimentals') end
                                     if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                                         iFactionRequired = M28UnitInfo.refFactionCybran
-                                        iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord
+                                        iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories
                                     end
                                 end
                             end
@@ -3437,7 +3438,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             end
 
                             if iTeamLandExperimentals <= math.max(iEnemyLandExperimentalCount + 2 + iBaseAdjust, 3 + iBaseAdjust) then
-                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                             else
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
                                 local iCurExperimentalsOfType = 0
@@ -3445,7 +3446,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     iCurExperimentalsOfType = iCurExperimentalsOfType + oBrain:GetCurrentUnits(iCategoryWanted)
                                 end
                                 if iCurExperimentalsOfType >= 3 and iCurExperimentalsOfType <= math.max(4, iTeamLandExperimentals * 2) then
-                                    iCategoryWanted = iCategoryWanted + M28UnitInfo.refCategoryLandExperimental
+                                    iCategoryWanted = iCategoryWanted + M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories
                                 end
                             end
                         end
@@ -3476,12 +3477,24 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
 
             --Check if we want to switch to using a gameender template
-            if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre) then
+            if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, iGameEnderTemplateCategories) then
                 --DO we have a template available?
                 if M28Conditions.HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, aiBrain.M28Team) and not(aiBrain.M28Easy) then
                     --Novax exception - dont apply GE template if we arent defending from arti and we dont have any novax yet
                     if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or not(iCategoryWanted == M28UnitInfo.refCategoryNovaxCentre) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNovaxCentre, iTeam) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category') end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category; will first list out all the blueprints buildable under the orig category wanted')
+                            local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
+                            LOG('Blueprints='..repru(tBlueprints))
+                            LOG(sFunctionRef..': Will now list out the blueprints in the gameender categories which also satisfy icategorywanted, if any')
+                            local tGEBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre)
+                            for iBlueprint, sBlueprint in tGEBlueprints do
+                                if EntityCategoryContains(iCategoryWanted, sBlueprint) then
+                                    LOG(sFunctionRef..': Blueprint in both categories='..sBlueprint..'; Name='..(__blueprints[sBlueprint].General.UnitName or 'nil'))
+                                end
+                            end
+                        end
+
                         iGameEnderTemplateCategory = iCategoryWanted
                         tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = iCategoryWanted
                         iCategoryWanted = refActionManageGameEnderTemplate
@@ -3491,7 +3504,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
     end
-    if not(iCategoryWanted) and not(bDontWantExperimental) then iCategoryWanted = M28UnitInfo.refCategoryLandExperimental end --redundancy
+    if not(iCategoryWanted) and not(bDontWantExperimental) then iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories end --redundancy
     if iCategoryWanted == refActionManageGameEnderTemplate and not(tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
         --Redundancy - wouldn't expect to get here
         local iOurT3Arti = 0
