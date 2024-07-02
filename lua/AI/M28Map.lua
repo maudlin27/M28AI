@@ -3632,9 +3632,11 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
-            table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            if not(oBrain.M28IsDefeated) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
+                table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
         end
     end
 
@@ -3649,8 +3651,10 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
         if not(bIsCampaignMap) or oBrain.M28AI then
-            tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            if not(oBrain.M28IsDefeated) then
+                tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
         end
     end
 
@@ -3754,10 +3758,11 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
+function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZLogic)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --bDontInitializeWZLogic - set to true if we arent calling this at the start of the game but just want to update the closest ally and enemy base
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
@@ -3781,16 +3786,20 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
-                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                if not(oBrain.M28IsDefeated) then
+                    table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
+                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                end
             end
         end
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
             --Campaign specific - check this is on a valid land zone
             if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPlayerStartPosition(oBrain)) or 0) > 0 and IsInPlayableArea(GetPlayerStartPosition(oBrain))) then
-                tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
-                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                if not(oBrain.M28IsDefeated) then
+                    tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                end
             end
         end
 
@@ -3828,7 +3837,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
             end
         end
-        ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
+        if not(bDontInitializeWZLogic) then ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam) end
     else
         M28Utilities.ErrorHandler('No M28 active brain')
     end
@@ -5604,22 +5613,31 @@ function RecordPondToExpandTo(aiBrain)
                                     if iDistToBuildArea <= 50 then iCurPondValue = iCurPondValue * 1.1
                                     else
                                         iCurPondValue = iCurPondValue * math.max(0.1, 1 - 0.4 * iDistToBuildArea / iDistanceThreshold)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurPondValue after adjusting for distance to build area='..iCurPondValue..'; iDistToBuildArea='..iDistToBuildArea..'; iDistanceThreshold='..iDistanceThreshold) end
                                     end
 
                                     --Are we close enough to enemy base to be in danger and we can land path to enemy base?
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))..'; Dist from naval build location to our base='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea)) end
                                     if aiBrain[refbCanPathToEnemyBaseWithLand] and not(bIsCampaignMap) then
                                         --Reduce value of pond if enemy base is close for land anyway
                                         if aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] <= 300 then
                                             iCurPondValue = iCurPondValue * 0.5
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy base within 300 so halving curpondvalue, value='..iCurPondValue) end
                                         end
                                         if M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain)) <= 200 then
-                                            iCurPondValue = 0
+                                            if M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea) <= 200 then
+                                                iCurPondValue = iCurPondValue * 0.25
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy primary base is within 200 of the naval build area so reducing pond value to 25% of normal') end
+                                            else
+                                                iCurPondValue = 0
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy primary base is closer than our own base and is within 200 so reducing pond value to 25% of normal') end
+                                            end
                                         end
                                     end
                                 end
                             else
                                 iCurPondValue = 0
+                                if bDebugMessages == true then LOG(sFunctionRef..': We couldnt find anywhere to build a naval fac so reducing pond value to 0') end
                             end
                             aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = iCurPondDefensiveValue
                             if bDebugMessages == true then LOG(sFunctionRef..': Pond value after getting naval build area='..iCurPondValue..'; Defensive value='..(aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] or 'nil')) end
@@ -8775,4 +8793,37 @@ function MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
     end
     M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau][iPlateauOrZero][iLandOrWaterZone] = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ReassessPositionsForPlayerDeath(aiBrain)
+    --Intended when a aiBrain's base is destroyed along with that player - i.e. if not in full share, and are in assassination (ACU death) or demoralisation (ACU+SACU death)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReassessPositionsForPlayerDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    for iTeam = 1, M28Team.iTotalTeamCount do
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+            --Reset primary enemy base location (redundancy)
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(aiBrain == oBrain) and not(oBrain.M28IsDefeated) then
+                    local tCurEnemyBase = {oBrain[reftPrimaryEnemyBaseLocation][1], oBrain[reftPrimaryEnemyBaseLocation][2], oBrain[reftPrimaryEnemyBaseLocation][3]}
+                    oBrain[reftPrimaryEnemyBaseLocation] = nil
+                    if M28Utilities.IsTableEmpty(GetPrimaryEnemyBaseLocation(oBrain)) then oBrain[reftPrimaryEnemyBaseLocation] = {tCurEnemyBase[1], tCurEnemyBase[2], tCurEnemyBase[3]} end
+                end
+            end
+
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Rerecording distsances to closest friendly and enemy base for iTeam='..iTeam) end
+            RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+            RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true)
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(aiBrain == oBrain) and not(oBrain.M28IsDefeated) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reassessing pond to expand to for brain='..oBrain.Nickname) end
+                    RecordPondToExpandTo(oBrain)
+                end
+            end
+            local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+            M28Navy.FlagWaterZoneStartPositions(iTeam)
+        end
+    end
 end

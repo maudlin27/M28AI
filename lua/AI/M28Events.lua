@@ -38,7 +38,7 @@ function OnPlayerDefeated(aiBrain)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)..'; ScenarioInfo.Options.Share='..(ScenarioInfo.Options.Share or 'nil')) end
         aiBrain.M28IsDefeated = true
 
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
@@ -65,6 +65,9 @@ function OnPlayerDefeated(aiBrain)
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+        if not(ScenarioInfo.Options.Share == 'FullShare') then
+            ForkThread(M28Map.ReassessPositionsForPlayerDeath, aiBrain)
+        end
         ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
@@ -76,15 +79,36 @@ function OnACUKilled(oUnit)
         local sFunctionRef = 'OnACUKilled'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then
             local oKilledBrain = oUnit:GetAIBrain()
             if oKilledBrain then
-                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and its brain is '..oKilledBrain.Nickname)
+                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and its brain is '..oKilledBrain.Nickname..'; ScenarioInfo.Options.Victory='..(ScenarioInfo.Options.Victory or 'nil')..'; Cur ACU and SACU units='..oUnit:GetAIBrain():GetCurrentUnits(categories.COMMAND + categories.SUBCOMMANDER))
             else
                 LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and it doesnt have a brain')
             end
         end
+        local oKilledBrain = oUnit:GetAIBrain()
+        local bDefeated = false
+
         if ScenarioInfo.Options.Victory == "demoralization" then
+            bDefeated = true
+        elseif oKilledBrain and not(oKilledBrain.M28IsDefeated) and ScenarioInfo.Options.Victory == 'decapitation' then
+            local tCurUnits = oKilledBrain:GetListOfUnits(categories.COMMAND + categories.SUBCOMMANDER, false, true)
+            if M28Utilities.IsTableEmpty(tCurUnits) then
+                bDefeated = true
+            else
+                bDefeated = true
+                for iOwnedUnit, oOwnedUnit in tCurUnits do
+                    if not(oOwnedUnit == oUnit) and not(oOwnedUnit.Dead) and not(oUnit['M28Dead']) then
+                        bDefeated = false
+                        break
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider calling OnPlayerDefeated, .M28IsDefeated='..tostring(oUnit:GetAIBrain().M28IsDefeated or false)..'; bDefeated='..tostring(bDefeated)) end
+        if bDefeated then
             if oUnit:GetAIBrain() then
                 if not(oUnit:GetAIBrain().M28IsDefeated) then
                     OnPlayerDefeated(oUnit:GetAIBrain())
@@ -287,7 +311,7 @@ function OnUnitDeath(oUnit)
             if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
         end
         --Is it an ACU?
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or (ScenarioInfo.Options.Victory == 'decapitation' and EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId)) then
             OnACUKilled(oUnit)
         else
             if oUnit.CachePosition and (not(oUnit.UnitId) or not(EntityCategoryContains(categories.ALLUNITS - categories.INSIGNIFICANTUNIT, oUnit.UnitId))) then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above

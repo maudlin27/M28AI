@@ -3650,7 +3650,7 @@ function WaterZoneTeamInitialisation(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'WaterZoneTeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local iCurPlateau
+
     M28Map.bWaterZoneFirstTeamInitialisation = true
     tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau] = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gamestime='..GetGameTimeSeconds()..', iTeam='..iTeam) end
