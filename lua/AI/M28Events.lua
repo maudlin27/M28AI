@@ -65,13 +65,13 @@ function OnPlayerDefeated(aiBrain)
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
-        if not(ScenarioInfo.Options.Share == 'FullShare') then
+        --if the base will have been destroyed, or there isn't a base anyway, then rerecord positions
+        if not(ScenarioInfo.Options.Share == 'FullShare') or aiBrain:GetCurrentUnits(categories.ALLUNITS - - categories.INSIGNIFICANTUNIT) <= 2 then
             ForkThread(M28Map.ReassessPositionsForPlayerDeath, aiBrain)
         end
         ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-
 end
 
 function OnACUKilled(oUnit)
