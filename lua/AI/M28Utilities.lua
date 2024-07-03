@@ -894,21 +894,19 @@ function DelayedFunction(iDelayInSeconds, fnFunction, tArguments)
 end
 
 --Below written by ChatGPT; included here instead of in M28Conditions so dont have to load as many modules
-function DoesAINicknameContainM28(sNickname, bOnlyM28Easy)
-    local suffixes
+function DoesAINicknameContainM28(sNickname, bOnlyM28Easy, bOnlyAIx)
+    local suffixes = {
+        "%(AIx: M28 Easy%)$",
+    }
     if bOnlyM28Easy then
-        suffixes = {
-            "%(AI: M28 Easy%)$",
-            "%(AIx: M28 Easy%)$"
-        }
+        if not(bOnlyAIx) then
+            table.insert(suffixes, "%(AI: M28 Easy%)$")
+        end
     else
-
-        suffixes = {
-            "%(AI: M28%)$",
-            "%(AIx: M28%)$",
-            "%(AI: M28 Easy%)$",
-            "%(AIx: M28 Easy%)$"
-        }
+        table.insert(suffixes, "%(AIx: M28%)$")
+        if not(bOnlyAIx) then
+            table.insert(suffixes, "%(AI: M28%)$")
+        end
     end
 
     for _, suffix in ipairs(suffixes) do

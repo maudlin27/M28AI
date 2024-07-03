@@ -2278,7 +2278,8 @@ function FixUnitResourceCheatModifiers(oUnit)
     if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
         local FAFBuffs = import('/lua/sim/Buff.lua')
         --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-        local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+        local iResourceModifier = (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier) end
         if iResourceModifier > 0 then
             local oBP = oUnit:GetBlueprint()
             local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
@@ -2304,15 +2305,18 @@ function FixUnitResourceCheatModifiers(oUnit)
             end
             if iUpgradeMassPerSec > 0 or iUpgradeEnergyPerSec > 0 or iBaseMassPerSec > 0 or iBaseEnergyPerSec > 0 then
                 --Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
-                Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
-                Buffs['CheatIncome'].Affects.MassProduction.Mult = iResourceModifier
-                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome', true)
-                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
+                local iIndex = oUnit:GetAIBrain():GetArmyIndex()
+                Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
+                Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
+                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..iIndex)
+                FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
                 oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
                 --FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier..'; Brain='..oUnit:GetAIBrain().Nickname) end
             end
         end
     end

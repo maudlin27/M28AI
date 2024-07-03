@@ -725,10 +725,10 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] = math.max(0, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) + iEnergyGen)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0) + iEnergyGen
                 end
-                aiBrain[refiGrossEnergyBaseIncome] = math.max(0, aiBrain[refiGrossEnergyBaseIncome] + iEnergyGen)
-                aiBrain[refiNetEnergyBaseIncome] = aiBrain[refiNetEnergyBaseIncome] + iEnergyGen
-                aiBrain[refiGrossMassBaseIncome] = math.max(0, aiBrain[refiGrossMassBaseIncome] + iMassGen)
-                aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
+                aiBrain[refiGrossEnergyBaseIncome] = math.max(0, (aiBrain[refiGrossEnergyBaseIncome] or 0) + iEnergyGen)
+                aiBrain[refiNetEnergyBaseIncome] = (aiBrain[refiNetEnergyBaseIncome] or 0) + iEnergyGen
+                aiBrain[refiGrossMassBaseIncome] = math.max(0, (aiBrain[refiGrossMassBaseIncome] or 0) + iMassGen)
+                aiBrain[refiNetMassBaseIncome] = (aiBrain[refiNetMassBaseIncome] or 0) + iMassGen
 
                 if iEnergyGen >= 25 then
                     ForkThread(ConsiderReclaimingPower, aiBrain.M28Team, oUnit)

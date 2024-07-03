@@ -710,8 +710,8 @@ function CreateNewTeam(aiBrain)
                     if oBrain.CheatEnabled then
                         tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
                         tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
                     else
                         oBrain[M28Economy.refiBrainResourceMultiplier] = 1
                         oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1

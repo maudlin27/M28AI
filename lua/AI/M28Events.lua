@@ -2543,6 +2543,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
+                    elseif M28Utilities.bLoudModActive and oUnit:GetAIBrain().CheatEnabled then
+                        ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit)
                     end
 
                     --Hydro resource locations
@@ -2884,10 +2886,11 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     local per = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
                     local cheatPos = string.find(per, 'cheat')
                     if cheatPos then
-
-                        local AIUtils = import('/lua/ai/aiutilities.lua')
-                        AIUtils.SetupCheat(aiBrain, true)
-                        ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
+                        if not(M28Utilities.bLoudModActive) then
+                            local AIUtils = import('/lua/ai/aiutilities.lua')
+                            AIUtils.SetupCheat(aiBrain, true)
+                            ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
+                        end
                     end
 
                     --M28AIBrainClass.OnCreateAI(aiBrain, planName)
