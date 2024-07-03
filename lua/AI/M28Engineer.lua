@@ -3018,6 +3018,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         local iCurFatboyCount = 0
                         local iCurNovaxCount = 0
                         local iCurT3ArtiCount = 0 --mavor treated as 3 t3 arti
+                        local bCanBuildNovax = M28Building.bNovaxInGame and not(M28UnitInfo.IsUnitRestricted('xeb2402', aiBrain:GetArmyIndex()))
                         --How many fatboys do we have on the subteam already?
                         for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
                             iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy)
@@ -3025,12 +3026,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
                         end
                         local bWantNovaxInsteadOfArti = false
-                        if iCurNovaxCount == 0 and not(M28UnitInfo.IsUnitRestricted('xeb2402', aiBrain:GetArmyIndex())) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNovaxCentre) <= 2 then
+                        if iCurNovaxCount == 0 and bCanBuildNovax and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNovaxCentre) <= 2 then
                             bWantNovaxInsteadOfArti = true
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering UEF specific, iCurFatboyCount='..iCurFatboyCount..'; iCurNovaxCount='..iCurNovaxCount..'; iCurT3AritCount='..iCurT3ArtiCount) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering UEF specific, bCanBuildNovax='..tostring(bCanBuildNovax)..'; iCurFatboyCount='..iCurFatboyCount..'; iCurNovaxCount='..iCurNovaxCount..'; iCurT3AritCount='..iCurT3ArtiCount) end
                         if bCanPathByLand then
-                            if bEnemyHasFatboys and iCurNovaxCount == 0 then
+                            if bEnemyHasFatboys and bCanBuildNovax and iCurNovaxCount == 0 then
                                 iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax1') end
                             elseif iCurFatboyCount == 0 then
@@ -3067,7 +3068,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 1UEF') end
                                             end
                                         end
-                                    elseif iCurNovaxCount < math.min(2, iCurT3ArtiCount) and not(bEnemyHasExperimentalShields) and (iCurNovaxCount == 0 or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) then
+                                    elseif bCanBuildNovax and iCurNovaxCount < math.min(2, iCurT3ArtiCount) and not(bEnemyHasExperimentalShields) and (iCurNovaxCount == 0 or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get novax5') end
                                     else
@@ -3081,7 +3082,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                 else
                                     --Novax or T3 arti (or mavor if enemy base is far away)
-                                    if iCurNovaxCount < 3 + iCurT3ArtiCount and (not(bEnemyHasExperimentalShields) or iCurNovaxCount < 1) then
+                                    if bCanBuildNovax and iCurNovaxCount < 3 + iCurT3ArtiCount and (not(bEnemyHasExperimentalShields) or iCurNovaxCount < 1) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get novax6') end
                                     else
@@ -3112,7 +3113,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                             iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor5') end
                                         end
-                                    elseif iCurNovaxCount < math.max(2, iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount == 0) then
+                                    elseif bCanBuildNovax and iCurNovaxCount < math.max(2, iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount == 0) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get novax8') end
                                     else
@@ -3121,7 +3122,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                 else
                                     --Novax or T3 arti
-                                    if iCurNovaxCount < math.min(3, 1 + iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount <= 1) then
+                                    if bCanBuildNovax and iCurNovaxCount < math.min(3, 1 + iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount <= 1) then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get novax9') end
                                     else
@@ -3477,28 +3478,64 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
 
             --Check if we want to switch to using a gameender template
-            if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, iGameEnderTemplateCategories) then
-                --DO we have a template available?
-                if M28Conditions.HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, aiBrain.M28Team) and not(aiBrain.M28Easy) then
-                    --Novax exception - dont apply GE template if we arent defending from arti and we dont have any novax yet
-                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or not(iCategoryWanted == M28UnitInfo.refCategoryNovaxCentre) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNovaxCentre, iTeam) > 0 then
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category; will first list out all the blueprints buildable under the orig category wanted')
-                            local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
-                            LOG('Blueprints='..repru(tBlueprints))
-                            LOG(sFunctionRef..': Will now list out the blueprints in the gameender categories which also satisfy icategorywanted, if any')
-                            local tGEBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre)
-                            for iBlueprint, sBlueprint in tGEBlueprints do
-                                if EntityCategoryContains(iCategoryWanted, sBlueprint) then
-                                    LOG(sFunctionRef..': Blueprint in both categories='..sBlueprint..'; Name='..(__blueprints[sBlueprint].General.UnitName or 'nil'))
+            if iCategoryWanted then
+                if M28Utilities.DoesCategoryContainCategory(iCategoryWanted, iGameEnderTemplateCategories) then
+                    --DO we have a template available?
+                    if M28Conditions.HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, aiBrain.M28Team) and not(aiBrain.M28Easy) then
+                        --Novax exception - dont apply GE template if we arent defending from arti and we dont have any novax yet
+                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or not(iCategoryWanted == M28UnitInfo.refCategoryNovaxCentre) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNovaxCentre, iTeam) > 0 then
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category; will first list out all the blueprints buildable under the orig category wanted')
+                                local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
+                                LOG('Blueprints='..repru(tBlueprints))
+                                LOG(sFunctionRef..': Will now list out the blueprints in the gameender categories which also satisfy icategorywanted, if any')
+                                local tGEBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre)
+                                for iBlueprint, sBlueprint in tGEBlueprints do
+                                    if EntityCategoryContains(iCategoryWanted, sBlueprint) then
+                                        LOG(sFunctionRef..': Blueprint in both categories='..sBlueprint..'; Name='..(__blueprints[sBlueprint].General.UnitName or 'nil'))
+                                    end
+                                end
+                            end
+
+                            iGameEnderTemplateCategory = iCategoryWanted
+                            tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = iCategoryWanted
+                            iCategoryWanted = refActionManageGameEnderTemplate
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Building our first novax so wont use ge template as enemy doesnt have any arti to defend from yet')
+                        end
+                    end
+                elseif M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    --We dont want a GE template; exclude very high mass cost blueprints if we have multiple options to build from the category wanted for each faction and we have built fewer than 3 experimentals
+                    local tsBlueprintsOfCategory = EntityCategoryGetUnitList(iCategoryWanted)
+                    if M28Utilities.IsTableEmpty(tsBlueprintsOfCategory) == false then
+                        local tsBlueprintsAndMassCostByFaction = {}
+                        local iCurBlueprintFaction
+                        local oCurBlueprint
+                        local iMassThreshold = 45000 + 15000 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]
+                        for iBlueprint, sBlueprint in tsBlueprintsOfCategory do
+                            oCurBlueprint = __blueprints[sBlueprint]
+                            iCurBlueprintFaction = M28UnitInfo.GetFactionNumberFromBlueprint(sBlueprint)
+                            if not(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction]) then tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction] = {} end
+                            table.insert(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction], { sBlueprint, (oCurBlueprint.Economy.BuildCostMass or 0) })
+                        end
+                        local bHaveLowCostOption, bHaveHighCostOption
+                        for iFaction, tSubtable in tsBlueprintsAndMassCostByFaction do
+                            bHaveLowCostOption = false
+                            bHaveHighCostOption = false
+                            for iEntry, tBlueprintAndMassCost in tSubtable do
+                                if tBlueprintAndMassCost[2] <= iMassThreshold then bHaveLowCostOption = true elseif tBlueprintAndMassCost[2] > iMassThreshold then bHaveHighCostOption = true end
+                                if bHaveLowCostOption and bHaveHighCostOption then
+                                    break
+                                end
+                            end
+                            if bHaveLowCostOption and bHaveHighCostOption then
+                                for iEntry, tBlueprintAndMassCost in tSubtable do
+                                    if tBlueprintAndMassCost[2] > iMassThreshold then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing blueprint '..tBlueprintAndMassCost[1]..' from the categories wanted as it costs '..tBlueprintAndMassCost[2]..'; iFaction='..iFaction) end
+                                        iCategoryWanted = iCategoryWanted - categories[tBlueprintAndMassCost[1]]
+                                    end
                                 end
                             end
                         end
-
-                        iGameEnderTemplateCategory = iCategoryWanted
-                        tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = iCategoryWanted
-                        iCategoryWanted = refActionManageGameEnderTemplate
-                    elseif bDebugMessages == true then LOG(sFunctionRef..': Building our first novax so wont use ge template as enemy doesnt have any arti to defend from yet')
                     end
                 end
             end
@@ -3516,8 +3553,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             iOurGameEnder = iOurGameEnder + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGameEnder)
         end
         local iDistToNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+        local bCanBuildNovax = M28Building.bNovaxInGame and not(M28UnitInfo.IsUnitRestricted('xeb2402', aiBrain:GetArmyIndex()))
         if iDistToNearestEnemyBase >= 750 or (iOurGameEnder > 0 and iOurT3Arti == 0) then
-            if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and (iOurNovax == 0 or (iOurNovax < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyArtiAndExpStructure]))) then
+            if bCanBuildNovax and tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and (iOurNovax == 0 or (iOurNovax < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyArtiAndExpStructure]))) then
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryNovaxCentre
             elseif iOurT3Arti < 3 then
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryFixedT3Arti
@@ -3525,7 +3563,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
             end
         else
-            if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and (iOurNovax == 0 or (iOurNovax < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyArtiAndExpStructure]))) then
+            if bCanBuildNovax and tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] and (iOurNovax == 0 or (iOurNovax < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyArtiAndExpStructure]))) then
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryNovaxCentre
             else
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder

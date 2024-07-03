@@ -1122,13 +1122,13 @@ function CalculateBlueprintThreatsByType()
         end
 
         local iCurTechLevel
+        local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
             sUnitId = oBP.BlueprintId
             if bDebugMessages == true then LOG('Will shortly (via a forked threat) get the blueprint threat for enemy unit sUnitId '..sUnitId..'; tUnitThreatByIDAndType[sUnitId]='..(tUnitThreatByIDAndType[sUnitId] or 'nil')..'; oBP.Economy.BuildCostMass='..(oBP.Economy.BuildCostMass or 'nil')..'; oBP.General.UnitName='..(oBP.General.UnitName or 'nil')..' if it has a build cost mass of at least 1 and we havent already called it') end
 
-            local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
             if not(tUnitThreatByIDAndType[sUnitId]) and (oBP.Economy.BuildCostMass or 0) > 0 then
                 --iCount = iCount + 1
@@ -1136,7 +1136,9 @@ function CalculateBlueprintThreatsByType()
                 ForkThread(RecordBlueprintThreatValues, oBP, sUnitId)
                 ForkThread(CheckBlueprintSizeSupport, oBP, sUnitId)
                 --Update radar values if have them
-                if oBP.Intel.RadarRadius and EntityCategoryContains(refCategoryRadar, sUnitId) then
+                if EntityCategoryContains(refCategoryNovax + refCategoryNovaxCentre, sUnitId) then
+                    M28Building.bNovaxInGame = true
+                elseif oBP.Intel.RadarRadius and EntityCategoryContains(refCategoryRadar, sUnitId) then
                     iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     if iCurTechLevel == 1 then if iT1RadarSize <= 1 then iT1RadarSize = oBP.Intel.RadarRadius end end
                     if iCurTechLevel == 2 then if iT2RadarSize <= math.max(1, iT1RadarSize) then iT2RadarSize = math.max(iT2RadarSize, oBP.Intel.RadarRadius) end end
