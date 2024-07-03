@@ -307,6 +307,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbAdjZonesWantEngiForUnbuiltMex = 'AZwEMx' --true if have adj zones wanting engineer for unbuilt mex
             subreftoEmergencyPDEngineers = 'EmPDEngis' --table of engineers with emergency PD build order
             subrefiTimeLastWantSACUForExp = 'sacuexp' --Gametimeseconds that we last failed to build an experimental in the zone due to trying with an engineer
+            subrefiTimeLastWantSACUForSMD = 'sacusmd' --Gametimeseconds that we last failed to build an SMD in the zone due to trying with an engineer
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted

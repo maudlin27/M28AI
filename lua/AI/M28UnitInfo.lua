@@ -1474,7 +1474,7 @@ function RecordUnitRange(oUnit)
                     elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                     --LOUD Additional checks since often units dont have a range category for a weapon - use FireTargetLayerCapsTable to help differentiate between AA; torpedo; and ground attacks (with damaged used to ignore most 'cosmetic' and special countermeasure type weapons:
-                    elseif oCurWeapon.CannotAttackGround and oCurWeapon.FireTargetLayerCapsTable.Air then
+                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or (oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' and not(oCurWeapon.FireTargetLayerCapsTable.Water))  then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)

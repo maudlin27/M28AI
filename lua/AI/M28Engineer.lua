@@ -1188,7 +1188,11 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
             --LOUD specific - only SACUs can build experimentals
             if M28Utilities.bLoudModActive then
-                tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] = GetGameTimeSeconds()
+                if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryExperimentalLevel, iCategoryToBuild, true) then
+                    tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] = GetGameTimeSeconds()
+                elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySMD, iCategoryToBuild, true) then
+                    tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] = GetGameTimeSeconds()
+                end
             end
 
             --If trying to build experimental, then just build any kind of experimental (excl transports and PD, and sera factory (quantum arch from mods))
@@ -10470,7 +10474,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Build quantum gateway if using a mod (e.g. LOUD) that requires SACUs to build experimentals
     iCurPriority = iCurPriority + 1
-    if tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+    if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
         iBPWanted = 90
         if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 180 end
         if tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tLZData[M28Map.subrefLZMexCount]) then iBPWanted = iBPWanted * 0.25 end
