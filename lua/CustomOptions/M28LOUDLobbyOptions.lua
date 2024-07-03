@@ -4,7 +4,7 @@
 --- DateTime: 19/06/2024 08:07
 ---
 LobbyGlobalOptions = {
-    {
+    --[[{
         default = 1,
         label = "M28: M28 Teams",
         help = "Which teams should M28 apply to?",
@@ -29,7 +29,7 @@ LobbyGlobalOptions = {
                 key = 3,
             },
         },
-    },
+    },--]]
 
     {
         default = 11,
@@ -1716,7 +1716,7 @@ LobbyGlobalOptions = {
             },
         },
     },
-    {
+    --[[{
         default = 2,
         label = "M28: Use AIx modifiers?",
         help = "Applies AIx resource and build rate modifiers to all M28AI",
@@ -1735,9 +1735,9 @@ LobbyGlobalOptions = {
                 key = 2,
             },
         },
-    },
+    },--]]
 
-    {
+    --[[{
         default = 2,
         label = "M28: Use M28Easy?",
         help = 'Applies M28Easy logic instead of M28AI; M28Easy disables most micro',
@@ -1758,5 +1758,5 @@ LobbyGlobalOptions = {
                 key = 2,
             },
         },
-    },
+    },--]]
 }

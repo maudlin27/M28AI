@@ -87,7 +87,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 if M28Utilities.DoesAINicknameContainM28(oBrain.Nickname) or tonumber(ScenarioInfo.Options.M28Teams) == 3 or (tonumber(ScenarioInfo.Options.M28Teams) == 2 and (iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7)) then
                     LOG('Will apply M28 logic to the AI')
                     oBrain.M28AI = true
-                    if ScenarioInfo.Options.CmM28Easy == 1 then
+                    if ScenarioInfo.Options.CmM28Easy == 1 or M28Utilities.DoesAINicknameContainM28(oBrain.Nickname, true) then
                         oBrain.M28Easy = true
                     end
                     M28Utilities.bM28AIInGame = true
@@ -165,7 +165,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 -- put some initial threat at all enemy positions
                 for k,brain in ArmyBrains do
 
-                    if self.ArmyIndex != brain.ArmyIndex and brain.Nickname != 'civilian' and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
+                    if not(self.ArmyIndex == brain.ArmyIndex) and not(brain.Nickname == 'civilian') and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
 
                 local place = brain:GetStartVector3f()
                 local threatlayer = 'AntiAir'
