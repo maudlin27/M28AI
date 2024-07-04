@@ -73,6 +73,8 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFactory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; is iCategoryCondition nil='..tostring(iCategoryCondition == nil)..'; Time='..GetGameTimeSeconds()) end
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option)
     if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
@@ -656,7 +658,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
 
                 --Absolver override
                 if bConsiderAbsolvers then
-                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.SHIELD + categories.PERSONALSHIELD, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
+                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
                         --Want absolvers unless we are already building some in this zone
                         local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
                         if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * categories.AMPHIBIOUS + iAbsolverCategory * categories.HOVER end
@@ -3427,7 +3429,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if not(iBrainAirScouts) then iBrainAirScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) end
 
             if bDebugMessages == true then LOG(sFunctionRef..': iBrainAirScouts='..iBrainAirScouts..'; iFactoryTechLevel='..iFactoryTechLevel) end
-            if iBrainAirScouts < 6 and ((((iBrainAirScouts == 0 and tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 or (iBrainAirScouts <= 3 and (iFactoryTechLevel == 3 or iBrainAirScouts == 0) and M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 360 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 900) and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirScout * categories.TECH3) == 0)) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1))
+            if iBrainAirScouts < 6 and ((((iBrainAirScouts == 0 and tLZTeamData[M28Map.refiRadarCoverage] or 0) <= math.min(300, math.max(200, M28UnitInfo.iT3RadarSize - 50)) or (iBrainAirScouts <= 3 and (iFactoryTechLevel == 3 or iBrainAirScouts == 0) and M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 360 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget] >= 900) and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirScout * categories.TECH3) == 0)) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1))
                     or (iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false and iBrainAirScouts < math.min(2, table.getn(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingScout])))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
             end
@@ -4859,6 +4861,13 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
         end
+    end
+
+    --LOUD specific - build SACUs if needed to build experimentals
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Time since tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0)) end
+    if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 10 then
+        if ConsiderBuildingCategory(M28UnitInfo.categories.SUBCOMMANDER, true) then return sBPIDToBuild end
     end
 
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix

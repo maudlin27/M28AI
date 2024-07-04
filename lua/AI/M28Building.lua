@@ -24,6 +24,9 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
 iEnergyStorageExpectedCapacity = 5000 --i.e. how much energy does an energy storage hold - for a long time for FAF was 5k, but beta balance changes (expected July 2023) are meant to be changing this
 iTimeForSMDToBeConstructed = 45 --i.e. number of seconds we assume an SMD will be constructed in; even if it is built faster, it will be treated as having been built this many seconds ago so are being consistent with logic
+bShieldsCanDischarge = true
+bNovaxInGame = false
+iLowestAirStagingTechAvailable = 3
 
 --Variables against a unit:
     --TML and TMD
@@ -4039,7 +4042,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
     local sFunctionRef = 'MonitorShieldsForCycling'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if not(tTableRef[M28Map.subrefGEbActiveShieldMonitor]) then
+    if not(tTableRef[M28Map.subrefGEbActiveShieldMonitor]) and bShieldsCanDischarge then
         tTableRef[M28Map.subrefGEbActiveShieldMonitor] = true
         local oLowestHealthActiveShield, oHighestHealthActiveShield, iCompletedShieldCount, iCurHealth, iMaxHealth, iLowestHealth, iHighestHealth, iLongestRechargeTime
         local iSecondsBetweenShieldCycles = 1 --will change

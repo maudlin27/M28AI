@@ -49,6 +49,7 @@ refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
+bT3MexCanBeUpgraded = false
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
 
@@ -724,10 +725,10 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] = math.max(0, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) + iEnergyGen)
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0) + iEnergyGen
                 end
-                aiBrain[refiGrossEnergyBaseIncome] = math.max(0, aiBrain[refiGrossEnergyBaseIncome] + iEnergyGen)
-                aiBrain[refiNetEnergyBaseIncome] = aiBrain[refiNetEnergyBaseIncome] + iEnergyGen
-                aiBrain[refiGrossMassBaseIncome] = math.max(0, aiBrain[refiGrossMassBaseIncome] + iMassGen)
-                aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
+                aiBrain[refiGrossEnergyBaseIncome] = math.max(0, (aiBrain[refiGrossEnergyBaseIncome] or 0) + iEnergyGen)
+                aiBrain[refiNetEnergyBaseIncome] = (aiBrain[refiNetEnergyBaseIncome] or 0) + iEnergyGen
+                aiBrain[refiGrossMassBaseIncome] = math.max(0, (aiBrain[refiGrossMassBaseIncome] or 0) + iMassGen)
+                aiBrain[refiNetMassBaseIncome] = (aiBrain[refiNetMassBaseIncome] or 0) + iMassGen
 
                 if iEnergyGen >= 25 then
                     ForkThread(ConsiderReclaimingPower, aiBrain.M28Team, oUnit)
@@ -748,6 +749,10 @@ end
 
 function AdjustAIxOverwhelmRate()
     --Waits the indicated number of seconds and then adjusts the AIx overwhelm rate
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AdjustAIxOverwhelmRate'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iSecondsToWait = tonumber(ScenarioInfo.Options.M28OvwT) * 60
     local iRateAdjustment = tonumber(ScenarioInfo.Options.M28OvwR)
     local iLowerCap = 0.1
@@ -755,17 +760,28 @@ function AdjustAIxOverwhelmRate()
     if iRateAdjustment > 0 then iUpperCap = tonumber(ScenarioInfo.Options.M28OvwC)
     else iLowerCap = tonumber(ScenarioInfo.Options.M28OvwC)
     end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': near start of code, iSecondsToWait='..iSecondsToWait..'; ScenarioInfo.Options.M28OvwT='..ScenarioInfo.Options.M28OvwT..'; iRateAdjustment='..iRateAdjustment..'; ScenarioInfo.Options.M28OvwR='..ScenarioInfo.Options.M28OvwR..'; iLowerCap='..iLowerCap..'; iUpperCap='..iUpperCap) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(iSecondsToWait)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
         local bChangedModifier
         local iCurBuildModifier
         local iCurResourceModifier
+
+        local bHaveIndividualAIBrainMods = false
+        for iBrian, oBrain in M28Overseer.tAllActiveM28Brains do
+            if oBrain.CheatValue then bHaveIndividualAIBrainMods = true break end
+        end
+
         while M28Utilities.bM28AIInGame do
             --Set the new modifier
             bChangedModifier = false
             iCurResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
             iCurBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or tostring(1.5))
+
             if iRateAdjustment > 0 then
                 if iCurResourceModifier < iUpperCap or iCurBuildModifier < iUpperCap then
                     iCurResourceModifier = math.min(iCurResourceModifier + iRateAdjustment, iUpperCap)
@@ -783,19 +799,50 @@ function AdjustAIxOverwhelmRate()
                     bChangedModifier = true
                 end
             end
-            if not(bChangedModifier) then
+            if bDebugMessages == true then LOG(sFunctionRef..': bChangedModifier='..tostring(bChangedModifier)..'; bHaveIndividualAIBrainMods='..tostring(bHaveIndividualAIBrainMods)..'; Time='..GetGameTimeSeconds()) end
+            if not(bChangedModifier) and not(bHaveIndividualAIBrainMods) then
                 break
             else
                 --Adjust each brain (which should also adjust all units owned by them and updates the team modifier)
+                local bChangedAnyAI = not(bHaveIndividualAIBrainMods)
+                function GetIndividualModifier(oBrain)
+                    bChangedModifier = false
+                    if iRateAdjustment > 0 then
+                        if oBrain.CheatValue < iUpperCap then
+                            bChangedModifier = true
+                        end
+                    else
+                        if oBrain.CheatValue > iLowerCap then
+                            bChangedModifier = true
+                        end
+                    end
+                    if bChangedModifier then return oBrain.CheatValue + iRateAdjustment end
+                end
+                local iIndividualModifier
                 for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                     if oBrain.CheatEnabled and not(oBrain.M28IsDefeated) then
-                        M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
+                        if bHaveIndividualAIBrainMods and oBrain.CheatValue then
+                            iIndividualModifier = GetIndividualModifier(oBrain)
+                            if bChangedModifier and iIndividualModifier then
+                                bChangedAnyAI = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing AIx modifier for brain '..oBrain.Nickname..' to '..iIndividualModifier) end
+                                --Also change the AI .CheatValue
+                                                                            --aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
+                                M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iIndividualModifier, iIndividualModifier, true,                   nil,                                false,           true)
+                            end
+                        else
+                            M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
+                        end
                     end
                 end
+                if bHaveIndividualAIBrainMods and not(bChangedAnyAI) then break end
             end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(iSecondsToWait)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshEconomyGrossValues(aiBrain)
@@ -1760,7 +1807,7 @@ function ManageEnergyStalls(iTeam)
                         if M28Team.tTeamData[iTeam][M28Team.refiPausedUnitCount] > 0 then
                             local iShieldsAndRadarPaused = 0
                             for iPriority, tUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
-                                local tShieldsAndRadarPaused = EntityCategoryFilterDown(categories.PERSONALSHIELD + categories.SHIELD + M28UnitInfo.refCategoryRadar, tUnits)
+                                local tShieldsAndRadarPaused = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits + M28UnitInfo.refCategoryRadar, tUnits)
                                 if M28Utilities.IsTableEmpty(tShieldsAndRadarPaused) == false then
                                     LOG(sFunctionRef..': iPriority '..iPriority..' has '..table.getn(tShieldsAndRadarPaused)..' units with shield or radar that are paused')
                                 end
@@ -2627,12 +2674,21 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     if not(iTimeToWait) then
         if EntityCategoryContains(categories.TECH1, oMex.UnitId) then
             iTimeToWait = 7 * 60
-        else
+        elseif EntityCategoryContains(categories.TECH2, oMex.UnitId) then
             if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 10 then
                 iTimeToWait = 8 * 60 + 4 * 60 * (10-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 8 * 60
             end
+        else
+            local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
+            local iMexesInZone = (tLZData[M28Map.subrefLZMexCount] or 0)
+            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 25 then
+                iTimeToWait = 4 * 60 + 5 * 60 * (25-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
+            else
+                iTimeToWait = 4 * 60
+            end
+            if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
@@ -2689,7 +2745,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                                 ) then
                             --Do we have any mexes lower than this tech level? if so then dont upgrade
 
-                            if iMexTechLevel > 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
+                            if iMexTechLevel > 1 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel >= 3 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0)) then
                                 ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
                             else
                                 --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
@@ -2706,6 +2762,8 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                             ForkThread(ConsiderFutureMexUpgrade, oMex, 30)
                         end
                     end
+                else
+                    ForkThread(ConsiderFutureMexUpgrade, oMex, 600)
                 end
 
             else

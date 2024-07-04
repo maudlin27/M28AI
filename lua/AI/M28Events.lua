@@ -38,7 +38,7 @@ function OnPlayerDefeated(aiBrain)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)..'; ScenarioInfo.Options.Share='..(ScenarioInfo.Options.Share or 'nil')) end
         aiBrain.M28IsDefeated = true
 
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
@@ -65,10 +65,13 @@ function OnPlayerDefeated(aiBrain)
 
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+        --if the base will have been destroyed, or there isn't a base anyway, then rerecord positions
+        if not(ScenarioInfo.Options.Share == 'FullShare') or aiBrain:GetCurrentUnits(categories.ALLUNITS - categories.INSIGNIFICANTUNIT) <= 2 then
+            ForkThread(M28Map.ReassessPositionsForPlayerDeath, aiBrain)
+        end
         ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-
 end
 
 function OnACUKilled(oUnit)
@@ -76,15 +79,36 @@ function OnACUKilled(oUnit)
         local sFunctionRef = 'OnACUKilled'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then
             local oKilledBrain = oUnit:GetAIBrain()
             if oKilledBrain then
-                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and its brain is '..oKilledBrain.Nickname)
+                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and its brain is '..oKilledBrain.Nickname..'; ScenarioInfo.Options.Victory='..(ScenarioInfo.Options.Victory or 'nil')..'; Cur ACU and SACU units='..oUnit:GetAIBrain():GetCurrentUnits(categories.COMMAND + categories.SUBCOMMANDER))
             else
                 LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and it doesnt have a brain')
             end
         end
+        local oKilledBrain = oUnit:GetAIBrain()
+        local bDefeated = false
+
         if ScenarioInfo.Options.Victory == "demoralization" then
+            bDefeated = true
+        elseif oKilledBrain and not(oKilledBrain.M28IsDefeated) and ScenarioInfo.Options.Victory == 'decapitation' then
+            local tCurUnits = oKilledBrain:GetListOfUnits(categories.COMMAND + categories.SUBCOMMANDER, false, true)
+            if M28Utilities.IsTableEmpty(tCurUnits) then
+                bDefeated = true
+            else
+                bDefeated = true
+                for iOwnedUnit, oOwnedUnit in tCurUnits do
+                    if not(oOwnedUnit == oUnit) and not(oOwnedUnit.Dead) and not(oUnit['M28Dead']) then
+                        bDefeated = false
+                        break
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider calling OnPlayerDefeated, .M28IsDefeated='..tostring(oUnit:GetAIBrain().M28IsDefeated or false)..'; bDefeated='..tostring(bDefeated)) end
+        if bDefeated then
             if oUnit:GetAIBrain() then
                 if not(oUnit:GetAIBrain().M28IsDefeated) then
                     OnPlayerDefeated(oUnit:GetAIBrain())
@@ -283,14 +307,14 @@ function OnUnitDeath(oUnit)
 
 
         if bDebugMessages == true then
-            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false))
+            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()..'; oUnit[refbAlreadyRunUnitKilled]='..tostring(oUnit[refbAlreadyRunUnitKilled] or false)..'; oUnit[M28Dead]='..tostring(oUnit['M28Dead'] or false))
             if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
         end
         --Is it an ACU?
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or (ScenarioInfo.Options.Victory == 'decapitation' and EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId)) then
             OnACUKilled(oUnit)
         else
-            if oUnit.CachePosition then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above
+            if oUnit.CachePosition and (not(oUnit.UnitId) or not(EntityCategoryContains(categories.ALLUNITS - categories.INSIGNIFICANTUNIT, oUnit.UnitId))) then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Unit killed has a cache position, will draw in blue around it')
                     M28Utilities.DrawLocation(oUnit.CachePosition, nil, 1, 100, nil)
@@ -627,8 +651,8 @@ function OnUnitDeath(oUnit)
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
     end
-end
 
 --function OnWorkEnd(self, work)
     --Have commented out the line that calls this since not currently using it
@@ -1487,7 +1511,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 end
                             end
                             if not(bAlreadyRecorded) then
-                                table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
+                                --Check this isn't a mobile non-scathis unit
+                                if not(EntityCategoryContains(categories.MOBILE, oConstruction.UnitId)) or M28UnitInfo.GetBlueprintMaxGroundRange(oConstruction:GetBlueprint()) >= 500 then
+                                    table.insert(tTemplateRef[M28Map.subrefGEArtiUnits], oConstruction)
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': We have constructed a mobile unit with a short range so wont record as an arti unit')
+                                end
                             end
                             tTemplateRef[M28Map.subrefbFailedToGetArtiLocation] = false
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started experimental type unit so will add to table of arti for this reference, oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
@@ -1879,8 +1907,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply special logic for upgrading further mex in the zone after this one, was this a T1 mex='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId))..'; bGiftingToTeammate='..tostring(bGiftingToTeammate or false)) end
                             if not(bGiftingToTeammate) then
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH3 -categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                                    ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                                    --If can upgrade then consider future upgrade
+                                    if oJustBuilt:GetBlueprint().General.UpgradesTo then
+                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                        if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
+                                    end
                                 end
                                 --COnsider upgrading another mex in this zone
                                 ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer)
@@ -2508,9 +2540,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
 
                     --Units with upgrade - update the base threat value
-                    if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                    if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) or (oUnit.HasEnhancement and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and (oUnit:HasEnhancement('ResourceAllocation') or oUnit:HasEnhancement('ResourceAllocationAdvanced'))) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
+                    elseif M28Utilities.bLoudModActive and oUnit:GetAIBrain().CheatEnabled then
+                        ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit)
                     end
 
                     --Hydro resource locations
@@ -2852,10 +2886,11 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     local per = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
                     local cheatPos = string.find(per, 'cheat')
                     if cheatPos then
-
-                        local AIUtils = import('/lua/ai/aiutilities.lua')
-                        AIUtils.SetupCheat(aiBrain, true)
-                        ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
+                        if not(M28Utilities.bLoudModActive) then
+                            local AIUtils = import('/lua/ai/aiutilities.lua')
+                            AIUtils.SetupCheat(aiBrain, true)
+                            ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
+                        end
                     end
 
                     --M28AIBrainClass.OnCreateAI(aiBrain, planName)
@@ -3567,4 +3602,18 @@ function OnGameStart()
         end
         --[aiBrain.Name].AIPersonality
     end
+end
+
+function ShieldRechargeStarted(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = true
+end
+
+function ShieldDisabled(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = true
+end
+function ShieldEnabled(oUnit)
+    --LOUD specific - used becuase LOUD doesnt have FAF code for shield.enabled
+    oUnit[M28UnitInfo.refbShieldDown] = false
 end

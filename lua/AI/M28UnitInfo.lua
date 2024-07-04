@@ -26,6 +26,11 @@ refFactionNomads = 5
 refFactionUnrecognised = 6
 tFactionsByName = {[refFactionUEF] = 'UEF', [refFactionAeon] = 'Aeon', [refFactionCybran] = 'Cybran', [refFactionSeraphim] = 'Seraphim', [refFactionNomads] = 'Nomads'}
 
+--Radar values per blueprints (gets updated at start of game)
+iT1RadarSize = 1
+iT2RadarSize = 1
+iT3RadarSize = 1
+
 --Transport clamp types
 refClampSmall = 1
 refClampMedium = 2
@@ -47,6 +52,7 @@ reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is t
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
+refbShieldDown = 'M28UShDw' --LOUD specific (as FAF has .enabled against the shield itself) - true if shield starts recharging, changed to false once at 100%
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refiTimeOfLastHoverLandCombatOrder = 'M28UnitTimeLstHCO' --hover units will only be given new orders every 6s to try and reduce cases where they end up not moving
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
@@ -238,13 +244,15 @@ refCategoryIndirectT2Plus = categories.MOBILE * categories.LAND * categories.IND
 refCategoryIndirectT2Below = categories.MOBILE * categories.INDIRECTFIRE * categories.LAND * categories.TECH1 + categories.MOBILE * categories.INDIRECTFIRE * categories.LAND * categories.TECH2
 refCategoryIndirectT3 = categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH3 - categories.DIRECTFIRE
 --Obsidian special case with shields due to inconsistent categories:
-refCategoryObsidian = categories.AEON * categories.TECH2 * categories.SHIELD * categories.DIRECTFIRE * categories.MOBILE * categories.LAND * categories.TANK --
+refCategoryObsidian = categories.TECH2 * categories.SHIELD * categories.DIRECTFIRE * categories.MOBILE * categories.LAND + categories.PERSONALSHIELD * categories.DIRECTFIRE * categories.TECH2 * categories.MOBILE * categories.LAND
 refCategoryMobileLandShield = categories.LAND * categories.MOBILE * categories.SHIELD - refCategoryObsidian -categories.EXPERIMENTAL  --Miscategorised obsidian tank
 refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
 refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
-refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - categories.BOMB --Mongoose, Hoplite, sniperbot
+refCategoryMobileBomb = categories.BOMB * categories.MOBILE
+refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb --Mongoose, Hoplite, sniperbot
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
+refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 
 
 --Air units
@@ -258,7 +266,7 @@ refCategoryTorpBomber = categories.AIR * categories.BOMBER * refCategoryAntiNavy
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
 refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
-refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2
+refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2 + categories.AIR * categories.MOBILE * categories.BOMB
 refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
@@ -274,13 +282,11 @@ refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
 refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
-TestCat1 = categories.NAVAL
-TestCat2 = categories.NAVALCARRIER
-TestCat3 = categories.EXTERNALFACTORY
 refCategoryCarrier = categories.NAVAL * categories.NAVALCARRIER * categories.EXTERNALFACTORY
 refCategoryMobileAircraftFactory = categories.AIR * categories.EXTERNALFACTORYUNIT + categories.NAVALCARRIER * categories.EXTERNALFACTORYUNIT
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
-refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + categories.STEALTHFIELD * categories.NAVAL --Intended for units we dont want on frontline unless in bombardment mode
+refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
+refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + refCategoryStealthBoat --Intended for units we dont want on frontline unless in bombardment mode
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
 refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
@@ -289,7 +295,6 @@ refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLES
 refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
 refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
-refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
 refCategoryBattleship = categories.BATTLESHIP - refCategoryBattlecruiser - refCategoryMissileShip
 refCategoryBombardment = refCategoryFrigate + refCategoryMissileShip + refCategoryCruiserCarrier * categories.SILO + refCategoryDestroyer + refCategoryBattlecruiser + refCategoryBattleship
@@ -303,10 +308,10 @@ refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCa
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
-refCategoryStealth = categories.STEALTHFIELD + categories.STEALTH
+refCategoryStealth = refCategoryStealthGenerator + refCategoryStealthAndCloakPersonal
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
-refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE
-refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
+refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS - categories.SHIELD * categories.STRUCTURE - categories.MASSSTORAGE * categories.EXPERIMENTAL
+refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO - categories.MASSSTORAGE * categories.EXPERIMENTAL + refCategoryParagon
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD + refCategoryNavalSurface * categories.BATTLESHIP --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
 refCategoryLongRangeDFLand = refCategoryFatboy + refCategorySniperBot + refCategoryShieldDisruptor
@@ -887,7 +892,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
                         if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
                             --Does unit have a shield?
-                            if EntityCategoryContains(categories.PERSONALSHIELD + categories.SHIELD, oUnit.UnitId) then
+                            if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive) then
                                 local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
                                 iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                             else
@@ -1116,18 +1121,43 @@ function CalculateBlueprintThreatsByType()
             if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating air threat values, result of land and air for '..(oBP.General.UnitName or 'nil')..'='..reprs(tUnitThreatByIDAndType[sUnitId])) end
         end
 
-        local iCount = 0
+        local iCurTechLevel
+        local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
             sUnitId = oBP.BlueprintId
             if bDebugMessages == true then LOG('Will shortly (via a forked threat) get the blueprint threat for enemy unit sUnitId '..sUnitId..'; tUnitThreatByIDAndType[sUnitId]='..(tUnitThreatByIDAndType[sUnitId] or 'nil')..'; oBP.Economy.BuildCostMass='..(oBP.Economy.BuildCostMass or 'nil')..'; oBP.General.UnitName='..(oBP.General.UnitName or 'nil')..' if it has a build cost mass of at least 1 and we havent already called it') end
 
+
             if not(tUnitThreatByIDAndType[sUnitId]) and (oBP.Economy.BuildCostMass or 0) > 0 then
                 --iCount = iCount + 1
                 --if iCount >= 10 then break end
                 ForkThread(RecordBlueprintThreatValues, oBP, sUnitId)
                 ForkThread(CheckBlueprintSizeSupport, oBP, sUnitId)
+                --Update radar values if have them
+                if EntityCategoryContains(refCategoryNovax + refCategoryNovaxCentre, sUnitId) then
+                    M28Building.bNovaxInGame = true
+                elseif oBP.Intel.RadarRadius and EntityCategoryContains(refCategoryRadar, sUnitId) then
+                    iCurTechLevel = GetBlueprintTechLevel(sUnitId)
+                    if iCurTechLevel == 1 then if iT1RadarSize <= 1 then iT1RadarSize = oBP.Intel.RadarRadius end end
+                    if iCurTechLevel == 2 then if iT2RadarSize <= math.max(1, iT1RadarSize) then iT2RadarSize = math.max(iT2RadarSize, oBP.Intel.RadarRadius) end end
+                    if iCurTechLevel == 3 then if iT3RadarSize <= math.max(1, iT2RadarSize) then iT3RadarSize = math.max(iT3RadarSize, oBP.Intel.RadarRadius) end end
+
+
+                    --Use hardcoded values if not had things set
+                    if iT1RadarSize <= 1 then iT1RadarSize = 116 end
+                    if iT2RadarSize <= 1 then iT2RadarSize = 200 end
+                    if iT3RadarSize <= 1 then
+                        if M28Utilities.bLoudModActive then
+                            iT3RadarSize = 320
+                        else
+                            iT3RadarSize = 600
+                        end
+                    end
+                elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
+                    M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId))
+                end
             end
         end
 
@@ -1201,9 +1231,13 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
                 end
             end
         end
+        --Support for LOUD mod where units have 0 shield with :GetHealth() but the shield is up
+        if not(M28Utilities.bFAFActive) and iMaxShield > 0 and iCurShield == 0 and oUnit.MyShield:IsOn() and not(oUnit[refbShieldDown]) then
+            iCurShield = math.min(oUnit:GetShieldRatio(true), oUnit:GetShieldRatio(false)) * iMaxShield
+        end
         if bDebugMessages == true then
             LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; ShieldRatio False='..oUnit:GetShieldRatio(false)..'; ShieldRatio true='..oUnit:GetShieldRatio(true)..' iCurShield='..iCurShield)
-            if oUnit.MyShield then LOG('Unit has MyShield; IsUp='..tostring(oUnit.MyShield:IsUp())..'; shield health='..oUnit.MyShield:GetHealth()) end
+            if oUnit.MyShield then LOG('Unit has MyShield; oUnit.MyShield.Enabled='..tostring(oUnit.MyShield.Enabled or false)..'; IsOn='..tostring(oUnit.MyShield:IsOn())..'; shield health='..oUnit.MyShield:GetHealth()) end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return iCurShield, iMaxShield
@@ -1269,12 +1303,14 @@ function GetBomberAOEAndStrikeDamage(oUnit)
     local iAOE = 0
     local iStrikeDamage = 0
     local iFiringRandomness
+    local iSalvoModifier
     for sWeaponRef, tWeapon in oBP.Weapon do
-        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' then
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.Label == 'Bomb' then
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
-                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
-                if tWeapon.MuzzleSalvoSize > 2 then iStrikeDamage = iStrikeDamage * 0.5 end
+                iSalvoModifier = (tWeapon.MuzzleSalvoSize or 1)
+                if iSalvoModifier > 2 then iSalvoModifier = (iSalvoModifier - 1) * 0.5 + 1 end
+                iStrikeDamage = tWeapon.Damage * iSalvoModifier
                 iFiringRandomness = (tWeapon.FiringRandomness or 0)
             end
         end
@@ -1437,10 +1473,29 @@ function RecordUnitRange(oUnit)
                         end
                     elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
+                    --LOUD Additional checks since often units dont have a range category for a weapon - use FireTargetLayerCapsTable to help differentiate between AA; torpedo; and ground attacks (with damaged used to ignore most 'cosmetic' and special countermeasure type weapons:
+                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or (oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' and not(oCurWeapon.FireTargetLayerCapsTable.Water))  then
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
+                        oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Damage >= 2 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and (oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' or (oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' and not(oCurWeapon.FireTargetLayerCapsTable.Sub))) and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
+                        if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        end
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'Flamer' or oCurWeapon.Label == 'EXFlameCannon01' or oCurWeapon.Label == 'EXFlameCannon02' or oCurWeapon.Label == 'EXEMPArray02' or oCurWeapon.Label == 'EXEMPArray03' or oCurWeapon.Label == 'EXEMPArray04' or oCurWeapon.Label == 'BolterLeft' or oCurWeapon.Label == 'Cannon' or oCurWeapon.Label == 'DeckGun' or oCurWeapon.Label == 'HeavyBolter' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Air and (oCurWeapon.Label == 'EXAA02' or oCurWeapon.Label == 'EXAA03' or oCurWeapon.Label == 'EXAA04' or oCurWeapon.Label == 'AAGun' or oCurWeapon.Label == 'AAMissile' or oCurWeapon.Label == 'AAMissle' or oCurWeapon.Label == 'GatlingCannon' or oCurWeapon.Label == 'PhalanxGun') then
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
+                        oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'AntiTorpedo' then
+                        oUnit[refbHasTorpedoDefence] = true
+                    elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
+                        --Do nothing - LOUD weapon labels where there is no or negligible damage
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
@@ -2086,9 +2141,9 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
         if not(tWeapon.WeaponCategory == 'Death') then
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
-                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+                iStrikeDamage = tWeapon.Damage * (tWeapon.MuzzleSalvoSize or 1)
                 if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
-                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, tWeapon.MuzzleSalvoSize * 0.5))
+                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, (tWeapon.MuzzleSalvoSize or 2) * 0.5))
                 end
                 iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
                 iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
@@ -2223,7 +2278,8 @@ function FixUnitResourceCheatModifiers(oUnit)
     if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
         local FAFBuffs = import('/lua/sim/Buff.lua')
         --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-        local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+        local iResourceModifier = (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier) end
         if iResourceModifier > 0 then
             local oBP = oUnit:GetBlueprint()
             local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
@@ -2249,15 +2305,22 @@ function FixUnitResourceCheatModifiers(oUnit)
             end
             if iUpgradeMassPerSec > 0 or iUpgradeEnergyPerSec > 0 or iBaseMassPerSec > 0 or iBaseEnergyPerSec > 0 then
                 --Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
-                Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
-                Buffs['CheatIncome'].Affects.MassProduction.Mult = iResourceModifier
-                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome', true)
-                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
+                local iIndex = oUnit:GetAIBrain():GetArmyIndex()
+                if not(Buffs['CheatIncome'..iIndex]) or not(Buffs['CheatBuildRate'..iIndex]) then
+                    local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+                    M28Overseer.SetBuildAndResourceCheatModifiers(oUnit:GetAIBrain(), (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5)), iResourceModifier, true, nil, true, false)
+                end
+                Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
+                Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
+                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..iIndex)
+                FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
                 oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
                 --FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier..'; Brain='..oUnit:GetAIBrain().Nickname) end
             end
         end
     end

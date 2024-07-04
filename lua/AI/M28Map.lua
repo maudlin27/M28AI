@@ -306,6 +306,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftiPotentialNukeTargetZones = 'NkTrgtZ' --contains subtables, ordered 1,2,...x returning {iPlateauOrZero, iLandOrWaterZone} for each zone that can probably be hit by a nuke from this zone
             refbAdjZonesWantEngiForUnbuiltMex = 'AZwEMx' --true if have adj zones wanting engineer for unbuilt mex
             subreftoEmergencyPDEngineers = 'EmPDEngis' --table of engineers with emergency PD build order
+            subrefiTimeLastWantSACUForExp = 'sacuexp' --Gametimeseconds that we last failed to build an experimental in the zone due to trying with an engineer
+            subrefiTimeLastWantSACUForSMD = 'sacusmd' --Gametimeseconds that we last failed to build an SMD in the zone due to trying with an engineer
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -3631,9 +3633,11 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
-            table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            if not(oBrain.M28IsDefeated) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
+                table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
         end
     end
 
@@ -3648,8 +3652,10 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
         if not(bIsCampaignMap) or oBrain.M28AI then
-            tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            if not(oBrain.M28IsDefeated) then
+                tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
         end
     end
 
@@ -3753,10 +3759,11 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
+function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZLogic)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --bDontInitializeWZLogic - set to true if we arent calling this at the start of the game but just want to update the closest ally and enemy base
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
@@ -3780,16 +3787,20 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
-                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                if not(oBrain.M28IsDefeated) then
+                    table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
+                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                end
             end
         end
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
             --Campaign specific - check this is on a valid land zone
             if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPlayerStartPosition(oBrain)) or 0) > 0 and IsInPlayableArea(GetPlayerStartPosition(oBrain))) then
-                tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
-                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                if not(oBrain.M28IsDefeated) then
+                    tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                end
             end
         end
 
@@ -3827,7 +3838,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
             end
         end
-        ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
+        if not(bDontInitializeWZLogic) then ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam) end
     else
         M28Utilities.ErrorHandler('No M28 active brain')
     end
@@ -5336,7 +5347,8 @@ function RecordPondToExpandTo(aiBrain)
         local iBestPondValue = 0
         local iBestPondRef
 
-        local iDistanceThreshold = math.max(138, math.min(180, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.35))
+        local iDistanceThreshold = math.max(138, math.min(180, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.35), math.min(math.max(iMapSize * 0.2, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5), iMapSize * 0.25, 400))
+
         if not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iDistanceThreshold = iDistanceThreshold + 50 end
         if bIsCampaignMap then iDistanceThreshold = iDistanceThreshold + 50 end
 
@@ -5376,7 +5388,7 @@ function RecordPondToExpandTo(aiBrain)
         end
 
         local iMinModDistanceWanted = math.max(155, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4)
-        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Start of logic to consider the best pond. iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to enemy base='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Start of logic to consider the best pond. iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to enemy base='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; iDistanceThreshold='..iDistanceThreshold) end
         local iMidModDistance = aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5
         local iBelowMidFactor = 0.3 --Reudces value of mex that is closer to our base than enemy base to this %, assuming it is above the iMinModDistanceWanted
         local iCurMexValue
@@ -5386,254 +5398,290 @@ function RecordPondToExpandTo(aiBrain)
 
         local iPathingGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeHover, GetPlayerStartPosition(aiBrain))
 
+        --Adjust the distance to search for ponds based on the closest dist to a teammate for larger ponds
+        local iClosestTeammatePondDist = 10000
+
+        function GetAverageDistToPond(tPondSubtable, oBrain)
+            local iXVal
+            local iZVal
+            if (GetPlayerStartPosition(aiBrain)[1] >= tPondSubtable[subrefPondMinX] and GetPlayerStartPosition(aiBrain)[1] <= tPondSubtable[subrefPondMaxX]) then iXVal = 0
+            else iXVal = math.min(math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(oBrain)[1]), math.abs(GetPlayerStartPosition(oBrain)[1] - tPondSubtable[subrefPondMaxX]))
+            end
+            if (GetPlayerStartPosition(aiBrain)[3] >= tPondSubtable[subrefPondMinZ] and GetPlayerStartPosition(aiBrain)[3] <= tPondSubtable[subrefPondMaxZ]) then iZVal = 0
+            else iZVal = math.min(math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(oBrain)[3]),  math.abs(GetPlayerStartPosition(oBrain)[3] - tPondSubtable[subrefPondMaxZ]))
+            end
+            return (iXVal + iZVal) * 0.5
+        end
+        for iCurPondRef, tPondSubtable in tPondDetails do
+            if M28Utilities.IsTableEmpty(tPondSubtable) == false and (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize * 2 then
+                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                    iClosestTeammatePondDist = math.min(iClosestTeammatePondDist, GetAverageDistToPond(tPondSubtable, oBrain))
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to increase search dist for navy, iClosestTeammatePondDist='..iClosestTeammatePondDist..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; iDistanceThreshold pre adjust='..iDistanceThreshold..'; iMapSize='..iMapSize) end
+        if iClosestTeammatePondDist <= math.max(math.min(iMapSize * 0.4, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.75), math.min(iMapSize * 0.6, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5)) then
+            iDistanceThreshold = math.max(iDistanceThreshold, iClosestTeammatePondDist + math.max(50, iMapSize * 0.1))
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated distancethreshold if it was lower, potentially revised value='..iDistanceThreshold) end
+        end
+
         for iCurPondRef, tPondSubtable in tPondDetails do
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
             aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = 0
             if M28Utilities.IsTableEmpty(tPondSubtable) == false and (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
                 iCurPondValue = 0
                 iCurPondDefensiveValue = 0
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; GetAverageDistToPond='..GetAverageDistToPond(tPondSubtable, aiBrain)..'; Dist of X to our start='..math.min(math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(aiBrain)[1]), math.abs(GetPlayerStartPosition(aiBrain)[1] - tPondSubtable[subrefPondMaxX]))..'; Dist of Z to our start='..math.min(math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(aiBrain)[3]),  math.abs(GetPlayerStartPosition(aiBrain)[3] - tPondSubtable[subrefPondMaxZ]))..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
 
                 --Is the pond within 175 of our start position?  First see if X is within distance threshold:
-                if math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(aiBrain)[1]) <= iDistanceThreshold or math.abs(GetPlayerStartPosition(aiBrain)[1] - tPondSubtable[subrefPondMaxX]) <= iDistanceThreshold or (GetPlayerStartPosition(aiBrain)[1] >= tPondSubtable[subrefPondMinX] and GetPlayerStartPosition(aiBrain)[1] <= tPondSubtable[subrefPondMaxX]) then
-                    --X is in range, is Z?
-                    if math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(aiBrain)[3]) <= iDistanceThreshold or math.abs(GetPlayerStartPosition(aiBrain)[3] - tPondSubtable[subrefPondMaxZ]) <= iDistanceThreshold or (GetPlayerStartPosition(aiBrain)[3] >= tPondSubtable[subrefPondMinZ] and GetPlayerStartPosition(aiBrain)[3] <= tPondSubtable[subrefPondMaxZ]) then
-                        --X and Z are in range
-                        if bDebugMessages == true then LOG(sFunctionRef..': repru of pond mex info='..repru(tPondSubtable[subrefPondMexInfo])) end
+                if GetAverageDistToPond(tPondSubtable, aiBrain) <= iDistanceThreshold then
+                    --X and Z are in range
+                    if bDebugMessages == true then LOG(sFunctionRef..': repru of pond mex info='..repru(tPondSubtable[subrefPondMexInfo])) end
 
-                        for iMex, tMexInfo in tPondSubtable[subrefPondMexInfo] do
-                            iCurMexValue = 0
-                            iCurMexDefensiveValue = 0
-                            if tMexInfo[subrefMexDFDistance] <= iBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then
+                    for iMex, tMexInfo in tPondSubtable[subrefPondMexInfo] do
+                        iCurMexValue = 0
+                        iCurMexDefensiveValue = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex='..iMex..' for pond '..iCurPondRef..'; tMexInfo[subrefMexDFDistance]='..(tMexInfo[subrefMexDFDistance] or 'nil')..'; tMexInfo[subrefMexIndirectDistance]='..(tMexInfo[subrefMexIndirectDistance] or 'nil')) end
+                        if tMexInfo[subrefMexDFDistance] <= iBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then
+                            --Can reach this mex with a ship, so it will have at least some value
+                            if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexValue = iFrigateValue
+                            elseif tMexInfo[subrefMexDFDistance] <= iDestroyerRange then iCurMexValue = iDestroyerValue
+                            elseif tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then iCurMexValue = iMissileShipValue
+                            else iCurMexValue = iBattleshipValue
+                            end
+                        end
+
+                        --Adjust mex value based on distance
+                        iCurModDistance = GetModDistanceFromStart(aiBrain, tMexInfo[subrefMexLocation])
+                        if iCurMexValue > 0 then
+                            local tMexWZData, tMexWZTeamData = GetLandOrWaterZoneData(tMexInfo[subrefMexLocation], true, aiBrain.M28Team)
+                            if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0
+                            else
+                                if iCurModDistance < iMidModDistance then
+                                    iCurMexValue = iCurMexValue * iBelowMidFactor
+                                end
+                            end
+                            iCurPondValue = iCurPondValue + iCurMexValue
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil')) end
+                        end
+
+
+                        --Get defensive value
+                        if iCurModDistance <= iDefensiveModDistanceMaxValue then
+                            if tMexInfo[subrefMexDFDistance] <= iEnemyBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then
                                 --Can reach this mex with a ship, so it will have at least some value
-                                if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexValue = iFrigateValue
-                                elseif tMexInfo[subrefMexDFDistance] <= iDestroyerRange then iCurMexValue = iDestroyerValue
-                                elseif tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then iCurMexValue = iMissileShipValue
-                                else iCurMexValue = iBattleshipValue
+                                if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexDefensiveValue = iFrigateValue
+                                elseif tMexInfo[subrefMexDFDistance] <= iEnemyDestroyerRange then iCurMexDefensiveValue = iDestroyerValue
+                                elseif tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then iCurMexDefensiveValue = iMissileShipValue
+                                else iCurMexDefensiveValue = iBattleshipValue
                                 end
                             end
-
-                            --Adjust mex value based on distance
-                            iCurModDistance = GetModDistanceFromStart(aiBrain, tMexInfo[subrefMexLocation])
-                            if iCurMexValue > 0 then
-                                if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0
-                                else
-                                    if iCurModDistance < iMidModDistance then
-                                        iCurMexValue = iCurMexValue * iBelowMidFactor
-                                    end
-                                end
-                                iCurPondValue = iCurPondValue + iCurMexValue
-                            end
-
-
-                            --Get defensive value
-                            if iCurModDistance <= iDefensiveModDistanceMaxValue then
-                                if tMexInfo[subrefMexDFDistance] <= iEnemyBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then
-                                    --Can reach this mex with a ship, so it will have at least some value
-                                    if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexDefensiveValue = iFrigateValue
-                                    elseif tMexInfo[subrefMexDFDistance] <= iEnemyDestroyerRange then iCurMexDefensiveValue = iDestroyerValue
-                                    elseif tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then iCurMexDefensiveValue = iMissileShipValue
-                                    else iCurMexDefensiveValue = iBattleshipValue
-                                    end
-                                end
-                                iCurPondDefensiveValue = iCurPondDefensiveValue + iCurMexDefensiveValue
-                            end
-
+                            iCurPondDefensiveValue = iCurPondDefensiveValue + iCurMexDefensiveValue
                         end
 
-                        --Increase vlaue if in part of pond likely to be near enemy base
-                        local tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
-                        local iEnemyBaseThreshold = math.max(iBattleshipRange, iMissileShipRange - 10)
-                        if math.abs(tPondSubtable[subrefPondMinX] - tEnemyBase[1]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[1] - tPondSubtable[subrefPondMaxX]) <= iEnemyBaseThreshold or (tEnemyBase[1] >= tPondSubtable[subrefPondMinX] and tEnemyBase[1] <= tPondSubtable[subrefPondMaxX]) then
-                            --X is in range, is Z?
-                            if math.abs(tPondSubtable[subrefPondMinZ] - tEnemyBase[3]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[3] - tPondSubtable[subrefPondMaxZ]) <= iEnemyBaseThreshold or (tEnemyBase[3] >= tPondSubtable[subrefPondMinZ] and tEnemyBase[3] <= tPondSubtable[subrefPondMaxZ]) then
-                                iCurPondValue = math.max(iCurPondValue * 1.2, iCurPondValue + 2)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%, iEnemyBaseThreshold='..iEnemyBaseThreshold) end
-                            end
-                        end
+                    end
 
-                        --Increase value for massive ponds
-                        if tPondSubtable[subrefiSegmentCount] >= 10000 then
-                            if tPondSubtable[subrefiSegmentCount] >= 50000 or tPondSubtable[subrefPondMaxX] + tPondSubtable[subrefPondMaxZ] - tPondSubtable[subrefPondMinX] - tPondSubtable[subrefPondMinZ] >= 0.5 * iMapSize then
-                                if bIsCampaignMap then iCurPondValue = iCurPondValue + 1 end
-                                iCurPondValue = iCurPondValue * 1.5
-                            end
+                    --Increase vlaue if in part of pond likely to be near enemy base
+                    local tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
+                    local iEnemyBaseThreshold = math.max(iBattleshipRange, iMissileShipRange - 10)
+                    if math.abs(tPondSubtable[subrefPondMinX] - tEnemyBase[1]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[1] - tPondSubtable[subrefPondMaxX]) <= iEnemyBaseThreshold or (tEnemyBase[1] >= tPondSubtable[subrefPondMinX] and tEnemyBase[1] <= tPondSubtable[subrefPondMaxX]) then
+                        --X is in range, is Z?
+                        if math.abs(tPondSubtable[subrefPondMinZ] - tEnemyBase[3]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[3] - tPondSubtable[subrefPondMaxZ]) <= iEnemyBaseThreshold or (tEnemyBase[3] >= tPondSubtable[subrefPondMinZ] and tEnemyBase[3] <= tPondSubtable[subrefPondMaxZ]) then
+                            iCurPondValue = math.max(iCurPondValue * 1.2, iCurPondValue + 2)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%, iEnemyBaseThreshold='..iEnemyBaseThreshold) end
                         end
+                    end
 
-                        --Increase value for campaign maps or maps where we cant path to the enemy by land but can by water
-                        if bIsCampaignMap then iCurPondValue = iCurPondValue * 2 end
-                        if aiBrain[refbCanPathToEnemyBaseWithAmphibious] and not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iCurPondValue = iCurPondValue * 4 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre main adjust (but post adjusting for campaign and pathing)='..iCurPondValue..'; aiBrain[refbCanPathToEnemyBaseWithAmphibious]='..tostring(aiBrain[refbCanPathToEnemyBaseWithAmphibious] or false)..'; aiBrain[refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand] or false)) end
-                        --Do we have sufficient value to consider?
-                        if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
-                            if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
-                            --Adjust value based on how close the naval build location would be for this pond
-                            if not(tPondSubtable[subrefBuildLocationByStartPosition]) then
-                                tPondSubtable[subrefBuildLocationByStartPosition] = {}
-                            end
-                            local tNavalBuildArea = {}
-                            if not(bStartLocationIsUnderwater) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
-                                local iAngleToCentre = M28Utilities.GetAngleFromAToB(GetPlayerStartPosition(aiBrain), tPondSubtable[subrefPondMidpoint])
-                                local iDistInterval = 8
-                                local iBuildingInterval = 4
-                                local tPossibleLocationBase
-                                local tPossibleBuildLocation
-                                local bHaveValidLocation = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
-                                tNavalBuildArea = GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, GetPlayerStartPosition(aiBrain), iDistInterval, iCurPondRef, iAngleToCentre)
-                                --[[for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
-                                    for iAngleAdjust = 0, 170, 10 do
-                                        for iAngleFactor = -1, 1, 2 do
-                                            tPossibleLocationBase = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true, false)
-                                            if NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) == iCurPondRef then
-                                                --Try and find somewhere around here to build a naval factory
-                                                for iBuildingAdjustX = 0, iBuildingInterval, 1 do
-                                                    for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
-                                                        for iXFactor = -1, 1, 2 do
-                                                            for iZFactor = -1, 1, 2 do
-                                                                tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
-                                                                tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
-                                                                if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
-                                                                    bHaveValidLocation = true
-                                                                    tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
-                                                                    if bDebugMessages == true then
-                                                                        LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
-                                                                        M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
-                                                                    end
-                                                                    break
-                                                                else
-                                                                    if bDebugMessages == true then
-                                                                        LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
-                                                                        M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
-                                                                    end
+                    --Increase value for massive ponds
+                    if tPondSubtable[subrefiSegmentCount] >= 10000 then
+                        if tPondSubtable[subrefiSegmentCount] >= 50000 or tPondSubtable[subrefPondMaxX] + tPondSubtable[subrefPondMaxZ] - tPondSubtable[subrefPondMinX] - tPondSubtable[subrefPondMinZ] >= 0.5 * iMapSize then
+                            if bIsCampaignMap then iCurPondValue = iCurPondValue + 1 end
+                            iCurPondValue = iCurPondValue * 1.5
+                        end
+                    end
+
+                    --Increase value for campaign maps or maps where we cant path to the enemy by land but can by water
+                    if bIsCampaignMap then iCurPondValue = iCurPondValue * 2 end
+                    if aiBrain[refbCanPathToEnemyBaseWithAmphibious] and not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iCurPondValue = iCurPondValue * 4 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre main adjust (but post adjusting for campaign and pathing)='..iCurPondValue..'; aiBrain[refbCanPathToEnemyBaseWithAmphibious]='..tostring(aiBrain[refbCanPathToEnemyBaseWithAmphibious] or false)..'; aiBrain[refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand] or false)) end
+                    --Do we have sufficient value to consider?
+                    if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
+                        if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
+                        --Adjust value based on how close the naval build location would be for this pond
+                        if not(tPondSubtable[subrefBuildLocationByStartPosition]) then
+                            tPondSubtable[subrefBuildLocationByStartPosition] = {}
+                        end
+                        local tNavalBuildArea = {}
+                        if not(bStartLocationIsUnderwater) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
+                            local iAngleToCentre = M28Utilities.GetAngleFromAToB(GetPlayerStartPosition(aiBrain), tPondSubtable[subrefPondMidpoint])
+                            local iDistInterval = 8
+                            local iBuildingInterval = 4
+                            local tPossibleLocationBase
+                            local tPossibleBuildLocation
+                            local bHaveValidLocation = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
+                            tNavalBuildArea = GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, GetPlayerStartPosition(aiBrain), iDistInterval, iCurPondRef, iAngleToCentre)
+                            --[[for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
+                                for iAngleAdjust = 0, 170, 10 do
+                                    for iAngleFactor = -1, 1, 2 do
+                                        tPossibleLocationBase = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true, false)
+                                        if NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) == iCurPondRef then
+                                            --Try and find somewhere around here to build a naval factory
+                                            for iBuildingAdjustX = 0, iBuildingInterval, 1 do
+                                                for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
+                                                    for iXFactor = -1, 1, 2 do
+                                                        for iZFactor = -1, 1, 2 do
+                                                            tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
+                                                            tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
+                                                            if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
+                                                                bHaveValidLocation = true
+                                                                tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                                                if bDebugMessages == true then
+                                                                    LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
+                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                                                end
+                                                                break
+                                                            else
+                                                                if bDebugMessages == true then
+                                                                    LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
+                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
                                                                 end
                                                             end
-                                                            if bHaveValidLocation then break end
                                                         end
                                                         if bHaveValidLocation then break end
-
                                                     end
                                                     if bHaveValidLocation then break end
+
                                                 end
-                                                if iAngleAdjust == 0 or bHaveValidLocation then break end
-                                            elseif bDebugMessages == true then
-                                                LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iCurPondRef='..iCurPondRef..'; iPathingGroupWanted='..iPathingGroupWanted..'; will draw in gold')
-                                                M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
+                                                if bHaveValidLocation then break end
                                             end
-                                            if bHaveValidLocation then break end
+                                            if iAngleAdjust == 0 or bHaveValidLocation then break end
+                                        elseif bDebugMessages == true then
+                                            LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iCurPondRef='..iCurPondRef..'; iPathingGroupWanted='..iPathingGroupWanted..'; will draw in gold')
+                                            M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
                                         end
                                         if bHaveValidLocation then break end
                                     end
                                     if bHaveValidLocation then break end
-                                end--]]
-                            else
-                                local iIndex = aiBrain:GetArmyIndex()
-                                tNavalBuildArea = {PlayerStartPoints[iIndex][1], PlayerStartPoints[iIndex][2], PlayerStartPoints[iIndex][3]}
-                            end
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': Finsihed searching for naval build area, is table empty='..tostring(M28Utilities.IsTableEmpty(tNavalBuildArea))) end
-
-
-                            if M28Utilities.IsTableEmpty(tNavalBuildArea) == false then
-                                if bDebugMessages == true then LOG(sFunctionRef..': tNavalBuildArea pre adjust='..repru(tNavalBuildArea)) end
-                                --Move towards base to help with cliff building if we have cliffs
-                                local bHaveNearbyCliff = false
-                                local iDistToMoveTarget = M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea)
-                                local iAngleFromTarget = M28Utilities.GetAngleFromAToB(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
-                                local tCliffPositionCheck
-                                local sPathing = refPathingTypeHover
-                                local iStartPathingGroup = NavUtils.GetTerrainLabel(sPathing,GetPlayerStartPosition(aiBrain))
-
-                                if iDistToMoveTarget > 1 then
-                                    for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
-                                        tCliffPositionCheck = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false, false)
-                                        if not(NavUtils.GetTerrainLabel(sPathing, tCliffPositionCheck) == iStartPathingGroup) then
-                                            bHaveNearbyCliff = true
-                                            break
-                                        end
-
-                                    end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bHaveNearbyCliff='..tostring(bHaveNearbyCliff)) end
-                                if bHaveNearbyCliff then
-                                    --Try to move closer to base
-                                    local tLastValidPosition = {tNavalBuildArea[1], tNavalBuildArea[2], tNavalBuildArea[3]}
-                                    local tAlternativePosition
-
-                                    for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
-                                        tAlternativePosition = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false, false)
-                                        if not(NavUtils.GetTerrainLabel(refPathingTypeNavy, tAlternativePosition) == iCurPondRef) then
-                                            break
-                                        else
-                                            --Can we build here?
-                                            if aiBrain:CanBuildStructureAt('ueb0103', tAlternativePosition) then
-                                                tLastValidPosition = {tAlternativePosition[1], tAlternativePosition[2], tAlternativePosition[3]}
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Have an alternative position that is closer to our base, iDistAdjust='..iDistAdjust) end
-                                            else
-                                                break
-                                            end
-                                        end
-                                    end
-                                    tNavalBuildArea = tLastValidPosition
-
-
-                                end
-
-
-
-                                if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue, and will set this as the build area for brain '..aiBrain.Nickname)
-                                    M28Utilities.DrawLocation(tNavalBuildArea, nil, 200, 10)
-                                end
-                                tPondSubtable[subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()] = tNavalBuildArea
-
-                                --Record pond value before distance adjustments - i.e. if we already have navy somewhere, this is how much the pond is worth to us
-                                aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = iCurPondValue
-                                --Adjust pond value based on distance to us - used only for decision on whether to choose as a pond we want
-
-
-                                --Can we path here amphibiously?
-                                if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tNavalBuildArea) == iPathingGroupWanted) then
-                                    iCurPondValue = 0
-                                    if bDebugMessages == true then LOG(sFunctionRef..': We cant path here amphibiously') end
-                                else
-                                    --Adjust value based on distance
-                                    local iDistToBuildArea = M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
-                                    if iDistToBuildArea <= 50 then iCurPondValue = iCurPondValue * 1.1
-                                    else
-                                        iCurPondValue = iCurPondValue * math.max(0.1, 1 - 0.4 * iDistToBuildArea / iDistanceThreshold)
-                                    end
-
-                                    --Are we close enough to enemy base to be in danger and we can land path to enemy base?
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))) end
-                                    if aiBrain[refbCanPathToEnemyBaseWithLand] and not(bIsCampaignMap) then
-                                        --Reduce value of pond if enemy base is close for land anyway
-                                        if aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] <= 300 then
-                                            iCurPondValue = iCurPondValue * 0.5
-                                        end
-                                        if M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain)) <= 200 then
-                                            iCurPondValue = 0
-                                        end
-                                    end
-                                end
-                            else
-                                iCurPondValue = 0
-                            end
-                            aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = iCurPondDefensiveValue
-                            if bDebugMessages == true then LOG(sFunctionRef..': Pond value after getting naval build area='..iCurPondValue..'; Defensive value='..(aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] or 'nil')) end
+                                if bHaveValidLocation then break end
+                            end--]]
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Pond value is too low to be worth considering') end
-                            iCurPondValue = 0
+                            local iIndex = aiBrain:GetArmyIndex()
+                            tNavalBuildArea = {PlayerStartPoints[iIndex][1], PlayerStartPoints[iIndex][2], PlayerStartPoints[iIndex][3]}
                         end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed searching for naval build area, is table empty='..tostring(M28Utilities.IsTableEmpty(tNavalBuildArea))) end
+
+
+                        if M28Utilities.IsTableEmpty(tNavalBuildArea) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': tNavalBuildArea pre adjust='..repru(tNavalBuildArea)) end
+                            --Move towards base to help with cliff building if we have cliffs
+                            local bHaveNearbyCliff = false
+                            local iDistToMoveTarget = M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea)
+                            local iAngleFromTarget = M28Utilities.GetAngleFromAToB(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
+                            local tCliffPositionCheck
+                            local sPathing = refPathingTypeHover
+                            local iStartPathingGroup = NavUtils.GetTerrainLabel(sPathing,GetPlayerStartPosition(aiBrain))
+
+                            if iDistToMoveTarget > 1 then
+                                for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
+                                    tCliffPositionCheck = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false, false)
+                                    if not(NavUtils.GetTerrainLabel(sPathing, tCliffPositionCheck) == iStartPathingGroup) then
+                                        bHaveNearbyCliff = true
+                                        break
+                                    end
+
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bHaveNearbyCliff='..tostring(bHaveNearbyCliff)) end
+                            if bHaveNearbyCliff then
+                                --Try to move closer to base
+                                local tLastValidPosition = {tNavalBuildArea[1], tNavalBuildArea[2], tNavalBuildArea[3]}
+                                local tAlternativePosition
+
+                                for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
+                                    tAlternativePosition = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false, false)
+                                    if not(NavUtils.GetTerrainLabel(refPathingTypeNavy, tAlternativePosition) == iCurPondRef) then
+                                        break
+                                    else
+                                        --Can we build here?
+                                        if aiBrain:CanBuildStructureAt('ueb0103', tAlternativePosition) then
+                                            tLastValidPosition = {tAlternativePosition[1], tAlternativePosition[2], tAlternativePosition[3]}
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have an alternative position that is closer to our base, iDistAdjust='..iDistAdjust) end
+                                        else
+                                            break
+                                        end
+                                    end
+                                end
+                                tNavalBuildArea = tLastValidPosition
+
+
+                            end
+
+
+
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue, and will set this as the build area for brain '..aiBrain.Nickname)
+                                M28Utilities.DrawLocation(tNavalBuildArea, nil, 200, 10)
+                            end
+                            tPondSubtable[subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()] = tNavalBuildArea
+
+                            --Record pond value before distance adjustments - i.e. if we already have navy somewhere, this is how much the pond is worth to us
+                            aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = iCurPondValue
+                            --Adjust pond value based on distance to us - used only for decision on whether to choose as a pond we want
+
+
+                            --Can we path here amphibiously?
+                            if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tNavalBuildArea) == iPathingGroupWanted) then
+                                iCurPondValue = 0
+                                if bDebugMessages == true then LOG(sFunctionRef..': We cant path here amphibiously') end
+                            else
+                                --Adjust value based on distance
+                                local iDistToBuildArea = M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPlayerStartPosition(aiBrain))
+                                if iDistToBuildArea <= 50 then iCurPondValue = iCurPondValue * 1.1
+                                else
+                                    iCurPondValue = iCurPondValue * math.max(0.1, 1 - 0.4 * iDistToBuildArea / iDistanceThreshold)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPondValue after adjusting for distance to build area='..iCurPondValue..'; iDistToBuildArea='..iDistToBuildArea..'; iDistanceThreshold='..iDistanceThreshold) end
+                                end
+
+                                --Are we close enough to enemy base to be in danger and we can land path to enemy base?
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))..'; Dist from naval build location to our base='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea)) end
+                                if aiBrain[refbCanPathToEnemyBaseWithLand] and not(bIsCampaignMap) then
+                                    --Reduce value of pond if enemy base is close for land anyway
+                                    if aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] <= 300 then
+                                        iCurPondValue = iCurPondValue * 0.5
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy base within 300 so halving curpondvalue, value='..iCurPondValue) end
+                                    end
+                                    if M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain)) <= 200 then
+                                        if M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tNavalBuildArea) <= 200 then
+                                            iCurPondValue = iCurPondValue * 0.25
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy primary base is within 200 of the naval build area so reducing pond value to 25% of normal') end
+                                        else
+                                            iCurPondValue = 0
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy primary base is closer than our own base and is within 200 so reducing pond value to 25% of normal') end
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            iCurPondValue = 0
+                            if bDebugMessages == true then LOG(sFunctionRef..': We couldnt find anywhere to build a naval fac so reducing pond value to 0') end
+                        end
+                        aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = iCurPondDefensiveValue
+                        if bDebugMessages == true then LOG(sFunctionRef..': Pond value after getting naval build area='..iCurPondValue..'; Defensive value='..(aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] or 'nil')) end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Pond value is too low to be worth considering') end
+                        iCurPondValue = 0
                     end
                 end
-                if iCurPondValue > iBestPondValue then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Updating the best pond ref to be '..iCurPondRef..'; as the cur pond value '..iCurPondValue..' is more than the prev best of '..iBestPondValue) end
-                    iBestPondRef = iCurPondRef
-                    iBestPondValue = iCurPondValue
+            end
+            if iCurPondValue > iBestPondValue then
+                if bDebugMessages == true then LOG(sFunctionRef..': Updating the best pond ref to be '..iCurPondRef..'; as the cur pond value '..iCurPondValue..' is more than the prev best of '..iBestPondValue) end
+                iBestPondRef = iCurPondRef
+                iBestPondValue = iCurPondValue
 
-                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, iBestPondRef='..(iBestPondRef or 'nil')..'; iBestPondValue='..(iBestPondValue or 'nil')) end
@@ -8774,4 +8822,37 @@ function MarkZoneForFortification(iPlateauOrZero, iLandOrWaterZone, iTeam)
     end
     M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau][iPlateauOrZero][iLandOrWaterZone] = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ReassessPositionsForPlayerDeath(aiBrain)
+    --Intended when a aiBrain's base is destroyed along with that player - i.e. if not in full share, and are in assassination (ACU death) or demoralisation (ACU+SACU death)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReassessPositionsForPlayerDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    for iTeam = 1, M28Team.iTotalTeamCount do
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+            --Reset primary enemy base location (redundancy)
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(aiBrain == oBrain) and not(oBrain.M28IsDefeated) then
+                    local tCurEnemyBase = {oBrain[reftPrimaryEnemyBaseLocation][1], oBrain[reftPrimaryEnemyBaseLocation][2], oBrain[reftPrimaryEnemyBaseLocation][3]}
+                    oBrain[reftPrimaryEnemyBaseLocation] = nil
+                    if M28Utilities.IsTableEmpty(GetPrimaryEnemyBaseLocation(oBrain)) then oBrain[reftPrimaryEnemyBaseLocation] = {tCurEnemyBase[1], tCurEnemyBase[2], tCurEnemyBase[3]} end
+                end
+            end
+
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Rerecording distsances to closest friendly and enemy base for iTeam='..iTeam) end
+            RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+            RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true)
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(aiBrain == oBrain) and not(oBrain.M28IsDefeated) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reassessing pond to expand to for brain='..oBrain.Nickname) end
+                    RecordPondToExpandTo(oBrain)
+                end
+            end
+            local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+            M28Navy.FlagWaterZoneStartPositions(iTeam)
+        end
+    end
 end

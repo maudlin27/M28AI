@@ -710,8 +710,8 @@ function CreateNewTeam(aiBrain)
                     if oBrain.CheatEnabled then
                         tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
                         tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                        oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
                     else
                         oBrain[M28Economy.refiBrainResourceMultiplier] = 1
                         oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
@@ -2869,9 +2869,10 @@ function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading)
     local tPotentialUnits
     --First prioritise T1 mexes
     local tiMexCategory = {[1] = M28UnitInfo.refCategoryT1Mex, [2]=M28UnitInfo.refCategoryT2Mex}
-    for iTech = 1, 2 do
+    if M28Economy.bT3MexCanBeUpgraded then table.insert(tiMexCategory, M28UnitInfo.refCategoryT3Mex) end
+    for iTech, iMexCategory in tiMexCategory do
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            local tPotentialUnits = oBrain:GetListOfUnits(tiMexCategory[iTech], false, true)
+            local tPotentialUnits = oBrain:GetListOfUnits(iMexCategory, false, true)
             AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
         end
         if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
@@ -3649,7 +3650,7 @@ function WaterZoneTeamInitialisation(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'WaterZoneTeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local iCurPlateau
+
     M28Map.bWaterZoneFirstTeamInitialisation = true
     tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau] = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gamestime='..GetGameTimeSeconds()..', iTeam='..iTeam) end
@@ -3923,12 +3924,16 @@ function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
     if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
         local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
         if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
+            local oCurBrain
             for iUnit, oUnit in tNearbyStorage do
-                if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
-                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
-                        TransferUnitsToPlayer({oUnit}, iBrainIndexToGiftTo, false)
+                oCurBrain = oUnit:GetAIBrain()
+                if not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and not(iBrainIndexToGiftTo == oCurBrain:GetArmyIndex()) then
+                    if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
+                            TransferUnitsToPlayer({oUnit}, iBrainIndexToGiftTo, false)
+                        end
                     end
                 end
             end

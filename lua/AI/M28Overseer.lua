@@ -392,12 +392,19 @@ function M28BrainCreated(aiBrain)
     table.insert(tAllActiveM28Brains, aiBrain)
 
     --Set cheat mult if this is campaign (which doesnt allow in game options)
-    if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
-        if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
-        SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-    elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
-        SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
+    if aiBrain.CheatEnabled then
+        if M28Utilities.bLoudModActive or aiBrain.CheatValue then
+            if bDebugMessages == true then LOG(sFunctionRef..': Setting build and resource cheat modifiers based on aiBrain.CheatValue='..aiBrain.CheatValue) end
+            SetBuildAndResourceCheatModifiers(aiBrain, (aiBrain.CheatValue or 1), (aiBrain.CheatValue or 1), false)
+        elseif not(ScenarioInfo.Options.CheatMult) then
+            if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
+            SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
+        elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
+            SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
+        elseif aiBrain.CheatEnabled then
+            SetBuildAndResourceCheatModifiers(aiBrain, (aiBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult) or 1), (aiBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult) or 1), true, nil, true)
+        end
     end
 
     --Setup AI personality for this
@@ -411,24 +418,9 @@ function M28BrainCreated(aiBrain)
 
     if not(bInitialSetup) then
         bInitialSetup = true
-        _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
-        _G.reprs = rawget(_G, 'reprs') or
-                function(tTable)
-                    if tTable == nil then
-                        return 'nil'
-                    else
-                        local tEntries = {}
-                        for iEntry, vValue in tTable do
-                            if type(tTable) == "table" then
-                                table.insert(tEntries, 'iEntry '..iEntry..' is a table')
-                            else
-                                table.insert(tEntries, 'iEntry '..iEntry..'='..vValue)
-                            end
-                        end
-                        return repr(tEntries)
-                    end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
-                end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
+        local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
+        if not(M28Utilities.bLoudModActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
+        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
 
@@ -1184,7 +1176,7 @@ function GetCivilianCaptureTargets(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling)
+    --ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1412,26 +1404,81 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust)
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetBuildAndResourceCheatModifiers'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain='..aiBrain.Nickname..'; iBuildModifier='..iBuildModifier..'; iResourceModifier='..iResourceModifier) end
     --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AIx
     if not(bDontChangeScenarioInfo) then
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
         ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
     end
     local FAFBuffs = import('/lua/sim/Buff.lua')
-    Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
-    Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
-    Buffs['CheatIncome'].Affects.MassProduction.Mult = iResourceModifier
-
-    local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit, false, false)
-    if M28Utilities.IsTableEmpty(tExistingUnits) == false then
-        for iUnit, oUnit in tExistingUnits do
-            FAFBuffs.RemoveBuff(oUnit, 'CheatIncome', true)
-            FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
-            FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
-            FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
-            if iOptionalRecordedUnitResourceAdjust then
-                ForkThread(UpdateGrossIncomeForUnit, oUnit, false, false, iOptionalRecordedUnitResourceAdjust)
+    local sCheatBuildRate = 'CheatBuildRate'..aiBrain:GetArmyIndex()
+    local sCheatIncome = 'CheatIncome'..aiBrain:GetArmyIndex()
+    --local AdjBuffFuncs = import('/lua/sim/adjacencybufffunctions.lua')
+    if not Buffs[sCheatBuildRate] then
+        BuffBlueprint {
+            Name = sCheatBuildRate,
+            DisplayName = sCheatBuildRate,
+            BuffType = 'BUILDRATECHEAT',
+            Stacks = 'ALWAYS',
+            Duration = -1,
+            Affects = {
+                BuildRate = {
+                    --BuffCheckFunction = AdjBuffFuncs.BuildRateBuffCheck,
+                    Add = 0,
+                    Mult = 1,
+                },
+            },
+        }
+    end
+    if not Buffs[sCheatIncome] then
+        BuffBlueprint {
+            Name = sCheatIncome,
+            DisplayName = sCheatBuildRate,
+            BuffType = 'INCOMECHEAT',
+            Stacks = 'ALWAYS',
+            Duration = -1,
+            Affects = {
+                EnergyProduction = {
+                    --BuffCheckFunction = AdjBuffFuncs.EnergyProductionBuffCheck,
+                    Add = 0,
+                    Mult = 1,
+                },
+                MassProduction = {
+                    --BuffCheckFunction = AdjBuffFuncs.MassProductionBuffCheck,
+                    Add = 0,
+                    Mult = 1,
+                }
+            },
+        }
+    end
+    if bUpdateCheatValue then aiBrain.CheatValue = math.min(iBuildModifier, iResourceModifier) end
+    if M28Utilities.bLoudModActive then
+        Buffs[sCheatBuildRate].EntityCategory = 'ALLUNITS'
+        Buffs[sCheatIncome].EntityCategory = 'ALLUNITS'
+        Buffs[sCheatBuildRate].ParsedEntityCategory = categories.ALLUNITS
+        Buffs[sCheatIncome].ParsedEntityCategory = categories.ALLUNITS
+    end
+    Buffs['CheatBuildRate'..aiBrain:GetArmyIndex()].Affects.BuildRate.Mult = iBuildModifier
+    Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.EnergyProduction.Mult = iResourceModifier
+    Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.MassProduction.Mult = iResourceModifier
+    if not(bDontApplyToUnits) then
+        local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit, false, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing units empty='..tostring(M28Utilities.IsTableEmpty(tExistingUnits))) end
+        if M28Utilities.IsTableEmpty(tExistingUnits) == false then
+            for iUnit, oUnit in tExistingUnits do
+                M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
+                --[[if bDebugMessages == true then LOG(sFunctionRef..': Applying buffs to unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' for brain='..aiBrain.Nickname..' with index='..aiBrain:GetArmyIndex()) end
+                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..aiBrain:GetArmyIndex(), true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..aiBrain:GetArmyIndex())
+                FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..aiBrain:GetArmyIndex(), true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..aiBrain:GetArmyIndex())--]]
+                if iOptionalRecordedUnitResourceAdjust then
+                    ForkThread(UpdateGrossIncomeForUnit, oUnit, false, false, iOptionalRecordedUnitResourceAdjust)
+                end
             end
         end
     end
@@ -1442,6 +1489,7 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] = iResourceModifier
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] = iBuildModifier
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function CheckForScenarioObjectives()
@@ -2524,7 +2572,7 @@ end
 function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
-    local iTimeInSecondsToStartDetailedDebug = 10000000-- 1362.3 --set to high number if first want to figure out the tick where this happens
+    local iTimeInSecondsToStartDetailedDebug = 2307.1999511719 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true

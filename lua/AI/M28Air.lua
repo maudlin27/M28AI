@@ -7950,7 +7950,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
-                        if iFractionComplete < 0.2 or not(EntityCategoryContains(categories.SHIELD + categories.PERSONALSHIELD, oUnit.UnitId)) then
+                        if iFractionComplete < 0.2 or not((EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive))) then
                             iCurValue = iCurValue * iFractionComplete
                         end
                     end

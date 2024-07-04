@@ -1714,6 +1714,42 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function FlagWaterZoneStartPositions(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'FlagWaterZoneStartPositions'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.IsTableEmpty(M28Map.tPondDetails) == false then
+        local iBuildLocationSegmentX, iBuildLocationSegmentZ
+        for iPond, tPondSubtable in M28Map.tPondDetails do
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; oBrain='..oBrain.Nickname..'; Does this brain have a build location for this pond='..repru(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])) end
+                if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
+                    iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..' on iTeam='..iTeam..'; iBuildLocationSegmentX='..iBuildLocationSegmentX..'; iBuildLocationSegmentZ='..iBuildLocationSegmentZ..'; Water zone for these segments='..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Is pond subtable empty='..tostring(M28Utilities.IsTableEmpty( tPondSubtable[M28Map.subrefPondWaterZones]))..'; Is WZ data empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]]))) end
+                    if M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] then
+                        local iWaterZone = M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]
+                        local tWZData = tPondSubtable[M28Map.subrefPondWaterZones][iWaterZone]
+                        if tWZData then
+                            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                            if not(tWZTeamData) then
+                                M28Team.SetWaterZoneDefaultTeamValues(tWZData, iTeam)
+                                M28Utilities.ErrorHandler('Have valid WZ data but not team data, for water zone '..(iWaterZone or 'nil')..'; will record teh default values for the water zone')
+                            end
+                            tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..iWaterZone..' in pond '..iPond..'; Contains a naval build location for team '..iTeam..', subrefWZbContainsNavalBuildLocation='..tostring(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] or false)) end
+
+                        else
+                            M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil'))
+                        end
+                    end
+                end
+
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function AssignValuesToWaterZones(iTeam)
     --Periodically cycles through every water zone and refreshes the unit details
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1723,33 +1759,8 @@ function AssignValuesToWaterZones(iTeam)
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         if bDebugMessages == true then LOG(sFunctionRef .. ': About to start the main loop for assigning values to water zones provided we have friendly M28 brains in the team ' .. iTeam .. '; is table empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Is M28Map.tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tPondDetails))) end
         local iCurValue
-        local iBuildLocationSegmentX, iBuildLocationSegmentZ
         if M28Utilities.IsTableEmpty(M28Map.tPondDetails) == false then
-            for iPond, tPondSubtable in M28Map.tPondDetails do
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; oBrain='..oBrain.Nickname..'; Does this brain have a build location for this pond='..repru(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])) end
-                    if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
-                        iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..' on iTeam='..iTeam..'; iBuildLocationSegmentX='..iBuildLocationSegmentX..'; iBuildLocationSegmentZ='..iBuildLocationSegmentZ..'; Water zone for these segments='..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Is pond subtable empty='..tostring(M28Utilities.IsTableEmpty( tPondSubtable[M28Map.subrefPondWaterZones]))..'; Is WZ data empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]]))) end
-                        if M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] then
-                            local tWZData = tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]]
-                            if tWZData then
-                                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                                if not(tWZTeamData) then
-                                    M28Team.SetWaterZoneDefaultTeamValues(tWZData, iTeam)
-                                    M28Utilities.ErrorHandler('Have valid WZ data but not team data, for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil')..'; will record teh default values for the water zone')
-                                end
-                                tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]..'; Contains a naval build location') end
-
-                            else
-                                M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil'))
-                            end
-                        end
-                    end
-
-                end
-            end
+            FlagWaterZoneStartPositions(iTeam)
 
 
             while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
@@ -1777,7 +1788,7 @@ function AssignValuesToWaterZones(iTeam)
                             tWZTeamData[M28Map.subrefWZbCoreBase] = nil
 
                             --Is this a core base water zone?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to set water zone '..iWaterZone..' in pond '..(M28Map.tiPondByWaterZone[iWaterZone] or 'nil')..' as a core base, does it contain naval build location='..tostring(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation])..'; M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')..'; Is table of allied units for this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to set water zone '..iWaterZone..' in pond '..(M28Map.tiPondByWaterZone[iWaterZone] or 'nil')..' as a core base, does it contain naval build location='..tostring(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation])..'; M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')..'; Is table of allied units for this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]))..'; iTeam='..iTeam) end
                             if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] and ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Setting iWaterZone='..iWaterZone..' to be a WZ core base as it contains a naval build location') end
                                 tWZTeamData[M28Map.subrefWZbCoreBase] = true
