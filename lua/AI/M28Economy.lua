@@ -749,6 +749,10 @@ end
 
 function AdjustAIxOverwhelmRate()
     --Waits the indicated number of seconds and then adjusts the AIx overwhelm rate
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AdjustAIxOverwhelmRate'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iSecondsToWait = tonumber(ScenarioInfo.Options.M28OvwT) * 60
     local iRateAdjustment = tonumber(ScenarioInfo.Options.M28OvwR)
     local iLowerCap = 0.1
@@ -756,17 +760,28 @@ function AdjustAIxOverwhelmRate()
     if iRateAdjustment > 0 then iUpperCap = tonumber(ScenarioInfo.Options.M28OvwC)
     else iLowerCap = tonumber(ScenarioInfo.Options.M28OvwC)
     end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': near start of code, iSecondsToWait='..iSecondsToWait..'; ScenarioInfo.Options.M28OvwT='..ScenarioInfo.Options.M28OvwT..'; iRateAdjustment='..iRateAdjustment..'; ScenarioInfo.Options.M28OvwR='..ScenarioInfo.Options.M28OvwR..'; iLowerCap='..iLowerCap..'; iUpperCap='..iUpperCap) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(iSecondsToWait)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
         local bChangedModifier
         local iCurBuildModifier
         local iCurResourceModifier
+
+        local bHaveIndividualAIBrainMods = false
+        for iBrian, oBrain in M28Overseer.tAllActiveM28Brains do
+            if oBrain.CheatValue then bHaveIndividualAIBrainMods = true break end
+        end
+
         while M28Utilities.bM28AIInGame do
             --Set the new modifier
             bChangedModifier = false
             iCurResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
             iCurBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or tostring(1.5))
+
             if iRateAdjustment > 0 then
                 if iCurResourceModifier < iUpperCap or iCurBuildModifier < iUpperCap then
                     iCurResourceModifier = math.min(iCurResourceModifier + iRateAdjustment, iUpperCap)
@@ -784,19 +799,50 @@ function AdjustAIxOverwhelmRate()
                     bChangedModifier = true
                 end
             end
-            if not(bChangedModifier) then
+            if bDebugMessages == true then LOG(sFunctionRef..': bChangedModifier='..tostring(bChangedModifier)..'; bHaveIndividualAIBrainMods='..tostring(bHaveIndividualAIBrainMods)..'; Time='..GetGameTimeSeconds()) end
+            if not(bChangedModifier) and not(bHaveIndividualAIBrainMods) then
                 break
             else
                 --Adjust each brain (which should also adjust all units owned by them and updates the team modifier)
+                local bChangedAnyAI = not(bHaveIndividualAIBrainMods)
+                function GetIndividualModifier(oBrain)
+                    bChangedModifier = false
+                    if iRateAdjustment > 0 then
+                        if oBrain.CheatValue < iUpperCap then
+                            bChangedModifier = true
+                        end
+                    else
+                        if oBrain.CheatValue > iLowerCap then
+                            bChangedModifier = true
+                        end
+                    end
+                    if bChangedModifier then return oBrain.CheatValue + iRateAdjustment end
+                end
+                local iIndividualModifier
                 for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                     if oBrain.CheatEnabled and not(oBrain.M28IsDefeated) then
-                        M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
+                        if bHaveIndividualAIBrainMods and oBrain.CheatValue then
+                            iIndividualModifier = GetIndividualModifier(oBrain)
+                            if bChangedModifier and iIndividualModifier then
+                                bChangedAnyAI = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing AIx modifier for brain '..oBrain.Nickname..' to '..iIndividualModifier) end
+                                --Also change the AI .CheatValue
+                                                                            --aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
+                                M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iIndividualModifier, iIndividualModifier, true,                   nil,                                false,           true)
+                            end
+                        else
+                            M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
+                        end
                     end
                 end
+                if bHaveIndividualAIBrainMods and not(bChangedAnyAI) then break end
             end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(iSecondsToWait)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshEconomyGrossValues(aiBrain)

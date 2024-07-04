@@ -3,6 +3,10 @@
 --- Created by maudlin27.
 --- DateTime: 19/06/2024 08:07
 ---
+
+
+--WARNING: LOUD APPEARS TO USE THE KEY IN SCENARIOINFO NOT THE TEXT/VALUE
+
 LobbyGlobalOptions = {
     --[[{
         default = 1,
@@ -31,7 +35,7 @@ LobbyGlobalOptions = {
         },
     },--]]
 
-    {
+    --[[{
         default = 11,
         label = "M28: AIx Cheat Multiplier",
         help = "Set the cheat multiplier for the M28 AIs (if AIx is enabled)",
@@ -522,8 +526,8 @@ LobbyGlobalOptions = {
                 key = 96,
             },
         },
-    },
-    {
+    },--]]
+    --[[{
         default = 11,
         label = "M28: AIx Build Multiplier",
         help = "Set the build rate multiplier for M28 AIs (if AIx is enabled)",
@@ -1014,12 +1018,13 @@ LobbyGlobalOptions = {
                 key = 96,
             },
         },
-    },
+    },--]]
     {
         default = 6,
         label = "M28: AIx Overwhelm rate",
         help = "Adjust M28 AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
         key = 'M28OvwR',
+        pref = 'pref_M28AIxOverwhelmR',
         --pref = 'lob_teams_combo',
         --type = 'index',
         --value_text = "%s",
@@ -1087,6 +1092,7 @@ LobbyGlobalOptions = {
         label = "M28: AIx Overwhelm interval",
         help = "Time in minutes between each AIx overwhelm adjustment",
         key = 'M28OvwT',
+        pref = 'pref_M28AIxOverwhelmT',
         --pref = 'lob_teams_combo',
         --type = 'index',
         --value_text = "%s",
@@ -1229,6 +1235,7 @@ LobbyGlobalOptions = {
         label = "M28: AIx Overwhelm limit",
         help = "Stops changing the AIx overwhelm modifier once this AIx modifier is reached",
         key = 'M28OvwC',
+        pref = 'pref_M28AIxOverwhelmL',
         --pref = 'lob_teams_combo',
         --type = 'index',
         --value_text = "%s",

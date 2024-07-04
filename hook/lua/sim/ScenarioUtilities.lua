@@ -78,6 +78,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
             import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
             local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
             LoudCompatibility.UpdateUnitCategories()
+            LoudCompatibility.UpdateOtherLOUDInformation()
             local oBrain = self
             LOG('oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..': ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false)..'; oBrain.CheatValue='..(oBrain.CheatValue or 'nil'))
             if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then

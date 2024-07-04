@@ -418,86 +418,9 @@ function M28BrainCreated(aiBrain)
 
     if not(bInitialSetup) then
         bInitialSetup = true
-        _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
-        _G.reprs = rawget(_G, 'reprs') or
-                function(tTable)
-                    if tTable == nil then
-                        return 'nil'
-                    else
-                        function GetVariableTypeOrValue(variable, iCurSubtableLevel)
-                            if type(variable) == 'nil' then
-                                return 'nil'
-                            elseif type(variable) == 'number' then
-                                return variable
-                            elseif type(variable) == 'string' then
-                                return variable
-                            elseif type(variable) == 'boolean' then
-                                if variable then return 'True' else return 'False' end
-                            elseif type(variable) == 'function' then
-                                return '<function>'
-                            elseif type(variable) == 'userdata' then
-                                return '<userdata>'
-                            elseif type(variable) == 'thread' then
-                                return '<thread>'
-                            elseif type(variable) == 'table' then
-                                local sCombinedTable = ''
-                                for iEntry, vValue in variable do
-                                    if iCurSubtableLevel and iCurSubtableLevel >= 1 then
-                                        sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
-                                    else
-                                        sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
-                                    end
-                                end
-                                return sCombinedTable
-                            else
-                                return '<unexpected type>'
-                            end
-                        end
-
-                        return GetVariableTypeOrValue(tTable)
-
-                    end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
-                end
-        if M28Utilities.bLoudModActive then
-            _G.repr = function(tTable)
-                if tTable == nil then
-                    return 'nil'
-                else
-                    function GetVariableTypeOrValue(variable, iCurSubtableLevel)
-                        if type(variable) == 'nil' then
-                            return 'nil'
-                        elseif type(variable) == 'number' then
-                            return variable
-                        elseif type(variable) == 'string' then
-                            return variable
-                        elseif type(variable) == 'boolean' then
-                            if variable then return 'True' else return 'False' end
-                        elseif type(variable) == 'function' then
-                            return '<function>'
-                        elseif type(variable) == 'userdata' then
-                            return '<userdata>'
-                        elseif type(variable) == 'thread' then
-                            return '<thread>'
-                        elseif type(variable) == 'table' then
-                            local sCombinedTable = ''
-                            for iEntry, vValue in variable do
-                                if iCurSubtableLevel and iCurSubtableLevel >= 3 then
-                                    sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
-                                else
-                                    sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
-                                end
-                            end
-                            return sCombinedTable
-                        else
-                            return '<unexpected type>'
-                        end
-                    end
-
-                    return GetVariableTypeOrValue(tTable, 0)
-                end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
+        local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
+        if not(M28Utilities.bLoudModActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
+        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
 
@@ -1481,7 +1404,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits)
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetBuildAndResourceCheatModifiers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1532,6 +1455,7 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
             },
         }
     end
+    if bUpdateCheatValue then aiBrain.CheatValue = math.min(iBuildModifier, iResourceModifier) end
     if M28Utilities.bLoudModActive then
         Buffs[sCheatBuildRate].EntityCategory = 'ALLUNITS'
         Buffs[sCheatIncome].EntityCategory = 'ALLUNITS'
@@ -1546,11 +1470,12 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing units empty='..tostring(M28Utilities.IsTableEmpty(tExistingUnits))) end
         if M28Utilities.IsTableEmpty(tExistingUnits) == false then
             for iUnit, oUnit in tExistingUnits do
-                if bDebugMessages == true then LOG(sFunctionRef..': Applying buffs to unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' for brain='..aiBrain.Nickname..' with index='..aiBrain:GetArmyIndex()) end
+                M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
+                --[[if bDebugMessages == true then LOG(sFunctionRef..': Applying buffs to unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' for brain='..aiBrain.Nickname..' with index='..aiBrain:GetArmyIndex()) end
                 FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..aiBrain:GetArmyIndex(), true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..aiBrain:GetArmyIndex())
                 FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..aiBrain:GetArmyIndex(), true)
-                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..aiBrain:GetArmyIndex())
+                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..aiBrain:GetArmyIndex())--]]
                 if iOptionalRecordedUnitResourceAdjust then
                     ForkThread(UpdateGrossIncomeForUnit, oUnit, false, false, iOptionalRecordedUnitResourceAdjust)
                 end

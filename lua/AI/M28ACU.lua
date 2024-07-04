@@ -5134,7 +5134,9 @@ function ManageACU(aiBrain, oACUOverride)
                     break
                 end
             end
-            oACU:SetAutoOvercharge(true)
+            if bHaveAutoOvercharge then
+                oACU:SetAutoOvercharge(true)
+            end
         end
 
         while M28UnitInfo.IsUnitValid(oACU) do
