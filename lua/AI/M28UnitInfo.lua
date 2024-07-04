@@ -2306,6 +2306,10 @@ function FixUnitResourceCheatModifiers(oUnit)
             if iUpgradeMassPerSec > 0 or iUpgradeEnergyPerSec > 0 or iBaseMassPerSec > 0 or iBaseEnergyPerSec > 0 then
                 --Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
                 local iIndex = oUnit:GetAIBrain():GetArmyIndex()
+                if not(Buffs['CheatIncome'..iIndex]) or not(Buffs['CheatBuildRate'..iIndex]) then
+                    local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+                    M28Overseer.SetBuildAndResourceCheatModifiers(oUnit:GetAIBrain(), (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5)), iResourceModifier, true, nil, true, false)
+                end
                 Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
                 Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
                 FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)

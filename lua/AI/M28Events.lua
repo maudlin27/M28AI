@@ -66,7 +66,7 @@ function OnPlayerDefeated(aiBrain)
         --Update tables tracking the various brains
         ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
         --if the base will have been destroyed, or there isn't a base anyway, then rerecord positions
-        if not(ScenarioInfo.Options.Share == 'FullShare') or aiBrain:GetCurrentUnits(categories.ALLUNITS - - categories.INSIGNIFICANTUNIT) <= 2 then
+        if not(ScenarioInfo.Options.Share == 'FullShare') or aiBrain:GetCurrentUnits(categories.ALLUNITS - categories.INSIGNIFICANTUNIT) <= 2 then
             ForkThread(M28Map.ReassessPositionsForPlayerDeath, aiBrain)
         end
         ForkThread(M28Chat.ConsiderEndOfGameMessage, aiBrain)
@@ -2540,7 +2540,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     end
 
                     --Units with upgrade - update the base threat value
-                    if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                    if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) or (oUnit.HasEnhancement and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and (oUnit:HasEnhancement('ResourceAllocation') or oUnit:HasEnhancement('ResourceAllocationAdvanced'))) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
                     elseif M28Utilities.bLoudModActive and oUnit:GetAIBrain().CheatEnabled then
