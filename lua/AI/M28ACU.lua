@@ -3535,7 +3535,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         --Get volatile units and PD in this and adjacent land zones so can factor in if alternative locations are more dangerous
         local tVolatileUnits = {}
         if not(bJustCheckIfLocationWithLowPDThreat) then
-            local tPotentialVolatileUnits = EntityCategoryFilterDown(categories.VOLATILE * categories.STRUCTURE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+            local tPotentialVolatileUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryVolatile * categories.STRUCTURE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
             if M28Utilities.IsTableEmpty(tPotentialVolatileUnits) == false then
                 for iUnit, oUnit in tPotentialVolatileUnits do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then

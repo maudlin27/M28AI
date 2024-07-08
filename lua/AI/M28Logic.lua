@@ -726,7 +726,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                                     end
                                 end
                                 --Is it a mex that will be killed outright and/or a volatile structure? Then increase the value of killing it
-                            elseif iMassFactor >= 1 and EntityCategoryContains(categories.MASSEXTRACTION + categories.VOLATILE, oUnit.UnitId) then iMassFactor = iMassFactor * 1.75
+                            elseif iMassFactor >= 1 and EntityCategoryContains(categories.MASSEXTRACTION + M28UnitInfo.refCategoryVolatile, oUnit.UnitId) then iMassFactor = iMassFactor * 1.75
                             end
                         end
                         if bT3ArtiShotReduction then

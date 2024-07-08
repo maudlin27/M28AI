@@ -6166,7 +6166,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 local iCtrlKdUnits = 0
                 local oUnitToReclaim
                 for iUnit, oUnit in tLowestValueBlockingBuildings do
-                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryVolatile + categories.COMMAND, oUnit.UnitId)) then
                         --CtrlK instead of reclaiming
                         M28Orders.IssueTrackedKillUnit(oUnit)
                         iCtrlKdUnits = iCtrlKdUnits + 1
@@ -6713,7 +6713,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                 local oUnitToReclaim
                 local iCtrlKdUnits = 0
                 for iUnit, oUnit in tLowestValueBlockingBuildings do
-                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                    if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryVolatile + categories.COMMAND, oUnit.UnitId)) then
                         --CtrlK instead of reclaiming
                         M28Orders.IssueTrackedKillUnit(oUnit)
                         iCtrlKdUnits = iCtrlKdUnits + 1
@@ -6999,7 +6999,7 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                             local iCtrlKdUnits = 0
                             local oUnitToReclaim
                             for iUnit, oUnit in tLowestValueBlockingBuildings do
-                                if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(categories.VOLATILE + categories.COMMAND, oUnit.UnitId)) then
+                                if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryVolatile + categories.COMMAND, oUnit.UnitId)) then
                                     --CtrlK instead of reclaiming
                                     M28Orders.IssueTrackedKillUnit(oUnit)
                                     iCtrlKdUnits = iCtrlKdUnits + 1

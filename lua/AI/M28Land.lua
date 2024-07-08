@@ -221,8 +221,13 @@ function ConsiderAddingPlateauOverrideForUnit(oUnit)
             local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': iSegmentX-Z='..iSegmentX..'-'..iSegmentZ..'; tLandZoneBySegment[iSegmentX][iSegmentZ]='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
             if not(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ]) then
-                bMadeChange = GetUnitPlateauAndLandZoneOverride(oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': bMadeChange after checking unit plateau and LZ override='..tostring(bMadeChange)) end
+                --If units are dropped from a transport onto water then this can happen, so check that this isnt the case
+                if GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > M28Map.iMapWaterHeight then
+                    bMadeChange = GetUnitPlateauAndLandZoneOverride(oUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': bMadeChange after checking unit plateau and LZ override='..tostring(bMadeChange)) end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wont consider override for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' because it appears to be in a water zone') end
+                end
             end
         end
     end

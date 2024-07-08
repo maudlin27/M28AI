@@ -7915,7 +7915,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 return 1.5
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and ScenarioInfo.Options.Victory == "demoralization" then
                 return 3
-            elseif EntityCategoryContains(categories.VOLATILE * categories.STRUCTURE + categories.VOLATILE * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryVolatile * categories.STRUCTURE + M28UnitInfo.refCategoryVolatile * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
                 return 2
                 --Adjustments for certain categories to just bring them above iBestTargetValue starting threshold
             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then

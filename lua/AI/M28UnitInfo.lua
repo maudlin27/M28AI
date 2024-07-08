@@ -318,6 +318,7 @@ refCategoryLongRangeDFLand = refCategoryFatboy + refCategorySniperBot + refCateg
 refCategoryLongRangeMobile = refCategoryLongRangeDFLand + refCategoryNavalSurface * categories.DIRECTFIRE + refCategoryNavalSurface * categories.INDIRECTFIRE - refCategoryNavalSurface * categories.TECH1 + refCategoryIndirectT2Plus
 refCategoryShortRangeMobile = refCategoryLandCombat + refCategoryFrigate - refCategoryLongRangeMobile
 refCategoryReclaimable = categories.RECLAIMABLE - refCategoryAllAir
+refCategoryVolatile = categories.VOLATILE --needed as LOUD doesnt have this category so want to expand this to add specific unit categories
 
 function GetUnitLifetimeCount(oUnit)
 --Returns what unique (for the unit's aiBrain) count the unit has, i.e. based on the number of previous units with the same blueprint ID
@@ -1123,6 +1124,10 @@ function CalculateBlueprintThreatsByType()
 
         local iCurTechLevel
         local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+        local bCheckForVolatileUnits = false
+        if M28Utilities.bLoudModActive or M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(categories.VOLATILE)) then
+            bCheckForVolatileUnits = true
+        end
 
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
@@ -1157,6 +1162,19 @@ function CalculateBlueprintThreatsByType()
                     end
                 elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
                     M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId))
+                end
+
+                if bCheckForVolatileUnits then
+                    --Does unit have a death weapon with an aoe and damage?
+                    if oBP.Weapon then
+                        for iWeapon, tWeapon in oBP.Weapon do
+                            if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
+                                if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
+                                    refCategoryVolatile = refCategoryVolatile + categories[sUnitId]
+                                end
+                            end
+                        end
+                    end
                 end
             end
         end
