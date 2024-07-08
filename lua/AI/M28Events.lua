@@ -447,7 +447,6 @@ function OnUnitDeath(oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': About to consider M28specific on death logic, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owned by brain '..oUnit:GetAIBrain().Nickname..'; Is M28='..tostring(oUnit:GetAIBrain().M28AI or false)) end
                         --Is the unit owned by M28AI?
                         if oUnit:GetAIBrain().M28AI then
-                            oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] = (oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] or 0) - 1
                             --Air units - remove any assigned strike damage
                             if oUnit[M28Air.refoStrikeDamageAssigned] then
                                 M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
@@ -2601,8 +2600,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                     --M28 specific:
                     if oUnit:GetAIBrain().M28AI then
-                        oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] = (oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] or 0) + 1
-                        M28Overseer.ConsiderUpdatingBrainUnitCount(oUnit:GetAIBrain())
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
 

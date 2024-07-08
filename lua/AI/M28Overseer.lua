@@ -63,8 +63,6 @@ refiTimeOfLastUnitCapDeath = 'M28OverseerTmLstCpDth' --time we last ctrlkd a uni
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
-refiRoughUnitCount = 'M28OvsrUntCn' --Currently only used against M28 brains, returns number of units brain has; is updated periodically to reflect the actual number
-refiTimeLastUpdatedUnitCount = 'M28OvsrUntTm' --Gametimeseconds we last used a precise value for refiRoughUnitCount
 
 
 --Global other variables
@@ -798,13 +796,6 @@ function Initialisation(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderUpdatingBrainUnitCount(aiBrain)
-    if GetGameTimeSeconds() - (aiBrain[refiTimeLastUpdatedUnitCount] or 0) >= 30 then
-        aiBrain[refiTimeLastUpdatedUnitCount] = GetGameTimeSeconds()
-        aiBrain[refiRoughUnitCount] = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
-    end
-end
-
 function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -819,9 +810,7 @@ function CheckUnitCap(aiBrain)
         --local armies = ListArmies()
         --for i, army in armies do
         --end
-        local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
-        aiBrain[refiRoughUnitCount] = iCurUnits
-        aiBrain[refiTimeLastUpdatedUnitCount] = GetGameTimeSeconds()
+        local iCurUnits = GetArmyUnitCostTotal(aiBrain:GetArmyIndex()) --aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
         local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
         local iCurUnitsDestroyed = 0
@@ -2531,8 +2520,8 @@ function ConsiderSlowdownForHighUnitCount()
         local oFirstM28Brain
         for iBrain, oBrain in ArmyBrains do
             if not(oBrain.M28IsDefeated) then
-                iM28Units = iM28Units + (oBrain[refiRoughUnitCount] or 0)
-                if (oBrain[refiRoughUnitCount] or 0) > 0 then oFirstM28Brain = oBrain end
+                iM28Units = iM28Units + GetArmyUnitCostTotal(oBrain:GetArmyIndex())
+                if oBrain.M28AI then oFirstM28Brain = oBrain end
             end
         end
         if iM28Units > 1750 or M28Land.iTicksPerLandCycle > 11 or M28Air.iExtraTicksToWaitBetweenAirCycles > 0 then
