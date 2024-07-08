@@ -2213,13 +2213,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
-                    if aiBrain:GetCurrentUnits(categories.ALLUNITS) >= 800 then bDebugMessages = true end
                     if bDebugMessages == true then LOG(sFunctionRef..': will call function to refresh unit cap if we are close, is oJustBuilt valid='..tostring(M28UnitInfo.IsUnitValid(oJustBuilt))..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; Expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
                     if M28UnitInfo.IsUnitValid(oJustBuilt) and aiBrain[M28Overseer.refbCloseToUnitCap] and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 25 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will check unit cap, time='..GetGameTimeSeconds()) end
                         M28Overseer.CheckUnitCap(aiBrain)
                     end
-                    bDebugMessages = false
 
                     --air fac restriction - review if campaign in case things have changed if are dealing with the player (dont do for campaign AI though as they sometimes have different settings)
                     if M28Overseer.bAirFactoriesCantBeBuilt and M28Map.bIsCampaignMap and not(aiBrain.CampaignAI) then
@@ -2808,7 +2806,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             end
                         end
                         --Check unit cap
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
                         if (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
@@ -2816,7 +2813,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
                         end
-                        bDebugMessages = false
                     end
                 end
             end

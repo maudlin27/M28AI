@@ -3086,14 +3086,17 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
     --Remove any SACUs that are constructing/repariing a unit
     if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 3 then
-        local iSMDBPWanted
+        local bBuildingSMD = false
         if tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] <= 3 then
-            iSMDBPWanted = M28Engineer.GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, tLZTeamData[M28Map.subrefLZbCoreBase], M28Conditions.TeamHasLowMass(iTeam), M28Conditions.HaveLowPower(iTeam))
-            if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 then
+            local iSMDBPWanted, bAssistSMD, oSMDToShield, oShieldToAssist = M28Engineer.GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, tLZTeamData[M28Map.subrefLZbCoreBase], M28Conditions.TeamHasLowMass(iTeam), M28Conditions.HaveLowPower(iTeam))
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to use RAS SACUs to build SMD, iSMDBPWanted='..iSMDBPWanted..'; bAssistSMD='..tostring(bAssistSMD)..'; oSMDToShield='..(oSMDToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSMDToShield) or 'nil')..'; oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
+            if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 and not(bAssistSMD) and not(oSMDToShield) and not(oShieldToAssist) then
+                bBuildingSMD = true
                 BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD)
             end
         end
-        if iSMDBPWanted == 0 and tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 3 then
+        if bDebugMessages == true then LOG(sFunctionRef..': bBuildingSMD='..tostring(bBuildingSMD)..'; Time since last wanted SMD='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0)) end
+        if not(bBuildingSMD) and tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 3 then
             --First check we have no experimental level units under construction in this zone
             if bDebugMessages == true then LOG(sFunctionRef..': Number of exp under construction in LZ='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true)) end
             if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true) == 0 then
