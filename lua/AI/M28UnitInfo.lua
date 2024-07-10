@@ -1565,7 +1565,16 @@ function RecordUnitRange(oUnit)
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 
     --Record mass cost
-    oUnit[refiUnitMassCost] = (oBP.Economy.BuildCostMass or 0)
+    local iMassCost = (oBP.Economy.BuildCostMass or 0)
+    if oUnit.HasEnhancement and oBP.Enhancements then
+        for sEnhancement, tEnhancement in oBP.Enhancements do
+            if oUnit:HasEnhancement(sEnhancement) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Including enhancement cost in unit mass value, unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; sEnhancement='..sEnhancement..'; Enhancement mass cost='..(tEnhancement.BuildCostMass or 0)) end
+                iMassCost = iMassCost + (tEnhancement.BuildCostMass or 0)
+            end
+        end
+    end
+    oUnit[refiUnitMassCost] = iMassCost
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

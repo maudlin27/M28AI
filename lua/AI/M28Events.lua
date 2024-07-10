@@ -717,7 +717,6 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 --Remove any upgrade tracking
                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
             end
-            M28UnitInfo.RecordUnitRange(oUnit)
             if sEnhancement == 'CloakingGenerator' then
                 --Record in table for enemy teams
                 CloakedUnitIdentified(oUnit)
