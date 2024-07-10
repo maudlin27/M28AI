@@ -955,6 +955,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(categories.ALLUNITS) then return sBPIDToBuild end
     end
 
+    --LOUD - initial build order - hold off on building anything if we have 2 engis already and haven't built on every mex
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and M28Utilities.bLoudModActive and GetGameTimeSeconds() <= 180 and aiBrain:GetEconomyStored('MASS') <= math.max(90, 250 - tLZTeamData[M28Map.subrefMexCountByTech][1] * 50) and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 0.6 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] <= 2 and oFactory[refiTotalBuildCount] >= 2 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Aborting land factory production for now as early game in LOUD') end
+        return nil
+    end
+
     --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
