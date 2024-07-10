@@ -3082,3 +3082,16 @@ end
 function DoesAINicknameContainM28(sNickname, bOnlyM28Easy)
     return M28Utilities.DoesAINicknameContainM28(sNickname, bOnlyM28Easy)
 end
+
+function HaveEcoToSupportGETemplate(iTeam)
+    if M28Utilities.bLoudModActive then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250*math.min(10, (2* M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 4)) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            return true
+        end
+    else
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250*math.min(4, (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 1.5)) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 then
+            return true
+        end
+    end
+    return false
+end

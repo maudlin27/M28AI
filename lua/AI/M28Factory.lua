@@ -4871,6 +4871,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     end
 
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix
+    --v107 - will just build normal SACUs and upgrade tem
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end
@@ -4878,13 +4879,16 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
+        if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
+            return sBPIDToBuild
+        end
+        --[[ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
             if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn a non-seraphim RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
             return sBPIDToBuild
         elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn an SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
             return sBPIDToBuild
-        end
+        end--]]
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
