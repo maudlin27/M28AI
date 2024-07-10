@@ -19,3 +19,8 @@ Tooltips['pref_M28AIxOverwhelmL'] = {
     description = "Stops changing the AIx overwhelm modifier once this AIx modifier is reached",
     keyID = "pref_M28AIxOverwhelmL",
 }
+Tooltips['pref_M28TimeBetweenOrders'] = {
+    title = "Time between M28 orders",
+    description = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
+    keyID = "pref_M28TimeBetweenOrders",
+}

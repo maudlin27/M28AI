@@ -2747,7 +2747,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
 
                             if iMexTechLevel > 1 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel >= 3 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0)) then
                                 ForkThread(ConsiderFutureMexUpgrade, oMex, 120)
-                            else
+                            elseif iMexTechLevel < 3 or M28Utilities.bLoudModActive then
                                 --We arent stalling (or need to upgrade even if stalling), we dont have any active mex upgrades in this zone, and this mex has been alive a while - proceed with upgrade
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as it has been active a while') end
                                 UpgradeUnit(oMex, true)
