@@ -2515,7 +2515,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
             local oEnemyUnit = tEnemyTargets[iEntry]
             iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
             --Increase threat to assign to AA units
-            if EntityCategoryContains(categories.ANTIAIR + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
                 iThreatWanted = iThreatWanted * 3
                 table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
             end

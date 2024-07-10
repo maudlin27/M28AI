@@ -224,6 +224,7 @@ refCategoryHive = categories.STRUCTURE * categories.STATIONASSISTPOD * categorie
 refCategoryKennel = categories.STRUCTURE * categories.ENGINEERSTATION * categories.PODSTAGINGPLATFORM
 refCategoryEngineerStation = refCategoryRover + refCategoryHive + refCategoryKennel
 
+refCategoryAntiAir = categories.ANTIAIR --used so we can identify units with decent AA threat
 refCategoryMAA = categories.LAND * categories.MOBILE * categories.ANTIAIR - categories.EXPERIMENTAL
 refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE * categories.BOT + categories.LAND * categories.MOBILE * categories.TANK * categories.TECH1 * categories.SERAPHIM - refCategoryMAA -categories.REPAIR --(repair exclusion added as basic way to differentiate between mantis (which has repair category) and LAB; alternative way is to specify the fastest when choosing the blueprint to build
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
@@ -986,6 +987,29 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             --Non-air pathing type
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
                             if bIncludeGroundToAir == true then
+                                --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
+                                local iAADPS = 0
+                                local iBestAirAAAOE = 0
+                                local iCurDPS, bCanShootAir
+                                if oBP.Weapon then
+                                    for iWeapon, tWeapon in oBP.Weapon do
+                                        bCanShootAir = false
+                                        if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
+                                            for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                                if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                    bCanShootAir = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        if bCanShootAir then
+                                            iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
+                                            iCurDPS = tWeapon.Damage * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                            iAADPS = iAADPS + iCurDPS
+                                        end
+                                    end
+                                end
+
                                 if EntityCategoryContains(categories.ANTIAIR, sCurUnitBP) == true then
                                     if EntityCategoryContains(categories.SUBMERSIBLE, sCurUnitBP) then
                                         if EntityCategoryContains(categories.EXPERIMENTAL, sCurUnitBP) then
@@ -1004,6 +1028,31 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18
                                     elseif sCurUnitBP == 'url0402' then
                                         iMassMod = 0.016 --monkeylord - it has half the dps of a t2 mobile flak with no aoe (although it has better range and health), so its threat will be equivalent to 2 mobile T2 MAA so that gunships are more likely to engage it
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
+                                if iMassMod < 1 and iAADPS > 0 then
+                                    local iMassAAFactor = 2.1
+                                    --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
+                                    if iBestAirAAAOE >= 1 then iMassAAFactor = 2.3 end
+                                    if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
+
+                                    --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
+                                    local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
+                                    if iHealthPerMass >= 6 then
+                                        iMassAAFactor = iMassAAFactor * math.min(2, (iHealthPerMass - 6) / 12 + 1) --e.g. if have double the expected health, threat only increase by 50%, as main threat of an AA unit is the damage not the health
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
+
+                                    iMassMod = math.min(1.5, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
+                                    --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+
+                                    if iMassMod >= 0.4 then
+                                        if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
+                                            refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
+                                        end
+                                        if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
                                     end
                                 end
                             end
@@ -1492,7 +1541,7 @@ function RecordUnitRange(oUnit)
                     elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                         --LOUD Additional checks since often units dont have a range category for a weapon - use FireTargetLayerCapsTable to help differentiate between AA; torpedo; and ground attacks (with damaged used to ignore most 'cosmetic' and special countermeasure type weapons:
-                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or (oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' and not(oCurWeapon.FireTargetLayerCapsTable.Water))  then
+                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' or oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
