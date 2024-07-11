@@ -2515,7 +2515,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
             local oEnemyUnit = tEnemyTargets[iEntry]
             iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
             --Increase threat to assign to AA units
-            if EntityCategoryContains(categories.ANTIAIR + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
                 iThreatWanted = iThreatWanted * 3
                 table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
             end
@@ -7915,7 +7915,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 return 1.5
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and ScenarioInfo.Options.Victory == "demoralization" then
                 return 3
-            elseif EntityCategoryContains(categories.VOLATILE * categories.STRUCTURE + categories.VOLATILE * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryVolatile * categories.STRUCTURE + M28UnitInfo.refCategoryVolatile * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
                 return 2
                 --Adjustments for certain categories to just bring them above iBestTargetValue starting threshold
             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then

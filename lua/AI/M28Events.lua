@@ -447,7 +447,6 @@ function OnUnitDeath(oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': About to consider M28specific on death logic, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owned by brain '..oUnit:GetAIBrain().Nickname..'; Is M28='..tostring(oUnit:GetAIBrain().M28AI or false)) end
                         --Is the unit owned by M28AI?
                         if oUnit:GetAIBrain().M28AI then
-                            oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] = (oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] or 0) - 1
                             --Air units - remove any assigned strike damage
                             if oUnit[M28Air.refoStrikeDamageAssigned] then
                                 M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
@@ -718,7 +717,6 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 --Remove any upgrade tracking
                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
             end
-            M28UnitInfo.RecordUnitRange(oUnit)
             if sEnhancement == 'CloakingGenerator' then
                 --Record in table for enemy teams
                 CloakedUnitIdentified(oUnit)
@@ -1909,7 +1907,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if not(bGiftingToTeammate) then
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                                     --If can upgrade then consider future upgrade
-                                    if oJustBuilt:GetBlueprint().General.UpgradesTo then
+                                    local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
+                                    if sUpgrade and not(sUpgrade == '') then
                                         ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
                                         if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
                                     end
@@ -1963,6 +1962,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
                                 end
                             end
+
+                            M28Economy.ConsiderImmediateUpgradeOfFactory(oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oJustBuilt.UnitId) then
+                            M28Economy.ConsiderImmediateUpgradeOfFactory(oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
@@ -2053,9 +2056,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.TeamEconomyRefresh(iTeam)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
-                        end
-                        --Clear engineers that just built this
+                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            end
+                            --Clear engineers that just built this
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
                         --Check if we have transports wanting combat drops
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
@@ -2214,7 +2217,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
+                    if bDebugMessages == true then LOG(sFunctionRef..': will call function to refresh unit cap if we are close, is oJustBuilt valid='..tostring(M28UnitInfo.IsUnitValid(oJustBuilt))..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; Expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
                     if M28UnitInfo.IsUnitValid(oJustBuilt) and aiBrain[M28Overseer.refbCloseToUnitCap] and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 25 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will check unit cap, time='..GetGameTimeSeconds()) end
                         M28Overseer.CheckUnitCap(aiBrain)
                     end
 
@@ -2597,8 +2602,6 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                     --M28 specific:
                     if oUnit:GetAIBrain().M28AI then
-                        oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] = (oUnit:GetAIBrain()[M28Overseer.refiRoughUnitCount] or 0) + 1
-                        M28Overseer.ConsiderUpdatingBrainUnitCount(oUnit:GetAIBrain())
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
 
@@ -2809,6 +2812,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Check unit cap
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
                         if (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
                             M28Overseer.CheckUnitCap(aiBrain)
                         else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1

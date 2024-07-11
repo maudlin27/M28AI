@@ -709,6 +709,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     else
                         AddPotentialMessage( 'Bet you couldnt beat an AIx version of me!')
                         AddPotentialMessage( 'Make me an AIx and Ill show you what I can really do!')
+                        if not(M28Utilities.bFAFActive) then AddPotentialMessage( 'If this was on forged alliance forever I\'d have beaten you!') end
                     end
                 elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
                     AddPotentialMessage( 'Bet you couldnt beat me if I was a 1.5 AIx!')
@@ -845,7 +846,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         AddPotentialMessage( 'gg, even if I had bonus resources to help')
                     else
                         if bHadEnemyHuman then
-                            AddPotentialMessage( 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI')
+                            if M28Utilities.bFAFActive then AddPotentialMessage( 'Want tips on what you could’ve done better? Post the replay ID to discord replay reviews channel and mention you lost to M28AI') end
                             if (oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] or 1) == 1 then
                                 AddPotentialMessage( 'You can set my AIx modifier to below 1.0 for an easier time')
                                 if not(oEnemyM28AIBrain.M28Easy) then AddPotentialMessage( 'If you found me too hard you could practice against M28Easy') end

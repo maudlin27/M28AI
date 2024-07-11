@@ -1766,4 +1766,88 @@ LobbyGlobalOptions = {
             },
         },
     },--]]
+    {
+        default = 1,
+        label = "M28: Time between orders",
+        help = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
+        key = 'M28TimeBetweenOrders',
+        pref = 'pref_M28TimeBetweenOrders',
+        values = {
+            {
+                text = '1.0',
+                help = 'Seconds between orders',
+                key = 1,
+            },
+            {
+                text = '1.1',
+                help = 'Seconds between orders',
+                key = 2,
+            },
+            {
+                text = '1.2',
+                help = 'Seconds between orders',
+                key = 3,
+            },
+            {
+                text = '1.3',
+                help = 'Seconds between orders',
+                key = 4,
+            },
+            {
+                text = '1.4',
+                help = 'Seconds between orders',
+                key = 5,
+            },
+            {
+                text = '1.5',
+                help = 'Seconds between orders',
+                key = 6,
+            },
+            {
+                text = '2.0',
+                help = 'Seconds between orders',
+                key = 7,
+            },
+            {
+                text = '3.0',
+                help = 'Seconds between orders',
+                key = 8,
+            },
+            {
+                text = '4.0',
+                help = 'Seconds between orders',
+                key = 9,
+            },
+            {
+                text = '5.0',
+                help = 'Seconds between orders',
+                key = 10,
+            },
+            {
+                text = '6.0',
+                help = 'Seconds between orders',
+                key = 11,
+            },
+            {
+                text = '7.0',
+                help = 'Seconds between orders',
+                key = 12,
+            },
+            {
+                text = '8.0',
+                help = 'Seconds between orders',
+                key = 13,
+            },
+            {
+                text = '9.0',
+                help = 'Seconds between orders',
+                key = 14,
+            },
+            {
+                text = '10.0',
+                help = 'Seconds between orders',
+                key = 15,
+            },
+        },
+    },
 }

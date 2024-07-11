@@ -118,7 +118,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
         --local Game = import("/lua/game.lua")
         local iArmyIndex = aiBrain:GetArmyIndex()
         for _, sBlueprint in tBlueprints do
-            if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..sBlueprint..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..(sBlueprint or 'nil')..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))..'; iArmyIndex='..(iArmyIndex or 'nil')) end
             if oFactory:CanBuild(sBlueprint) == true and not(M28UnitInfo.IsUnitRestricted(sBlueprint, iArmyIndex)) then
                 --Check we can build the desired category
                 if not(iOptionalCategoryThatMustBeAbleToBuild) then bCanBuildRequiredCategory = true
@@ -953,6 +953,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if oFactory.UnitId == 'bab2404' then
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if ConsiderBuildingCategory(categories.ALLUNITS) then return sBPIDToBuild end
+    end
+
+    --LOUD - initial build order - hold off on building anything if we have 2 engis already and haven't built on every mex
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and M28Utilities.bLoudModActive and GetGameTimeSeconds() <= 180 and aiBrain:GetEconomyStored('MASS') <= math.max(90, 250 - tLZTeamData[M28Map.subrefMexCountByTech][1] * 50) and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 0.6 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] <= 2 and oFactory[refiTotalBuildCount] >= 2 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Aborting land factory production for now as early game in LOUD') end
+        return nil
     end
 
     --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
@@ -4871,6 +4878,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     end
 
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix
+    --v107 - will just build normal SACUs and upgrade tem
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end
@@ -4878,13 +4886,16 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
+        if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
+            return sBPIDToBuild
+        end
+        --[[ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
             if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn a non-seraphim RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
             return sBPIDToBuild
         elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn an SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end
             return sBPIDToBuild
-        end
+        end--]]
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

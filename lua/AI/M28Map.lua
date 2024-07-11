@@ -665,8 +665,11 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                     if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
-                        M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
-                        LOG('tPosition='..repru(tPosition)..'; Land label of position='..(NavUtils.GetLabel(refPathingTypeLand, tPosition) or 'nil'))
+                        --If terrain height is also above map waterhight then have error (as might be units ahve been dropped from transport into water)
+                        if GetTerrainHeight(tPosition[1], tPosition[3]) > iMapWaterHeight then
+                            M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
+                            LOG('tPosition='..repru(tPosition)..'; Land label of position='..(NavUtils.GetLabel(refPathingTypeLand, tPosition) or 'nil'))
+                        end
                         --M28Utilities.DrawLocation(tPosition)
                     end
                 else

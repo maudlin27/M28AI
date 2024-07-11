@@ -2864,7 +2864,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     --Surface subs if enemy has airtoground in this zone (or nearby if it's a large threat)
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
     if (iEnemyAdjacentAirToGroundThreat > 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
-        local tAASubs = EntityCategoryFilterDown(categories.ANTIAIR, tAvailableSubmarines)
+        local tAASubs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAntiAir, tAvailableSubmarines)
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of AA subs empty='..tostring(M28Utilities.IsTableEmpty(tAASubs))) end
         if M28Utilities.IsTableEmpty(tAASubs) == false then
             for iUnit, oUnit in tAASubs do
@@ -3242,7 +3242,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     if oUnit[M28UnitInfo.refiAntiNavyRange] > iScenario1AntiNavyRangeThreshold then
                         table.insert(tUnitsToSupport, oUnit)
                         --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat
-                        if EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
                             M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
                             --Consider kiting logic unless want to use shot blocked override logic
                         elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
@@ -3277,7 +3277,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     else
                         if oUnit[M28UnitInfo.refiAntiNavyRange] > 0 then
                             --We dont outrange the enemy, but we do have other units that do
-                            if EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
                                 M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
                             else
                                 table.insert(tOutrangedCombatUnits, oUnit)

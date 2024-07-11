@@ -177,4 +177,17 @@ AIOpts = {
             },
         },
     },
+    {
+        default = 1,
+        label = "M28 time between orders",
+        help = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
+        key = 'M28TimeBetweenOrders',
+        value_text = "%s",
+        value_help = "Seconds between orders",
+        values = {
+            '1.0', '1.1', '1.2', '1.3', '1.4', '1.5',
+            '2.0', '2.5', '3.0', '3.5', '4.0', '5.0',
+            '6.0', '7.0', '8.0', '9.0', '10.0'
+        },
+    },
 }

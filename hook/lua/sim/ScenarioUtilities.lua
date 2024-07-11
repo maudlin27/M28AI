@@ -159,6 +159,12 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                     import('/lua/ai/aiutilities.lua').SetupAICheat( self )
                 --end
 
+                --Other LOUD ai related variables to avoid LOUD suffering errors:
+                local armypool = self:GetPlatoonUniquelyNamed('ArmyPool')
+                armypool:UniquelyNamePlatoon('ArmyPool')
+                armypool.BuilderName = 'Army'
+                self.ArmyPool = armypool
+
                 return
             else
                 LOG('Calling normal LOUD OrigInitializeSkirmishSystems logic for brain '..self.Nickname)

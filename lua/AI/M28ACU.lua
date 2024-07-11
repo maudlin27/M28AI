@@ -800,7 +800,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                             local iMexCap = 4
-                            if iHydroDistToStart >= 75 then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32
+                            if iHydroDistToStart >= 75 and not(M28Utilities.bLoudModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32
                             local bHaveUnbuiltMexNearHydro = false
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                                 local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
@@ -811,8 +811,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     end
                                 end
                             end
-
-                            if bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Loud early pgen builder check - cur pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
+                            if M28Utilities.bLoudModActive and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) >= aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) and aiBrain:GetEconomyStored('ENERGY') <= math.min(2000, aiBrain:GetEconomyStored('MASS') * 20) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD build order = want to get a pgen before hydro to avoid stalling') end
+                                ACUActionBuildPower(aiBrain, oACU)
+                            elseif bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
                             elseif (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) >= 5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
@@ -823,7 +826,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     ACUActionBuildPower(aiBrain, oACU)
                                 end
 
-                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
+                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) and (not(M28Utilities.bLoudModActive) or not(bHaveUnderConstructionFirstHydro) or not(oOptionalUnderConstructionHydro) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) <= 3) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                                 ACUActionBuildMex(aiBrain, oACU)
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
@@ -1157,6 +1160,77 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
+    local sFunctionRef = 'RemovePreferredUpgradesThatWeAlreadyHave'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and oACU.HasEnhancement then
+        local tObsoletePreRequisites = {}
+        local bCheckForObsoletePrerequisites
+        if bDebugMessages == true then
+            LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. aiBrain.Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
+        end
+        if (oACU[refiUpgradeCount] or 0) > 0 then
+            for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
+                if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
+                    table.insert(tObsoletePreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
+                    bCheckForObsoletePrerequisites = true
+                end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Considering if sEnhancement ' .. sEnhancement .. ' has prerequisite, BP Preq val=' .. (oBP.Enhancements[sEnhancement].Prerequisite or 'nil')..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; tObsoletePreRequisites='..repru(tObsoletePreRequisites))
+                end
+            end
+        end
+        local bUpgradeIsObsolete
+
+        local iRevisedIndex = 1
+        local iTableSize = table.getn(oACU[reftPreferredUpgrades])
+
+        --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
+        for iOrigIndex = 1, iTableSize do
+            if oACU[reftPreferredUpgrades][iOrigIndex] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if the upgrade index '..iOrigIndex..' which is '..repru(oACU[reftPreferredUpgrades][iOrigIndex])..' is obsolete; Does ACU have this enhancement='..tostring(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex]))..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete]='..repru((oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete] or 'nil'))..'; Time='..GetGameTimeSeconds()) end
+                if not (oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]] or -1) >= 0.5) then
+                    --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                    --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
+                    bUpgradeIsObsolete = false
+                    if bCheckForObsoletePrerequisites then
+                        for iEntry, sPreRequisite in tObsoletePreRequisites do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sPreRequisite='..sPreRequisite..'; If this equals this upgrade then will mark it as obsolete') end
+                            if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
+                                bUpgradeIsObsolete = true
+                                break
+                            end
+                        end
+                    end
+                    if bUpgradeIsObsolete then
+                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                    else
+
+                        --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                        if (iOrigIndex ~= iRevisedIndex) then
+                            oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
+                            oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                        end
+                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                    end
+                else
+                    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                end
+            end
+        end
+        if iRevisedIndex < iTableSize then
+            --table.setn(oACU[reftPreferredUpgrades], iRevisedIndex - 1)
+            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     --Records the order of upgrades we will want for the ACU
     local sFunctionRef = 'GetUpgradePathForACU'
@@ -1410,69 +1484,8 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     end
 
     --Remove any upgrades that we already have
-    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and oACU.HasEnhancement then
-        local tObsoletePreRequisites = {}
-        local bCheckForObsoletePrerequisites
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. aiBrain.Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
-        end
-        if (oACU[refiUpgradeCount] or 0) > 0 then
-            for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
-                if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
-                    table.insert(tObsoletePreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
-                    bCheckForObsoletePrerequisites = true
-                end
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering if sEnhancement ' .. sEnhancement .. ' has prerequisite, BP Preq val=' .. (oBP.Enhancements[sEnhancement].Prerequisite or 'nil')..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; tObsoletePreRequisites='..repru(tObsoletePreRequisites))
-                end
-            end
-        end
-        local bUpgradeIsObsolete
+    RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
 
-        local iRevisedIndex = 1
-        local iTableSize = table.getn(oACU[reftPreferredUpgrades])
-
-        --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
-        for iOrigIndex = 1, iTableSize do
-            if oACU[reftPreferredUpgrades][iOrigIndex] then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if the upgrade index '..iOrigIndex..' which is '..repru(oACU[reftPreferredUpgrades][iOrigIndex])..' is obsolete; Does ACU have this enhancement='..tostring(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex]))..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete]='..repru((oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete] or 'nil'))..'; Time='..GetGameTimeSeconds()) end
-                if not (oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]] or -1) >= 0.5) then
-                    --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-                    --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
-                    bUpgradeIsObsolete = false
-                    if bCheckForObsoletePrerequisites then
-                        for iEntry, sPreRequisite in tObsoletePreRequisites do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sPreRequisite='..sPreRequisite..'; If this equals this upgrade then will mark it as obsolete') end
-                            if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
-                                bUpgradeIsObsolete = true
-                                break
-                            end
-                        end
-                    end
-                    if bUpgradeIsObsolete then
-                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                    else
-
-                        --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                        if (iOrigIndex ~= iRevisedIndex) then
-                            oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
-                            oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                        end
-                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-                    end
-                else
-                    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
-                end
-            end
-        end
-        if iRevisedIndex < iTableSize then
-            --table.setn(oACU[reftPreferredUpgrades], iRevisedIndex - 1)
-            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
-                table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
-            end
-        end
-
-    end
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades]=' .. repru(oACU[reftPreferredUpgrades]))
     end
@@ -3535,7 +3548,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         --Get volatile units and PD in this and adjacent land zones so can factor in if alternative locations are more dangerous
         local tVolatileUnits = {}
         if not(bJustCheckIfLocationWithLowPDThreat) then
-            local tPotentialVolatileUnits = EntityCategoryFilterDown(categories.VOLATILE * categories.STRUCTURE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+            local tPotentialVolatileUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryVolatile * categories.STRUCTURE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
             if M28Utilities.IsTableEmpty(tPotentialVolatileUnits) == false then
                 for iUnit, oUnit in tPotentialVolatileUnits do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
