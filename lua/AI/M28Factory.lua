@@ -118,7 +118,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
         --local Game = import("/lua/game.lua")
         local iArmyIndex = aiBrain:GetArmyIndex()
         for _, sBlueprint in tBlueprints do
-            if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..sBlueprint..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to see if factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; can build blueprint '..(sBlueprint or 'nil')..'; CanBuild='..tostring(oFactory:CanBuild(sBlueprint))..'; iArmyIndex='..(iArmyIndex or 'nil')) end
             if oFactory:CanBuild(sBlueprint) == true and not(M28UnitInfo.IsUnitRestricted(sBlueprint, iArmyIndex)) then
                 --Check we can build the desired category
                 if not(iOptionalCategoryThatMustBeAbleToBuild) then bCanBuildRequiredCategory = true

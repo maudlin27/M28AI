@@ -2524,16 +2524,16 @@ function GetUnitSpeed(oUnit)
 end
 
 --LOUD will reference a different function to check if a unit is restricted; this is so we can just reference M28UnitInfo.IsUnitRestricted(unit, index)
-IsUnitRestricted = function(oUnit, iArmyIndex)
+IsUnitRestricted = function(sUnitID, iArmyIndex)
 end
 
 --if not(M28Utilities.bLoudModActive) and not(M28Utilities.bFAFActive) and not(M28Utilities.bSteamActive) then M28Utilities.
 if M28Utilities.bLoudModActive then
-    IsUnitRestricted = function(oUnit)
-        return import('/lua/game.lua').UnitRestricted(nil, oUnit.UnitId)
+    IsUnitRestricted = function(sUnitID)
+        return import('/lua/game.lua').UnitRestricted(nil, sUnitID)
     end
 else
-    IsUnitRestricted = function(oUnit, iArmyIndex)
-        return import('/lua/game.lua').IsRestricted(oUnit.UnitId, iArmyIndex)
+    IsUnitRestricted = function(sUnitID, iArmyIndex)
+        return import('/lua/game.lua').IsRestricted(sUnitID, iArmyIndex)
     end
 end
