@@ -1907,7 +1907,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if not(bGiftingToTeammate) then
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                                     --If can upgrade then consider future upgrade
-                                    if oJustBuilt:GetBlueprint().General.UpgradesTo then
+                                    local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
+                                    if sUpgrade and not(sUpgrade == '') then
                                         ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
                                         if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
                                     end

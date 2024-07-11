@@ -135,7 +135,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         if sExpectedUpgradeID and M28UnitInfo.IsUnitRestricted(sExpectedUpgradeID, oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
             --Restricted e.g. due to campaign or other settings
         else
-            M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. (oUnitToUpgrade.UnitId or 'nil'))
+            M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. (oUnitToUpgrade.UnitId or 'nil')..'; sExpectedUpgradeID='..(sExpectedUpgradeID or 'nil'))
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -150,13 +150,19 @@ function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
     local iClosestUnitToBase = 100000
     local oClosestUnitToBase
     local iCurModDist
+    local sUnitToUpgradeTo
     for iUnit, oUnit in toPotentialUnits do
         iCurModDist = M28Map.GetModDistanceFromStart(oUnit:GetAIBrain(), oUnit:GetPosition(), false)
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurModDist before adjust='..iCurModDist..'; iClosestUnitToBase='..iClosestUnitToBase..'; bPrioritiseFactoryHQ='..tostring(bPrioritiseFactoryHQ or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurModDist before adjust='..iCurModDist..'; iClosestUnitToBase='..iClosestUnitToBase..'; bPrioritiseFactoryHQ='..tostring(bPrioritiseFactoryHQ or false)..'; Unit upgrades to='..(oUnit:GetBlueprint().General.UpgradesTo or 'nil')..'; length of string='..string.len(sUnitToUpgradeTo or '')..'; Is UpgradesTo a blank string='..tostring(sUnitToUpgradeTo == '')) end
         if bPrioritiseFactoryHQ and not(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId)) then iCurModDist = iCurModDist + 1000 end
         if iCurModDist < iClosestUnitToBase then
-            iClosestUnitToBase = iCurModDist
-            oClosestUnitToBase = oUnit
+            --Check it can upgrade
+            sUnitToUpgradeTo = oUnit:GetBlueprint().General.UpgradesTo
+            if sUnitToUpgradeTo and not(sUnitToUpgradeTo == '') and not(M28UnitInfo.IsUnitRestricted(sUnitToUpgradeTo, oUnit:GetAIBrain():GetArmyIndex())) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Updating oClosestUnitToBase to be this unit') end
+                iClosestUnitToBase = iCurModDist
+                oClosestUnitToBase = oUnit
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Best unit to upgrade was '..(oClosestUnitToBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToBase) or 'nil')) end

@@ -493,7 +493,9 @@ end
 
 
 function TestCustom(aiBrain)
-    while true do
+    local sTest = 'Test'
+    LOG('Size of sTest='..string.len(sTest))
+    --[[while true do
         local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
         LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
         if M28Utilities.IsTableEmpty(tLABs) == false then
@@ -508,7 +510,7 @@ function TestCustom(aiBrain)
             end
         end
         WaitSeconds(0.5)
-    end
+    end--]]
     --M28Profiler.CompareDifferentThreatCalculations(aiBrain)
 
 
