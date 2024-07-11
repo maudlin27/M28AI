@@ -2398,7 +2398,7 @@ function FixUnitResourceCheatModifiers(oUnit)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
                 --FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier..'; Brain='..oUnit:GetAIBrain().Nickname) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier..'; Brain='..oUnit:GetAIBrain().Nickname..'; Buffs[CheatIncome].Affects.MassProduction.Mult='..(Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult or 'nil')) end
             end
         end
     end
