@@ -2700,9 +2700,17 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
                     --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
                     if iCurMobileThreat >= 1000 then
-                        iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                        if tPlateauZoneAndDist[1] == 0 then
+                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE - categories.AMPHIBIOUS - categories.SUBMERSIBLE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                        else
+                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                        end
                     end
-                    iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
+                    if tPlateauZoneAndDist[1] == 0 and tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 then
+                        iCurValue = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])) + iCurMobileThreat * 0.2
+                    else
+                        iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat) end
                     --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
                     if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
@@ -2730,7 +2738,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     end
 
                     --Add extra threat if enemy has t2 arti near the nearest friendly base (relevant for team games, since 1v1 this hsould be inside the minimum rnage)
-                    if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 then
+                    if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 and not(tPlateauZoneAndDist[1] == 0) then
                         local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
                             iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
@@ -2796,6 +2804,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     local tPriorityUnits
                     local iMaxTargetsPerZone = 25
+                    local bDontConsiderIfUnderwater = true
+                    if iPlateauOrZero == 0 then bDontConsiderIfUnderwater = true end
                     if oArti[M28UnitInfo.refbEasyBrain] then
                         tPriorityUnits = EntityCategoryFilterDown(categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH2, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         iMaxTargetsPerZone = 10
@@ -2815,7 +2825,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         if M28UnitInfo.IsUnitValid(oUnit) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iMaxRange='..iMaxRange..'; iMinRange='..iMinRange..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; iFriendlyUnitReductionFactor='..(iFriendlyUnitReductionFactor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iSizeAdjust='..(iSizeAdjust or 'nil')..'; iMultipleShotMod='..(iMultipleShotMod or 'nil')..'; iMobileValueFactorInner='..(iMobileValueFactorInner or 'nil')..'; iShieldReductionFactor='..(iShieldReductionFactor or 'nil')) end
-                            if iCurDist <= iMaxRange and iCurDist >= iMinRange then
+                            if iCurDist <= iMaxRange and iCurDist >= iMinRange and (bDontConsiderIfUnderwater or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
                                 iBaseValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                                 if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.98 then iBaseValue = iBaseValue * iMobileValueFactorInner end
                                 tiBaseValueOfPriorityUnits[iUnit] = iBaseValue
@@ -2828,8 +2838,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iCurCount = iCurCount + 1
                             if iCurCount > iMaxTargetsPerZone then break end
                             local oUnit = tPriorityUnits[iEntry]
-                                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
-                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil)
+                                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
+                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil,                    not(bDontConsiderIfUnderwater))
                             if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
                             local iMinValue = 0
                             --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
@@ -2862,7 +2872,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 if not(iAltTargetValue) then iAltTargetValue = 0
                 elseif oAltTarget.GetPosition then
                     --Get value from targeting the best target in this alt zone
-                    --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                    --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, bCheckIfUnderwater)
                     iAltTargetValue  = M28Logic.GetDamageFromBomb(aiBrain, oAltTarget:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
                 end
                 iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor

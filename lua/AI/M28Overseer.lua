@@ -930,6 +930,8 @@ function CheckUnitCap(aiBrain)
                                             bKillUnit = false
                                         elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
                                             bKillUnit = false
+                                        elseif M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) == false and not(M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEbDontNeedEngineers]) then
+                                            bKillUnit = false
                                         end
                                     end
                                     if bKillUnit then

@@ -3033,7 +3033,6 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Manages SACUs to be assigned engineer type duties (wont always be RAS SACUs - e.g. might be LOUD where we want SACUs to build experimentals
-
     --Gameender duty - have RAS SACUs assist with building a gameender/t3 arti/novax in the zone and associated shielding, if we have an active template
     local bProceed = true
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; Time since last wanted SACU for exp='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0))) end
@@ -3168,7 +3167,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
     end
     --M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
-
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider if we want to get SMD or experimental due to restrictions on what can be built by engineers, bProceed='..tostring(bProceed)..'; Time since last wanted SACU for exp or engi='..(GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0))) end
     if bProceed and ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 3) then
         local bBuildingSMD = false
         if tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] <= 3 then
@@ -3211,12 +3210,13 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should proceed with considering assigning SACUs to GE template, bProceed='..tostring(bProceed)..'; Is table of active GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
     if bProceed and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
             if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
                 for iSACU, oSACU in tSACUs do
-                    if not(oSACU[M28Building.reftArtiTemplateRefs]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering SACU assignment to GE template, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; oSACU[M28Building.reftArtiTemplateRefs]='..repru(oSACU[M28Building.reftArtiTemplateRefs])..'; oSACU[M28UnitInfo.refbSpecialMicroActive]='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                    if M28Utilities.IsTableEmpty(oSACU[M28Building.reftArtiTemplateRefs]) then
                         if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
                             M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
                         end
@@ -3228,6 +3228,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': FInished going through if want to help active GE template, bProceed='..tostring(bProceed)) end
     if bProceed then
         --Defending against arti - if have a gameender then first consider if have part-complete shield that want to construct
         local oShieldToAssist
@@ -3269,7 +3270,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
         if not(oShieldToAssist) then
             local tPriorityUnitsToShield
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
             if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
                 local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
                 if aiBrain.GetUnitsAroundPoint then
@@ -3324,7 +3325,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             local oGateway
             local bNotAssistingGateway = true
             local bHaveRASGateway = false
-
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
             if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
                 for iUnit, oUnit in tQuantumGateways do
                     oGateway = oUnit
