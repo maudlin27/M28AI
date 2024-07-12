@@ -870,18 +870,29 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
+    local iSizeToUse = iSize
     if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and (iSize >= 14 or (iSize >= 3 and GetGameTimeSeconds() <= 300))) or (iOptionalMaxCycleSize or 100) <= 20 then
         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
         SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
     end
-    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) > 0 then
+    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) == 0 then
+        for iCurSize = iSize + 1, iMaxBuildingSize do
+            if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iCurSize] or 0) > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Changing size to use from iSize='..iSize..' to iCurSize='..iCurSize) end
+                iSizeToUse = iCurSize
+                break
+            end
+        end
+    end
+    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSizeToUse] or 0) > 0 then
 
         local tPotentialLocations = {}
         local GetPositionFromPathingSegments = M28Map.GetPositionFromPathingSegments
         local iCycleSize = 1
-        if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) >= 50 then
-            iCycleSize = math.ceil((tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) / 40)
+        if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSizeToUse] or 0) >= 50 then
+            iCycleSize = math.ceil((tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSizeToUse] or 0) / 40)
             --Water zones are larger so can run more of a risk of not finding the right location with too large a cycle size
             if iCycleSize >= 30 then
                 if iPlateauOrZero == 0 then
@@ -893,7 +904,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
         end
         if iOptionalMaxCycleSize then iCycleSize = math.min(iCycleSize, iOptionalMaxCycleSize) end
         local iCurCount = 0
-        for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
+        for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSizeToUse] do
             for iSegmentZ, bInclude in tSubtable do
                 iCurCount = iCurCount + 1
                 if iCurCount < iCycleSize then
@@ -906,11 +917,11 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to return tPotentialLocations with a size of '..table.getn(tPotentialLocations)..'; iCycleSize='..iCycleSize..'; Size of buidlable locations in total='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to return tPotentialLocations with a size of '..table.getn(tPotentialLocations)..'; iCycleSize='..iCycleSize..'; Size of buidlable locations in total='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSizeToUse] or 'nil')) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tPotentialLocations
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Didnt find any build locations for size '..iSize) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Didnt find any build locations for size '..iSize..', iSizeToUse='..(iSizeToUse or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1501,7 +1512,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..iSize..'; Blueprint size='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue; Is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations)))
                         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Total number of potential build locations='..table.getn(tPotentialBuildLocations)..'; Total locations for LZ for this size of building='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Total number of potential build locations='..table.getn(tPotentialBuildLocations)..'; Total locations for LZ for this size of building='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)] or 'nil')) end
                             for iEntry, tEntry in tPotentialBuildLocations do
                                 M28Utilities.DrawLocation(tEntry, 5)
                             end
@@ -10596,7 +10607,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(oExistingGateway) then
                 HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
             else
-                HaveActionToAssign(refActionAssistQuantumGateway, 1, iBPWanted, oExistingGateway)
+                --Do we have any SACUs that are upgrading? if so then assist them ahead of the gateway
+                local tSACUInZone = EntityCategoryFilterDown(categories.SUBCOMMANDER, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local oSACUToAssist
+                if M28Utilities.IsTableEmpty(tSACUInZone) == false then
+                    for iSACU, oSACU in tSACUInZone do
+                        if oSACU:IsUnitState('Upgrading') then
+                            oSACUToAssist = oSACU
+                            break
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': oSACUToAssist='..(oSACUToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSACUToAssist) or 'nil')..'; oExistingGateway='..oExistingGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingGateway)) end
+                if oSACUToAssist then
+                    HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oSACUToAssist)
+                else
+                    HaveActionToAssign(refActionAssistQuantumGateway, 1, iBPWanted, oExistingGateway)
+                end
             end
         end
     end
