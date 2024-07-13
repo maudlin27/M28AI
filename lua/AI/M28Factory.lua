@@ -2678,7 +2678,6 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
-        if sBPIDToBuild == 'uas0302' then M28Utilities.ErrorHandler('Audit trail for battleship, cur amount owned='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)..'; brain='..aiBrain.Nickanme, true, true) end
     elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandFactory, oFactory.UnitId) then
@@ -4198,7 +4197,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 60*60 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then bDebugMessages = true end
+
 
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())

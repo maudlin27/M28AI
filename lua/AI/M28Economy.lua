@@ -595,7 +595,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
             if (bDestroyed and oUnit[refoBrainRecordedForEconomy] == aiBrain) or (not(bDestroyed) and not(oUnit[refoBrainRecordedForEconomy] == aiBrain)) then
                 local iMassGen
                 local iEnergyGen
-                if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) then
+                if not(M28Utilities.bLoudModActive) and EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) then
                     iMassGen = 10000 * 0.1
                     iEnergyGen = 1000000 * 0.1
                     if iOptionalResourceModAdjustmentOverride then

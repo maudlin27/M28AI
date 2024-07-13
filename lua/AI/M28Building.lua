@@ -2644,7 +2644,7 @@ end
 
 function DelayedScathisOrderChange(bAttackUnitNotGround, oArti, oBestTarget, tActualTarget)
     --E.g. for cases like LOUD where need to clear scathis orders when changing target to stop it moving around
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DelayedScathisOrderChange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

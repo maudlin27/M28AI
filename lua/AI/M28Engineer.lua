@@ -2791,7 +2791,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
-            bDebugMessages = true
             local iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))) end
             --Land subteam - use aiBrain.M28LandSubteam
@@ -3533,12 +3532,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             --Check if we want to switch to using a gameender template
             if iCategoryWanted then
                 if M28Utilities.DoesCategoryContainCategory(iCategoryWanted, iGameEnderTemplateCategories) then
-                    --Do we have the eco to support this many shields?
+                    --Do we have the eco to support this many shields? and have we built a decent number of experimentals if using LOUD mod
 
                     --DO we have a template available?
                     if M28Conditions.HaveEcoToSupportGETemplate(aiBrain.M28Team) and M28Conditions.HaveTemplateSpaceForGameEnder(iCategoryWanted, tLZOrWZData, tLZOrWZTeamData, tbEngineersOfFactionOrNilIfAlreadyAssigned, aiBrain.M28Team) and not(aiBrain.M28Easy) then
                         --Novax exception - dont apply GE template if we arent defending from arti and we dont have any novax yet
-                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or not(iCategoryWanted == M28UnitInfo.refCategoryNovaxCentre) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNovaxCentre, iTeam) > 0 then
+                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or ((not(M28Utilities.bLoudModActive) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 + 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(iCategoryWanted == M28UnitInfo.refCategoryNovaxCentre) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNovaxCentre, iTeam) > 0)) then
                             if bDebugMessages == true then
                                 LOG(sFunctionRef..': We have template space for gameender so will switch to gameender template action instead of building the category; will first list out all the blueprints buildable under the orig category wanted')
                                 local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
