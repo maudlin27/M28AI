@@ -1052,6 +1052,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                             if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
                                             refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
                                         end
+                                        if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
+                                            refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
+                                        end
                                         if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
                                     end
                                 end

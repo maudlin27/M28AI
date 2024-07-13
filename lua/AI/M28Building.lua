@@ -51,6 +51,7 @@ refoLastTMLTarget = 'M28BuildTMLLstTrg'
 refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is recorded against that unit, so if we have 2 TML they shouldn't target the same unit at the same time
 refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
 refiTimeLastFiredMissile = 'M28BuildTMLTmLstFir' --Gametimeseconds that the nuke last was given an order to fire a missile at something
+refiTimeLastGotBestArtiTarget = 'M28BuildArtTgCh' --Gametimeseconds that the arti unit last was given an order to attack a unit/location
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
 reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
@@ -76,9 +77,11 @@ refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge or
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
 refbProtectingAllArtiLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
+refiLastTargetValue = 'M28ArtiTgVal' --value of the last target the arti targeted
 
 --Special buildings
 refbActiveOpticsManager = 'M28BuildActOptMan' --true if have active quantum optics manager
+reftScathisBuiltLocation = 'M28ScaBultLoc' --location that scathis construction was started
 
 function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShieldsWantedOverride)
     --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, except for death which is handled elsewhere now
@@ -2603,6 +2606,116 @@ function RecheckForArtiTargetSoon(oArti)
     end
 end
 
+function DontChangeCurrentScathisTarget(oArti)
+    --returns true if we want to retain the current scathis target
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DontChangeCurrentScathisTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
+    local oCurTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
+    if M28UnitInfo.IsUnitValid(oCurTarget) then
+        local iLowerTimeThreshold = 120
+        local iUpperTimeThreshold = 300
+        local iTimeSinceLastTargetAssessment = GetGameTimeSeconds() - (oArti[refiTimeLastGotBestArtiTarget] or -iUpperTimeThreshold)
+        if bDebugMessages == true then LOG(sFunctionRef..': iTimeSinceLastTargetAssessment='..iTimeSinceLastTargetAssessment..'; oArti[refiLastTargetValue]='..(oArti[refiLastTargetValue] or 'nil')..'; tLastOrder[M28Orders.subreftOrderPosition]='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; oCurTarget='..(oCurTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oCurTarget) or 'nil')) end
+        if iTimeSinceLastTargetAssessment < iUpperTimeThreshold and (iTimeSinceLastTargetAssessment < iLowerTimeThreshold or (oArti[refiLastTargetValue] or 0) >= 10000 + 30000 * (iUpperTimeThreshold - iTimeSinceLastTargetAssessment) / (iUpperTimeThreshold - iLowerTimeThreshold)) and (not(EntityCategoryContains(categories.MOBILE, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 25) then
+            IncreaseArtiShotCount(tLastOrder[M28Orders.subreftOrderPosition] or oCurTarget:GetPosition(), oArti:GetAIBrain().M28Team)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end
+
+function IncreaseArtiShotCount(tActualTarget, iTeam, iOptionalShotCountOverride)
+    --Increase shot count
+    local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
+    local tAltLZOrWZTeamData
+    if iAltPlateauOrZero == 0 then
+        tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+    else
+        tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+    end
+
+    tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + (iOptionalShotCountOverride or 1)
+end
+
+function DelayedScathisOrderChange(bAttackUnitNotGround, oArti, oBestTarget, tActualTarget)
+    --E.g. for cases like LOUD where need to clear scathis orders when changing target to stop it moving around
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedScathisOrderChange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bWillIssueNewOrder = false
+
+    local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
+    if bAttackUnitNotGround then
+        bWillIssueNewOrder = true
+        if tLastOrder[M28Orders.subrefoOrderUnitTarget] == oBestTarget and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then bWillIssueNewOrder = false end
+    else
+        if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tActualTarget) > 1 then bWillIssueNewOrder = true end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Scathis oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; bWillIssueNewOrder='..tostring(bWillIssueNewOrder or false)..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if bWillIssueNewOrder then
+        local tAllWeapons = oArti:GetBlueprint().Weapon
+        local iUnpackTime = 0
+        if tAllWeapons then
+            for iWeapon, tWeapon in tAllWeapons do
+                iUnpackTime = math.max(iUnpackTime, (tWeapon.WeaponUnpackTimeout or 0))
+            end
+        end
+        local bTrackForMovement = false
+        if bDebugMessages == true then LOG(sFunctionRef..': iUnpackTime='..iUnpackTime) end
+        if iUnpackTime > 0 then
+            bTrackForMovement = true
+            M28Orders.IssueTrackedClearCommands(oArti)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iUnpackTime) --strangly when testing, if wait for unpack time + 1 tick, it causes scathis to move
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+
+        function AttackOrigTarget(bQueuedOrder)
+            if bDebugMessages == true then LOG(sFunctionRef..': About to issue attack order if target is still valid, is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))..'; Time='..GetGameTimeSeconds()) end
+            if bAttackUnitNotGround then
+                if M28UnitInfo.IsUnitValid(oBestTarget) then
+                    M28Orders.IssueTrackedAttack(oArti, oBestTarget, bQueuedOrder, 'ScaAtU'..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget), false)
+                else
+                    bTrackForMovement = false
+                end
+            else
+                M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, bQueuedOrder, 'ArtiSGF'..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget), false, oBestTarget)
+                --IncreaseArtiShotCount(tActualTarget, iTeam) --Dont call this here as woudlve already been called when doing the delayed order change
+            end
+        end
+        AttackOrigTarget(false)
+
+        if bTrackForMovement then
+            --Redundancy - havent actually tested if it works as intended
+            local iTimeToTrack = 5
+            local iStartTime = GetGameTimeSeconds()
+            while GetGameTimeSeconds() <= iStartTime + iTimeToTrack do
+                WaitSeconds(1)
+                if M28UnitInfo.IsUnitValid(oArti) and (not(bAttackUnitNotGround) or M28UnitInfo.IsUnitValid(oBestTarget)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Monitoring arti, Unit state='..M28UnitInfo.GetUnitState(oArti)..'; Time='..GetGameTimeSeconds()) end
+                    if oArti:IsUnitState('Moving') then
+                        M28Orders.IssueTrackedClearCommands(oArti)
+                        if oArti[reftScathisBuiltLocation] and M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oArti[reftScathisBuiltLocation]) >= 15 then
+                            M28Orders.IssueTrackedMove(oArti, oArti[reftScathisBuiltLocation], 1, false, 'ScathMvBk', false)
+                        end
+                        AttackOrigTarget(true)
+                    end
+                else
+                    break
+                end
+
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
     --Gets oArti to fire an attack on the ground for where it thinks it will deal the most damage, works for t3 and experimental arti
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2619,6 +2732,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
         local iTeam = aiBrain.M28Team
         local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local iShotCount = 1
+        if oArti.UnitId == 'url0401' then iShotCount = 0.1 end
 
         local iAOE, iDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
         --Wait if salvo size >1
@@ -2635,6 +2750,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 oArti[refbSalvoDelayActive] = true
                 ForkThread(GetT3ArtiTarget, oArti, true)
             end
+            --Scathis outside of FAF - it doesnt have a salvo, but does have wierd behaviour where changing targets causes it to move towards the target
+        elseif not(M28Utilities.bFAFActive) and oArti.UnitId == 'url0401' and DontChangeCurrentScathisTarget(oArti) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to change t3 arti target yet as think we have a scathis') end
         else
             if (iMaxRange or 0) == 0 or (iAOE or 0) == 0 then M28Utilities.ErrorHandler('Arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has no range or no aoe')
             end
@@ -2838,7 +2956,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iCurCount = iCurCount + 1
                             if iCurCount > iMaxTargetsPerZone then break end
                             local oUnit = tPriorityUnits[iEntry]
-                                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
+                            --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
                             iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil,                    not(bDontConsiderIfUnderwater))
                             if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
                             local iMinValue = 0
@@ -2906,7 +3024,14 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                         if bNearbyEnemyUnits then
                             iBestTargetValue = iDamage
-                            M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                            --Is this the same as the last target?
+                            oArti[refiLastTargetValue] = iBestTargetValue
+                            local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
+                            if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
+                                oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
+                                M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                                IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
+                            end
                             bGivenAltTarget = true
                         end
                     end
@@ -2915,8 +3040,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             else
                 local tActualTarget
                 local tLeadingTarget
+                local bAttackUnitNotGround = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; Does this contain mobile='..tostring(EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId))..'; Fraction complete='..oBestTarget:GetFractionComplete()..'; Is moving unit state='..tostring(oBestTarget:IsUnitState('Moving'))..'; Unit state='..M28UnitInfo.GetUnitState(oBestTarget)) end
-                if EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId) and oBestTarget:GetFractionComplete() == 1 and oBestTarget:IsUnitState('Moving') and not(oArti[M28UnitInfo.refbEasyBrain]) then
+                if EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId) and oBestTarget:GetFractionComplete() == 1 and oBestTarget:IsUnitState('Moving') and not(oArti[M28UnitInfo.refbEasyBrain]) and (M28Utilities.bFAFActive or not(oArti.UnitId == 'url0401')) then
                     --If best target is mobile and moving, then consider a leading shot instead
                     local oBP = oArti:GetBlueprint()
                     local iWeaponVelocity
@@ -2944,9 +3070,14 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 if tLeadingTarget then
                     if bDebugMessages == true then LOG(sFunctionRef..': Changing Arti target for oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..' to try and lead target, oBestTarget position='..repru(oBestTarget:GetPosition())..'; tLeadingTarget='..repru(tLeadingTarget)..'; Time='..GetGameTimeSeconds()) end
                     tActualTarget = tLeadingTarget
-                else
-                                            --GetBestAOETarget(aiBrain, tBaseLocation,            iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                elseif M28Utilities.bFAFActive or not(oArti.UnitId == 'url0401') then
+                    --GetBestAOETarget(aiBrain, tBaseLocation,            iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
                     tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false,                 nil,                    nil,                                    nil,            iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     nil,                            iMobileValueFactorInner,                    iShieldReductionFactor,         nil)
+                else
+                    if M28UnitInfo.CanSeeUnit(aiBrain, oBestTarget, false) then
+                        bAttackUnitNotGround = true
+                    end
+                    tActualTarget = oBestTarget:GetPosition()
                 end
 
 
@@ -2955,6 +3086,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
                 if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestTargetValue='..(iBestTargetValue or 'nil')) end
                 if iTargetDist > iMaxRange or iTargetDist < iMinRange then
+                    bAttackUnitNotGround = false --redundancy
                     tActualTarget = oBestTarget:GetPosition()
                 end
 
@@ -2966,18 +3098,19 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 else
 
                     --Issue attack order
-                    M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false)
-
-                    --Increase shot count
-                    local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
-                    local tAltLZOrWZTeamData
-                    if iAltPlateauOrZero == 0 then
-                        tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                    oArti[refiLastTargetValue] = iBestTargetValue
+                    oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
+                    local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
+                    if not(M28Utilities.bFAFActive) and oArti.UnitId == 'url0401' then
+                        ForkThread(DelayedScathisOrderChange, bAttackUnitNotGround, oArti, oBestTarget, tActualTarget)
+                    elseif bAttackUnitNotGround then
+                        M28Orders.IssueTrackedAttack(oArti, oBestTarget, false, 'ScaAtU', false)
                     else
-                        tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                        if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tActualTarget) > 1 then
+                            M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false, oBestTarget)
+                        end
                     end
-
-                    tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + 1
+                    IncreaseArtiShotCount(tActualTarget, iTeam, iShotCount)
                 end
             end
 

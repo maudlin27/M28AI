@@ -158,6 +158,7 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategorySubmarine = M28UnitInfo.refCategorySubmarine + categories.SUBMARINE
         M28UnitInfo.refCategoryGroundAA = M28UnitInfo.refCategoryGroundAA + categories.NAVALCARRIER
         M28UnitInfo.refCategoryBattlecruiser = M28UnitInfo.refCategoryBattlecruiser + categories.CRUISER * categories.UEF * categories.TECH3 * categories.DIRECTFIRE + categories.xes0307
-
+        M28UnitInfo.refCategoryMissileShip = M28UnitInfo.refCategoryMissileShip + categories.NAVAL * categories.MOBILE * categories.INDIRECTFIRE * categories.BOMBARDMENT - categories.SUBMERSIBLE
+        M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE * categories.TECH2 + categories.NAVALCARRIER * categories.MOBILE * categories.TECH3 + categories.NAVALCARRIER * categories.EXPERIMENTAL * categories.MOBILE
     end
 end
