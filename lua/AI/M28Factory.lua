@@ -4615,11 +4615,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 end
                 if not (bHaveWantedAA) and (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 0) > tiMAAThresholdByTech[iFactoryTechLevel] and iOurCumulativeAAThreat < iOurCumulativeCombatThreat then
                     if not(bHaveLowMass) or not(bHaveLowPower) or iOurCumulativeAAThreat < math.max(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 2, tiMAAThresholdByTech[iFactoryTechLevel] * 3) then
-                        bHaveWantedAA = true
+                        --Cap on getting MAA unless overflowing
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 or iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * 0.3, 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3) then
+                            bHaveWantedAA = true
+                        end
                     end
                 end
 
-                if (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
+                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * 0.3, 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Will try get AA unless t1 with lots, enemy air to ground threat='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; bHaveWantedAA='..tostring(bHaveWantedAA or false)..'; Is location in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]))) end
                     if iFactoryTechLevel > 1 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) < 100 then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
@@ -4641,7 +4644,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                         return sBPIDToBuild
                     end
                 end
-                if bUseFrigatesAsScouts and tOtherWZTeamData[M28Map.refbWantLandScout] and iCurFrigates <= 80 then
+                if bUseFrigatesAsScouts and tOtherWZTeamData[M28Map.refbWantLandScout] and iCurFrigates <= 80 and (iCurFrigates <= 30 or not(aiBrain[M28Overseer.refbCloseToUnitCap])) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Will try and get frigate')
                     end
@@ -4651,7 +4654,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 end
             end
         end
-        if bHaveWantedAA and iOurCumulativeAAThreat < iOurCumulativeCombatThreat and (iOurCumulativeAAThreat <= math.min(iOurCumulativeCombatThreat, 100) or oFactory[refiTotalBuildCount] <= 10 or (iFactoryTechLevel == 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) <= 40 or iOurCumulativeAAThreat * 4 < iOurCumulativeCombatThreat) or (iFactoryTechLevel >= 2 and (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) <= 100 or iOurCumulativeAAThreat * 3 < iOurCumulativeCombatThreat))) then
+        if bHaveWantedAA and iOurCumulativeAAThreat <= math.max(50000, 6 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and iOurCumulativeAAThreat < iOurCumulativeCombatThreat and (iOurCumulativeAAThreat <= math.min(iOurCumulativeCombatThreat, 100) or oFactory[refiTotalBuildCount] <= 10 or (iFactoryTechLevel == 1 and (iOurCumulativeAAThreat * 4 < iOurCumulativeCombatThreat and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) <= 40)) or (iFactoryTechLevel >= 2 and iOurCumulativeAAThreat < math.max(20000, 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) <= 100 or iOurCumulativeAAThreat * 3 < iOurCumulativeCombatThreat))) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Will try and get AA as we have less than our combat threat, iOurCumulativeAAThreat='..iOurCumulativeAAThreat..'; iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat..'; Factory build count='..oFactory[refiTotalBuildCount]) end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
         end
@@ -4692,9 +4695,11 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iPondSize = M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize
         if iPondSize <= 6000 then
             iBSWantedAdjust = math.max(-1, iBSWantedAdjust - 5 * (6000 - iPondSize) / iPondSize)
+        elseif iPondSize >= 100000 then
+            iBSWantedAdjust = iBSWantedAdjust + 1
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)) end
-        if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust or (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
+        if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
             end
@@ -4881,13 +4886,17 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     --v107 - will just build normal SACUs and upgrade tem
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
+        --Stop building if have low mass or close to unit cap and have a large number
         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end
         --[[if aiBrain.CheatEnabled and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 3.5 then
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
-            return sBPIDToBuild
+        local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
+        if iCurSACUs < 60 and (not(aiBrain[M28Overseer.refbCloseToUnitCap]) or not(M28Conditions.HaveLowMass(aiBrain)) or oFactory[refiTotalBuildCount] < 5 or iCurSACUs < 30) then
+            if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
+                return sBPIDToBuild
+            end
         end
         --[[ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU - categories.SERAPHIM) then --exclude seraphim in case they have all faction quantum gateway or similar
             if bDebugMessages == true then LOG(sFunctionRef .. ': Foudn a non-seraphim RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil')) end

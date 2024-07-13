@@ -981,6 +981,53 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif EntityCategoryContains(categories.OVERLAYANTIAIR * categories.AIR, sCurUnitBP) then
                                         iMassMod = 0.05
                                     end
+                                    --Backup logic (e.g. for LOUD that doesnt have the AA categories for units such as restoers)
+                                    --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
+                                    local iAADPS = 0
+                                    local iBestAirAAAOE = 0
+                                    local iCurDPS, bCanShootAir
+                                    if oBP.Weapon then
+                                        for iWeapon, tWeapon in oBP.Weapon do
+                                            bCanShootAir = false
+                                            if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
+                                                for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                                    if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                        bCanShootAir = true
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                            if bCanShootAir then
+                                                iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
+                                                iCurDPS = tWeapon.Damage * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                                iAADPS = iAADPS + iCurDPS
+                                            end
+                                        end
+                                    end
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
+                                    if iMassMod < 1 and iAADPS > 0 then
+                                        local iMassAAFactor = 2.1
+                                        --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
+                                        --For Air to Air - an asf deals 410 DPS, costs 660 mass, has 2300 health
+                                        if iBestAirAAAOE >= 1 then iMassAAFactor = 1.6 end
+                                        if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
+
+                                        --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
+                                        --For AirToAir, asf is giving 2300 health for 660 mass, so 3.5 health per mass
+                                        local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
+                                        if iHealthPerMass >= 6 then
+                                            iMassAAFactor = iMassAAFactor * math.min(4, (iHealthPerMass - 3.5) / 5 + 1)
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': considienrg AirAA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
+
+                                        iMassMod = math.min(1, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
+                                        --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+
+                                        if iMassMod >= 0.4 then
+                                            if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
+                                        end
+                                    end
                                 end
                             end
                         else
@@ -1051,6 +1098,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
                                             refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
+                                        end
+                                        if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
+                                            refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
                                         end
                                         if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
                                     end
