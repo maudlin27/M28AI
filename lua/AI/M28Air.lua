@@ -61,6 +61,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refbActiveNovaxUnloadCheck = 'M28NovActUnl' --true if we are periodically checking if we should unload the novax
     refiTimeLastWantedPriorityAirScout = 'M28PrArSc' --Gametimeseconds the unit was last checked to be added to the table for priority air scouts
     refiAssignedSuicideASF = 'M28AsfSu' --againt a strategic bomber, records Number of asfs assigned to suciide into the bomber in its lifetime
+    refbReassessingTarget = 'M28AReasTr' --Against a t1 bomber, true if are currently waiting and will reassess target in a moment
 
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
@@ -807,6 +808,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local bProceed
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
+                    if oUnit.UnitId == 'uea0103' and GetGameTimeSeconds() >= 9*60+40 then bDebugMessages = true end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -862,7 +864,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                             elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and (tLastOrder[M28Orders.subrefoOrderUnitTarget] and not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]))) then
                                 if bDebugMessages == true then LOG(sFunctionRef..' Unit with ground attack order was linked to target that is dead so will be made available') end
                                 table.insert(tAvailableUnits, oUnit)
-                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90) or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
+                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90)
+                                or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
                                 table.insert(tInUseUnits, oUnit)
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby') end
@@ -3777,6 +3780,9 @@ function ManageBombers(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if GetGameTimeSeconds() >= 9*60+40 then bDebugMessages = true end
+
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
     local tEnemyTargets = {}
@@ -9210,4 +9216,97 @@ function LoadCombatUnitOntoTransport(oJustBuilt)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderIfBomberTargetingACUShouldReassign(oUnit, oCurTarget)
+    --Should be called where a t1 bomber is targeting an ACU that has decent health
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderIfBomberTargetingACUShouldReassign'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(oUnit[refbReassessingTarget]) then
+        oUnit[refbReassessingTarget] = true
+        local iTimeToWaitToReassess = 0
+        local tWeapons = oUnit:GetBlueprint().Weapon
+        if tWeapons then
+            for iWeapon, tCurWeapon in tWeapons do
+                if (tCurWeapon.MuzzleSalvoSize or 1) > 1 then
+                    iTimeToWaitToReassess = math.max(iTimeToWaitToReassess, tCurWeapon.MuzzleSalvoSize * tCurWeapon.MuzzleSalvoDelay)
+                end
+            end
+        end
+        if iTimeToWaitToReassess > 0 then
+            WaitSeconds(iTimeToWaitToReassess)
+        end
+        if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oCurTarget) then
+            local bReassess = false
+            local oPrioritySwitchTarget
+            local iTeam = oUnit:GetAIBrain().M28Team
+            --case 1 - there's a groundAA threat in this land zone that means we likely want to retreat
+            local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oCurTarget:GetPosition(), true, iTeam)
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to reassign bomber '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; Enemy groundAA in target zone='..(tTargetLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; Target unit state='..M28UnitInfo.GetUnitState(oCurTarget)) end
+            if tTargetLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] > 0 then
+                bReassess = true
+            else
+                --Case 2 - ACU is building AA - target the AA
+                if oCurTarget:IsUnitState('Building') or oCurTarget:IsUnitState('Repairing') then
+                    local oACUConstruction = oCurTarget:GetFocusUnit()
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + M28UnitInfo.refCategoryFixedShield, oACUConstruction.UnitId) then
+                        bReassess = true
+                        oPrioritySwitchTarget = oACUConstruction
+                    end
+                end
+                if not(bReassess) then
+                    --Case 3 - engis are in the zone building AA
+                    if M28Utilities.IsTableEmpty(tTargetLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        local tEnemyGroundAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryAntiAir * M28UnitInfo.refCategoryStructure, tTargetLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+
+                        if M28Utilities.IsTableEmpty(tEnemyGroundAA) == false then
+                            local bEnemyIsBuildingAABuilding = false
+                            for iEnemyFixedAA, oEnemyFixedAA in tEnemyGroundAA do
+                                if M28UnitInfo.IsUnitValid(oEnemyFixedAA) and oEnemyFixedAA:GetFractionComplete() < 1 then
+                                    bEnemyIsBuildingAABuilding = true
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyIsBuildingAABuilding='..tostring(bEnemyIsBuildingAABuilding)) end
+                            if bEnemyIsBuildingAABuilding then
+                                --Search for enemy engis in the zone
+                                local tEnemyEngis = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tTargetLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tEnemyEngis) == false then
+                                    local iClosestEnemyEngi = 10000
+                                    local iCurEngiDist
+                                    for iEngi, oEngi in tEnemyEngis do
+                                        if M28UnitInfo.IsUnitValid(oEngi) and oEngi:GetFractionComplete() >= 0.75 then
+                                            iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oUnit:GetPosition())
+                                            if iCurEngiDist < iClosestEnemyEngi then
+                                                iClosestEnemyEngi = iCurEngiDist
+                                                oPrioritySwitchTarget = oEngi
+                                                bReassess = true
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering cases where we want to reassess, bReassess='..tostring(bReassess)..'; oPrioritySwitchTarget='..(oPrioritySwitchTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPrioritySwitchTarget) or 'nil')) end
+            if bReassess then
+                RemoveAssignedAttacker(oCurTarget, oUnit)
+                if oPrioritySwitchTarget then
+                    --Switch targets to this
+                    AddAssignedAttacker(oPrioritySwitchTarget, oUnit)
+                    M28Orders.IssueTrackedAttack(oUnit, oPrioritySwitchTarget, false, 'PrioSwitch', false)
+                else
+                    --Just move back to base (so can be treated as available for new orders)
+                    IssueTrackedMove(oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 3, false, 'PrioReassess', false)
+                end
+            end
+        end
+        oUnit[refbReassessingTarget] = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end

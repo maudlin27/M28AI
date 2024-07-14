@@ -1033,7 +1033,7 @@ function OnBombFired(oWeapon, projectile)
                                 if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
                             end
                             if not(tNearestFriendlyBase) then tNearestFriendlyBase = M28Map.GetPlayerStartPosition(aiBrain) end
-                            
+
                             local tAirRallyPoint = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
                             local tRallyLZOrWZData, tRallyLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                             local tRetreatLocation
@@ -1061,6 +1061,16 @@ function OnBombFired(oWeapon, projectile)
 
                         --Have friendly gunships dodge
                         M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
+                    end
+                    --T1 bombers targeting enemy ACU when not in snipe mode - consider reassigning/retreating if groundAA or AirAA threat nearby
+                elseif EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.toActiveSnipeTargets]) then
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                    local oLastTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
+                    if M28UnitInfo.IsUnitValid(oLastTarget) and EntityCategoryContains(categories.COMMAND, oLastTarget.UnitId) then
+                        --Check we arent close to killing the ACU
+                        if oLastTarget:GetHealth() > (oLastTarget[M28Air.refiStrikeDamageAssigned] or 0) * 5 then
+                            ForkThread(M28Air.ConsiderIfBomberTargetingACUShouldReassign, oUnit, oLastTarget)
+                        end
                     end
                 end
             end
