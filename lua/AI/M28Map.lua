@@ -5319,7 +5319,7 @@ end
 
 function RecordPondToExpandTo(aiBrain)
     --Calculates which pond we think is most important to hold; assumes we have already recorded all segments and ponds (but havent yet setup water zones)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RecordPondToExpandTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     bHaveConsideredPreferredPondForM28AI = true
@@ -5397,7 +5397,7 @@ function RecordPondToExpandTo(aiBrain)
         local iCurMexValue
         local iCurMexDefensiveValue
         local iCurModDistance
-        local iDefensiveModDistanceMaxValue = math.max(120, math.min(300, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4))
+        local iDefensiveModDistanceMaxValue = math.max(120, math.min(math.max(300, iMapSize * 0.4), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4))
 
         local iPathingGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeHover, GetPlayerStartPosition(aiBrain))
 
@@ -5422,11 +5422,12 @@ function RecordPondToExpandTo(aiBrain)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to increase search dist for navy, iClosestTeammatePondDist='..iClosestTeammatePondDist..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; iDistanceThreshold pre adjust='..iDistanceThreshold..'; iMapSize='..iMapSize) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to increase search dist for navy, iClosestTeammatePondDist='..iClosestTeammatePondDist..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; iDistanceThreshold pre adjust='..iDistanceThreshold..'; iMapSize='..iMapSize..'; iDefensiveModDistanceMaxValue='..iDefensiveModDistanceMaxValue) end
         if iClosestTeammatePondDist <= math.max(math.min(iMapSize * 0.4, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.75), math.min(iMapSize * 0.6, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5)) then
             iDistanceThreshold = math.max(iDistanceThreshold, iClosestTeammatePondDist + math.max(50, iMapSize * 0.1))
             if bDebugMessages == true then LOG(sFunctionRef..': Updated distancethreshold if it was lower, potentially revised value='..iDistanceThreshold) end
         end
+        local bMexIsUnderwaterInPond = false
 
         for iCurPondRef, tPondSubtable in tPondDetails do
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
@@ -5444,7 +5445,8 @@ function RecordPondToExpandTo(aiBrain)
                     for iMex, tMexInfo in tPondSubtable[subrefPondMexInfo] do
                         iCurMexValue = 0
                         iCurMexDefensiveValue = 0
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex='..iMex..' for pond '..iCurPondRef..'; tMexInfo[subrefMexDFDistance]='..(tMexInfo[subrefMexDFDistance] or 'nil')..'; tMexInfo[subrefMexIndirectDistance]='..(tMexInfo[subrefMexIndirectDistance] or 'nil')) end
+                        bMexIsUnderwaterInPond = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex='..iMex..' for pond '..iCurPondRef..'; tMexInfo[subrefMexDFDistance]='..(tMexInfo[subrefMexDFDistance] or 'nil')..'; tMexInfo[subrefMexIndirectDistance]='..(tMexInfo[subrefMexIndirectDistance] or 'nil')..'; Is mex underwater='..tostring(IsUnderwater(tMexInfo[subrefMexLocation]))) end
                         if tMexInfo[subrefMexDFDistance] <= iBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then
                             --Can reach this mex with a ship, so it will have at least some value
                             if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexValue = iFrigateValue
@@ -5453,12 +5455,22 @@ function RecordPondToExpandTo(aiBrain)
                             else iCurMexValue = iBattleshipValue
                             end
                         end
+                        --If mex is underwater then give it frigate value
+                        if IsUnderwater(tMexInfo[subrefMexLocation]) then
+                            --If same pond then give it frigate value - doublecheck to be safe
+                            local iCurMexWaterZone = GetWaterZoneFromPosition(tMexInfo[subrefMexLocation])
+                            if iCurMexWaterZone and tiPondByWaterZone[iCurMexWaterZone] == iCurPondRef then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Mex is underwater and in same pond') end
+                                bMexIsUnderwaterInPond = true
+                                if iCurMexValue < iFrigateValue then iCurMexValue = iFrigateValue end
+                            end
+                        end
 
                         --Adjust mex value based on distance
                         iCurModDistance = GetModDistanceFromStart(aiBrain, tMexInfo[subrefMexLocation])
                         if iCurMexValue > 0 then
                             local tMexWZData, tMexWZTeamData = GetLandOrWaterZoneData(tMexInfo[subrefMexLocation], true, aiBrain.M28Team)
-                            if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0
+                            if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0 --i.e. dont want to value mexes on our 'half' of the map
                             else
                                 if iCurModDistance < iMidModDistance then
                                     iCurMexValue = iCurMexValue * iBelowMidFactor
@@ -5471,17 +5483,25 @@ function RecordPondToExpandTo(aiBrain)
 
                         --Get defensive value
                         if iCurModDistance <= iDefensiveModDistanceMaxValue then
-                            if tMexInfo[subrefMexDFDistance] <= iEnemyBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then
+                            if bMexIsUnderwaterInPond then iCurMexDefensiveValue = iFrigateValue
+                            elseif tMexInfo[subrefMexDFDistance] <= iEnemyBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then
                                 --Can reach this mex with a ship, so it will have at least some value
                                 if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexDefensiveValue = iFrigateValue
                                 elseif tMexInfo[subrefMexDFDistance] <= iEnemyDestroyerRange then iCurMexDefensiveValue = iDestroyerValue
                                 elseif tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then iCurMexDefensiveValue = iMissileShipValue
                                 else iCurMexDefensiveValue = iBattleshipValue
                                 end
+
                             end
+
+                        end
+                        if bMexIsUnderwaterInPond and iCurMexDefensiveValue < 1 and iCurMexValue == 0 then
+                            iCurMexDefensiveValue = 0.5
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have far away underwater mex in the pond, will assign it half value') end
+                        end
+                        if iCurMexDefensiveValue > 0 then
                             iCurPondDefensiveValue = iCurPondDefensiveValue + iCurMexDefensiveValue
                         end
-
                     end
 
                     --Increase vlaue if in part of pond likely to be near enemy base

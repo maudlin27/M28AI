@@ -4876,10 +4876,21 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     end
 
     --LOUD specific - build SACUs if needed to build experimentals
+    local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Time since tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0)) end
     if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 10 then
-        if ConsiderBuildingCategory(M28UnitInfo.categories.SUBCOMMANDER, true) then return sBPIDToBuild end
+        local bLotsOfSACUsInZone = false
+        if iCurSACUs >= 40 then
+            local tSACUsInZone = EntityCategoryFilterDown(categories.SUBCOMMANDER, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tSACUsInZone) == false and table.getn(tSACUsInZone) >= 30 then
+                bLotsOfSACUsInZone = true
+            end
+        end
+
+        if not(bLotsOfSACUsInZone) then
+            if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then return sBPIDToBuild end
+        end
     end
 
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix
@@ -4892,7 +4903,6 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
         if iCurSACUs < 60 and (not(aiBrain[M28Overseer.refbCloseToUnitCap]) or not(M28Conditions.HaveLowMass(aiBrain)) or oFactory[refiTotalBuildCount] < 5 or iCurSACUs < 30) then
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild

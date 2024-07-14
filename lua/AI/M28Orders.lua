@@ -47,6 +47,7 @@ refiOrderIssueNukeMissile = 24
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
 refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an order to follow a path, then when its orders are refreshed this shoudl be updated based on what path we think is currently the target
 refiTimeOfLastRemovalUpgrade = 'M28OrdUpgRem' --if ACU given an upgrade that removes upgrades, then this will record the time, to help workaround an issue where the tracking for the new upgrade (post removal) goes through before tracking for the completion of the old (removal) upgrade
+refiLastUnloadAttemptTime = 'M28OrdUnlAtmp' --gametimeseconds we tried to unload (so can keep trying to unload)
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
@@ -956,10 +957,14 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
     end
 
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderReleaseStoredUnits) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if (not(tLastOrder[subrefiOrderType] == refiOrderReleaseStoredUnits) or GetGameTimeSeconds() - (oUnit[refiLastUnloadAttemptTime] or 0) >= 10) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         local tUnloadLocation = oUnit:GetPosition()
-        tUnloadLocation[1] = tUnloadLocation[1] + 5
-        tUnloadLocation[3] = tUnloadLocation[3] + 5
+        local iXRand = math.random(0, 1)
+        local iZRand = math.random(0, 1)
+        if iXRand == 0 then iXRand = -1 end
+        if iZRand == 0 then iZRand = -1 end
+        tUnloadLocation[1] = tUnloadLocation[1] + 5 * iXRand
+        tUnloadLocation[3] = tUnloadLocation[3] + 5 * iZRand
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -973,6 +978,7 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
                 IssueTrackedClearCommands(oCargo)
             end
         end
+        oUnit[refiLastUnloadAttemptTime] = GetGameTimeSeconds()
 
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
