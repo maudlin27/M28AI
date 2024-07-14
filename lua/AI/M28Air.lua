@@ -9219,7 +9219,7 @@ end
 
 function ConsiderIfBomberTargetingACUShouldReassign(oUnit, oCurTarget)
     --Should be called where a t1 bomber is targeting an ACU that has decent health
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderIfBomberTargetingACUShouldReassign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

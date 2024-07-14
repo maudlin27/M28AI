@@ -2450,11 +2450,12 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
         --Does enemy have a nearby upgraded or upgrading AUC and we lack T2 land for a brain?
         if tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][reftEnemyACUs]) then
             for iACU, oACU in tTeamData[iM28Team][reftEnemyACUs] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..' is upgrading or has an upgrade, upgrade count='..(oACU[M28ACU.refiUpgradeCount] or 0)..'; Unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..' is upgrading or has an upgrade, upgrade count='..(oACU[M28ACU.refiUpgradeCount] or 0)..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))) end
                 if (oACU[M28ACU.refiUpgradeCount] or 0) > 0 or oACU:IsUnitState('Upgrading') then
                     --Is the ACU close to a friendly base?
                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iM28Team)
                     if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= math.min(250, math.max(175, M28Map.iMapSize * 0.5)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get upgrade as are worried about enemy ACU') end
                         bNearbyUpgradedEnemyACU = true
                         bInitiallyWantUpgrade = true
                         break
