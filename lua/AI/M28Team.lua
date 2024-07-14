@@ -4301,7 +4301,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 9*60+40 then bDebugMessages = true end
+
 
     local bAddAsSnipeTarget = false
     --Low health%:

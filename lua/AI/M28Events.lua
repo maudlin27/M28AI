@@ -1063,7 +1063,7 @@ function OnBombFired(oWeapon, projectile)
                         M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
                     end
                     --T1 bombers targeting enemy ACU when not in snipe mode - consider reassigning/retreating if groundAA or AirAA threat nearby
-                elseif EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.toActiveSnipeTargets]) then
+                elseif EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryBomber + categories.TECH2 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.toActiveSnipeTargets]) then
                     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                     local oLastTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
                     if M28UnitInfo.IsUnitValid(oLastTarget) and EntityCategoryContains(categories.COMMAND, oLastTarget.UnitId) then
