@@ -481,7 +481,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -617,6 +617,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     iMinEnergyPerTickWanted = 6 * aiBrain[M28Economy.refiBrainBuildRateMultiplier]
                     iFactoryCap = 1
                 end
+
+                if iMinEnergyPerTickWanted <= 15 and aiBrain:GetEconomyStored('ENERGY') <= 200 and (aiBrain:GetEconomyStored('ENERGY') < 50 or aiBrain:GetEconomyStored('MASS') > math.min(75, aiBrain:GetEconomyStored('ENERGY'))) then
+                    iMinEnergyPerTickWanted = iMinEnergyPerTickWanted + 2
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will get extra pgen as looks like we are about to stall E') end
+                end
+
                 local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurLandFactories='..iCurLandFactories..'; AIr factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)..'; iFactoryCap='..iFactoryCap..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted) end
                 if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
@@ -800,7 +806,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                             local iMexCap = 4
-                            if iHydroDistToStart >= 75 and not(M28Utilities.bLoudModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32
+                            if iHydroDistToStart >= 50 and not(M28Utilities.bLoudModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32; Canis river is 61 travel dist and 58 straight line and we also stall E for a while by getting 4 mexes
                             local bHaveUnbuiltMexNearHydro = false
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                                 local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
