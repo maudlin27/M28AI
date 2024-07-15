@@ -3500,15 +3500,16 @@ function GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, bGetIndirectThr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauRef, sOrderDesc, bAmphibious, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride)
+function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
     --iDefaultDistOverride - if specified, then doesnt require a backup dist to move back, and will use this if no backup dist is available
     --iMaxAngleDifForMovingBackwardsOverride - Overrides the maximum angle difference allowed to move backwards in a straight line for the unit instead of moving to tRallyPoint; if this is exceeded, then will try and move to the rally point instead
+
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'BackupUnitTowardsRallyIfAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28UnitInfo.IsUnitValid(oUnit) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tRallyPoint='..repru(tRallyPoint)..'; iIslandOrPlateauRef='..iIslandOrPlateauRef..'; sOrderDesc='..sOrderDesc..'; bAmphibious='..tostring(bAmphibious)..'; iDefaultDistOverride='..(iDefaultDistOverride or 'nil')..'; iMaxAngleDifForMovingBackwardsOverride='..(iMaxAngleDifForMovingBackwardsOverride or 'nil')..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tRallyPoint='..repru(tRallyPoint)..'; iIslandPlateauOrPondRef='..iIslandPlateauOrPondRef..'; sOrderDesc='..sOrderDesc..'; bAmphibiousAndUsingPlateauRef='..tostring(bAmphibiousAndUsingPlateauRef)..'; iDefaultDistOverride='..(iDefaultDistOverride or 'nil')..'; iMaxAngleDifForMovingBackwardsOverride='..(iMaxAngleDifForMovingBackwardsOverride or 'nil')..'; Time='..GetGameTimeSeconds()) end
         local iBackupDist = 0
         local iMaxAngleDifference = iMaxAngleDifForMovingBackwardsOverride or 35
         local bValidTowardsLocation = false
@@ -3523,7 +3524,7 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
             if iDefaultDistOverride and iBackupDist >= 3 then iDistToMove = math.min(iBackupDist - 1, iDefaultDistOverride)
             elseif not(iDefaultDistOverride) then
                 iDistToMove = math.min(iBackupDist - 1, 20)
-                if iBackupDist >= 12 and iBackupDist < 20 then iDisttoMove = iDistToMove - 1.5 end
+                if iBackupDist >= 12 and iBackupDist < 20 then iDistToMove = iDistToMove - 1.5 end
             else iDistToMove = iDefaultDistOverride
             end
             local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
@@ -3536,12 +3537,16 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandOrPlateauR
 
             if bDebugMessages == true then LOG(sFunctionRef..': Checking whether to move directly backwards, iAngleToRally='..iAngleToRally..'; iMoveBackwardsAngle='..iMoveBackwardsAngle..'; iAngleDif='..iAngleDif..'; iMaxAngleDifference='..iMaxAngleDifference..' Approx Speed (X and Z velocity times 10) = '..M28UnitInfo.GetUnitSpeed(oUnit)) end
             function CheckIfValidLocation()
-                if bAmphibious then
-                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandOrPlateauRef then
+                if bAmphibiousAndUsingPlateauRef then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iIslandPlateauOrPondRef then
+                        bValidTowardsLocation = true
+                    end
+                elseif not(bUsingPondRef) then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialMoveLocation) == iIslandPlateauOrPondRef then
                         bValidTowardsLocation = true
                     end
                 else
-                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, tPotentialMoveLocation) == iIslandOrPlateauRef then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeNavy, tPotentialMoveLocation) == iIslandPlateauOrPondRef then
                         bValidTowardsLocation = true
                     end
                 end
