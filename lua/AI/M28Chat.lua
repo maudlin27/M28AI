@@ -2571,4 +2571,4 @@ end
 
 --Teammate reclaims:
 {text = '<LOC X02_M03_250_020>[{i Rhiza}]: You will have ample opportunity to atone for your actions. But be warned -- should you stray again, I will destroy you myself.', vid = 'X02_Rhiza_M03_04316.sfd', bank = 'X02_VO', cue = 'X02_Rhiza_M03_04316', faction = 'Aeon'},
-
+--]]

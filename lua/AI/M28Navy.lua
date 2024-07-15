@@ -2806,7 +2806,7 @@ end
 
 function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3058,7 +3058,6 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if oNearestEnemyNonHoverToFriendlyBase and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] < tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] then
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
-                bDebugMessages = true
                 if not(M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyNonHoverToFriendlyBase)) then
                     bMoveAntiNavyForwardsAsCantSee = true
                 end
