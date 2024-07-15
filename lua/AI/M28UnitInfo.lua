@@ -2472,7 +2472,7 @@ function CanSeeUnit(aiBrain, oUnit, bRequireVisualNotJustBlipToReturnTrue)
             else
                 local oBlip = oUnit:GetBlip(iArmyIndex)
                 if oBlip then
-                    if bRequireVisualNotJustBlipToReturnTrue then return true
+                    if not(bRequireVisualNotJustBlipToReturnTrue) then return true
                     elseif oBlip:IsSeenEver(iArmyIndex) then return true end
                 end
             end

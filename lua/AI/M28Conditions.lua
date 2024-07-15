@@ -995,7 +995,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
