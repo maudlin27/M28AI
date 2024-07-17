@@ -61,7 +61,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
 

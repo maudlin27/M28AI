@@ -9300,7 +9300,7 @@ function ConsiderIfBomberTargetingACUShouldReassign(oUnit, oCurTarget)
                     M28Orders.IssueTrackedAttack(oUnit, oPrioritySwitchTarget, false, 'PrioSwitch', false)
                 else
                     --Just move back to base (so can be treated as available for new orders)
-                    IssueTrackedMove(oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 3, false, 'PrioReassess', false)
+                    M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 3, false, 'PrioReassess', false)
                 end
             end
         end

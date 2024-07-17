@@ -2451,14 +2451,38 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
         if tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and M28Conditions.IsTableOfUnitsStillValid(tTeamData[iM28Team][reftEnemyACUs]) then
             for iACU, oACU in tTeamData[iM28Team][reftEnemyACUs] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy ACU owned by brain '..oACU:GetAIBrain().Nickname..' is upgrading or has an upgrade, upgrade count='..(oACU[M28ACU.refiUpgradeCount] or 0)..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))) end
-                if (oACU[M28ACU.refiUpgradeCount] or 0) > 0 or oACU:IsUnitState('Upgrading') then
+                if (oACU[M28ACU.refiUpgradeCount] or 0) > 0 or (oACU:IsUnitState('Upgrading') and oACU:GetWorkProgress() >= 0.05) then
                     --Is the ACU close to a friendly base?
                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iM28Team)
-                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= math.min(250, math.max(175, M28Map.iMapSize * 0.5)) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get upgrade as are worried about enemy ACU') end
-                        bNearbyUpgradedEnemyACU = true
-                        bInitiallyWantUpgrade = true
-                        break
+                    local iDistFromACUToBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                    if iDistFromACUToBase <= math.min(250, math.max(175, M28Map.iMapSize * 0.5)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get upgrade as are worried about enemy ACU, unless are on a 5km map 1v1 nd due to t1 spam mode we would rather upgrade our own ACU') end
+                        local bGetT2LandToStopACU = true
+                        if M28Map.iMapSize <= 256 and iPlayersAtGameStart == 2 and tTeamData[iM28Team][refbFocusOnT1Spam] then
+                            --How close is our ACU to base?
+                            if M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftM28ACUs]) == false then
+                                for iFriendlyACU, oFriendlyACU in tTeamData[iM28Team][reftM28ACUs] do
+                                    if M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), M28Map.GetPlayerStartPosition(oFriendlyACU:GetAIBrain())) <= 15 + iDistFromACUToBase then
+                                        --Do we have gun upgrade and similar health?
+                                        if oFriendlyACU[M28ACU.refiUpgradeCount] >= 2 or (oFriendlyACU[M28ACU.refiUpgradeCount] == 1 and not(EntityCategoryContains(categories.AEON, oFriendlyACU.UnitId))) and M28UnitInfo.GetUnitCurHealthAndShield(oFriendlyACU) + 1000 > M28UnitInfo.GetUnitCurHealthAndShield(oACU) then
+                                            bGetT2LandToStopACU = false
+                                            break
+                                        elseif M28UnitInfo.GetUnitCurHealthAndShield(oFriendlyACU) + 2000 > M28UnitInfo.GetUnitCurHealthAndShield(oACU) and (oFriendlyACU[M28ACU.refiUpgradeCount] == 0 or (oFriendlyACU[M28ACU.refiUpgradeCount] == 1 and EntityCategoryContains(categories.AEON, oFriendlyACU.UnitId))) then
+                                            --Get upgrade as a priority
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want friendly ACU to get upgrade instead of going to t2 land') end
+                                            oFriendlyACU[M28ACU.refbWantsPriorityUpgrade] = true
+                                            bGetT2LandToStopACU = false
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bGetT2LandToStopACU then
+                            bNearbyUpgradedEnemyACU = true
+                            bInitiallyWantUpgrade = true
+                            break
+                        end
                     end
                 end
             end
@@ -4505,7 +4529,8 @@ function MonitorLeavingT1SpamMode(iTeam)
     if not(tTeamData[iTeam][refbActiveT1SpamMonitor]) and tTeamData[iTeam][refbFocusOnT1Spam] then
         tTeamData[iTeam][refbActiveT1SpamMonitor] = true
 
-        local iMexesWantedToExit = table.getn(M28Map.tMassPoints) * 0.65
+        local iMexesWantedToExitPre10m = table.getn(M28Map.tMassPoints) * 0.75
+        local iMexesWantedToExitPost10mOrEnemyT2 = table.getn(M28Map.tMassPoints) * 0.65
         if bDebugMessages == true then LOG(sFunctionRef..': We are focusing on t1 spam at the moment, about to start main loop, iMexesWantedToExit='..iMexesWantedToExit) end
         while tTeamData[iTeam][refbFocusOnT1Spam] do --(allows us turning this off elsewhere, e.g. when we build enough T2 power that we can start reclaiming t1 power)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4526,7 +4551,7 @@ function MonitorLeavingT1SpamMode(iTeam)
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                     iTotalMexCount = iTotalMexCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)
                 end
-                if iTotalMexCount >= iMexesWantedToExit then
+                if (iTotalMexCount >= iMexesWantedToExitPre10m and GetGameTimeSeconds() <= 600) or (iTotalMexCount >= iMexesWantedToExitPost10mOrEnemyT2 and (GetGameTimeSeconds() >= 600 or tTeamData[iTeam][subrefiHighestEnemyGroundTech] >= 2 or tTeamData[iTeam][subrefiHighestEnemyAirTech] >= 2)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to leave as have most of hte mexes on the map') end
                     break
                 end
