@@ -11567,6 +11567,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Precautionary AA if enemy has T3 air and we dont
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 then
+        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 1000 then
+            iBPWanted = 20
+            if (not(bHaveLowMass) and not(bHaveLowPower)) or (not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 200) then iBPWanted = 60 end
+            HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
+        end
+    end
+
 
     --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
     iCurPriority = iCurPriority + 1
