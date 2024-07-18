@@ -1990,6 +1990,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         end
                         if bAlreadyUpdatedPosition then
                             --Re-check the plateau and land/water zone
+                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
                             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                             local bIsEnemyAirUnit
                             if aiBrain.M28Team == oUnit:GetAIBrain().M28Team then bIsEnemyAirUnit = false else bIsEnemyAirUnit = true end
@@ -2005,7 +2006,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             else
                                 if bDebugMessages == true then LOG(sFunctionRef..': Failed to find a plateau or zone to position '..repru(oUnit:GetPosition())..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
-                                    M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used, unless fighting RNG and they have offmap units')
+                                    M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used, unless fighting RNG and they have offmap units or torp bomber fighting at edge of map')
                                     M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
                                 end
                             end

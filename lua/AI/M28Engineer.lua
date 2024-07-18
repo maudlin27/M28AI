@@ -8432,7 +8432,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
                                 --Early game - build cheapest option of a unit (e.g. useful for mods that might add expensive hydros or experimental units)
                                 local bGetCheapest = false
-                                if GetGameTimeSeconds() <= 900 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 10 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and not(iActionToAssign == refActionBuildLandFactory) and not(iActionToAssign == refActionBuildAirFactory) and not(iActionToAssign == refActionBuildExperimental) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap]) then bGetCheapest = true
+                                if GetGameTimeSeconds() <= 900 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 10 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and not(iActionToAssign == refActionBuildLandFactory) and not(iActionToAssign == refActionBuildAirFactory) and not(iActionToAssign == refActionBuildExperimental) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap]) then
+                                    bGetCheapest = true
+                                    --Exception for power once have decent amount of energy
+                                    if (iActionToAssign == refActionBuildPower or iActionToAssign == refActionBuildSecondPower) and iMinTechWanted > 1 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] > 65 * M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont get cheapest pgen as we have enough power to support highest tech level') end
+                                        bGetCheapest = false
+                                    end
                                 end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
@@ -9971,6 +9977,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': iMinTechLevelForPower='..iMinTechLevelForPower..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+
     --Active gameender template - want to always have 1 engi on duty as highest priority to avoid having orders cancelled
     iCurPriority = iCurPriority + 1
     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
