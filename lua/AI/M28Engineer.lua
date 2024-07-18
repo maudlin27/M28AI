@@ -1576,7 +1576,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local iCurPriority, iCurDistance
     local iBestLocationRef
     local oEngiBP = oEngineer:GetBlueprint()
-    local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+    local oBuildingBP = __blueprints[sBlueprintToBuild]
+    local iNewBuildingRadius = math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ) * 0.5, math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) * 0.5 + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+
+    --= math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ), math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
     local iBuilderRange = (oEngiBP.Economy.MaxBuildDistance or 5) + math.min(oEngiBP.SizeX, oEngiBP.SizeZ) + iNewBuildingRadius - 0.5
     local aiBrain = oEngineer:GetAIBrain()
 
@@ -1741,7 +1744,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         bLocationBuildableImmediately = false
                     end
                     rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))..'; Are land units in rect='..tostring(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect))) end
                     if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then --Less of an issue now that FAF clears trees that are in the way (but still relevant for rocks and tree groups)
                         iCurPriority = iCurPriority + 2
                         if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 2') end
@@ -8304,8 +8307,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         local tLastOrder = oEngineerToAssist[M28Orders.reftiLastOrders][oEngineerToAssist[M28Orders.refiOrderCount]]
                         local sBlueprintToBuild = tLastOrder[M28Orders.subrefsOrderBlueprint]
                         local tOrderPosition = tLastOrder[M28Orders.subreftOrderPosition]
+                        local oBaseBrain = oEngineerToAssist:GetAIBrain()
+                        local bTransferOwnership
+                        local oEngiToTransfer
+                        local bEngiIsBuilding
                         if sBlueprintToBuild and tOrderPosition and EntityCategoryContains(iCategoryWanted, sBlueprintToBuild) then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                bTransferOwnership = false
                                 if tEngineersOfTechWanted[iEngiCount]:CanBuild(sBlueprintToBuild) then
                                     --Can build
                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tOrderPosition, sBlueprintToBuild, false, sOrderRef..'B')
@@ -8314,11 +8322,26 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                         ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
                                     end
                                 else
+                                    --If we belong to a different aiBrain then transfer ownership to avoid the risk we block the build location
+                                    if not(tEngineersOfTechWanted[iEngiCount]:GetAIBrain() == oBaseBrain) and not(bEngiIsBuilding) then
+                                        if bEngiIsBuilding == nil then
+                                            local oFocusUnit = oEngineerToAssist:GetFocusUnit()
+                                            bEngiIsBuilding = M28UnitInfo.IsUnitValid(oFocusUnit)
+                                        end
+                                        if not(bEngiIsBuilding) then
+                                            oEngiToTransfer = tEngineersOfTechWanted[iEngiCount]
+                                            bTransferOwnership = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to transfer ownerhsip of engineer so owners are aligned') end
+                                        end
+                                    end
                                     --Assist the engineer for lower tech enginers
-                                    M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
+                                    if not(bTransferOwnership) then
+                                        M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
+                                    end
                                 end
                                 TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
                                 UpdateBPTracking()
+                                if bTransferOwnership then M28Team.TransferUnitsToPlayer({ oEngiToTransfer }, oBaseBrain:GetArmyIndex(), false) end
                             end
 
                         else
