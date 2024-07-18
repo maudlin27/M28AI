@@ -4059,6 +4059,23 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         end
     end
     local bCheckForT2Arti = not(M28Utilities.IsTableEmpty(tEnemyT2Arti))
+    --If have adjacent water zone with naval combat under air attack then dont check for T2 arti
+    if bCheckForT2Arti then
+        if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZMAAThreatWanted] >= 50 then
+            bCheckForT2Arti = false
+        elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+            local iAdjPond
+            for iEntry, iAdjWaterZone in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                iAdjPond = M28Map.tiPondByWaterZone[iAdjWaterZone]
+                local tAdjWZTeamData = M28Map.tPondDetails[iAdjPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZTeamData][iTeam]
+                if tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tAdjWZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 200 and tAdjWZTeamData[M28Map.subrefWZMAAThreatWanted] >= 50 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to check for T2 arti as we have navlau nits under attack') end
+                    bCheckForT2Arti = false
+                    break
+                end
+            end
+        end
+    end
 
     function RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, sOrderDesc)
         if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
@@ -4067,6 +4084,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'N'..iWaterZone)
         end
     end
+
 
     function DoesUnitWantToRunFromT2Arti(oUnit, iRunThreshold)
         if bCheckForT2Arti then --redundancy
