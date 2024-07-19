@@ -2461,9 +2461,26 @@ function FixUnitResourceCheatModifiers(oUnit)
                 end
                 Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
                 Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
-                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
+                --Check if have a buff
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': unit.Buffs.BuffTable='..reprs(oUnit.Buffs.BuffTable))
+                end
+                if M28Utilities.IsTableEmpty(oUnit.Buffs.BuffTable) == false then
+                    for sBuffType, tBuffInfo in oUnit.Buffs.BuffTable do
+                        for sBuffRef, tBuffValues in tBuffInfo do
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sBuffType='..sBuffType..'; sBuffRef='..sBuffRef..'; tBuffValues='..repru(tBuffValues)) end
+
+                            if sBuffRef == 'CheatIncome' or sBuffRef == 'CheatIncome'..iIndex or sBuffRef == 'CheatBuildRate' or sBuffRef == 'CheatBuildRate'..iIndex then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Revoving buff '..sBuffRef) end
+                                FAFBuffs.RemoveBuff(oUnit, sBuffRef, true)
+                            end
+                        end
+                    end
+                end
+                --FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..iIndex)
-                FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
+                --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
                 oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)

@@ -26,12 +26,14 @@ AIBrain = Class(M28AIBrainClass) {
             --Only apply M28 to easy and normal
             LOG('Brain OnCreateAI for brain'..self.Nickname..' with personality '..(self.Personality or ScenarioInfo.ArmySetup[self.Name].AIPersonality or 'nil'))
             local sPersonality = self.Personality or ScenarioInfo.ArmySetup[self.Name].AIPersonality
-            if not(M28Conditions.IsCivilianBrain(self)) and (sPersonality == 'easy' or sPersonality == 'normal') then
+            if not(M28Conditions.IsCivilianBrain(self)) and (sPersonality == 'easy' or sPersonality == 'medium') then
                 self.M28AI = true
+                if sPersonality == 'easy' then self.M28Easy = true end
                 M28Utilities.bM28AIInGame = true
                 ForkThread(M28Events.OnCreateBrain, self, planName, false)--]]
             else
                 M28AIBrainClass.OnCreateAI(self, planName)
+                ForkThread(M28Overseer.ConsiderSteamMessageIfNoM28)
             end
         else
             M28AIBrainClass.OnCreateAI(self, planName)

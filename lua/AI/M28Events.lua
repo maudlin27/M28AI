@@ -2506,7 +2506,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(1)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete then
+                    if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete and (GetGameTimeSeconds() >= 6 or M28Utilities.bFAFActive) then
                         M28Utilities.ErrorHandler('Water zone initial creation still not done, will stop waiting now')
                         break
                     end

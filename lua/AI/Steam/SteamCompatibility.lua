@@ -107,6 +107,10 @@ function OtherSteamCompatibilityInformation()
         AddReprCommands()
         UpdateUnitCategories()
 
+        --Set AIx rates to 2.0 if not specified
+        if not(ScenarioInfo.Options.CheatMult) then ScenarioInfo.Options.CheatMult = '2.0' end
+        if not(ScenarioInfo.Options.BuildMult) then ScenarioInfo.Options.BuildMult = '2.0' end
+
         local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
         M28Building.bShieldsCanDischarge = false
 
