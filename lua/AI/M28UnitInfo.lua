@@ -57,6 +57,7 @@ refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is bloc
 refiTimeOfLastHoverLandCombatOrder = 'M28UnitTimeLstHCO' --hover units will only be given new orders every 6s to try and reduce cases where they end up not moving
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
+refbExpBomberShotBlocked = 'M28ULstExpBShtBlck' --true if an experimental bomber thinks a shot fired at this unit will be blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
