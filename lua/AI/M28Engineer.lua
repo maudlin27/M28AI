@@ -5352,7 +5352,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     if bGivenOrder and bOptionalReturnTrueIfGivenOrder then return true end
 end
 
-function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted)
+function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted, bOkWithNoEngisIfDontHaveFactionRequired)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterEngineersOfTechAndEngiCountForFaction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5367,7 +5367,7 @@ function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, t
             if bDebugMessages == true then LOG(sFunctionRef..': oTechEngi='..oTechEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTechEngi)..' is the right faction so including in revised list, iRevisedEngiCount='..iRevisedEngiCount) end
         end
     end
-    if iRevisedEngiCount == 0 then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
+    if iRevisedEngiCount == 0 and not(bOkWithNoEngisIfDontHaveFactionRequired) then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
     --Now replace original table os we dont have to update below references (do by returning these values now since have moved this logic to a function)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished updating list, iRevisedEngiCount='..iRevisedEngiCount..'; Last engi in list='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -8761,7 +8761,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 break
                             end
                         end
-                        if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted) end
+                        if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted, true) end
                         if iEngiCount > 0 then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                 AssignEngineerToShieldDefenceDuty(tEngineersOfTechWanted[iEngiCount], tLZOrWZTeamData)
