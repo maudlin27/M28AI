@@ -730,7 +730,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')) end
         if not(iPlateau) or (not(tLZData) and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
-            if (iSegmentX <= -25 or iSegmentZ <= -25 or iSegmentX >= iMaxLandSegmentX + 25 or iSegmentZ >= iMaxLandSegmentZ + 25) then
+            if (iSegmentX <= -30 or iSegmentZ <= -30 or iSegmentX >= iMaxLandSegmentX + 30 or iSegmentZ >= iMaxLandSegmentZ + 30) then
                 --E.g. RNG can sometimes send air units far outside the map area
                 M28Utilities.ErrorHandler('Given a position that is far outside the playable area, even if it was for an air unit, so wont search for a potential zone', true)
             else

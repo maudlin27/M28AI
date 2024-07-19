@@ -1576,7 +1576,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local iCurPriority, iCurDistance
     local iBestLocationRef
     local oEngiBP = oEngineer:GetBlueprint()
-    local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+    local oBuildingBP = __blueprints[sBlueprintToBuild]
+    local iNewBuildingRadius = math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ) * 0.5, math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) * 0.5 + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+
+    --= math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ), math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
     local iBuilderRange = (oEngiBP.Economy.MaxBuildDistance or 5) + math.min(oEngiBP.SizeX, oEngiBP.SizeZ) + iNewBuildingRadius - 0.5
     local aiBrain = oEngineer:GetAIBrain()
 
@@ -1741,7 +1744,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         bLocationBuildableImmediately = false
                     end
                     rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))..'; Are land units in rect='..tostring(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect))) end
                     if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then --Less of an issue now that FAF clears trees that are in the way (but still relevant for rocks and tree groups)
                         iCurPriority = iCurPriority + 2
                         if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 2') end
@@ -5349,7 +5352,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     if bGivenOrder and bOptionalReturnTrueIfGivenOrder then return true end
 end
 
-function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted)
+function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted, bOkWithNoEngisIfDontHaveFactionRequired)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterEngineersOfTechAndEngiCountForFaction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5364,7 +5367,7 @@ function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, t
             if bDebugMessages == true then LOG(sFunctionRef..': oTechEngi='..oTechEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTechEngi)..' is the right faction so including in revised list, iRevisedEngiCount='..iRevisedEngiCount) end
         end
     end
-    if iRevisedEngiCount == 0 then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
+    if iRevisedEngiCount == 0 and not(bOkWithNoEngisIfDontHaveFactionRequired) then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
     --Now replace original table os we dont have to update below references (do by returning these values now since have moved this logic to a function)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished updating list, iRevisedEngiCount='..iRevisedEngiCount..'; Last engi in list='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -8304,8 +8307,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         local tLastOrder = oEngineerToAssist[M28Orders.reftiLastOrders][oEngineerToAssist[M28Orders.refiOrderCount]]
                         local sBlueprintToBuild = tLastOrder[M28Orders.subrefsOrderBlueprint]
                         local tOrderPosition = tLastOrder[M28Orders.subreftOrderPosition]
+                        local oBaseBrain = oEngineerToAssist:GetAIBrain()
+                        local bTransferOwnership
+                        local oEngiToTransfer
+                        local bEngiIsBuilding
                         if sBlueprintToBuild and tOrderPosition and EntityCategoryContains(iCategoryWanted, sBlueprintToBuild) then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                bTransferOwnership = false
                                 if tEngineersOfTechWanted[iEngiCount]:CanBuild(sBlueprintToBuild) then
                                     --Can build
                                     M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tOrderPosition, sBlueprintToBuild, false, sOrderRef..'B')
@@ -8314,11 +8322,26 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                         ForkThread(ConsiderEmergencyPDReassignment, tEngineersOfTechWanted[iEngiCount], tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint], iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
                                     end
                                 else
+                                    --If we belong to a different aiBrain then transfer ownership to avoid the risk we block the build location
+                                    if not(tEngineersOfTechWanted[iEngiCount]:GetAIBrain() == oBaseBrain) and not(bEngiIsBuilding) then
+                                        if bEngiIsBuilding == nil then
+                                            local oFocusUnit = oEngineerToAssist:GetFocusUnit()
+                                            bEngiIsBuilding = M28UnitInfo.IsUnitValid(oFocusUnit)
+                                        end
+                                        if not(bEngiIsBuilding) then
+                                            oEngiToTransfer = tEngineersOfTechWanted[iEngiCount]
+                                            bTransferOwnership = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to transfer ownerhsip of engineer so owners are aligned') end
+                                        end
+                                    end
                                     --Assist the engineer for lower tech enginers
-                                    M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
+                                    if not(bTransferOwnership) then
+                                        M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef..'A')
+                                    end
                                 end
                                 TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
                                 UpdateBPTracking()
+                                if bTransferOwnership then M28Team.TransferUnitsToPlayer({ oEngiToTransfer }, oBaseBrain:GetArmyIndex(), false) end
                             end
 
                         else
@@ -8409,7 +8432,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
                                 --Early game - build cheapest option of a unit (e.g. useful for mods that might add expensive hydros or experimental units)
                                 local bGetCheapest = false
-                                if GetGameTimeSeconds() <= 900 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 10 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and not(iActionToAssign == refActionBuildLandFactory) and not(iActionToAssign == refActionBuildAirFactory) and not(iActionToAssign == refActionBuildExperimental) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap]) then bGetCheapest = true
+                                if GetGameTimeSeconds() <= 900 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 10 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and not(iActionToAssign == refActionBuildLandFactory) and not(iActionToAssign == refActionBuildAirFactory) and not(iActionToAssign == refActionBuildExperimental) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap]) then
+                                    bGetCheapest = true
+                                    --Exception for power once have decent amount of energy
+                                    if (iActionToAssign == refActionBuildPower or iActionToAssign == refActionBuildSecondPower) and iMinTechWanted > 1 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] > 65 * M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont get cheapest pgen as we have enough power to support highest tech level') end
+                                        bGetCheapest = false
+                                    end
                                 end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
@@ -8732,7 +8761,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 break
                             end
                         end
-                        if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted) end
+                        if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted, true) end
                         if iEngiCount > 0 then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                 AssignEngineerToShieldDefenceDuty(tEngineersOfTechWanted[iEngiCount], tLZOrWZTeamData)
@@ -9948,6 +9977,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': iMinTechLevelForPower='..iMinTechLevelForPower..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+
     --Active gameender template - want to always have 1 engi on duty as highest priority to avoid having orders cancelled
     iCurPriority = iCurPriority + 1
     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
@@ -11564,6 +11594,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             else
                 HaveActionToAssign(refActionBuildLandFactory, 2, 40)
             end
+        end
+    end
+
+    --Precautionary AA if enemy has T3 air and we dont
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 then
+        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 1000 then
+            iBPWanted = 20
+            if (not(bHaveLowMass) and not(bHaveLowPower)) or (not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 200) then iBPWanted = 60 end
+            HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
         end
     end
 

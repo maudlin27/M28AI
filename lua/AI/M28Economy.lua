@@ -61,7 +61,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
 
@@ -1451,6 +1451,7 @@ function ManageMassStalls(iTeam)
                             end
                             for iUnit = iTotalUnits, 1, -1 do
                                 oUnit = tRelevantUnits[iUnit]
+
                                 --for iUnit, oUnit in tRelevantUnits do
                                 bApplyActionToUnit = false
                                 iCurUnitMassUsage = 0
@@ -1528,6 +1529,17 @@ function ManageMassStalls(iTeam)
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Are building al and fac, wont pause if not in core zone, tEngiTeamData[M28Map.subrefLZbCoreBase]='..tostring(tEngiTeamData[M28Map.subrefLZbCoreBase] or false)) end
                                                                     if not(tEngiTeamData[M28Map.subrefLZbCoreBase]) then
                                                                         --Keep building expansion land fac
+                                                                        bApplyActionToUnit = false
+                                                                    end
+                                                                end
+                                                                --exception - primary engi trying to build land fac, and not in core zone
+                                                            elseif iActionRef == M28Engineer.refActionBuildLandFactory then
+                                                                local sBlueprint = oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
+                                                                if not(sBlueprint) and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGuard then sBlueprint = oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget][M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] end
+                                                                if sBlueprint and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, sBlueprint) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': We have queued up a land fac, want to build it if we are not in a core zone (since presumably are at an expansion point') end
+                                                                    local tEngiZone, tEngiTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                                                    if not(tEngiTeamData[M28Map.subrefLZbCoreBase]) then
                                                                         bApplyActionToUnit = false
                                                                     end
                                                                 end
