@@ -72,8 +72,8 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
         sPlateauAndZoneDesc = ':P='..(iPlateauOrZero or 0)..'Z='..(iLandOrWaterZone or 0)
     end
     if M28Config.M28ShowUnitNames then --redundancy
-        if M28Utilities.bLoudModActive and oUnit:GetAIBrain().M28AI then
-            --Be clear which units belong to M28
+        if not(M28Utilities.bFAFActive) and oUnit:GetAIBrain().M28AI then
+            --Be clear which units belong to M28 if not playing in FAF
             oUnit:SetCustomName('M28:'..(oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
         else
             oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
@@ -1076,7 +1076,7 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
     if bSuspectedFailedLoad and M28UnitInfo.IsUnitValid(oOrderTarget) then
         --Warp to the transport then retry
         local tWarpLocation = oOrderTarget:GetPosition()
-        if GetTerrainHeight(tWarpLocation[1], tWarpLocation[3]) >= M28Map.iMapWaterHeight or EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oUnit.UnitId) then
+        if GetTerrainHeight(tWarpLocation[1], tWarpLocation[3]) >= M28Map.iMapWaterHeight or EntityCategoryContains(categories.HOVER + M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
             tWarpLocation[2] = GetSurfaceHeight(tWarpLocation[1], tWarpLocation[3])
             Warp(oUnit, tWarpLocation, oUnit:GetOrientation())
             IssueTrackedTransportLoad(oUnit, oOrderTarget, false, 'BackupTL', true, true)

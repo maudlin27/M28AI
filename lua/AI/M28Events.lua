@@ -1720,7 +1720,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
             if not(oJustBuilt.UnitId) then --LOUD compatibility redundancy (OnCreate should also do this)
-                if M28Utilities.bLoudModActive then
+                if not(M28Utilities.bFAFActive) then
                     if not(oJustBuilt.EntityId) then oJustBuilt.EntityId = oJustBuilt:GetEntityId() end
                     oJustBuilt.UnitId = oJustBuilt:GetBlueprint().BlueprintId
                 end
@@ -2392,7 +2392,7 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
                 while not(M28Map.bReclaimManagerActive) do
                     WaitTicks(1)
                     iWaitCount = iWaitCount + 1
-                    if iWaitCount >= 50 and (iWaitCount >= 60 or not(M28Utilities.bLoudModActive)) then M28Utilities.ErrorHandler('Map setup not complete') break end
+                    if iWaitCount >= 50 and (iWaitCount >= 60 or M28Utilities.bFAFActive) then M28Utilities.ErrorHandler('Map setup not complete') break end
                 end
             end
         end
@@ -2487,7 +2487,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
     --LOG('OnCreate pre M28InGamecheck, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame))
     if M28Utilities.bM28AIInGame then
         if not(oUnit.UnitId) then --LOUD compatibility
-            if M28Utilities.bLoudModActive then
+            if not(M28Utilities.bFAFActive) then
                 if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
                 oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
             end
@@ -2506,7 +2506,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(1)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete then
+                    if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete and (GetGameTimeSeconds() >= 6 or M28Utilities.bFAFActive) then
                         M28Utilities.ErrorHandler('Water zone initial creation still not done, will stop waiting now')
                         break
                     end
@@ -2840,6 +2840,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if M28Utilities.bSteamActive then import('/mods/M28AI/lua/AI/Steam/SteamCompatibility.lua').OtherSteamCompatibilityInformation() end
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')) end
     if M28Overseer.iTimeOfLatestBrainToCheckForM28Logic >= 0 then
         while GetGameTimeSeconds() < M28Overseer.iTimeOfLatestBrainToCheckForM28Logic + 1 do
@@ -2890,7 +2891,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                 if aiBrain.M28AI then
                     --Redundancy - if have M27 brain then change this back to false
                     if aiBrain.M27AI then aiBrain.M28AI = false end
-                    if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')) end
 
                     --Copy of parts of aiBrain OnCreateAI that still want to retain
                     if planName and (not(M28Utilities.bLoudModActive) or aiBrain.CreateBrainShared) then

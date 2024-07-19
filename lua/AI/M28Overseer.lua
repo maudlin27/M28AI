@@ -374,6 +374,31 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
         M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
     end
+    if M28Utilities.bSteamActive then
+        local bUsingForNormal = false
+        local bUsingForEasy = false
+        local sMessage
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.M28AI then
+                if oBrain.M28Easy then
+                    bUsingForEasy = true
+                else
+                    bUsingForNormal = true
+                end
+            end
+        end
+        if bUsingForEasy and bUsingForNormal then
+            sMessage = 'M28AI active for AI: Normal and M28EasyAI for AI: Easy.'
+        elseif bUsingForEasy then
+            sMessage = 'M28EasyAI active for AI: Easy.'
+        else
+            sMessage = 'M28AI active for AI: Normal.'
+        end
+        sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF For the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
+        M28Chat.SendMessage(aiBrain, 'SteamCompatibility', sMessage, 2, 10)
+    elseif M28Utilities.bLoudModActive then
+        M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -417,7 +442,7 @@ function M28BrainCreated(aiBrain)
     if not(bInitialSetup) then
         bInitialSetup = true
         local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
-        if not(M28Utilities.bLoudModActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
+        if not(M28Utilities.bFAFActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
@@ -2589,6 +2614,21 @@ function DebugCheckProfiling(bJustShowTickCount)
                 debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
                 LOG(sFunctionRef..': Have started the main hook of function calls')
             end
+        end
+    end
+end
+
+function ConsiderSteamMessageIfNoM28()
+    if M28Utilities.bSteamActive then
+        WaitSeconds(1)
+        local bHaveM28InGame = false
+        local oFirstBrain
+        for iBrain, oBrain in ArmyBrains do
+            if not(oFirstBrain) then oFirstBrain = oBrain end
+            if oBrain.M28AI then bHaveM28InGame = true break end
+        end
+        if not(bHaveM28InGame) and oFirstBrain then
+            M28Chat.SendMessage(oFirstBrain, 'SteamAIIssue', 'M28AI mod is active, but no AI have been selected that use M28AI.  Please use either the AI: Easy or AI: Normal AI to apply M28EasyAI or M28AI respectively', 1, 1000, false, false)
         end
     end
 end

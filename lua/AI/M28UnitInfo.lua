@@ -214,9 +214,9 @@ refCategoryAntiNavy = categories.ANTINAVY
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
 refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS - categories.SHIELD * categories.STRUCTURE
 refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryMonkeylord = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE - categories.SNIPER
-refCategoryMegalith = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE * categories.SNIPER
-refCategoryYthotha = refCategoryLandExperimental * categories.SERAPHIM * categories.BOT
+refCategoryMonkeylord = refCategoryLandExperimental * categories.CYBRAN * categories.DIRECTFIRE - categories.SNIPER
+refCategoryMegalith = refCategoryLandExperimental * categories.CYBRAN * categories.DIRECTFIRE * categories.SNIPER
+refCategoryYthotha = refCategoryLandExperimental * categories.SERAPHIM * categories.DIRECTFIRE
 refCategoryMobileLand = categories.LAND * categories.MOBILE  - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryEngineer = categories.LAND * categories.MOBILE * categories.ENGINEER - categories.COMMAND - categories.FIELDENGINEER -categories.SUBCOMMANDER --Dont include sparkys as they cant build a lot of things, so just treat them as a combat unit that can reclaim
 refCategoryRASSACU = categories.SUBCOMMANDER * categories.RASPRESET + categories.SUBCOMMANDER * categories.SERAPHIM
@@ -227,7 +227,12 @@ refCategoryEngineerStation = refCategoryRover + refCategoryHive + refCategoryKen
 
 refCategoryAntiAir = categories.ANTIAIR --used so we can identify units with decent AA threat
 refCategoryMAA = categories.LAND * categories.MOBILE * categories.ANTIAIR - categories.EXPERIMENTAL
-refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE * categories.BOT + categories.LAND * categories.MOBILE * categories.TANK * categories.TECH1 * categories.SERAPHIM - refCategoryMAA -categories.REPAIR --(repair exclusion added as basic way to differentiate between mantis (which has repair category) and LAB; alternative way is to specify the fastest when choosing the blueprint to build
+refCategoryAttackBot = categories.LAND
+if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
+    refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - refCategoryMAA -categories.REPAIR
+else
+    refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE * categories.BOT + categories.LAND * categories.MOBILE * categories.TANK * categories.TECH1 * categories.SERAPHIM - refCategoryMAA -categories.REPAIR --(repair exclusion added as basic way to differentiate between mantis (which has repair category) and LAB; alternative way is to specify the fastest when choosing the blueprint to build
+end
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
@@ -238,7 +243,9 @@ refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categor
 refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
 refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryLandCombat * categories.AMPHIBIOUS - categories.ANTISHIELD * categories.AEON --Dont include aeon T3 anti-shield here as it sucks unless against shields
+
+refCategoryAmphibious = categories.AMPHIBIOUS
+refCategoryAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryLandCombat * categories.AMPHIBIOUS - categories.ANTISHIELD --Dont include aeon T3 anti-shield here as it sucks unless against shields
 refCategorySurfaceAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryAntiNavy * categories.LAND * categories.MOBILE - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryGroundAA = refCategoryMAA + categories.NAVAL * categories.ANTIAIR + categories.STRUCTURE * categories.ANTIAIR + categories.NAVALCARRIER * categories.EXPERIMENTAL
 refCategoryStructureAA = categories.STRUCTURE * categories.ANTIAIR
@@ -252,7 +259,12 @@ refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
 refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
 refCategoryMobileBomb = categories.BOMB * categories.MOBILE
-refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb --Mongoose, Hoplite, sniperbot
+refCategorySkirmisher = refCategorySniperBot * categories.TECH3
+if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
+    refCategorySkirmisher = refCategorySkirmisher + categories.del0204 + categories.drl0204 - refCategoryMobileBomb
+else
+    refCategorySkirmisher = refCategorySkirmisher +  refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb
+end
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
 refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 
@@ -625,7 +637,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) then tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] = (iBaseThreat or 0) end
 
                 end
-                if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
+                if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
                     iBaseThreat = oUnit[refiUnitMassCost] * 0.35
                 end
                 if iBaseThreat > 0 then
@@ -895,7 +907,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
                         if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
                             --Does unit have a shield?
-                            if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and M28Utilities.bLoudModActive) then
+                            if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)) then
                                 local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
                                 iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                             else
@@ -1225,7 +1237,7 @@ function CalculateBlueprintThreatsByType()
         local iCurTechLevel
         local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
         local bCheckForVolatileUnits = false
-        if M28Utilities.bLoudModActive or M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(categories.VOLATILE)) then
+        if not(M28Utilities.bFAFActive) or M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(categories.VOLATILE)) then
             bCheckForVolatileUnits = true
         end
 
@@ -2449,9 +2461,26 @@ function FixUnitResourceCheatModifiers(oUnit)
                 end
                 Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
                 Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
-                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
+                --Check if have a buff
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': unit.Buffs.BuffTable='..reprs(oUnit.Buffs.BuffTable))
+                end
+                if M28Utilities.IsTableEmpty(oUnit.Buffs.BuffTable) == false then
+                    for sBuffType, tBuffInfo in oUnit.Buffs.BuffTable do
+                        for sBuffRef, tBuffValues in tBuffInfo do
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sBuffType='..sBuffType..'; sBuffRef='..sBuffRef..'; tBuffValues='..repru(tBuffValues)) end
+
+                            if sBuffRef == 'CheatIncome' or sBuffRef == 'CheatIncome'..iIndex or sBuffRef == 'CheatBuildRate' or sBuffRef == 'CheatBuildRate'..iIndex then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Revoving buff '..sBuffRef) end
+                                FAFBuffs.RemoveBuff(oUnit, sBuffRef, true)
+                            end
+                        end
+                    end
+                end
+                --FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..iIndex)
-                FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
+                --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
                 oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
@@ -2590,6 +2619,11 @@ end
 if M28Utilities.bLoudModActive then
     IsUnitRestricted = function(sUnitID)
         return import('/lua/game.lua').UnitRestricted(nil, sUnitID)
+    end
+elseif M28Utilities.bSteamActive then
+    --Dont support unit restrictions for now
+    IsUnitRestricted = function(sUnitId)
+        return false
     end
 else
     IsUnitRestricted = function(sUnitID, iArmyIndex)

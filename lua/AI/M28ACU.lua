@@ -3092,7 +3092,7 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
                 if not(oClosestEnemyToAttack) then
                     --redundancy - use getunitsaroundpoint as sometimes can have nearby WZ that unit isnt showing in
                     local aiBrain = oACU:GetAIBrain()
-                    local tNearbyNavalUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAmphibiousAndNavy - categories.AMPHIBIOUS, oACU:GetPosition(), iDistToACUThreshold, 'Enemy')
+                    local tNearbyNavalUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAmphibiousAndNavy - M28UnitInfo.refCategoryAmphibious, oACU:GetPosition(), iDistToACUThreshold, 'Enemy')
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy hover and surface navy empty='..tostring(M28Utilities.IsTableEmpty(tNearbyNavalUnits))) end
                     if M28Utilities.IsTableEmpty(tNearbyNavalUnits) == false then
                         for iUnit, oUnit in tNearbyNavalUnits do

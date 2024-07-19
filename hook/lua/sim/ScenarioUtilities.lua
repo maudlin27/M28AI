@@ -156,7 +156,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 self.StartingUnitCap = GetArmyUnitCap(self.ArmyIndex)
 
                 --if self.CheatingAI then
-                    import('/lua/ai/aiutilities.lua').SetupAICheat( self )
+                import('/lua/ai/aiutilities.lua').SetupAICheat( self )
                 --end
 
                 --Other LOUD ai related variables to avoid LOUD suffering errors:
@@ -180,14 +180,14 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
                     if not(self.ArmyIndex == brain.ArmyIndex) and not(brain.Nickname == 'civilian') and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
 
-                local place = brain:GetStartVector3f()
-                local threatlayer = 'AntiAir'
+                        local place = brain:GetStartVector3f()
+                        local threatlayer = 'AntiAir'
 
-                --LOG("*AI DEBUG "..brain.Nickname.." "..brain.BrainType.." enemy found at "..repr(place).." posting Economy threat")
+                        --LOG("*AI DEBUG "..brain.Nickname.." "..brain.BrainType.." enemy found at "..repr(place).." posting Economy threat")
 
-                -- assign 500 ecothreat for 10 minutes
-                self:AssignThreatAtPosition( place, 5000, 0.005, 'Economy' )
-                end
+                        -- assign 500 ecothreat for 10 minutes
+                        self:AssignThreatAtPosition( place, 5000, 0.005, 'Economy' )
+                    end
                 end
 
                 if ScenarioInfo.Options.AIResourceSharing == 'off' then
@@ -345,11 +345,15 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
                 end
             end
+        elseif M28Utilities.bSteamActive then
+            LOG('About to run steam compatibility code')
+            --Load code here to avoid errors
+            import('/mods/M28AI/lua/AI/Steam/SteamCompatibility.lua').OtherSteamCompatibilityInformation()
         else
             LOG('Calling normal OrigInitializeSkirmishSystems logic for brain '..self.Nickname)
             OrigInitializeSkirmishSystems(self)
         end
-end
+    end
 
 --[[local OrigInitializeArmies = InitializeArmies
 InitializeArmies = function()

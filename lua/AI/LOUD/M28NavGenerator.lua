@@ -95,6 +95,15 @@ NavTrees = {}
 ---@type table<NavSectionIdentifier, NavSection>
 NavSections = {}
 
+local file_exists = function(name)
+    local file = DiskGetFileInfo(name)
+    if file == false or file == nil then
+        return false
+    else
+        return true
+    end
+end
+
 local Generated = false
 ---@return boolean
 function IsGenerated()
@@ -1549,8 +1558,13 @@ local function GenerateMarkerMetadata(mapHasWater)
         TableInsert(grids, NavGrids['Amphibious'])
         TableInsert(grids, NavGrids['Hover'])
     end
+    local extractors
+    if file_exists("/lua/sim/markerutilities.lua") then
+        extractors = import("/lua/sim/markerutilities.lua").GetMarkersByType('Mass')
+    else
+        extractors = import('/mods/M28AI/lua/AI/Steam/markerutilities.lua').GetMarkersByType('Mass')
+    end
 
-    local extractors = import("/lua/sim/markerutilities.lua").GetMarkersByType('Mass')
     for id, extractor in extractors do
         for _, grid in grids do
             local layer = grid.Layer
@@ -1568,7 +1582,13 @@ local function GenerateMarkerMetadata(mapHasWater)
         end
     end
 
-    local hydrocarbons = import("/lua/sim/markerutilities.lua").GetMarkersByType('Hydrocarbon')
+    local hydrocarbons
+    if file_exists("/lua/sim/markerutilities.lua") then
+        hydrocarbons = import("/lua/sim/markerutilities.lua").GetMarkersByType('Hydrocarbon')
+    else
+        hydrocarbons = import('/mods/M28AI/lua/AI/Steam/markerutilities.lua').GetMarkersByType('Hydrocarbon')
+    end
+
     for id, hydro in hydrocarbons do
         for layer, grid in grids do
             local label = grid:FindLeaf(hydro.position).Label

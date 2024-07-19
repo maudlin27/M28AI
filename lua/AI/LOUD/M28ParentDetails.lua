@@ -11,6 +11,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 ConsiderIfLoudActive = M28Utilities.ConsiderIfLoudActive()
 
 function BrainBeginSession()
+    --FAF specific function so we know FAF is active
     M28Utilities.bFAFActive = true
     M28Utilities.bLoudModActive = false
     M28Utilities.bSteamActive = false

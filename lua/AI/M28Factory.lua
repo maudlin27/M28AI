@@ -511,7 +511,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
             else
                 iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
             end
-            if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
+            if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER end
             if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA1') end
         else
             if bInSameIsland then
@@ -519,7 +519,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; We want indirect support for this LZ; Enemy structure threat by DF range='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyStructureDFByRange])..'; Total indirect threat wanted for LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZIndirectThreatWanted]) end
             else
                 --Only consider amphibious indirect (so most factions wont build anything)
-                iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.AMPHIBIOUS + M28UnitInfo.refCategoryIndirect * categories.HOVER
+                iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * M28UnitInfo.refCategoryAmphibious + M28UnitInfo.refCategoryIndirect * categories.HOVER
             end
             --If enemy has a firebase in range then cancel request for indirect
             if not(tLZTargetTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
@@ -588,7 +588,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 else
                     iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
                 end
-                if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
+                if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER end
                 if bDebugMessages == true then LOG(sFunctionRef..': Will build MAA2') end
             end
         end
@@ -597,7 +597,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
             if bConsiderMobileShields and tLZTargetTeamData[M28Map.refbLZWantsMobileShield] then
                 iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
                 if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
-                else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
+                else iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shields so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                 --If dont have any blueprints to build then look to support indirect or DF instead
@@ -614,7 +614,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 if bConsiderMobileStealths and tLZTargetTeamData[M28Map.refbLZWantsMobileStealth] and not(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                     iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
                     if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
-                    else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
+                    else iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                     --If dont have any blueprints to build then look to support indirect or DF instead
@@ -663,7 +663,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                     if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
                         --Want absolvers unless we are already building some in this zone
                         local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
-                        if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * categories.AMPHIBIOUS + iAbsolverCategory * categories.HOVER end
+                        if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * M28UnitInfo.refCategoryAmphibious + iAbsolverCategory * categories.HOVER end
 
                         if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
                         --Can we actually build a unit with this categoyr?
@@ -2226,7 +2226,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false and not (bDontConsiderBuildingMAA) then
                 local iAdjWZ, iPond
-                local iCategoryWanted = (categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER) * M28UnitInfo.refCategoryMAA
+                local iCategoryWanted = (categories.NAVAL + M28UnitInfo.refCategoryAmphibious + categories.HOVER) * M28UnitInfo.refCategoryMAA
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                     iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                     iPond = M28Map.tiPondByWaterZone[iAdjWZ]

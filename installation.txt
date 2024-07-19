@@ -1,0 +1,34 @@
+General: See the M28AI forum post on the FAF forums for links to a devlog and details of updates:
+https://forum.faforever.com/topic/5331/m28ai-devlog-v1
+
+For the best experience with M28AI it is recommended you play on Forged Alliance Forever (FAF).  However, it should be compatible with both LOUD and Steam.  If you encounter issues with it, contact maudlin27 on discord.
+
+Installation:
+Forged Alliance Forever (FAF):
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
+-If downloading via Github, copy the M28AI folder to the FAF mods folder, e.g.:
+C:\ProgramData\FAForever\user\My Games\Gas Powered Games\Supreme Commander Forged Alliance\mods
+-Go to the mod manager when hosting a game, and make sure the M28AI mod is enabled
+-Select M28AI or M28Easy as a 'player' in the game lobby
+
+
+LOUD:
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
+-Copy the M28AI folder to the LOUD usermods folder, e.g. (depending on where the forged alliance exe is installed):
+C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\LOUD\usermods
+-Go to the mod manager when hosting a game, and make sure the M28AI mod is enabled
+-Select M28AI or M28Easy as a 'player' in the game lobby
+-Note: Additional game options should appear in the game options part of the lobby when re-loading the LOUD forged alliance exe after the first time M28AI was enabled (expected to be changed/improved in a future version of LOUD)
+
+
+Steam:
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
+-Open up the mods archive using software such as 7Zip; the location of this will depend on where forged alliance is saved, e.g.:
+C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\gamedata\mods.scd\
+-Open up the mods folder in this archive
+-Add the M28AI folder to this archive/zipped file
+-When creating a game in forged alliance, go to the mod manager and enable the M28AI mod
+-Select AI: Easy for 'M28EasyAI', and AI: Normal for normal M28AI (and similarly the AIx versions of these to apply bonus resources or build rate modifiers to the AI)
+-If the SorianAI mod is also included, then additional game options should show up to configure M28AI further
+
+

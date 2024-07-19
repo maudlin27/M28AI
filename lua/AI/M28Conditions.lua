@@ -106,6 +106,7 @@ function IsCivilianBrain(aiBrain)
     local sFunctionRef = 'IsCivilianBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain.M28IsCivilian == nil then
+        if M28Utilities.bSteamActive then import('/mods/M28AI/lua/AI/Steam/SteamCompatibility.lua').OtherSteamCompatibilityInformation() end
         local bIsCivilian = false
         if bDebugMessages == true then
             LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; Nickname='..(aiBrain.Nickname or 'nil')..'; reprs of brain='..reprs(aiBrain))

@@ -821,7 +821,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
                     tRallyPoint = M28Navy.GetNearestWaterRallyPoint(tLZOrWZData, iTeam, M28Map.tiPondByWaterZone[iUnitZone], iUnitZone)
                 else
                     tLZOrWZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitZone]
-                    tRallyPoint = GetNearestLandRallyPoint(tLZOrWZData, iTeam, iUnitPlateau, iUnitZone, 2, EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oUnitToRun.UnitId))
+                    tRallyPoint = GetNearestLandRallyPoint(tLZOrWZData, iTeam, iUnitPlateau, iUnitZone, 2, EntityCategoryContains(categories.HOVER + M28UnitInfo.refCategoryAmphibious, oUnitToRun.UnitId))
                 end
 
             else
@@ -1165,7 +1165,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
                 if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
-                        local tAmphibiousOrHoverScouts = EntityCategoryFilterDown(categories.AMPHIBIOUS + categories.HOVER, tAvailableScouts)
+                        local tAmphibiousOrHoverScouts = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibious + categories.HOVER, tAvailableScouts)
                         if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) == false then
                             local iPond, iAdjWZ
                             for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
@@ -1251,7 +1251,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             local bRemoveAssignment = false
             for iScout, oScout in toEscortScouts do
                 --If target is underwater and we are not amphibious/hover, then no longer assign
-                if M28UnitInfo.IsUnitUnderwater(oScout[refoLandScoutTarget]) and not(EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oScout.UnitId)) then
+                if M28UnitInfo.IsUnitUnderwater(oScout[refoLandScoutTarget]) and not(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oScout.UnitId)) then
                     oScout[refoLandScoutTarget][M28ACU.refoAssignedLandScout] = nil
                     oScout[refoLandScoutTarget] = nil
                 else
@@ -4358,7 +4358,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                         if oNearestEnemyToFriendlyBase then
                             --Check if need manual attack order
-                            if EntityCategoryContains(categories.AMPHIBIOUS, oNearestEnemyToFriendlyBase.UnitId) then bNearestEnemyNeedsManualAttack = true end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oNearestEnemyToFriendlyBase.UnitId) then bNearestEnemyNeedsManualAttack = true end
                         end
                     end
                 end
@@ -4937,7 +4937,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 local bCanPathToBase = false
                                                 if iPlateau == NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                                                     --Are we amphibious, or on the same island as the closest base?
-                                                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
                                                         bCanPathToBase = true
                                                     end
                                                 end
@@ -7154,7 +7154,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         --Do we have any amphibious or hover units?
                                         local tbGivenIndexUnitOrder = {}
                                         for iUnit, oUnit in tRemainingLandUnits do
-                                            if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
                                                 if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                                                     oUnit[refiCurrentAssignmentValue] = 0
                                                 else
@@ -7500,14 +7500,14 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             if not(oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) then
                                 table.insert(tSACUs, oUnit)
                             end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] > 0 and EntityCategoryContains(categories.AMPHIBIOUS * categories.MOBILE - categories.AIR, oUnit.UnitId)) then
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious * categories.MOBILE - categories.AIR, oUnit.UnitId)) then
                             --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                             bIncludeUnit = false
                             bLandZoneOrAdjHasUnitsWantingScout = true
                             --Is the unit available for use by this land zone?
                             if oUnit:GetFractionComplete() == 1 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Does unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' have a valid guard? Guard='..(oUnit[refoAssignedUnitToGuard].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedUnitToGuard]) or 'nil')) end
-                                if oUnit[refoAssignedUnitToGuard] and M28UnitInfo.IsUnitValid(oUnit[refoAssignedUnitToGuard]) and (EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) or not(M28UnitInfo.IsUnitUnderwater(oUnit[refoAssignedUnitToGuard]))) then
+                                if oUnit[refoAssignedUnitToGuard] and M28UnitInfo.IsUnitValid(oUnit[refoAssignedUnitToGuard]) and (EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) or not(M28UnitInfo.IsUnitUnderwater(oUnit[refoAssignedUnitToGuard]))) then
                                     --Guard actually causes MAA to move a bit too far away so will just move towards the unit; currently are just using this for MAA covering a fatboy so moving directly to the unit means it works out well since they wont block the fatboy and will rotate instead to be to the fatboy's rear at all times
                                     --Temporarily run if we are in range of enemy units in the zone
                                     if (oUnit[M28UnitInfo.refiAARange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 4, iTeam, true, nil, nil, nil, nil, false) then
@@ -8251,7 +8251,7 @@ function LandZoneOverseer(iTeam)
         ForkThread(AssignValuesToLandZones, iTeam)
 
         local iWaitCount = 0
-        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or (M28Utilities.bLoudModActive and GetGameTimeSeconds() <= 6) do
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
             iWaitCount = iWaitCount + 1
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
