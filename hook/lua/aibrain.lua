@@ -10,16 +10,33 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 --Superceded from the June 2023 changes by M28Brain.lua and index.lua
     --V24 - removed the below as couldn't get the new appraoch (which requires map to be generated later than OnCreateAI triggers) to work with this code still here
 
---[[M28AIBrainClass = AIBrain
+M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
 
     OnDefeat = function(self)
         M28AIBrainClass.OnDefeat(self)
-        ForkThread(M28Events.OnPlayerDefeated, self)
+        if M28Utilities.bSteamActive then
+            ForkThread(M28Events.OnPlayerDefeated, self)
+        end
     end,
 
     OnCreateAI = function(self, planName)
-        if (ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat') then
+        if M28Utilities.bSteamActive then
+            local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+            --Only apply M28 to easy and normal
+            LOG('Brain OnCreateAI for brain'..self.Nickname..' with personality '..(self.Personality or ScenarioInfo.ArmySetup[self.Name].AIPersonality or 'nil'))
+            local sPersonality = self.Personality or ScenarioInfo.ArmySetup[self.Name].AIPersonality
+            if not(M28Conditions.IsCivilianBrain(self)) and (sPersonality == 'easy' or sPersonality == 'normal') then
+                self.M28AI = true
+                M28Utilities.bM28AIInGame = true
+                ForkThread(M28Events.OnCreateBrain, self, planName, false)--]]
+            else
+                M28AIBrainClass.OnCreateAI(self, planName)
+            end
+        else
+            M28AIBrainClass.OnCreateAI(self, planName)
+        end
+        --[[if (ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat') then
             self.M28AI = true
             M28Utilities.bM28AIInGame = true
         end
@@ -27,18 +44,20 @@ AIBrain = Class(M28AIBrainClass) {
             LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
             M28AIBrainClass.OnCreateAI(self, planName)
         end
-        ForkThread(M28Events.OnCreateBrain, self, planName, false)
+        ForkThread(M28Events.OnCreateBrain, self, planName, false)--]]
     end,
 
-    OnBeginSession = function(self)
+    --[[OnBeginSession = function(self)
         M28AIBrainClass.OnBeginSession(self)
         M28Overseer.bBeginSessionTriggered = true
         import("/lua/sim/NavUtils.lua").Generate()
-    end,
+    end,--]]
 
     OnCreateHuman = function(self, planName)
         M28AIBrainClass.OnCreateHuman(self, planName)
-        ForkThread(M28Events.OnCreateBrain, self, planName, true)
+        if M28Utilities.bSteamActive then
+            ForkThread(M28Events.OnCreateBrain, self, planName, true)
+        end
     end,
 
     --Redundancy - make sure base AI doesnt run for M28AI
@@ -88,5 +107,3 @@ AIBrain = Class(M28AIBrainClass) {
         end
     end,
 }
-
---]]

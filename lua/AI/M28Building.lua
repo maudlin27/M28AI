@@ -2819,7 +2819,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
                     if iCurMobileThreat >= 1000 then
                         if tPlateauZoneAndDist[1] == 0 then
-                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE - categories.AMPHIBIOUS - categories.SUBMERSIBLE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryAmphibious - categories.SUBMERSIBLE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
                         else
                             iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
                         end

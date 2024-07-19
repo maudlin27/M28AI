@@ -662,7 +662,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                 --LOG('GetPlateauAndLandZoneReferenceFromPosition: iLandZone after checking for override='..(iLandZone or 'nil'))
                 if not(iLandZone) and bOptionalShouldBePathable then
                     --Possible explanation - engineer has traveled across water and reached a cliff
-                    if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
+                    if EntityCategoryContains(categories.HOVER + M28UnitInfo.refCategoryAmphibious, oOptionalPathingUnit.UnitId) then
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
                         --If terrain height is also above map waterhight then have error (as might be units ahve been dropped from transport into water)
@@ -3624,7 +3624,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if GetGameTimeSeconds() >= 5 and (bMapLandSetupComplete or GetGameTimeSeconds() >= 10) then
+        if GetGameTimeSeconds() >= 5 and ((bMapLandSetupComplete and (M28Utilities.bFAFActive or GetGameTimeSeconds() >= 6)) or GetGameTimeSeconds() >= 10) then
             M28Utilities.ErrorHandler('Have been waiting too long for map setup to complete')
             break
         end
@@ -3774,7 +3774,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if GetGameTimeSeconds() >= 5 then
+            if GetGameTimeSeconds() >= 5 and (M28Utilities.bFAFActive or GetGameTimeSeconds() >= 6) then
                 M28Utilities.ErrorHandler('Have been waiting too long for map setup to complete')
                 break
             end
@@ -7331,6 +7331,7 @@ function SetupMap()
     end
 
     CheckIfLowMexMap()
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, Time='..GetGameTimeSeconds()) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -7503,6 +7504,7 @@ function ReclaimManager()
     local iMaxUpdatesPerTick
     local iWaitCount
     local iLoopCount
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()) end
     if not(bReclaimManagerActive) then
         bReclaimManagerActive = true
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code

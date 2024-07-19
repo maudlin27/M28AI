@@ -166,7 +166,7 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                 local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iFacingAngleWanted, iCurDistToMove + iDistanceAlreadyMoved, true, false, true)
                 if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tViaPoint) == iPlateauWanted then
                     --Are we either an amphibious/hover unit, of a land unit on the same island, or a naval unit on the same pond
-                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.AIR, oUnit.UnitId)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.AIR, oUnit.UnitId)
                             or (EntityCategoryContains(categories.LAND, oUnit.UnitId) and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tViaPoint))
                             or (EntityCategoryContains(categories.NAVAL, oUnit.UnitId) and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tViaPoint)) then
                         M28Orders.IssueTrackedMove(oUnit, tViaPoint, 0.25, true, 'BckupDodMv', true)

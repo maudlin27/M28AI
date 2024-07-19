@@ -35,7 +35,7 @@ bFAFActive = false
 bLoudModActive = false
 bSteamActive = false
 function ConsiderIfLoudActive()
-    LOG('About to consider whether LOUD is active')
+    LOG('About to consider whether LOUD or Steam is active')
     if not(bFAFActive) and not(bSteamActive) then
         --Further check for if FAF active
         local file_exists = function(name)
@@ -49,8 +49,18 @@ function ConsiderIfLoudActive()
         if file_exists('/lua/sim/navutils.lua') then
             bFAFActive = true
             bLoudModActive = false --redundancy
+            bSteamActive = false --redundancy
         else
-            bLoudModActive = true
+            --Either steam or LOUD is active
+            if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
+                bLoudModActive = true
+                LOG('M28AI: Flagging that LOUD mod is active')
+            else
+                --Assume steam version
+                bSteamActive = true
+                LOG('M28AI: Flagging that STEAM version of the game is being used')
+            end
+            --Add in functionality from FAF:
             --Run 1-off setup
             --'lua/system/utils.lua':
             --table.unhash(t) code copied from FAF project - see above for assumed copyright for this
@@ -137,9 +147,6 @@ function ConsiderIfLoudActive()
                 return math.floor(num*idp+.5)/idp
             end
         end
-
-
-
     end
 end
 if not(bFAFActive) and not(bLoudModActive) and not(bSteamActive) then

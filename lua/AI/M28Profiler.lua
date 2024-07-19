@@ -357,7 +357,7 @@ end
 
 function SpawnSetUnitsForBrain(aiBrain)
     --Done to help with profiling - spawn in specific units
-    local iCategoriesToSpawn = categories.TECH3 * categories.AMPHIBIOUS + categories.EXPERIMENTAL * categories.AMPHIBIOUS + categories.TECH2 * categories.AMPHIBIOUS - categories.UNTARGETABLE
+    local iCategoriesToSpawn = categories.TECH3 * M28UnitInfo.refCategoryAmphibious + categories.EXPERIMENTAL * categories.AMPHIBIOUS + categories.TECH2 * categories.AMPHIBIOUS - categories.UNTARGETABLE
     local tsUnitsToSpawn = EntityCategoryGetUnitList(iCategoriesToSpawn)
     local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
     local tSpawnLocationBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
@@ -380,7 +380,7 @@ end
 function CompareDifferentThreatCalculations(aiBrain)
     if not(bTestProfiler) then
         bTestProfiler = true
-        local iCategoriesToSpawn = categories.TECH3 * categories.AMPHIBIOUS + categories.EXPERIMENTAL * categories.AMPHIBIOUS + categories.TECH2 * categories.AMPHIBIOUS - categories.UNTARGETABLE
+        local iCategoriesToSpawn = categories.TECH3 * M28UnitInfo.refCategoryAmphibious + categories.EXPERIMENTAL * categories.AMPHIBIOUS + categories.TECH2 * categories.AMPHIBIOUS - categories.UNTARGETABLE
         local tsUnitsToSpawn = EntityCategoryGetUnitList(iCategoriesToSpawn)
         local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
         local tSpawnLocationBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]

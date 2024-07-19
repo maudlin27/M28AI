@@ -501,7 +501,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                     tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = oUnit[M28UnitInfo.refiAntiNavyRange]
                 end
                 if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] then
-                    if EntityCategoryContains(categories.SUBMERSIBLE + categories.AMPHIBIOUS, oUnit.UnitId) or oUnit.UnitId == 'xrb2309' then
+                    if EntityCategoryContains(categories.SUBMERSIBLE + M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) or oUnit.UnitId == 'xrb2309' then
                         tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = oUnit[M28UnitInfo.refiAntiNavyRange]
                     end
                 end
@@ -1134,7 +1134,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     local tiUnitsInZoneByAmphibiousLabel = {}
     local iCurLabel
     local bAmphibiousCheck
-    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.AMPHIBIOUS, tAmphibiousUnits)) == false then
+    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibious, tAmphibiousUnits)) == false then
         bAmphibiousCheck = true
         --[[else
             iAmphibiousLabelWanted = tWZData[M28Map.refiMidpointAmphibiousLabel]
@@ -1144,7 +1144,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for the game time='..GetGameTimeSeconds()..' and iWaterZone='..iWaterZone..', is tAmphibiousUnits empty='..tostring(M28Utilities.IsTableEmpty(tAmphibiousUnits))) end
     for iUnit, oUnit in tAmphibiousUnits do
         if oUnit[refiCurrentAssignmentWaterZone] == iWaterZone then
-            if bAmphibiousCheck and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then iCurLabel = (NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition()) or tWZData[M28Map.refiMidpointAmphibiousLabel] or 0)
+            if bAmphibiousCheck and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then iCurLabel = (NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition()) or tWZData[M28Map.refiMidpointAmphibiousLabel] or 0)
             else
                 iCurLabel = tWZData[M28Map.refiMidpointAmphibiousLabel]
             end
@@ -1336,8 +1336,8 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                     else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                     end
 
-                    if bAttackWithEverything or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iBestEnemyDFRange and not(EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId))) then
-                        if EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then
+                    if bAttackWithEverything or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iBestEnemyDFRange and not(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId))) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious destination; Unit last orders='..reprs(oUnit[M28Orders.reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
@@ -1349,7 +1349,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             end
                         end
                     else
-                        if EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
@@ -1482,7 +1482,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                         table.insert(tAvailableSubmarines, oUnit)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
                                         table.insert(tAvailableMAA, oUnit)
-                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
+                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * M28UnitInfo.refCategoryAmphibious - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
                                         table.insert(tAvailableCombatUnits, oUnit)
                                         table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
@@ -2892,7 +2892,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 for iUnit, oUnit in tAvailableCombatUnits do
                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                    if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WNRetrApA'..iWaterZone)
                     else
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
@@ -2914,7 +2914,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     --Only retreat units from this WZ
                     if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                        if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
                         else
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
@@ -3376,7 +3376,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         --Only retreat units from this WZ
                         if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                            if bConsiderAmphibiousRally and EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
+                            if bConsiderAmphibiousRally and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
                                 if iAmphibiousRallyPlateau then
                                     M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmphR'..iWaterZone, false, nil, nil, false)
                                 else
@@ -3960,7 +3960,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                                     end
                                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                    if bConsiderAmphibiousRally and EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
+                                    if bConsiderAmphibiousRally and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
                                         if iAmphibiousRallyPlateau then
                                             M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmpR'..iWaterZone, false, nil, nil, false)
                                         else
@@ -4083,7 +4083,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     end
 
     function RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, sOrderDesc)
-        if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) then
+        if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'A'..iWaterZone)
         else
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'N'..iWaterZone)
@@ -4217,7 +4217,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                             RetreatUnitTowardsNavalOrAmphibiousRally(oMAA, 'AAMPRun')
                         else
                             --Attack move away
-                            if EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oMAA.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oMAA.UnitId) then
                                 M28Orders.IssueTrackedAttackMove(oMAA, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, 'AAAPRun'..iWaterZone)
                             else
                                 M28Orders.IssueTrackedAttackMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAARun'..iWaterZone)

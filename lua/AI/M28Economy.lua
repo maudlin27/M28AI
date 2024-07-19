@@ -2949,7 +2949,7 @@ function ConsiderImmediateUpgradeOfFactory(oFactory)
     local sFunctionRef = 'ConsiderImmediateUpgradeOfFactory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Utilities.bLoudModActive then
+    if not(M28Utilities.bFAFActive) then
         local iTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         local aiBrain = oFactory:GetAIBrain()
         if iTechLevel < math.min(3, aiBrain[refiOurHighestFactoryTechLevel]) then

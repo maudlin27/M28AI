@@ -417,7 +417,7 @@ function M28BrainCreated(aiBrain)
     if not(bInitialSetup) then
         bInitialSetup = true
         local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
-        if not(M28Utilities.bLoudModActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
+        if not(M28Utilities.bFAFActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
