@@ -11858,6 +11858,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': Wnat to build a factory, iBPWanted='..iBPWanted..'; iFactoryAction='..iFactoryAction..'; bWantAirNotLand='..tostring(bWantAirNotLand)) end
         HaveActionToAssign(iFactoryAction, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
     end
+    bDebugMessages = false
 
 
     --High priority islands (early-game expansion)

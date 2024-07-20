@@ -401,7 +401,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     local sFunctionRef = 'UpdateUpgradeTrackingOfUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade='..(oUnitDoingUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade) or 'nil')..' owned by brain '..oUnitDoingUpgrade:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) M28Utilities.ErrorHandler('Audit trail', true, true) end
+
 
     local sUpgradeTableRef
     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitDoingUpgrade.UnitId) then
