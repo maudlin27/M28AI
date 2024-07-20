@@ -4391,20 +4391,23 @@ function GetACUOrder(aiBrain, oACU)
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryAirFactory
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                             end
+                        else
+                            bWantAnotherFactory = false
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iLandFacHQCount='..iLandFacHQCount..'; iAirFacHQCount='..iAirFacHQCount) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iLandFacHQCount='..iLandFacHQCount..'; iAirFacHQCount='..iAirFacHQCount..'; iFactoryEngineerAction='..(iFactoryEngineerAction or 'nil')) end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Do we want another factory='..tostring(bWantAnotherFactory)..'; want more factories condition result='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we want another factory='..tostring(bWantAnotherFactory)..'; want more factories condition result='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone))..'; iFactoryEngineerAction='..(iFactoryEngineerAction or 'nil')) end
                 if bWantAnotherFactory then
-
+                    bProceedWithLogic = false
                     ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
 
 
                     if bDebugMessages == true then LOG(sFunctionRef..': WIll try and rebuild base by building a factory') end
                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
-                        --Try building land if we failed to build air, and vice versa, provided we have decent power
-                        if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then
+                        --Try building land if we failed to build air, and vice versa, provided we have decent power, and we lack any factories of the other type, and we want more factories
+                        local bWantMoreFactories = M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        if bWantMoreFactories and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then
                             if iFactoryEngineerAction == M28Engineer.refActionBuildLandFactory then
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryAirFactory
@@ -4415,7 +4418,7 @@ function GetACUOrder(aiBrain, oACU)
                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
                         end
 
-                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                        if bWantMoreFactories and not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                             --Move to WZ to build a naval factory if we have none and are adjacent to water
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) == 0 then
                                 MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
@@ -4428,11 +4431,13 @@ function GetACUOrder(aiBrain, oACU)
                             --Do we want more power?
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                 ACUActionBuildPower(aiBrain, oACU)
+                            else
+                                bProceedWithLogic = true
                             end
                         end
                     end
-                    bProceedWithLogic = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': We want to build factory or power, so wont proceed with logic') end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': We want to build factory or power, so wont proceed with logic, unless we werent able to build eg due to unit restrictions, bProceedWithLogic='..tostring(bProceedWithLogic)) end
                 end
             elseif iPlateauOrZero == 0 and (tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or M28Map.bIsCampaignMap) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) then
                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
