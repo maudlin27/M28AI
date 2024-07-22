@@ -11740,6 +11740,40 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Assist air fac upgrade if in a safe zone
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and not(M28Overseer.bUnitRestrictionsArePresent) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+        local tUpgradingAirFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
+        if M28Utilities.IsTableEmpty(tUpgradingAirFac) == false then
+            local oFactoryToAssist
+            for iUpgradingUnit, oUpgradingUnit in tLZTeamData[M28Map.subreftoActiveUpgrades] do
+                if M28UnitInfo.GetUnitTechLevel(oUpgradingUnit) >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
+                    oFactoryToAssist = oUpgradingUnit
+                    break
+                end
+            end
+            if oFactoryToAssist then
+                iBPWanted = 20 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]
+                local bStallingResources = false
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+                    iBPWanted = iBPWanted * 0.5
+                    bStallingResources = true
+                end
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
+                    iBPWanted = iBPWanted * 0.5
+                    bStallingResources = true
+                end
+                if not(bStallingResources) then
+                    if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
+                    if not(bHaveLowPower) then iBPWanted = iBPWanted * 2 end
+                end
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Priority air fac upgrade assistance, iBPWanted='..iBPWanted) end
+                HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oFactoryToAssist)
+            end
+        end
+    end
+    bDebugMessages = false
 
     --More factories if have some mass stored and enemy is still at T1
     iCurPriority = iCurPriority + 1
