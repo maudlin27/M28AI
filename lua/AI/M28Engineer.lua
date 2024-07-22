@@ -10048,6 +10048,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iApproachingACUThreat, oNearestEnemyACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
     local tNearestEnemyACU
     if oNearestEnemyACU then tNearestEnemyACU = oNearestEnemyACU:GetPosition() end
+    if iLandZone == 2 and M28Utilities.IsTableEmpty(toAvailableEngineersByTech[2]) == false then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat) end
     if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and (((iApproachingACUThreat > 0 or (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2)) and (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4))) or (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) then
         --We have T2 (or only need T1 due to enemy not having gun), so want to build PD
@@ -10064,7 +10065,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if iCurPDThreat <= 470 then
             --Dont get T2 PD if we need mass for MML as the ACU is a T2 engi ACU with no gun, unless we have minimal threat in this zone
             if not(bSaveMassForMML) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 or (iApproachingACUThreat  > tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMML) >= 5) then
-                iBPWanted = 40
+                iBPWanted = 39 --3 t2 engis
                 if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
                 local tTargetBuildLocation
                 if tNearestEnemyACU then
@@ -10090,8 +10091,24 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if iBPWanted > 0 and tTargetBuildLocation then
                     --Reduce BP wanted if there is nearby T2 arti (as we probably want to get more T2 arti instead)
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then iBPWanted = iBPWanted * 0.5 end
+                    --Reduce BP wanted if we are only at T2, and lack many T2 engis in the zone, and want more power, and location is far away
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reducing BP if we havent built many t2 engineers and PD location is far away, highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Dist to target build location='..M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZData[M28Map.subrefMidpoint])..'; iT2PlusEngisInZone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer - categories.TECH1)..'; T2 LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer - categories.TECH1)) end
+                    if bWantMorePower and iBPWanted > 10 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 then
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZData[M28Map.subrefMidpoint])
+                        if iDistToTarget > 40 then
+                            local iT2PlusEngisInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer - categories.TECH1)
+                            if iT2PlusEngisInZone <= 4 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 8 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reducing BP wanted, enemy combat in zone='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; iBPWanted before reduction='..iBPWanted) end
+                                if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 10 and iDistToTarget >= 70 then
+                                    iBPWanted = math.min(iBPWanted, 25)
+                                else
+                                    iBPWanted = math.max(math.min(iBPWanted, 25), iBPWanted * 0.47)
+                                end
+                            end
+                        end
+                    end
                     HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD, iBPWanted='..iBPWanted) end
                 end
             end
         end
@@ -10099,7 +10116,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Start of game or low power - build hydro if one nearby, otherwise build pgen
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Low power at start of game builder, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Is table of hydro locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]))..'; Is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]))..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Low power at start of game builder, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Is table of hydro locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]))..'; Is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]))..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
             --Norush check
@@ -10179,6 +10196,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         end
     end
+    bDebugMessages = false
 
     --Mass storage if we have none (e.g. for snadbox games where lose ACU)
     iCurPriority = iCurPriority + 1

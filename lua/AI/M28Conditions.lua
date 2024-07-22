@@ -1721,7 +1721,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         end
                                     end
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and iLandFactoriesWantedBeforeAir >= 2 then
-                                        if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 then
+                                        if M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 or tLZTeamData[M28Map.refbBaseInSafePosition] then
                                             iLandFactoriesWantedBeforeAir = 1
                                             --If enemy has land combat units but no airforce then consider getting air fac earlier even on smaller maps - for simplicity will just do a count of units (could consider in future refining to cycle through all nearby zones)
                                         elseif iLandFactoriesWantedBeforeAir > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 then
@@ -2456,15 +2456,23 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
 
             local iBuildCountAdjust = 0
             if iFactoryTechLevel == 2 then
-                --Want to build more units at a T2 factory if we outtech the enemy
+                if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] and iFactoryTechLevel == 2 and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH2, oFactory.UnitId) then bDebugMessages = true end
+                --Want to build more units at a T2 factory if we outtech the enemy, unless dealing with air fac in a safe location
+                if bDebugMessages == true then LOG(sFunctionRef..': T2 factory - build more units if we outtech enemy, unless air fac in safe location, Highest friendly fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Map size='..M28Map.iMapSize..'; Enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Enemy air tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; Enemy naval tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]) end
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 and M28Map.iMapSize <= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > math.max(M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]) then
                     --We outtech enemy and have decent mass and power, so want more factories to make use of our advantage, if enemy base is relatively near
                     if M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 550 and NavUtils.GetTerrainLabel(tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetTerrainLabel(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
-                        iBuildCountAdjust = 4
+                        if not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or (M28Map.iMapSize <= 512 and not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing units want to build by 4') end
+                            iBuildCountAdjust = 4
+                        end
                     end
                 end
                 --Also want to build more units if we want production over tech
-                if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then iBuildCountAdjust = iBuildCountAdjust + 10 end
+                if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want torp bombers so increasing number of units to build') end
+                    iBuildCountAdjust = iBuildCountAdjust + 10
+                end
             end
 
             if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 + iBuildCountAdjust or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 + iBuildCountAdjust and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel) + iBuildCountAdjust) then
@@ -2485,6 +2493,15 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                             iMinEnergyWanted = iMinEnergyWanted * 1.5
                             if aiBrain:GetEconomyStoredRatio('MASS') >= 0.6 then iMinEnergyWanted = iMinEnergyWanted * 1.5 end
                         end
+                        if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+                            if iFactoryTechLevel == 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 45 then
+                                iMinEnergyWanted = iMinEnergyWanted * 0.6
+                            elseif iFactoryTechLevel == 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 90 then
+                                iMinEnergyWanted = iMinEnergyWanted * 0.6
+                            else
+                                iMinEnergyWanted = iMinEnergyWanted * 0.85
+                            end
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': iMinEnergyWanted='..iMinEnergyWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]='..tostring(tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)..'; T2 engi lifetime count='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * categories.TECH2)..'; Mass gross income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < iMinEnergyWanted or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (iFactoryTechLevel == 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 150 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Power) == 0) or (bHaveLowPower and not(bHaveLowMass) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel) + M28UnitInfo.refCategoryEngineer*categories.TECH3) < iBuildCountAdjust + math.min(12, math.max(4, aiBrain[M28Economy.refiGrossMassBaseIncome] * 1.5))) then
                             M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] = true
@@ -2498,15 +2515,21 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                             local iMinBuildCountWanted = iBuildCountAdjust
                             local iOurHighestTech = 1
                             if GetGameTimeSeconds() - (oFactory[M28Factory.refiTimeSinceLastFailedToGetOrder] or -100) <= 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recently failed to get order so dont want to wait to build more units') end
                                 iMinBuildCountWanted = 0
                             else
 
                                 if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
-                                    if iFactoryTechLevel >= iOurHighestTech then
-                                        iOurHighestTech = aiBrain[M28Economy.refiOurHighestAirFactoryTech]
-                                        iMinBuildCountWanted = iMinBuildCountWanted + 1
-                                        if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
-                                    elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 2
+                                    if not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 or tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
+                                        if iFactoryTechLevel >= iOurHighestTech then
+                                            iOurHighestTech = aiBrain[M28Economy.refiOurHighestAirFactoryTech]
+                                            iMinBuildCountWanted = iMinBuildCountWanted + 1
+                                            if tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iMinBuildCountWanted = iMinBuildCountWanted + 5 end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Highest air fac tech so increasing build count min wanted') end
+                                        elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemies in adj LZ so increasing build count wanted') end
+                                            iMinBuildCountWanted = iMinBuildCountWanted + 2
+                                        end
                                     end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
                                     iOurHighestTech = aiBrain[M28Economy.refiOurHighestLandFactoryTech]
