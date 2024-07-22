@@ -127,6 +127,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
 
     --Notable unit count and threat details
+    refbEnemyEarlyT3AirSpottedRecently = 'M28TEnT3ArThr' --set to true for 3m if the first lifetime count enemy T3 air unit is detected, and we lack t3 air and lack a good airaa threat (so we can try and defend vs a strat)
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     refiEnemyT3ArtiCount = 'M28TeamT3ArtC' --Number of enemy t3 arti and exp arti (exp arti count as 3)
     refiEnemyNovaxCount = 'M28TeamNovC' --Number of enemy novax
@@ -1697,15 +1698,24 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true') end
                                     end
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
-                                --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
                                 local iTeam = aiBrain.M28Team
-                                if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
-                                else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
-                                    tTeamData[iTeam][refbDangerousForACUs] = true
+                                if not(tTeamData[iTeam][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
+                                    --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
+                                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
+                                        tTeamData[iTeam][refbDangerousForACUs] = true
+                                    end
+                                end
+                                --If we lack T3 air and LC of unit is 1 then set flag so we get more AA asap
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and (tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] < 3 or tTeamData[iTeam][subrefiOurAirAAThreat] < 2500) and not(tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryAirAA * categories.TECH3, iTeam) == 0 then
+                                    bDebugMessages = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Flagging enemy T3 air danger for team at time='..GetGameTimeSeconds()) end
+                                    tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently] = true
+                                    M28Utilities.DelayChangeVariable(tTeamData[iTeam], refbEnemyEarlyT3AirSpottedRecently, false, 150)
                                 end
                             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                                 --check not already in table of enemy aCUs and add to this table
