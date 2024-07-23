@@ -2227,11 +2227,15 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                                 local oRefuelingUnit = oAirStaging[reftAssignedRefuelingUnits][iCurUnit]
                                 if M28UnitInfo.IsUnitValid(oRefuelingUnit) then
                                     local tLastOrder = oRefuelingUnit[M28Orders.reftiLastOrders][oRefuelingUnit[M28Orders.refiOrderCount]]
-                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
-
-                                        --Unit is still assigned here
+                                    if oRefuelingUnit:IsUnitState('Attached') then
                                         iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
-                                        if bDebugMessages == true then LOG(sFunctionRef..' Staging has been assigned to oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..'; Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..', is assigned to air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..' and is attached, Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse) end
+                                    elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
+                                        --Unit is still assigned here and has orders to get here
+                                        iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
+                                        --Refresh orders due to issue where a unit can sometimes be told to refuel but doesn't (seems particularly likely in LOUD)
+                                        M28Orders.UpdateRecordedOrders(oRefuelingUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..' Staging has been assigned to oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..'; Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse..'; Order count post refresh for refueling unit='..(oRefuelingUnit[M28Orders.refiOrderCount] or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)) end
                                     else
                                         --Unit has other orders so remove from here
                                         table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
