@@ -1622,6 +1622,8 @@ function RecordUnitRange(oUnit)
                         end
                     elseif oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Air =='Air|Land|water' and oCurWeapon.Damage >= 2 then --e.g. loud penetration fighter
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category

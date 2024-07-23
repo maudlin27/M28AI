@@ -675,6 +675,22 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            --LOUD specific - manually reflect weapon ranges for the basic gun upgrades as arent recorded against the blueprint
+            if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
+                local tsOtherUpgradeNames = {
+                    'EXRipperBooster',
+                    'EXZephyrBooster',
+                    'EXChronotronBooster',
+                    'EXDisruptorrBooster',
+                }
+                for iUpgrade, sUpgrade in tsOtherUpgradeNames do
+                    if oUnit:HasEnhancement(sUpgrade) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting unit range for LOUD enhancement, DFRange pre increase='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iDFRangePreUpgrade='..iDFRangePreUpgrade) end
+                        oUnit[M28UnitInfo.refiDFRange] = (oUnit[M28UnitInfo.refiDFRange] or 0) + 5
+                        break
+                    end
+                end
+            end
             if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade then
                 M28Overseer.bLikelyGunUpgrade = true
             end
