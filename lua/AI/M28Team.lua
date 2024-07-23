@@ -1714,7 +1714,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 end
                                 --If we lack T3 air and LC of unit is 1 then set flag so we get more AA asap
                                 if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and (tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] < 3 or tTeamData[iTeam][subrefiOurAirAAThreat] < 2500) and not(tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryAirAA * categories.TECH3, iTeam) == 0 then
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Flagging enemy T3 air danger for team at time='..GetGameTimeSeconds()) end
                                     tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently] = true
                                     M28Utilities.DelayChangeVariable(tTeamData[iTeam], refbEnemyEarlyT3AirSpottedRecently, false, 150)
@@ -3403,16 +3402,16 @@ function TeamEconomyRefresh(iM28Team)
 
 
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
-            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
+            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + (oBrain[M28Economy.refiGrossEnergyBaseIncome] or 0)
+            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + (oBrain[M28Economy.refiGrossMassBaseIncome] or 0)
             --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
             --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
                 M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
                 oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
             end--]]
 
-            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
-            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
+            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + (oBrain[M28Economy.refiNetEnergyBaseIncome] or 0)
+            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + (oBrain[M28Economy.refiNetMassBaseIncome] or 0)
 
 
             if oBrain:GetEconomyStored('ENERGY') > 0 then
@@ -3614,6 +3613,7 @@ function TeamInitialisation(iM28Team)
     else
         tTeamData[iM28Team][subrefiOrigM28BrainCount] = 0
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for team '..iM28Team..' at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

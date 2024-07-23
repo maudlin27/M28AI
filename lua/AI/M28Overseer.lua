@@ -404,7 +404,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1667,7 +1667,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1692,6 +1692,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if oFirstPlayer then
             local oNonHostileBrain
             local oHostileBrain
+
             for iBrain, oBrain in ArmyBrains do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering backup M28 brain, oBrain='..(oBrain.Nickname)..'; IsAlly='..tostring(IsAlly(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()))..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Is enemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()))) end
                 if oBrain.M28AI and IsAlly(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()) then
@@ -1699,10 +1700,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     break
                 elseif not(oNonHostileBrain) and oBrain.M28AI and not(IsEnemy(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex())) then
                     oNonHostileBrain = oBrain
+                elseif not(oHostileBrain) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()) then
+                    oHostileBrain = oBrain
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for backup brain, aiBrain='..(aiBrain.Nickname or 'nil')..'; oNonHostileBrain='..(oNonHostileBrain.Nickname or 'nil')) end
-            if not(aiBrain) then aiBrain = oNonHostileBrain end
+            if not(aiBrain) then aiBrain = oNonHostileBrain or oHostileBrain end
         end
     end
     if aiBrain then
@@ -2152,7 +2155,7 @@ end
 
 function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
     --E.g. for Dawn M2 where order switches from enemy to ally of player team - clears all land and water zone details of enemy and allied units, and then re-records all the units
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateAllRecordedUnitsFollowingTeamChange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2212,10 +2215,53 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
                 if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
                     table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains], oBrain)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to reset and create new team for brain '..oBrain.Nickname) end
                 oBrain.M28Team = nil
-                CreateNewTeam(oBrain)
-                if bDebugMessages == true then LOG(sFunctionRef..': Finsihed creating a new team for brain '..oBrain.Nickname) end
+                oBrain.M28LandSubteam = nil
+                oBrain.M28AirSubteam = nil
+                M28Team.CreateNewTeam(oBrain)
+                if oBrain.M28Team then M28Team.CheckForBrainsWithoutLandSubteam(oBrain.M28Team, nil, true) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finsihed creating a new team for brain '..oBrain.Nickname..'; New team='..(oBrain.M28Team or 'nil')..'; Land subteam='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil')..'; Time='..GetGameTimeSeconds()) end
             end
+            --Figure out what zone to treat as core base
+            WaitTicks(1)
+            local tFriendlyFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyFactories empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyFactories))) end
+            if M28Utilities.IsTableEmpty(tFriendlyFactories) == false then
+                local tiFactoriesByPlateauAndZone = {}
+                local iCurPlateau, iCurZone
+                for iFactory, oFactory in tFriendlyFactories do
+                    iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' in P'..iCurPlateau..'Z'..iCurZone) end
+                    if iCurPlateau and iCurZone and iCurPlateau > 0 then
+                        if not(tiFactoriesByPlateauAndZone[iCurPlateau][iCurZone]) then
+                            if not(tiFactoriesByPlateauAndZone[iCurPlateau]) then tiFactoriesByPlateauAndZone[iCurPlateau] = {} end
+                            tiFactoriesByPlateauAndZone[iCurPlateau][iCurZone] = 0
+                        end
+                    end
+                    tiFactoriesByPlateauAndZone[iCurPlateau][iCurZone] = tiFactoriesByPlateauAndZone[iCurPlateau][iCurZone] + M28UnitInfo.GetUnitTechLevel(oFactory)
+                end
+                local iHighestPlateau, iHighestZone
+                local iHighestCount = 0
+                if M28Utilities.IsTableEmpty(tiFactoriesByPlateauAndZone) == false then
+                    for iPlateau, tZones in tiFactoriesByPlateauAndZone do
+                        for iZone, iCount in tZones do
+                            if iCount > iHighestCount then
+                                iHighestCount = iCount
+                                iHighestPlateau = iPlateau
+                                iHighestZone = iZone
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iHighestCount='..iHighestCount..'; iHighestPlateau='..iHighestPlateau..'; iHighestZone='..iHighestZone..'; will now flag core base override to true, iTeam='..oBrain.M28Team..'; Brain nickname='..oBrain.Nickname) end
+                    if iHighestCount > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iHighestPlateau][M28Map.subrefPlateauLandZones][iHighestZone][M28Map.subrefLZTeamData][oBrain.M28Team]
+                        tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                    end
+                end
+            end
+
+
         elseif not(bApplyM28AI) and oBrain.M28AI then
             oBrain.M28AI = false
             oBrain.M28Team = nil
