@@ -404,7 +404,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1667,7 +1667,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1681,6 +1681,29 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
     local aiBrain
     for iBrain, oBrain in tAllActiveM28Brains do
         if oBrain.M28AI and not(oBrain.CampaignAI) then aiBrain = oBrain break end
+    end
+    if not(aiBrain) then
+        --Get first player
+        local oFirstPlayer
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.Human then oFirstPlayer = oBrain break end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': oFirstPlayer nickname='..(oFirstPlayer.Nickname or 'nil')) end
+        if oFirstPlayer then
+            local oNonHostileBrain
+            local oHostileBrain
+            for iBrain, oBrain in ArmyBrains do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering backup M28 brain, oBrain='..(oBrain.Nickname)..'; IsAlly='..tostring(IsAlly(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()))..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Is enemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()))) end
+                if oBrain.M28AI and IsAlly(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex()) then
+                    aiBrain = oBrain
+                    break
+                elseif not(oNonHostileBrain) and oBrain.M28AI and not(IsEnemy(oBrain:GetArmyIndex(), oFirstPlayer:GetArmyIndex())) then
+                    oNonHostileBrain = oBrain
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for backup brain, aiBrain='..(aiBrain.Nickname or 'nil')..'; oNonHostileBrain='..(oNonHostileBrain.Nickname or 'nil')) end
+            if not(aiBrain) then aiBrain = oNonHostileBrain end
+        end
     end
     if aiBrain then
         local iTeam = aiBrain.M28Team
@@ -2061,26 +2084,26 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 ForkThread(MonitorObjectiveUnitsAndRemoveIfDead, ScenarioInfo.M1P1Units, 1, ScenarioInfo.M1P1)
                 --]]
             --Dawn (FA Mission 2) - redundancy for case where first objective (kill attack) is done but second (destroy order base) doesnt trigger - commented out as in the particular case this function (i.e. considering special campaign objectives) only triggers when the attack wave is still alive, and doesnt trigger when the units die
-        --[[elseif ScenarioInfo.M1P1Units and ScenarioInfo.M1OrderAttack and not(ScenarioInfo.M1P2.Active) then
-            --If we have alive units in M1P1Units then are still scenario 1
-            local bHaveAliveBaseUnits = false
-            local bHaveAliveAttackUnits = false
-            for iUnit, oUnit in ScenarioInfo.M1OrderAttack do
-                if not(oUnit.Dead) then bHaveAliveAttackUnits = true break end
-            end
-            for iUnit, oUnit in ScenarioInfo.M1P1Units do
-                if not(oUnit.Dead) then
-                    bHaveAliveBaseUnits = true
+            --[[elseif ScenarioInfo.M1P1Units and ScenarioInfo.M1OrderAttack and not(ScenarioInfo.M1P2.Active) then
+                --If we have alive units in M1P1Units then are still scenario 1
+                local bHaveAliveBaseUnits = false
+                local bHaveAliveAttackUnits = false
+                for iUnit, oUnit in ScenarioInfo.M1OrderAttack do
+                    if not(oUnit.Dead) then bHaveAliveAttackUnits = true break end
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveAliveAttackUnits='..tostring(bHaveAliveAttackUnits)..'; bHaveAliveBaseUnits='..tostring(bHaveAliveBaseUnits)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)) end
-            if not(bHaveAliveAttackUnits) and bHaveAliveBaseUnits then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed check if mission active') end
-                WaitSeconds(300)
-                if not(ScenarioInfo.M1P2.Active) then
-                    ScenarioInfo.M1P1:ManualResult(true)
+                for iUnit, oUnit in ScenarioInfo.M1P1Units do
+                    if not(oUnit.Dead) then
+                        bHaveAliveBaseUnits = true
+                    end
                 end
-            end--]]
+                if bDebugMessages == true then LOG(sFunctionRef..': bHaveAliveAttackUnits='..tostring(bHaveAliveAttackUnits)..'; bHaveAliveBaseUnits='..tostring(bHaveAliveBaseUnits)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)) end
+                if not(bHaveAliveAttackUnits) and bHaveAliveBaseUnits then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed check if mission active') end
+                    WaitSeconds(300)
+                    if not(ScenarioInfo.M1P2.Active) then
+                        ScenarioInfo.M1P1:ManualResult(true)
+                    end
+                end--]]
             --Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
             tbSpecialCodeForMission[41] = true
@@ -2121,13 +2144,15 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
     --E.g. for Dawn M2 where order switches from enemy to ally of player team - clears all land and water zone details of enemy and allied units, and then re-records all the units
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateAllRecordedUnitsFollowingTeamChange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2144,7 +2169,66 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
             table.insert(tiTeamsToConsider, iTeam)
         end
     end
+    local bChangedAlliesOrEnemiesForZone = false
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if any units need updating from allies to enemies or vice versa, tiTeamsToConsider='..repru(tiTeamsToConsider)..'; Time='..GetGameTimeSeconds()) end
+
+    --A player has changed from ally to enemy or vice versa; if M28AI is only applying to one of the two (but not neither, and not both), then will need to update flag
+    --e.g. Celene in Dawn
+    local oFirstHuman
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.Human then
+            oFirstHuman = oBrain
+            break
+        end
+    end
+
+    --First consider if we need to create/change team composition
+    for iBrain, oBrain in ArmyBrains do
+        local bApplyM28AI = M28Conditions.ApplyM28ToOtherAI(oBrain)
+        if bApplyM28AI and not(oBrain.M28AI) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Starting applying M28AI to brain '..oBrain.Nickname) end
+            oBrain.M28AI = true --redundancy, below should do this as well
+            oBrain['M28BrainSetupRun'] = nil
+            DecideWhetherToApplyM28ToCampaignAI(oBrain, nil, true)
+            --Make sure we are added to player team if we are an ally
+            if IsAlly(oFirstHuman:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                local iTeam = oFirstHuman.M28Team
+                oBrain.M28Team = iTeam
+                if not(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) then
+                    M28Utilities.ErrorHandler('Need to add code to handle this scenario - need to run some but not all of the logic for a new team, or just move all players into a brand new team')
+                else
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains], oBrain)
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains], oBrain)
+                    M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] = (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) + 1
+                end
+                --Set air subteam
+                oBrain.M28AirSubteam = nil
+                M28Team.CreateNewAirSubteam(oBrain)
+                oBrain.M28LandSubteam = nil
+                ForkThread(M28Team.CheckForBrainsWithoutLandSubteam, iTeam, nil, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finsihed reocrding brain '..oBrain.Nickname..' as a new teammate for team '..iTeam) end
+            elseif IsEnemy(oFirstHuman:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                local iTeam = oFirstHuman.M28Team
+                if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains], oBrain)
+                end
+                oBrain.M28Team = nil
+                CreateNewTeam(oBrain)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finsihed creating a new team for brain '..oBrain.Nickname) end
+            end
+        elseif not(bApplyM28AI) and oBrain.M28AI then
+            oBrain.M28AI = false
+            oBrain.M28Team = nil
+            CreateNewTeam(oBrain)
+            if bDebugMessages == true then LOG(sFunctionRef..': No longer applying M28AI to brain '..oBrain.Nickname..'; assigned it to the team '..(oBrain.M28Team or 'nil')) end
+        end
+    end
+
+    --Give time for any brain changes to take effect
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(2)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     function UpdateStatusOfFriendlyAndEnemyUnits(tLZOrWZTeamData, iTeam)
         local iTeamBrainIndex = M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()
         local toFriendlyUnits = {}
@@ -2180,6 +2264,7 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Updating for team '..iTeam..'; bChangedAlliesOrEnemies='..tostring(bChangedAlliesOrEnemies or false)) end
         if bChangedAlliesOrEnemies then
+            bChangedAlliesOrEnemiesForZone = true
             if bDebugMessages == true then LOG(sFunctionRef..': Have a zone with units who have an updated ally/enemy status, iTeam='..iTeam) end
             tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = nil
             tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = toEnemyUnits
@@ -2286,9 +2371,9 @@ function DelayedM27M28BrainCheck(aiBrain)
     if aiBrain.M27AI and aiBrain.M28AI then aiBrain.M28AI = false end
 end
 
-function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
+function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName, bDontWait)
     --Wait a second so hopefully isenemy is more accurate
-    WaitSeconds(1) --also need to update references to iTimeOfLatestBrainToCheckForM28Logic if changing this
+    if not(bDontWait) then WaitSeconds(1) end --also need to update references to iTimeOfLatestBrainToCheckForM28Logic if changing this
     if M28Conditions.ApplyM28ToOtherAI(aiBrain) then
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         aiBrain.M28AI = true

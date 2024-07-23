@@ -811,14 +811,16 @@ function CreateNewTeam(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam)
+function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam, bDontWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckForBrainsWithoutLandSubteam'
 
     while not(M28Map.bWaterZoneInitialCreation) do
         WaitTicks(1)
     end
-    WaitTicks(1)
+    if not(bDontWait) then
+        WaitTicks(1)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if any brains in team '..iTeam..'; are missing a land subteam, tbBrainsWithLandSubteam='..repru(tbBrainsWithLandSubteam)) end
     if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
