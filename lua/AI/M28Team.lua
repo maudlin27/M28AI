@@ -3109,6 +3109,7 @@ function HaveEcoToSupportUpgrades(iM28Team)
             else iNetEnergyIncomeWanted = 100
             end
 
+
             if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, iNetEnergyIncomeWanted='..iNetEnergyIncomeWanted) end
 
             if (tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > iNetEnergyIncomeWanted) then

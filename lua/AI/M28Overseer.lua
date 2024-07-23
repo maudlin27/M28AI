@@ -2730,7 +2730,7 @@ end
 function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
-    local iTimeInSecondsToStartDetailedDebug = 2307.1999511719 --set to high number if first want to figure out the tick where this happens
+    local iTimeInSecondsToStartDetailedDebug = 2278.4 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true

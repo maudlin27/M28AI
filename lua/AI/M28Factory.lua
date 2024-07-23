@@ -3352,7 +3352,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                     M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a high priority, iCurrentConditionToTry='..iCurrentConditionToTry) end
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport * categories.TECH1 - categories.EXPERIMENTAL) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport * categories.TECH1) then
                         return sBPIDToBuild
                     end
                 end

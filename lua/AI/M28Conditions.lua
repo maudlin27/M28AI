@@ -1126,6 +1126,10 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         else
             tiFactoryToMassByTechRatioWanted[1] = 0.6
         end
+    elseif M28Map.iMapSize >= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] < tLZData[M28Map.subrefLZMexCount] then
+        for iTech, iValue in tiFactoryToMassByTechRatioWanted do
+            iValue = iValue * 2
+        end
     end
     local iTeamCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
     if iTeamCount > 1 then
@@ -2548,6 +2552,27 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                             end
                         end
                     end
+                end
+            end
+            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and M28Map.iMapSize >= 1024 then
+                --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 2 mexes of a higher tech level first
+                local bWantMoreMexes = true
+                if oFactory[M28Factory.refiTotalBuildCount] >= 60 then
+                    bWantMoreMexes = false
+                elseif iFactoryTechLevel == 1 then
+                    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(2, tLZOrWZData[M28Map.subrefLZMexCount]) then
+                        bWantMoreMexes = false
+                    end
+                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZOrWZData[M28Map.subrefLZMexCount]) then
+                    bWantMoreMexes = false
+                end
+                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= tLZOrWZData[M28Map.subrefLZMexCount] then
+                    bWantMoreMexes = false
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': LOUD - holding off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                if bWantMoreMexes then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
                 end
             end
         end
