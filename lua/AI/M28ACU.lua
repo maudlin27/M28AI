@@ -1448,6 +1448,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))) end
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
         --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
         oACU[reftPreferredUpgrades] = {}
@@ -1469,13 +1470,28 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil'))
+                LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil')..'; Does ACU have RAS, or is RAS nil='..tostring(oBP.Enhancements['ResourceAllocation'] == nil))
             end
             if sLowestUpgrade then
                 oACU[reftPreferredUpgrades] = { sLowestUpgrade }
                 --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
             elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
                 oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+                --LOUD support where ACU upgrades dont show as improving max radius
+            else
+                local tsOtherUpgradeNames = {
+                    'EXRipperBooster',
+                    'EXZephyrBooster',
+                    'EXChronotronBooster',
+                    'EXDisruptorrBooster',
+                }
+                for iPotentialUpgrade, sPotentialUpgrade in tsOtherUpgradeNames do
+                    if oBP.Enhancements[sPotentialUpgrade] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found backup gun upgrade so will use it, sPotentialUpgrade='..sPotentialUpgrade) end
+                        oACU[reftPreferredUpgrades] = { sPotentialUpgrade}
+                        break
+                    end
+                end
             end
         end
     end
@@ -1707,7 +1723,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                 iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oACU:GetPosition())
             else
                 --May e.g. be underwater and not have a LZ
-                iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPlayerStartPosition(aiBrain))
+                iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))
                 iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPrimaryEnemyBaseLocation(oACU:GetAIBrain()))
             end
             local iPercentageToFriendlyBase = iDistToFriendlyBase / (iDistToFriendlyBase + iDistToEnemyBase)
@@ -1728,7 +1744,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iACUThreat='..(iACUThreat or 'nil')..'; LZ enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; bOneEnemyACUInSameLZ='..tostring(bAgainstEnemyACUAndMightWin or false)..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iACUThreat='..(iACUThreat or 'nil')..'; LZ enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; bOneEnemyACUInSameLZ='..tostring(bAgainstEnemyACUAndMightWin or false)..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; iDistToFriendlyBase='..iDistToFriendlyBase..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]) end
             if (iACUThreat <= 500 or (iACUThreat <= 600 and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 80)) and (not(bAgainstEnemyACUAndMightWin) or (oACU[refbUseACUAggressively] and (iACUThreat + (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + 250 < (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)))) then
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU has low threat so want to run') end
                 bWantToRun = true
@@ -1773,6 +1789,15 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     end
                                 end
 
+                            end
+                            if not(bWantToRun) then
+                                --Run if non-full share or last ACU, are past 15m in-game, mod dist is >=0.4, and we are far from base
+                                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 + 0.04*oACU[refiUpgradeCount] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iPercentageToFriendlyBase >= 0.35 and iDistToFriendlyBase >= (200 + 75 * oACU[refiUpgradeCount]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (GetGameTimeSeconds() >= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] > 1)) and (not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 25)
+                                    --Exception - if enemy isnt at t3 land yet, and we have a mobile shield assigned to guncom ACU with full health
+                                    and (oACU[refiUpgradeCount] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 30 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.6 or not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.97) then
+                                    bWantToRun = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU owned by '..oACU:GetAIBrain().Nickname..' is getting a bit far from base so want to run, time='..GetGameTimeSeconds()) end
+                                end
                             end
                             if not(bWantToRun) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': deciding if want to run from air, iEnemyAirToGroundNearbyThreat='..iEnemyAirToGroundNearbyThreat..'; iFriendlyAAThreat='..(iFriendlyAAThreat or 'nil')..'; iPercentageToFriendlyBase='..(iPercentageToFriendlyBase or 'nil')..'; iDistToFriendlyBase='..(iDistToFriendlyBase or 'nil')..'; Enemy team air to ground threat='..(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
@@ -4391,20 +4416,23 @@ function GetACUOrder(aiBrain, oACU)
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryAirFactory
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                             end
+                        else
+                            bWantAnotherFactory = false
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iLandFacHQCount='..iLandFacHQCount..'; iAirFacHQCount='..iAirFacHQCount) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iLandFacHQCount='..iLandFacHQCount..'; iAirFacHQCount='..iAirFacHQCount..'; iFactoryEngineerAction='..(iFactoryEngineerAction or 'nil')) end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Do we want another factory='..tostring(bWantAnotherFactory)..'; want more factories condition result='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we want another factory='..tostring(bWantAnotherFactory)..'; want more factories condition result='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone))..'; iFactoryEngineerAction='..(iFactoryEngineerAction or 'nil')) end
                 if bWantAnotherFactory then
-
+                    bProceedWithLogic = false
                     ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
 
 
                     if bDebugMessages == true then LOG(sFunctionRef..': WIll try and rebuild base by building a factory') end
                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
-                        --Try building land if we failed to build air, and vice versa, provided we have decent power
-                        if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then
+                        --Try building land if we failed to build air, and vice versa, provided we have decent power, and we lack any factories of the other type, and we want more factories
+                        local bWantMoreFactories = M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        if bWantMoreFactories and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then
                             if iFactoryEngineerAction == M28Engineer.refActionBuildLandFactory then
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryAirFactory
@@ -4415,7 +4443,7 @@ function GetACUOrder(aiBrain, oACU)
                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
                         end
 
-                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                        if bWantMoreFactories and not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                             --Move to WZ to build a naval factory if we have none and are adjacent to water
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) == 0 then
                                 MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
@@ -4428,11 +4456,13 @@ function GetACUOrder(aiBrain, oACU)
                             --Do we want more power?
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                 ACUActionBuildPower(aiBrain, oACU)
+                            else
+                                bProceedWithLogic = true
                             end
                         end
                     end
-                    bProceedWithLogic = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': We want to build factory or power, so wont proceed with logic') end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': We want to build factory or power, so wont proceed with logic, unless we werent able to build eg due to unit restrictions, bProceedWithLogic='..tostring(bProceedWithLogic)) end
                 end
             elseif iPlateauOrZero == 0 and (tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or M28Map.bIsCampaignMap) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) then
                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)

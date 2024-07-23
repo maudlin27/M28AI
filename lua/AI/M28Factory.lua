@@ -736,10 +736,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel == 1 then iMinMAARatioFactor = 20 end
 
     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * iMinMAARatioFactor > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] then
-        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or (bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) and ((GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 5 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) or M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 2 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) then
+        if not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or (bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) and ((GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 5 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) or M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 2 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]))) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have enemies here or adjacent LZ or have enough MAA for enemy air ot ground threat') end
             bDontConsiderBuildingMAA = true
-        elseif GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -100) < 10 then
+        elseif not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -100) < 10 then
             if not (tLZTeamData[M28Map.subrefLZCoreExpansion]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Not a core expansion so dont want more MAA as we havent had MAA targets recently') end
                 bDontConsiderBuildingMAA = true
@@ -763,7 +763,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if not (bDontConsiderBuildingMAA) and ((M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= math.min(600 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] >= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) * 0.2) or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > math.max(4000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 4000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) >= 5)) then
             --Do we have more than 1/6 of our DF and indirect force in AA and enemy air to ground threat is <4k? Or alternatively enemy has no air to ground and we have a lot of AA
             local iMAAFactor = 6
-            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 then
+            if M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently] then iMAAFactor = 2.5
+            elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 then
                 iMAAFactor = 12
             elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 then
                 iMAAFactor = 4
@@ -781,7 +782,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         iMAAInLZ = iMAAInLZ + tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZThreatAllyMAA]
                         iEnemyAirToGround = iEnemyAirToGround + tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refiEnemyAirToGroundThreat]
                     end
-                    if iMAAInLZ >= 300 and iMAAInLZ >= iEnemyAirToGround * 2 then
+                    if iMAAInLZ >= 300 and iMAAInLZ >= iEnemyAirToGround * 2 and (iMAAInLZ >= 600 or not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently])) then
                         bDontConsiderBuildingMAA = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Have some MAA in LZ and more than twice neemy air to ground so dont want more MAA') end
                     end
@@ -796,7 +797,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --If factory is at T1 and we have lots of T1 MAA then dont get more MAA assuming no enemy air threat in this zone
         if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
             local iCurT1MAA =  aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)
-            if iCurT1MAA >= 80 or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and iCurT1MAA >= 20 and (tLZTeamData[M28Map.subrefLZbCoreBase] or iCurT1MAA >= 50 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)) then
+            if iCurT1MAA >= 80 or (not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and iCurT1MAA >= 20 and (tLZTeamData[M28Map.subrefLZbCoreBase] or iCurT1MAA >= 50 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)) then
                 bDontConsiderBuildingMAA = true
                 if bDebugMessages == true then LOG(sFunctionRef..': T1 factory and have enough MAA threat so dont want more') end
             end
@@ -819,7 +820,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
             if bCapMAABuiltAtOnce then
-                if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMAA) >= math.max(1, math.floor(iLandFactoriesInLZ * 0.5)) then
+                if not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMAA) >= math.max(1, math.floor(iLandFactoriesInLZ * 0.5)) then
                     bDontConsiderBuildingMAA = true
                 end
             end
@@ -993,12 +994,33 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Will try and get MAA to combat enemy air to ground threat, iNearbyMAAThreat='..iNearbyMAAThreat..'; iNearbyAirToGroundThreat='..iNearbyAirToGroundThreat)
                         end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then
-                            return sBPIDToBuild
-                        end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
                     end
                 end
             end
+        end
+    end
+
+    --Core base where enemy has t3 air threat and we lack significant groundAA
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want enemy t3 air defence via MAA, bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; Dangerous enemies in this LZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; T3 Air spotted recently='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently])..' Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; MAA threat wanted for this zone='..(tLZTeamData[M28Map.subrefLZMAAThreatWanted] or 0)..'; GroundAA threat in this zone='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Our AirAAthreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
+    if not(bDontConsiderBuildingMAA) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently] and tLZTeamData[M28Map.subrefLZbCoreBase] and ((tLZTeamData[M28Map.subrefLZMAAThreatWanted] or 0) >= 50 or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) < 2500) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < 2500 then
+        local iEngiCategory = M28UnitInfo.refCategoryEngineer
+        if iFactoryTechLevel == 2 then iEngiCategory = iEngiCategory - categories.TECH1
+        elseif iFactoryTechLevel >= 3 then iEngiCategory = iEngiCategory * categories.TECH3
+        end
+        local iEngisWanted = 2
+        if not(bHaveLowMass) or bHaveLowPower then
+            iEngisWanted = 3
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then iEngisWanted = 5 end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want MAA unless we lack engis of this tech level, Engis of category in this zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, iEngiCategory)..'; iEngisWanted='..iEngisWanted) end
+        if not(tLZTeamData[M28Map.subrefTbWantBP]) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, iEngiCategory) >= iEngisWanted then
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy strat MAA defense high priority logic') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
+        else
+            if ConsiderBuildingCategory(iEngiCategory) then return sBPIDToBuild end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
         end
     end
 
@@ -1028,7 +1050,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         else
             --Avoid overbuilding t1 arti too much - will allow slight overbuild though to cover the risk of t1 arti being killed for unrelated reason and delaying the transport too much
             if iCombatUnitsWanted > 0 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) or table.getn(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) <= iCombatUnitsWanted) then
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then return sBPIDToBuild end
+                --Exception - we lack 2 engis of this tech level or better in the zone and want more BP, in which case build engis first
+                local iEngiCategoryToCheck = M28UnitInfo.refCategoryEngineer
+                if iFactoryTechLevel == 2 then iEngiCategoryToCheck = iEngiCategoryToCheck - categories.TECH1
+                elseif iFactoryTechLevel == 3 then iEngiCategoryToCheck = iEngiCategoryToCheck * categories.TECH3
+                end
+                local iEngisWanted = 2
+                if not(bHaveLowMass) and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+                    iEngisWanted = 3
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then iEngisWanted = 4 end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Arti or engi builder, we want arti but first checking we have built a basic number of engineers for this zone, or factory has built lots of units already, oFactory[refiTotalBuildCount]='..oFactory[refiTotalBuildCount]..'; Engis of cat in this zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, iEngiCategoryToCheck)..'; iEngisWanted='..iEngisWanted) end
+                if oFactory[refiTotalBuildCount] < 10 and tLZTeamData[M28Map.subrefTbWantBP] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, iEngiCategoryToCheck) < iEngisWanted and ConsiderBuildingCategory(iEngiCategoryToCheck) then return sBPIDToBuild
+                elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then return sBPIDToBuild end
             end
         end
     end
@@ -1987,6 +2021,28 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
+        --MAA builder if nearby enemy strat and we lack significant groundAA
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if iFactoryTechLevel >= 2 and not(bDontConsiderBuildingMAA) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1700 and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= math.min(2500, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 2500 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+            local iNearbyMAAThreat = (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
+            local bNearbyEnemyCombatThreat = false
+            local bNearbyEnemyAirToGroundThreat = false
+            if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bNearbyEnemyAirToGroundThreat = true end
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if not(bNearbyEnemyCombatThreat) and tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then bNearbyEnemyCombatThreat = true end
+                    if not(bNearbyEnemyAirToGroundThreat) and tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bNearbyEnemyAirToGroundThreat = true end
+                    iNearbyMAAThreat = iNearbyMAAThreat + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Higher priority MAA for potential enemy strat threat, iNearbyMAAThreat='..iNearbyMAAThreat..'; bNearbyEnemyAirToGroundThreat='..tostring(bNearbyEnemyAirToGroundThreat)..'; bNearbyEnemyCombatThreat='..tostring(bNearbyEnemyCombatThreat)) end
+            if iNearbyMAAThreat < math.min(1200, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and (bNearbyEnemyAirToGroundThreat or not(bNearbyEnemyCombatThreat)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to build MAA due to potential enemy strat threat') end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
+            end
+        end
+
 
         --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
         if bHaveHighestLZTech and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or not (bHaveLowMass)) and (not(M28Map.bIsLowMexMap) or iFactoryTechLevel >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or not(bHaveLowMass)) then
@@ -1998,9 +2054,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bSaveMassDueToEnemyFirebaseOrOurExperimental)
             if iCategoryToGet then
-                if ConsiderBuildingCategory(iCategoryToGet) then
-                    return sBPIDToBuild
-                end
+                if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
             end
 
 
@@ -2095,7 +2149,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         LOG(sFunctionRef .. ': Will try to build more indirect fire units if arent building any of this tech level or higher in this LZ')
                     end
                     if iFactoryTechLevel == 1 or (tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech]) or M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) == 0 then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                        if iFactoryTechLevel <= 2 or tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] or not(M28Overseer.bUnitRestrictionsArePresent) then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                        --Exclude T1 incase unit restrictions present
+                        elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect - categories.TECH1) then return sBPIDToBuild
+                        end
                     end
                 elseif tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
@@ -3294,7 +3352,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                     M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a high priority, iCurrentConditionToTry='..iCurrentConditionToTry) end
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport * categories.TECH1 - categories.EXPERIMENTAL) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport * categories.TECH1) then
                         return sBPIDToBuild
                     end
                 end
@@ -3309,9 +3367,66 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
         end
 
+        --T2 air fac upgrade if in safe zone
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Low power t2 or t3 upgrade if in safe zone, tLZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Enemies in this zone='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Zone wants t1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) or false)..'; Brain gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+        if iFactoryTechLevel < 3 and tLZTeamData[M28Map.refbBaseInSafePosition] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and aiBrain:GetEconomyStored('ENERGY') >= 4950 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 50 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 44 and aiBrain:GetEconomyStored('ENERGY') >= 5000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 36*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+            local bActiveHQUpgrade = false
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                local tUpgradingAir
+                if iFactoryTechLevel == 1 then tUpgradingAir = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
+                else tUpgradingAir = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory - categories.TECH1, tLZTeamData[M28Map.subreftoActiveUpgrades])
+                end
+                if M28Utilities.IsTableEmpty(tUpgradingAir) == false then
+                    for iUpgrading, oUpgrading in tUpgradingAir do
+                        if M28UnitInfo.GetUnitTechLevel(oUpgrading) >= iFactoryTechLevel then
+                            bActiveHQUpgrade = true
+                            break
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Low power bActiveHQUpgrade='..tostring(bActiveHQUpgrade)) end
+            if not(bActiveHQUpgrade) then
+                --Do we have eco to support an upgrade?
+                if bDebugMessages == true then LOG(sFunctionRef..': Low power Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; % E stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass gross brain inc='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+                if iFactoryTechLevel == 1 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                        --Do we have a decent number of engis in this zone already?
+                        local bWantMoreEngisInstead = false
+                        if tLZTeamData[M28Map.subrefTbWantBP] and not(bHaveLowMass) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 then
+                            bWantMoreEngisInstead = true
+                            local tEngis = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tEngis) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engis in zone='..table.getn(tEngis)) end
+                                if table.getn(tEngis) >= 8 then
+                                    bWantMoreEngisInstead = false
+                                end
+                            end
+                        end
+                        if bWantMoreEngisInstead then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                                return sBPIDToBuild
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T2 air for safe zone') end
+                            if ConsiderUpgrading() then return sBPIDToBuild end
+                        end
+                    end
+                else --T2 to T3 air
+                    if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 95*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get low power priority upgrade to T3 air for safe zone') end
+                        if ConsiderUpgrading() then return sBPIDToBuild end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want more engis before we go to t3 air') end
+                        if oFactory[refbWantMoreEngineersBeforeUpgrading] then ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) end
+                    end
+                end
+            end
+        end
+
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': AIr fac engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; subrefTbWantBP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP] or false))
+            LOG(sFunctionRef .. ': AIr fac low power engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; subrefTbWantBP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP] or false))
         end
         if not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) then
@@ -3331,7 +3446,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Another engi builder - iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Mass stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored])
+            LOG(sFunctionRef .. ': Another air fac engi builder - iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Mass stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored])
         end
         if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
             --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
@@ -3362,8 +3477,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --Priority engineers as we are being prevented from upgrading
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cant upgrade due to lack of engineers so want more engis') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
+
 
         --Multiple mex upgrades so want more engineers (air fac low power), if only to assist the upgrade (and also so once upgraded we have enough build power)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -3582,7 +3699,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             break
                         end
                     end
-                    if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
+                    if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 or not(tLZTeamData[M28Map.refbBaseInSafePosition])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has enemy threat so will try and build gunship') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
                             return sBPIDToBuild
@@ -3592,6 +3709,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
 
             --early-game Transport (high priority)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want transport, is transport island droplist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))..'; Is same plateau drop list empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]))) end
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) then
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and iFactoryTechLevel <= 2 then
@@ -3808,11 +3926,45 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             else
                 --We have suitably high tech level to consider normal air production (and engineer production), or there are nearby threats that we want to build units to try and deal with
-                --High mass or low engi count - build more engineers
+                --T2 air upgrade for 'safe' zones if lack any HQ upgrades in this zone and have decent base level of energy
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': High mass engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Lowest mass % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
+                if bDebugMessages == true then LOG(sFunctionRef..': Safe zone air fac upgrade, are we in safe position='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Enemies in this zone='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Zone wants t1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) or false)) end
+                if iFactoryTechLevel < 3 and tLZTeamData[M28Map.refbBaseInSafePosition] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) then
+                    local bActiveHQUpgrade = false
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                        local tUpgradingAir
+                        if iFactoryTechLevel == 1 then tUpgradingAir = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
+                        else tUpgradingAir = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory - categories.TECH1, tLZTeamData[M28Map.subreftoActiveUpgrades])
+                        end
+                        if M28Utilities.IsTableEmpty(tUpgradingAir) == false then
+                            for iUpgrading, oUpgrading in tUpgradingAir do
+                                if M28UnitInfo.GetUnitTechLevel(oUpgrading) >= iFactoryTechLevel then
+                                    bActiveHQUpgrade = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': bActiveHQUpgrade='..tostring(bActiveHQUpgrade)) end
+                    if not(bActiveHQUpgrade) then
+                        --Do we have eco to support an upgrade?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; % E stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass gross brain inc='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+                        if iFactoryTechLevel == 1 then
+                            if aiBrain:GetEconomyStored('ENERGY') >= 4950 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T2 air for safe zone') end
+                                if ConsiderUpgrading() then return sBPIDToBuild end
+                            end
+                        else --T2 to T3 air
+                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 90*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T3 air for safe zone') end
+                                if ConsiderUpgrading() then return sBPIDToBuild end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want some more engis before we go to t3 air') end
+                                if oFactory[refbWantMoreEngineersBeforeUpgrading] then ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) end
+                            end
+                        end
+                    end
                 end
+
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Another engi builder - iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Mass stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored])
@@ -3826,9 +3978,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
                     end
                     local iMinEngisWanted = math.max(5, math.min(20, aiBrain[M28Economy.refiGrossMassBaseIncome] / (1.5 * aiBrain[M28Economy.refiOurHighestFactoryTechLevel])))
-
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMinEngisWanted='..iMinEngisWanted..'; iEngisOfTechInZone='..iEngisOfTechInZone..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Average % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
                     if iEngisOfTechInZone < iMinEngisWanted or (not (bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
-
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                             return sBPIDToBuild
                         end

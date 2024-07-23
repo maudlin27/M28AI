@@ -62,7 +62,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refiTimeLastWantedPriorityAirScout = 'M28PrArSc' --Gametimeseconds the unit was last checked to be added to the table for priority air scouts
     refiAssignedSuicideASF = 'M28AsfSu' --againt a strategic bomber, records Number of asfs assigned to suciide into the bomber in its lifetime
     refbReassessingTarget = 'M28AReasTr' --Against a t1 bomber, true if are currently waiting and will reassess target in a moment
-
+    refoGunshipAttackOrderTarget = 'M28AGsAOTg' --if gunship is being given an attack-move order to ensure it fires at a target, this records that target
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2227,11 +2227,15 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                                 local oRefuelingUnit = oAirStaging[reftAssignedRefuelingUnits][iCurUnit]
                                 if M28UnitInfo.IsUnitValid(oRefuelingUnit) then
                                     local tLastOrder = oRefuelingUnit[M28Orders.reftiLastOrders][oRefuelingUnit[M28Orders.refiOrderCount]]
-                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
-
-                                        --Unit is still assigned here
+                                    if oRefuelingUnit:IsUnitState('Attached') then
                                         iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
-                                        if bDebugMessages == true then LOG(sFunctionRef..' Staging has been assigned to oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..'; Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..', is assigned to air staging '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..' and is attached, Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse) end
+                                    elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
+                                        --Unit is still assigned here and has orders to get here
+                                        iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
+                                        --Refresh orders due to issue where a unit can sometimes be told to refuel but doesn't (seems particularly likely in LOUD)
+                                        M28Orders.UpdateRecordedOrders(oRefuelingUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..' Staging has been assigned to oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..'; Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse..'; Order count post refresh for refueling unit='..(oRefuelingUnit[M28Orders.refiOrderCount] or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)) end
                                     else
                                         --Unit has other orders so remove from here
                                         table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
@@ -4504,7 +4508,7 @@ function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam, tOptionalEnemyBaseOver
     return oClosestUnit
 end
 
-function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
+function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetGunshipsToMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4626,12 +4630,24 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         end
     end
 
+    local bConsiderAttackIfNotFiredRecently
+    if oOptionalTarget and M28Utilities.bLoudModActive then
+        bConsiderAttackIfNotFiredRecently = true
+    end
+
     function MoveIndividualGunship(oClosestUnit, tUnitDestination)
         --Experimental gunship doesnt attack properly when just given a move order
         if EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination) <= 20 then
             M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSExA', false)
         else
-            M28Orders.IssueTrackedMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSAtc', false)
+            if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackIfNotFiredRecently='..tostring(bConsiderAttackIfNotFiredRecently)..'; Time since last f ired='..GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+            if bConsiderAttackIfNotFiredRecently and (oClosestUnit[refoGunshipAttackOrderTarget] == oOptionalTarget or (GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > math.max(math.min(1, (oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1) * 2), (oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1)) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), oOptionalTarget:GetPosition()) < (oClosestUnit[M28UnitInfo.refiDFRange] or 0))) then
+                M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSLdAtc', false)
+                oClosestUnit[refoGunshipAttackOrderTarget] = oOptionalTarget
+            else
+                M28Orders.IssueTrackedMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSAtc', false)
+                if bConsiderAttackIfNotFiredRecently then oClosestUnit[refoGunshipAttackOrderTarget] = nil end
+            end
         end
     end
 
@@ -5746,7 +5762,11 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     end
                 end
-                GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+                if M28Utilities.bLoudModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
+                    GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
+                else
+                    GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+                end
             end
         end
     else

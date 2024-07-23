@@ -127,6 +127,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
 
     --Notable unit count and threat details
+    refbEnemyEarlyT3AirSpottedRecently = 'M28TEnT3ArThr' --set to true for 3m if the first lifetime count enemy T3 air unit is detected, and we lack t3 air and lack a good airaa threat (so we can try and defend vs a strat)
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     refiEnemyT3ArtiCount = 'M28TeamT3ArtC' --Number of enemy t3 arti and exp arti (exp arti count as 3)
     refiEnemyNovaxCount = 'M28TeamNovC' --Number of enemy novax
@@ -401,7 +402,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     local sFunctionRef = 'UpdateUpgradeTrackingOfUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade='..(oUnitDoingUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade) or 'nil')..' owned by brain '..oUnitDoingUpgrade:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) M28Utilities.ErrorHandler('Audit trail', true, true) end
+
 
     local sUpgradeTableRef
     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitDoingUpgrade.UnitId) then
@@ -810,14 +811,16 @@ function CreateNewTeam(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam)
+function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam, bDontWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckForBrainsWithoutLandSubteam'
 
     while not(M28Map.bWaterZoneInitialCreation) do
         WaitTicks(1)
     end
-    WaitTicks(1)
+    if not(bDontWait) then
+        WaitTicks(1)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if any brains in team '..iTeam..'; are missing a land subteam, tbBrainsWithLandSubteam='..repru(tbBrainsWithLandSubteam)) end
     if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
@@ -1697,15 +1700,23 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true') end
                                     end
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
-                                --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
                                 local iTeam = aiBrain.M28Team
-                                if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
-                                else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
-                                    tTeamData[iTeam][refbDangerousForACUs] = true
+                                if not(tTeamData[iTeam][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
+                                    --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
+                                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
+                                        tTeamData[iTeam][refbDangerousForACUs] = true
+                                    end
+                                end
+                                --If we lack T3 air and LC of unit is 1 then set flag so we get more AA asap
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and (tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] < 3 or tTeamData[iTeam][subrefiOurAirAAThreat] < 2500) and not(tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryAirAA * categories.TECH3, iTeam) == 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Flagging enemy T3 air danger for team at time='..GetGameTimeSeconds()) end
+                                    tTeamData[iTeam][refbEnemyEarlyT3AirSpottedRecently] = true
+                                    M28Utilities.DelayChangeVariable(tTeamData[iTeam], refbEnemyEarlyT3AirSpottedRecently, false, 150)
                                 end
                             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                                 --check not already in table of enemy aCUs and add to this table
@@ -3098,6 +3109,7 @@ function HaveEcoToSupportUpgrades(iM28Team)
             else iNetEnergyIncomeWanted = 100
             end
 
+
             if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, iNetEnergyIncomeWanted='..iNetEnergyIncomeWanted) end
 
             if (tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > iNetEnergyIncomeWanted) then
@@ -3391,16 +3403,16 @@ function TeamEconomyRefresh(iM28Team)
 
 
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
-            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
+            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + (oBrain[M28Economy.refiGrossEnergyBaseIncome] or 0)
+            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + (oBrain[M28Economy.refiGrossMassBaseIncome] or 0)
             --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
             --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
                 M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
                 oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
             end--]]
 
-            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
-            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
+            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + (oBrain[M28Economy.refiNetEnergyBaseIncome] or 0)
+            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + (oBrain[M28Economy.refiNetMassBaseIncome] or 0)
 
 
             if oBrain:GetEconomyStored('ENERGY') > 0 then
@@ -3602,6 +3614,7 @@ function TeamInitialisation(iM28Team)
     else
         tTeamData[iM28Team][subrefiOrigM28BrainCount] = 0
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for team '..iM28Team..' at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
