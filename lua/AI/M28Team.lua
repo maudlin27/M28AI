@@ -3614,6 +3614,7 @@ function TeamInitialisation(iM28Team)
     else
         tTeamData[iM28Team][subrefiOrigM28BrainCount] = 0
     end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code for team '..iM28Team..' at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
