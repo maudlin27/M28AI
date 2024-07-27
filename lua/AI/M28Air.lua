@@ -269,15 +269,15 @@ function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOver
 
     local bAddUnit = true
     local iAirSubteam = iAirSubteamOverride or oUnit:GetAIBrain().M28AirSubteam
-    if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
-        for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
+    if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
+        for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
             if oExistingUnit == oUnit then bAddUnit = false break end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Will add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to priority table of units wanting scout unless it is already there, bAddUnit='..tostring(bAddUnit)..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()) end
     if bAddUnit then
-        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
-        table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oUnit)
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] = {} end
+        table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], oUnit)
         oUnit[refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
     end
 end
@@ -5821,16 +5821,16 @@ function ManageGunships(iTeam, iAirSubteam)
 
     --Update if gunship wants scout (for cloaked neemies)
     --First remove any existing assignment
-    if M28Utilities.IsTableEmpty( M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
-        local iExistingEntries = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout])
+    if M28Utilities.IsTableEmpty( M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
+        local iExistingEntries = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout])
         for iCurEntry = iExistingEntries, 1, -1 do
-            if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iCurEntry])) or EntityCategoryContains(M28UnitInfo.refCategoryGunship, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout].UnitId) then
-                table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], iCurEntry)
+            if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout][iCurEntry])) or EntityCategoryContains(M28UnitInfo.refCategoryGunship, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout].UnitId) then
+                table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], iCurEntry)
             end
         end
     end
     if bGunshipWantsAirScout and oFrontGunship then
-        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] = {} end
         AddUnitWantingPriorityScout(oFrontGunship)
     end
 
@@ -6038,17 +6038,17 @@ function ManageAirScouts(iTeam, iAirSubteam)
         local tScoutsWithNoDestination = {}
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
         --First assign any priority scouts
-        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
             --Refresh the list
-            local iPriorityUnitsToScout = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout])
+            local iPriorityUnitsToScout = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout])
             for iEntry = iPriorityUnitsToScout, 1, -1 do
-                if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry])) or GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry][refiTimeLastWantedPriorityAirScout] or GetGameTimeSeconds()) >= 20 then
-                    table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], iEntry)
+                if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout][iEntry])) or GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout][iEntry][refiTimeLastWantedPriorityAirScout] or GetGameTimeSeconds()) >= 20 then
+                    table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], iEntry)
                 end
             end
-            if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+            if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
                 local iCurDist, iClosestDist
-                for iUnitToScout, oUnitToScout in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
+                for iUnitToScout, oUnitToScout in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
                     --Find the nearest spy plane
                     iClosestDist = 100000
                     local iClosestRef
