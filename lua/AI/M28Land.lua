@@ -49,6 +49,7 @@ iIntelThresholdForPriorityScout = 30 --I.e. if have less than this radar coverag
 
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
+refoAssignedLandScout = 'M28ACULSc' --assigned land scout for the ACU or skirmisher/other unit requesting priority land scout
 reftoAdditionalAssignedMobileShields = 'M28LandExtraMobS' --for units assigned multiple mobile shields (e.g. ACUs)
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
 refoAssignedMobileStealth = 'M28LandAssignedMobileStealth' --If a mobile stealth is assigned to this unit, then returns the mobile stealth unit assigned
@@ -1114,7 +1115,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
         if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
             function AssignLandScoutToUnit(oUnitToReceiveScout)
-                oUnitToReceiveScout[M28ACU.refoAssignedLandScout] = tAvailableScouts[1]
+                oUnitToReceiveScout[refoAssignedLandScout] = tAvailableScouts[1]
                 tAvailableScouts[1][refoLandScoutTarget] = oUnitToReceiveScout
                 table.insert(toEscortScouts, tAvailableScouts[1])
                 table.remove(tAvailableScouts, 1)
@@ -1145,7 +1146,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             --If not a core zone and have ACU in this zone that lacks a decided scout, no nearby omni, and has an upgrade with decent df range (so guncom) then assign scout to it
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiRadarCoverage] < math.min(300, math.max(200, M28UnitInfo.iT3RadarSize - 90)) then
                 for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
-                    if not(M28UnitInfo.IsUnitValid(oACU[M28ACU.refoAssignedLandScout])) and (oACU[M28ACU.refiUpgradeCount] or 0) > 0 and oACU[M28UnitInfo.refiDFRange] >= 28 then
+                    if not(M28UnitInfo.IsUnitValid(oACU[refoAssignedLandScout])) and (oACU[M28ACU.refiUpgradeCount] or 0) > 0 and oACU[M28UnitInfo.refiDFRange] >= 28 then
                         AssignLandScoutToUnit(oACU)
                         if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                     end
@@ -1241,7 +1242,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                             for iCurRecorded = table.getn(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]), 1, -1 do
                                                 local oCurRecorded = tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts][iCurRecorded]
                                                 if M28UnitInfo.IsUnitValid(oCurRecorded) then
-                                                    if M28UnitInfo.IsUnitValid(oCurRecorded[M28ACU.refoAssignedLandScout]) then --redundancy
+                                                    if M28UnitInfo.IsUnitValid(oCurRecorded[refoAssignedLandScout]) then --redundancy
                                                         oCurRecorded[refbFlaggedForPriorityScout] = false
                                                         oCurRecorded[refiTimeLastBuiltLandScoutForUnit] = nil
                                                         table.remove(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], iCurRecorded)
@@ -1301,7 +1302,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             for iScout, oScout in toEscortScouts do
                 --If target is underwater and we are not amphibious/hover, then no longer assign
                 if M28UnitInfo.IsUnitUnderwater(oScout[refoLandScoutTarget]) and not(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oScout.UnitId)) then
-                    oScout[refoLandScoutTarget][M28ACU.refoAssignedLandScout] = nil
+                    oScout[refoLandScoutTarget][refoAssignedLandScout] = nil
                     oScout[refoLandScoutTarget] = nil
                 else
                     M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout[refoLandScoutTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(oScout[refoLandScoutTarget]:GetPosition(), oScout:GetPosition()), 8, true, false, true), 1.5, false, 'ScACU'..oScout[refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[refoLandScoutTarget]))
@@ -9199,7 +9200,7 @@ function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdju
 end
 
 function ConsiderPriorityLandScoutFlag(oUnit)
-    if not(M28UnitInfo.IsUnitValid(oUnit[M28ACU.refoAssignedLandScout])) then
+    if not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedLandScout])) then
         local bInTable = false
         local iLandSubteam = oUnit:GetAIBrain().M28LandSubteam
         if oUnit[refbFlaggedForPriorityScout] == nil then

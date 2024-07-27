@@ -44,7 +44,6 @@ refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on g
 refbPlanningToGetShield = 'M28ACUPlanningShield' --nil if haven't considered whether to get shield or not yet; true if planning on getting shield/equivalent upgrade on the ACU
 refiTimeLastConsideredUpgradePath = 'M28ACUTimUpP' --Gametimeseconds we last considered the upgrade path
 refoShieldRallyTarget = 'M28ACUShR' --Shield unit that ACU is trying to shelter under
-refoAssignedLandScout = 'M28ACULSc' --assigned land scout for the ACU
 refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. enemy ACU getting upgrade and we want our own upgrade to defend against it)
 
 --ACU related variables against the ACU's brain
@@ -2414,7 +2413,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     if oACU[M28UnitInfo.refiDFRange] <= iEnemyHighestDFInThisLZ then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has same or better range than us so want to be reasonable amount in range, iEnemyHighestDFInThisLZ='..iEnemyHighestDFInThisLZ..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]) end
                         iMaxDistToBeInRange = 3.5
-                        if (not(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToTarget, false)) or (tLZTeamData[M28Map.refiRadarCoverage] < 30 and not(M28UnitInfo.IsUnitValid(oACU[refoAssignedLandScout])))) then
+                        if (not(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToTarget, false)) or (tLZTeamData[M28Map.refiRadarCoverage] < 30 and not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout])))) then
                             iMaxDistToBeInRange = math.max(iMaxDistToBeInRange, math.min(iMaxDistToBeInRange, 3) + oACU[M28UnitInfo.refiDFRange] - (oACU:GetBlueprint().Intel.VisionRadius or oACU[M28UnitInfo.refiDFRange]))
                             bConsiderAttackMoveDueToIntel = true
                         end
@@ -2428,7 +2427,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         elseif iAngleDif <= 10 and oEnemyToTarget:IsUnitState('Moving') then
                             iMaxDistToBeInRange = 0.25
                         end
-                        if (not(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToTarget, false)) or (tLZTeamData[M28Map.refiRadarCoverage] < 30 and not(M28UnitInfo.IsUnitValid(oACU[refoAssignedLandScout])))) then
+                        if (not(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToTarget, false)) or (tLZTeamData[M28Map.refiRadarCoverage] < 30 and not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout])))) then
                             iMaxDistToBeInRange = math.max(iMaxDistToBeInRange, math.min(iMaxDistToBeInRange, 3) + oACU[M28UnitInfo.refiDFRange] - (oACU:GetBlueprint().Intel.VisionRadius or oACU[M28UnitInfo.refiDFRange]))
                             bConsiderAttackMoveDueToIntel = true
                         end
