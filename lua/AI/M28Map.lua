@@ -350,6 +350,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiSonarCoverage = 'SonCov' --Sonar coverage of the centre of the land or water zone midpoint (intended for water zones)
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
             refoBestSonar = 'BestSon' --Sonar providing the best sonar coverage for the water zone midpoint
+            reftoUnitsWantingPriorityScouts = 'PrLndS' --If the land subteam has any units flagged as wanting priority scouts, then they should be assigned against this zone
             --Note: reftoAllOmniRadar is against LZData and contains all omni for all players
             refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
             refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)

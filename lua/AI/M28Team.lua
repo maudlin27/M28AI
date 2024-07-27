@@ -285,7 +285,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --LAND SUBTEAM data table; First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
     subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
     refbConsideredScoutFactionRestrictions = 'M28LSTSctRest' --true if we have applied subrefBlueprintBlacklist for land scouts yet
-
+    reftoPriorityUnitsWantingLandScout = 'M28LSTPrLnSc' --table of units wanting a land scout as a priority
 
 --Other variables dependent on above:
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite, [reftEnemyAirExperimentals] = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL }
