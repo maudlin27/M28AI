@@ -1284,14 +1284,12 @@ function CalculateBlueprintThreatsByType()
                 elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
                     M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId), (GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 4))
                 elseif EntityCategoryContains(refCategoryMassStorage + refCategoryEnergyStorage, sUnitId) then
-                    bDebugMessages = true
                     local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     local iTechLevelOfEngineerToBuildUnit = GetTechLevelOfEngineerToBuildBlueprint(sUnitId)
                     iCurTechLevel = math.max(iCurTechLevel, (iTechLevelOfEngineerToBuildUnit or 3))
                     if EntityCategoryContains(refCategoryMassStorage, sUnitId) then M28Building.iLowestMassStorageTechAvailable = math.min(M28Building.iLowestMassStorageTechAvailable, iCurTechLevel) end
                     if EntityCategoryContains(refCategoryEnergyStorage, sUnitId) then M28Building.iLowestEnergyStorageTechAvailable = math.min(M28Building.iLowestEnergyStorageTechAvailable, iCurTechLevel) end
                     if bDebugMessages == true then LOG(sFunctionRef..': Just updated details of lowest storage tech available, sUnitId='..sUnitId..'; iCurTechLevel='..iCurTechLevel..'; Is mass storage='..tostring(EntityCategoryContains(refCategoryMassStorage, sUnitId))..'; Is energy storage='..tostring(EntityCategoryContains(refCategoryEnergyStorage, sUnitId))..'; Lowest mass s torage tech='..M28Building.iLowestMassStorageTechAvailable..'; Lowest energy storage tech='..M28Building.iLowestEnergyStorageTechAvailable..'; GetBlueprintTechLevel(sUnitId)='..GetBlueprintTechLevel(sUnitId)..'; GetTechLevelOfEngineerToBuildBlueprint(sUnitId)='..(GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 'nil')) end
-                    bDebugMessages = false
                 end
 
                 if bCheckForVolatileUnits then

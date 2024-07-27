@@ -1649,7 +1649,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
-        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber(ScenarioInfo.Options.CmpAIDelay)..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
         if not(aiBrain.HostileCampaignAI) or tonumber(ScenarioInfo.Options.CmpAIDelay) <= GetGameTimeSeconds() then
             --Aeon SML - one case having 11s threshold was fine, another when it was 12.1s since it fired a nuke it ended up clearing the old order
             local iTimeToWaitBetweenLaunches = 6 --i.e. TML

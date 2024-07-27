@@ -6,8 +6,8 @@
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 do --Per Balthazaar - encasing the code in do .... end means that you dont have to worry about using unique variables
-    if false then --ORIG FAF HOOKS FROM V102 BEFORE LOUD COMPATIBILITY
-        local M28OldUnit = Unit
+        --ORIG FAF HOOKS FROM V102 BEFORE LOUD COMPATIBILITY
+        --[[local M28OldUnit = Unit
         Unit = Class(M28OldUnit) {
             OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
                 M28Events.OnKilled(self, instigator, type, overkillRatio)
@@ -26,23 +26,16 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 M28Events.OnKilled(unitKilled, self)
                 M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
             end,
-            --[[OnFailedToBeBuilt = function(self)
-                LOG('OnFailedToBeBuilt: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-                M28OldUnit.OnFailedToBeBuilt(self)
-            end,--]]
             OnDestroy = function(self)
                 M28Events.OnUnitDeath(self) --Any custom code we want to run
                 M28OldUnit.OnDestroy(self) --Normal code
             end,
-            --[[OnWorkEnd = function(self, work)
-                M28Events.OnWorkEnd(self, work)
-                M28OldUnit.OnWorkEnd(self, work)
-            end,--]]
             OnDamage = function(self, instigator, amount, vector, damageType)
                 M28OldUnit.OnDamage(self, instigator, amount, vector, damageType)
                 M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
             end,
             OnSiloBuildEnd = function(self, weapon)
+                --LOG('OnSiloBuildEnd triggered')
                 M28OldUnit.OnSiloBuildEnd(self, weapon)
                 M28Events.OnMissileBuilt(self, weapon)
             end,
@@ -103,10 +96,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
                 return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation)
             end,
-        }
-    end
-    if false then --ORIG HOOKS THAT APPEARED TO WORK IN v103 FOR LOUD AND FAF, BUT WHICH CAUSED ISSUES WITH SKIRMISH
-        local M28OldUnit = Unit
+        }--]]
+
+        --ORIG HOOKS THAT APPEARED TO WORK IN v103 FOR LOUD AND FAF, BUT WHICH CAUSED ISSUES WITH SKIRMISH
+        --[[local M28OldUnit = Unit
         Unit = Class(M28OldUnit) {
             OnCreate = function(self)
                 --LOG('M28OnCreate triggering from unit.lua')
@@ -134,26 +127,18 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 M28Events.OnKilled(unitKilled, self)
                 if M28OldUnit.OnKilled then M28OldUnit.OnKilledUnit(self, unitKilled, massKilled) end
             end,
-            --[[OnFailedToBeBuilt = function(self)
-                --LOG('OnFailedToBeBuilt: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-                M28OldUnit.OnFailedToBeBuilt(self)
-            end,--]]
             OnDestroy = function(self)
                 --LOG('M28OnDestroy triggering from unit.lua')
                 M28Events.OnUnitDeath(self) --Any custom code we want to run
                 if M28OldUnit.OnUnitDeath then M28OldUnit.OnDestroy(self) end --Normal code
             end,
-            --[[OnWorkEnd = function(self, work)
-                M28Events.OnWorkEnd(self, work)
-                M28OldUnit.OnWorkEnd(self, work)
-            end,--]]
             OnDamage = function(self, instigator, amount, vector, damageType)
                 --LOG('M28OnDamage triggering from unit.lua')
                 if M28OldUnit.OnDamage then M28OldUnit.OnDamage(self, instigator, amount, vector, damageType) end
                 M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
             end,
             OnSiloBuildEnd = function(self, weapon)
-                --LOG('M28OnSiloBuildEnd triggering from unit.lua')
+                LOG('M28OnSiloBuildEnd triggering from unit.lua')
                 if M28OldUnit.OnSiloBuildEnd then M28OldUnit.OnSiloBuildEnd(self, weapon) end
                 M28Events.OnMissileBuilt(self, weapon)
             end,
@@ -250,8 +235,8 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
                 if M28OldUnit.OnMissileIntercepted then return M28OldUnit.OnMissileIntercepted(self, target, defense, position) end
             end,
-        }
-    end
+        }--]]
+
     --REVISED HOOKS FOR v104 WHICH APPEAR TO WORK FOR BOTH FAF AND LOUD:
     local M28OldUnit = Unit
     Unit = Class(M28OldUnit) {
@@ -289,8 +274,9 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             if M28OldUnit.OnDamaged then M28Events.OnDamaged(self, instigator) end --Want this after just incase our code messes things up
         end,
         OnSiloBuildEnd = function(self, weapon)
-            M28OldUnit.OnSiloBuildEnd(self, weapon)
-            if M28OldUnit.OnMissileBuilt then M28Events.OnMissileBuilt(self, weapon) end
+            --LOG('OnSiloBuildEnd triggered')
+            if M28OldUnit.OnMissileBuilt then M28OldUnit.OnSiloBuildEnd(self, weapon) end
+            M28Events.OnMissileBuilt(self, weapon)
         end,
         OnStartBuild = function(self, built, order, ...)
             ForkThread(M28Events.OnConstructionStarted, self, built, order)
