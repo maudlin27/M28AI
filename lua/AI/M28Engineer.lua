@@ -9004,7 +9004,7 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
     local iBPWanted = 0
     --Are all mexes in the LZ at T2+ or do we have any T3 mexes in the LZ?
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; T2+T3 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]..'; T1 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn(tLZOrWZData[M28Map.subrefLZMexLocations])..'; Zone mex count='..tLZOrWZData[M28Map.subrefLZMexCount]) end
-    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
+    if M28Building.iLowestMassStorageTechAvailable <= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
             --Do we have really low power?
@@ -10200,9 +10200,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Mass storage if we have none (e.g. for snadbox games where lose ACU)
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.1 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+    if M28Building.iLowestMassStorageTechAvailable <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.1 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
         --Build mass storage for this team - e.g. if in sandbox and lost ACU
-        HaveActionToAssign(refActionBuildMassStorage, 1, 5)
+        HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, 5)
     end
 
 
@@ -10782,7 +10782,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Energy storage if we have none and at least 1 T2+ mex
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
-    if not(M28Utilities.bLoudModActive) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+    if M28Building.iLowestEnergyStorageTechAvailable <= 2 and (not(M28Utilities.bLoudModActive) or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --Is the number of storage in this LZ <= lowest storage count?
         local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local iStorageInThisLZ = 0
@@ -10799,7 +10799,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get storage, Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
                 iBPWanted = 5
                 if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 20 end
-                HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
+                HaveActionToAssign(refActionBuildEnergyStorage, M28Building.iLowestEnergyStorageTechAvailable, iBPWanted)
             end
         end
     end
@@ -12128,11 +12128,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iStorageInThisLZ='..iStorageInThisLZ) end
             if iStorageInThisLZ <= M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] and (not(bSaveMassForMML) or iStorageInThisLZ == 0) then
-                if not(M28Utilities.bLoudModActive) or (iStorageInThisLZ == 0 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0) then
+                if (not(M28Utilities.bLoudModActive) and M28Building.iLowestEnergyStorageTechAvailable <= 2) or (iStorageInThisLZ == 0 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get storage, Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
                     iBPWanted = 5
                     if not(bHaveLowMass) then iBPWanted = 20 end
-                    HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
+                    HaveActionToAssign(refActionBuildEnergyStorage, M28Building.iLowestEnergyStorageTechAvailable, iBPWanted)
                 end
             end
         end
@@ -12326,11 +12326,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Higher priority mass storage if we have T3 in the LZ and available storage locations
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
+    if M28Building.iLowestMassStorageTechAvailable <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
         iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, true, bHaveLowMass, bWantMorePower)
         if bSaveMassForMML then iBPWanted = iBPWanted * 0.5 end
         if iBPWanted > 0 then
-            HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+            HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
         end
     end
 
@@ -12426,7 +12426,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, true, bHaveLowMass, bWantMorePower)
     if iBPWanted > 0 then
         if bSaveMassForMML then iBPWanted = iBPWanted * 0.5 end
-        HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+        HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
     end
 
     --Lower priority core WZ wanting engineers:
@@ -14281,7 +14281,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, true, bHaveLowMass, bWantMorePower)
     if iBPWanted > 0 then
-        HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+        HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
     end
 
     --Lower priority mass reclaim
@@ -15403,7 +15403,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPToAssignToMassStorage(0, iWaterZone, iTeam, tWZData, tWZTeamData, false, bHaveLowMass, bHaveLowPower)
     if iBPWanted > 0 then
-        HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+        HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
     end
 
     --Experimental naval unit for very high mass levels (higher priority than naval fac assist so engis stop assisting naval fac and start building this)

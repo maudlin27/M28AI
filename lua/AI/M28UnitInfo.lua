@@ -478,6 +478,15 @@ function GetBlueprintTechLevel(sUnitId)
     return iTechLevel
 end
 
+function GetTechLevelOfEngineerToBuildBlueprint(sUnitId)
+    local iTechLevel
+    if EntityCategoryContains(categories.BUILTBYTIER1ENGINEER, sUnitId) then iTechLevel = 1
+    elseif EntityCategoryContains(categories.BUILTBYTIER2ENGINEER, sUnitId) then iTechLevel = 2
+    elseif EntityCategoryContains(categories.BUILTBYTIER3ENGINEER, sUnitId) then iTechLevel = 3
+    end
+    return iTechLevel
+end
+
 function GetUpgradeCombatWeighting(sEnhancementRef)
     --Returns the combat mass mod to apply to an enhancement
     --Obtain using aiBrain:GetFactionIndex()
@@ -1273,7 +1282,16 @@ function CalculateBlueprintThreatsByType()
                         end
                     end
                 elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
-                    M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId))
+                    M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId), (GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 4))
+                elseif EntityCategoryContains(refCategoryMassStorage + refCategoryEnergyStorage, sUnitId) then
+                    bDebugMessages = true
+                    local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
+                    local iTechLevelOfEngineerToBuildUnit = GetTechLevelOfEngineerToBuildBlueprint(sUnitId)
+                    iCurTechLevel = math.max(iCurTechLevel, (iTechLevelOfEngineerToBuildUnit or 3))
+                    if EntityCategoryContains(refCategoryMassStorage, sUnitId) then M28Building.iLowestMassStorageTechAvailable = math.min(M28Building.iLowestMassStorageTechAvailable, iCurTechLevel) end
+                    if EntityCategoryContains(refCategoryEnergyStorage, sUnitId) then M28Building.iLowestEnergyStorageTechAvailable = math.min(M28Building.iLowestEnergyStorageTechAvailable, iCurTechLevel) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just updated details of lowest storage tech available, sUnitId='..sUnitId..'; iCurTechLevel='..iCurTechLevel..'; Is mass storage='..tostring(EntityCategoryContains(refCategoryMassStorage, sUnitId))..'; Is energy storage='..tostring(EntityCategoryContains(refCategoryEnergyStorage, sUnitId))..'; Lowest mass s torage tech='..M28Building.iLowestMassStorageTechAvailable..'; Lowest energy storage tech='..M28Building.iLowestEnergyStorageTechAvailable..'; GetBlueprintTechLevel(sUnitId)='..GetBlueprintTechLevel(sUnitId)..'; GetTechLevelOfEngineerToBuildBlueprint(sUnitId)='..(GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 'nil')) end
+                    bDebugMessages = false
                 end
 
                 if bCheckForVolatileUnits then

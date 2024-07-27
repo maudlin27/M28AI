@@ -27,6 +27,8 @@ iTimeForSMDToBeConstructed = 45 --i.e. number of seconds we assume an SMD will b
 bShieldsCanDischarge = true
 bNovaxInGame = false
 iLowestAirStagingTechAvailable = 3
+iLowestMassStorageTechAvailable = 3
+iLowestEnergyStorageTechAvailable = 3
 
 --Variables against a unit:
     --TML and TMD

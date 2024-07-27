@@ -2891,14 +2891,14 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
 
     local rRect = M28Utilities.GetRectAroundLocation(oFactory:GetPosition(), M28UnitInfo.GetBuildingSize(oFactory.UnitId) * 0.5 - 0.2)
     local tUnitsInRect = GetUnitsInRect(rRect)
-    if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' owned by brain '..oFactory:GetAIBrain().Nickname..'; so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; Team='..iTeam..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' owned by brain '..oFactory:GetAIBrain().Nickname..'; so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; Team='..aiBrain.M28Team..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
         local tMobileLandInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand, tUnitsInRect)
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile land empty='..tostring(M28Utilities.IsTableEmpty(tMobileLandInRect))) end
         if M28Utilities.IsTableEmpty(tMobileLandInRect) == false then
             for iUnit, oUnit in tMobileLandInRect do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..tostring(M28UnitInfo.GetUnitState(oUnit))..'; Unit team='..oUnit:GetAIBrain().M28Team..'; Time last tried unblocking move order='..GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100)) end
-                if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == iTeam and not(oUnit:IsUnitState('Upgrading')) then
+                if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
                     --Move the unit unless we've recently given such an order
                     if GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100) > 10 then
 
