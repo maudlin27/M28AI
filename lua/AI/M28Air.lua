@@ -5046,6 +5046,16 @@ function ManageGunships(iTeam, iAirSubteam)
                         iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
                     else
                         iMaxEnemyGroundAA = iOurGunshipThreat / iGunshipThreatFactorWanted
+                        --Further adjust for enemy shield value
+                        if (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then
+                            if M28Utilities.bFAFActive then
+                                --Shields dont stack very well so limit the threat from them to 1:1
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.min(5500, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                            else
+                                --Shields stack, so allow a 3:1 threat ratio
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(10000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                            end
+                        end
                     end
                     --Adjust ground AA if we have T2 or T3 mexes or high structure value here (subject to an overall cap)
                     if iGunshipThreatFactorWanted > 2.5 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) >= 1000 then
