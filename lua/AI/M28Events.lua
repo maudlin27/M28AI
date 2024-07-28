@@ -3332,21 +3332,43 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
             --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
             if bDebugMessages == true then LOG('Missile intercepted, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId))..'; is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))) end
             if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) then --and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
-                local iTeam = oLauncher:GetAIBrain().M28Team
-                if bDebugMessages == true then LOG('MML intercepted by tmd, oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')..'; oTMD='..(oTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTMD) or 'nil')..'; Launcher team='..iTeam..'; Launcher brain='..oLauncher:GetAIBrain().Nickname..'; TMD nickname='..oTMD:GetAIBrain().Nickname) end
+                local iLauncherTeam = oLauncher:GetAIBrain().M28Team
+                if bDebugMessages == true then LOG('MML intercepted by tmd, oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')..'; oTMD='..(oTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTMD) or 'nil')..'; Launcher team='..iLauncherTeam..'; Launcher brain='..oLauncher:GetAIBrain().Nickname..'; TMD nickname='..oTMD:GetAIBrain().Nickname) end
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
                 if (iLandZone or 0) > 0 and iPlateau > 0 then
-                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iLauncherTeam]
                     tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
                 end
                 local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
-                if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 and not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
-                    local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iTeam]
-                    tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 then
+                    local tLZTeamData
+                    if not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
+                        tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iLauncherTeam]
+                        tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
+                    end
+                    local oBrainTMD = oTMD:GetAIBrain()
+                    if oBrainTMD.M28AI then
+                        if not(tLZTeamData) then tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iLauncherTeam] end
+                        tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] = GetGameTimeSeconds()
+                        oTMD[M28Building.refiTimeTMDHitMissile] = GetGameTimeSeconds()
+                        if M28UnitInfo.IsUnitValid(oLauncher) then
+                            local bRecordedAlready = false
+                            if not(oTMD[M28Building.toLaunchersIntercepted]) then oTMD[M28Building.toLaunchersIntercepted] = {}
+                            elseif M28Conditions.IsTableOfUnitsStillValid(oTMD[M28Building.toLaunchersIntercepted]) then
+                                for iRecordedLauncher, oRecordedLauncher in oTMD[M28UnitInfo.toLaunchersIntercepted] do
+                                    if oRecordedLauncher == oLauncher then
+                                        bRecordedAlready = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bRecordedAlready) then table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher) end
+                        end
+                    end
                 end
                 --sometimes the launcher is receiving its orders from an adjacent zone, so want that adjacnet zone's combat logic to recognise this when deciding whether to syncrhonise shots
                 if oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iPlateau) and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iTMDLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iTMDPlateau) then
-                    local tAssignedLZTeamData = M28Map.tAllPlateaus[oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2]][M28Map.subrefLZTeamData][iTeam]
+                    local tAssignedLZTeamData = M28Map.tAllPlateaus[oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2]][M28Map.subrefLZTeamData][iLauncherTeam]
                     tAssignedLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) and M28UnitInfo.IsUnitValid(oLauncher) then
