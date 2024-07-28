@@ -259,7 +259,7 @@ refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
 refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
 refCategoryMobileBomb = categories.BOMB * categories.MOBILE
-refCategorySkirmisher = refCategorySniperBot * categories.TECH3
+refCategorySkirmisher = refCategorySniperBot - categories.EXPERIMENTAL
 if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
     refCategorySkirmisher = refCategorySkirmisher + categories.del0204 + categories.drl0204 - refCategoryMobileBomb
 else

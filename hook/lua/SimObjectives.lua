@@ -71,3 +71,33 @@ Reclaim = function(Type, Complete, Title, Description, Target)
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ReclaimTargetObjectiveAdded, Type, Complete, Title, Description, Target)
     return M28OldReclaim(Type, Complete, Title, Description, Target)
 end
+
+
+--Destructive hook:
+MakeListFromTarget = function(Target)
+    local resultList = {}
+    if Target.Army then
+        resultList[GetArmyBrain(Target.Army)] = true
+    end
+
+    if Target.Armies then
+        local tblArmy = ListArmies()
+        for _, armyName in Target.Armies do
+            if armyName == "HumanPlayers" then
+                for iArmy, strArmy in pairs(tblArmy) do
+                    if ScenarioInfo.ArmySetup[strArmy].Human or (ScenarioInfo.type == 'campaign_coop' and string.sub(strArmy, 1, 6)  == 'Player') then
+                        resultList[GetArmyBrain(iArmy)] = true
+                    end
+                end
+            else
+                for iArmy, strArmy in pairs(tblArmy) do
+                    if strArmy == armyName then
+                        resultList[GetArmyBrain(iArmy)] = true
+                    end
+                end
+            end
+
+        end
+    end
+    return resultList
+end

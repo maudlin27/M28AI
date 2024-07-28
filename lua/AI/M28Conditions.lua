@@ -1145,7 +1145,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     --Are air facs restricted?
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 then
         bCanBuildAirFac = false
-        local tsAirFacs = EntityCategoryGetUnitList(M28UnitInfo.refCategoryAirFactory * categories.TECH1 * M28UnitInfo.ConvertFactionToCategory(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex()))
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if not(aiBrain.GetFactionIndex) then aiBrain = M28Team.GetFirstActiveM28Brain(iTeam) end
+        local tsAirFacs = EntityCategoryGetUnitList(M28UnitInfo.refCategoryAirFactory * categories.TECH1 * M28UnitInfo.ConvertFactionToCategory(aiBrain:GetFactionIndex()))
         if M28Utilities.IsTableEmpty(tsAirFacs) == false then
             for iAirFac, sAirFac in tsAirFacs do
                 if not(M28UnitInfo.IsUnitRestricted(sAirFac)) then
@@ -1705,6 +1707,27 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             else
                                                 iLandFactoriesWantedBeforeAir = 1
                                                 iAirFactoriesForEveryLandFactory = math.min(math.max(iAirFactoriesForEveryLandFactory, 6), iAirFactoriesForEveryLandFactory * 1.5)
+                                            end
+                                        end
+                                    end
+                                    if iAirFactoriesForEveryLandFactory > 1 and M28Utilities.bLoudModActive then
+                                        if iAirFactoriesForEveryLandFactory > 2 and NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
+                                            iAirFactoriesForEveryLandFactory = 2
+                                        end
+                                        if M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] then
+                                            local iNearbyEnemyGroundAAThreat = 0
+                                            local tbLandSubteams = {}
+                                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                                tbLandSubteams[oBrain.M28LandSubteam] = true
+                                            end
+                                            for iLandSubteam, _ in tbLandSubteams do
+                                                iNearbyEnemyGroundAAThreat = iNearbyEnemyGroundAAThreat + (M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
+                                            end
+                                            if iNearbyEnemyGroundAAThreat > math.max(4000, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] * 0.25, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.08) + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.1 then
+                                                iAirFactoriesForEveryLandFactory = math.min(1.5, iAirFactoriesForEveryLandFactory)
+                                                if M28Map.iMapSize <= 1024 or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 then
+                                                    iAirFactoriesForEveryLandFactory = 1
+                                                end
                                             end
                                         end
                                     end
