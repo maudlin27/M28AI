@@ -9214,10 +9214,96 @@ function ConsiderPriorityLandScoutFlag(oUnit)
                 end
             end
         end
+
         if not(bInTable) then
             if not(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout]) then M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout] = {} end
             table.insert(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout], oUnit)
             oUnit[refbFlaggedForPriorityScout] = true
+        end
+    end
+end
+
+
+function LandSubteamOverseer(iLandSubteam)
+    local iStartPlateau, iStartZone
+    local oFirstBrain
+    for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+        oFirstBrain = oBrain
+        break
+    end
+    iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(oFirstBrain))
+    local iTeam = oFirstBrain.M28Team
+    --Wait ticks based on team to spread out between different seconds
+    WaitTicks(iTeam)
+    local tStartLZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartZone]
+    local tStartLZTeamData = tStartLZData[M28Map.subrefLZTeamData][iTeam]
+
+    while M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
+        ForkThread(CompareNearbyAlliedAndEnemyLandThreats, iTeam, iLandSubteam, iStartPlateau, tStartLZData, tStartLZTeamData)
+        WaitSeconds(10)
+    end
+end
+
+function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlateau, tStartLZData, tStartLZTeamData)
+    --Assesses enemy mobile land threat and MAA threat on same island as our start position
+    local iMaxModDistance = 0.6
+    local iMaxTravelDist = M28Map.iMapSize * 0.75
+    local bHaveTeammates = false
+    if table.getn(M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains]) > 1 then bHaveTeammates = true end
+    local iOurMobileDFThreat = tStartLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+    local iEnemyMobileDFThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
+    local iEnemyGroundAAThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
+    local iCurLZ
+    if M28Utilities.IsTableEmpty(tStartLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+        for iEntry, tPathingData in tStartLZData[M28Map.subrefLZPathingToOtherLandZones] do
+            iCurLZ = tPathingData[M28Map.subrefLZNumber]
+            local tCurLZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iCurLZ]
+            local tCurLZTeamData = tCurLZData[M28Map.subrefLZTeamData][iTeam]
+            if tCurLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDistance then
+                iOurMobileDFThreat = iOurMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+                iEnemyMobileDFThreat = iEnemyMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
+                iEnemyGroundAAThreat = iEnemyGroundAAThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
+            else
+                if not(bHaveTeammates) or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.9 or tPathingData[M28Map.subrefLZTravelDist] >= iMaxTravelDist then
+                    break
+                end
+            end
+        end
+    end
+    M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] = iOurMobileDFThreat
+    M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] = iEnemyMobileDFThreat
+    M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] = iEnemyGroundAAThreat
+
+    --Decide if we want to prioritise production over ecoing temporarily
+    local bPrioritiseProduction = false
+    if iOurMobileDFThreat < iEnemyMobileDFThreat and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] < math.max(iEnemyMobileDFThreat * 0.4, iEnemyGroundAAThreat * 2) then
+        --Further restrictions if campaign map or low threat values
+        local iEnemyPlayerCount = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains])
+        if not(M28Map.bIsCampaignMap) and GetGameTimeSeconds() >= 600 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and (iEnemyMobileDFThreat > 2000 * iEnemyPlayerCount or iEnemyMobileDFThreat - iOurMobileDFThreat > 1000 + 1000*iEnemyPlayerCount) then
+            bPrioritiseProduction = true
+            if iEnemyMobileDFThreat <= 8000 + 2000 * iEnemyPlayerCount then
+                if iEnemyMobileDFThreat < iOurMobileDFThreat + math.max(iOurMobileDFThreat * 0.25, 1500) then
+                    bPrioritiseProduction = false
+                end
+            end
+        end
+    end
+
+    local bPreviouslyPrioritising = M28Team.tLandSubteamData[iLandSubteam][M28Team.refbPrioritiseProduction]
+    M28Team.tLandSubteamData[iLandSubteam][M28Team.refbPrioritiseProduction] = bPrioritiseProduction
+    if bPrioritiseProduction and not(bPreviouslyPrioritising) then
+        --Consider unpausing any paused land and air factories if are in a mass stall
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+            for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                local tFactoriesToUnpause = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory)
+                if M28Utilities.IsTableEmpty(tFactoriesToUnpause) == false then
+                    for iUnit, oUnit in tFactoriesToUnpause do
+                        if oUnit[M28UnitInfo.refbPaused] then
+                            M28UnitInfo.PauseOrUnpauseMassUsage(oUnit, false, iTeam)
+                        end
+                    end
+                end
+            end
         end
     end
 end

@@ -286,6 +286,10 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
     refbConsideredScoutFactionRestrictions = 'M28LSTSctRest' --true if we have applied subrefBlueprintBlacklist for land scouts yet
     reftoPriorityUnitsWantingLandScout = 'M28LSTPrLnSc' --table of units wanting a land scout as a priority
+    refiAllyMobileDFThreatNearOurSide = 'M28LSTAlDFOS' --total allied DF in zones <=0.6 mod dist
+    refiEnemyMobileDFThreatNearOurSide = 'M28LSTAlDFOS' --total enemy DF in zones <=0.6 mod dist
+    refiEnemyGroundAAThreatNearOurSide = 'M28LSTAlDFOS' --total enemy groundAA in zones <=0.6 mod dist
+    refbPrioritiseProduction = 'M28LSTPrPdn' --true if due to the enemy mobile threat vs ours we want to prioritise production over ecoing
 
 --Other variables dependent on above:
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite, [reftEnemyAirExperimentals] = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL }
@@ -2773,7 +2777,16 @@ function ConsiderPriorityMexUpgrades(iM28Team)
 
         if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring( M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))) end
         if not(bWantMassForProduction) or M28Overseer.bNoRushActive or (bBehindOnT3OrNotStartedT2Mex and not(tTeamData[iM28Team][subrefbTeamIsStallingMass])) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
-            if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2 + 4 <= M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) then
+            local bPrioritiseProduction = false
+            local tbLandSubteams = {}
+            for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                tbLandSubteams[oBrain.M28LandSubteam] = true
+            end
+            for iLandSubteam, _ in  tbLandSubteams do
+                if tLandSubteamData[iLandSubteam][refbPrioritiseProduction] then bPrioritiseProduction = true break end
+            end
+
+            if (not(tTeamData[iM28Team][refbFocusOnT1Spam]) and not(bPrioritiseProduction)) or M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2 + 4 <= M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) then
                 if bDebugMessages == true then LOG(sFunctionRef..': iWantedUpgradingMexValue='..iWantedUpgradingMexValue..'; iUpgradingMexValue='..iUpgradingMexValue..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade)..'; iExistingT1MexUpgrades='..iExistingT1MexUpgrades..'; iExistingT2MexUpgrades='..iExistingT2MexUpgrades..'; iExistingT3PlusMexUpgrades='..iExistingT3PlusMexUpgrades..'; Active brain count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; Total mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
                 if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or iWantedUpgradingMexValue > iUpgradingMexValue or (tTeamData[iM28Team][subrefiTeamMassStored] >= 800 and (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0) then
                     --Do we have enough energy?
@@ -3241,6 +3254,18 @@ function ConsiderNormalUpgrades(iM28Team)
         if tAirSubteamData[iAirSubteam][refbNoAvailableTorpsForEnemies] then
             bWantMassForProduction = true
             break
+        end
+    end
+    if not(bWantMassForProduction) then
+        local tbLandSubteams = {}
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            tbLandSubteams[oBrain.M28LandSubteam] = true
+        end
+        for iLandSubteam, _ in  tbLandSubteams do
+            if tLandSubteamData[iLandSubteam][refbPrioritiseProduction] then bWantMassForProduction = true break end
+        end
+        if bWantMassForProduction then
+            if not(M28Conditions.TeamHasLowMass(iM28Team)) then bWantMassForProduction = false end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]) end
