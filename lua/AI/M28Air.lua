@@ -5738,7 +5738,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     break
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; Is closest enemy near an active nuke='..tostring( M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60))) end
 
             --Check we arent near a nuke
             if M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60) then

@@ -2116,7 +2116,7 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
     return bConsiderSpecialMMLLogic
 end
 
-function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
+function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold, iOptionalTimeThreshold)
     --Returns true if are within iDistThreshold of an active nuke target
     local sFunctionRef = 'IsTargetNearActiveNukeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2139,6 +2139,17 @@ function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
                 end
             end
 
+        end
+    end
+    if not(bNearTarget) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+        --Cycle through nuke targets from the last 60s on our team as well (since looking at the above ignores non-M28 teammates, while just looking at the reftoRecentlyFiredAlliedNukeLaunchers table ignores nukes that are about to fire but havent yet fired)
+        local iTimeThreshold = GetGameTimeSeconds() - (iOptionalTimeThreshold or 60)
+        for iTimeLaunched, tNukeTarget in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering launch target with iTimeLaunched='..iTimeLaunched..'; iTimeThreshold='..iTimeThreshold..'; Dist between here and tTarget='..M28Utilities.GetDistanceBetweenPositions(tTarget, tNukeTarget)) end
+            if iTimeLaunched >= iTimeThreshold and M28Utilities.GetDistanceBetweenPositions(tTarget, tNukeTarget) <= iDistThreshold then
+                bNearTarget = true
+                break
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
