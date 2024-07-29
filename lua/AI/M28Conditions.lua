@@ -1145,7 +1145,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     --Are air facs restricted?
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 then
         bCanBuildAirFac = false
-        local tsAirFacs = EntityCategoryGetUnitList(M28UnitInfo.refCategoryAirFactory * categories.TECH1 * M28UnitInfo.ConvertFactionToCategory(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex()))
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if not(aiBrain.GetFactionIndex) then aiBrain = M28Team.GetFirstActiveM28Brain(iTeam) end
+        local tsAirFacs = EntityCategoryGetUnitList(M28UnitInfo.refCategoryAirFactory * categories.TECH1 * M28UnitInfo.ConvertFactionToCategory(aiBrain:GetFactionIndex()))
         if M28Utilities.IsTableEmpty(tsAirFacs) == false then
             for iAirFac, sAirFac in tsAirFacs do
                 if not(M28UnitInfo.IsUnitRestricted(sAirFac)) then
@@ -1708,6 +1710,27 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             end
                                         end
                                     end
+                                    if iAirFactoriesForEveryLandFactory > 1 and M28Utilities.bLoudModActive then
+                                        if iAirFactoriesForEveryLandFactory > 2 and NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
+                                            iAirFactoriesForEveryLandFactory = 2
+                                        end
+                                        if M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] then
+                                            local iNearbyEnemyGroundAAThreat = 0
+                                            local tbLandSubteams = {}
+                                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                                tbLandSubteams[oBrain.M28LandSubteam] = true
+                                            end
+                                            for iLandSubteam, _ in tbLandSubteams do
+                                                iNearbyEnemyGroundAAThreat = iNearbyEnemyGroundAAThreat + (M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
+                                            end
+                                            if iNearbyEnemyGroundAAThreat > math.max(4000, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] * 0.25, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.08) + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.1 then
+                                                iAirFactoriesForEveryLandFactory = math.min(1.5, iAirFactoriesForEveryLandFactory)
+                                                if M28Map.iMapSize <= 1024 or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 then
+                                                    iAirFactoriesForEveryLandFactory = 1
+                                                end
+                                            end
+                                        end
+                                    end
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                                         iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
                                         iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 0.8
@@ -2093,7 +2116,7 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
     return bConsiderSpecialMMLLogic
 end
 
-function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
+function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold, iOptionalTimeThreshold)
     --Returns true if are within iDistThreshold of an active nuke target
     local sFunctionRef = 'IsTargetNearActiveNukeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2116,6 +2139,17 @@ function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
                 end
             end
 
+        end
+    end
+    if not(bNearTarget) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+        --Cycle through nuke targets from the last 60s on our team as well (since looking at the above ignores non-M28 teammates, while just looking at the reftoRecentlyFiredAlliedNukeLaunchers table ignores nukes that are about to fire but havent yet fired)
+        local iTimeThreshold = GetGameTimeSeconds() - (iOptionalTimeThreshold or 60)
+        for iTimeLaunched, tNukeTarget in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering launch target with iTimeLaunched='..iTimeLaunched..'; iTimeThreshold='..iTimeThreshold..'; Dist between here and tTarget='..M28Utilities.GetDistanceBetweenPositions(tTarget, tNukeTarget)) end
+            if iTimeLaunched >= iTimeThreshold and M28Utilities.GetDistanceBetweenPositions(tTarget, tNukeTarget) <= iDistThreshold then
+                bNearTarget = true
+                break
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
@@ -2560,13 +2594,13 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 if oFactory[M28Factory.refiTotalBuildCount] >= 60 then
                     bWantMoreMexes = false
                 elseif iFactoryTechLevel == 1 then
-                    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(2, tLZOrWZData[M28Map.subrefLZMexCount]) then
+                    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(2, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) then
                         bWantMoreMexes = false
                     end
-                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZOrWZData[M28Map.subrefLZMexCount]) then
+                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) then
                     bWantMoreMexes = false
                 end
-                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= tLZOrWZData[M28Map.subrefLZMexCount] then
+                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) then
                     bWantMoreMexes = false
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': LOUD - holding off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end

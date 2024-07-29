@@ -27,6 +27,8 @@ iTimeForSMDToBeConstructed = 45 --i.e. number of seconds we assume an SMD will b
 bShieldsCanDischarge = true
 bNovaxInGame = false
 iLowestAirStagingTechAvailable = 3
+iLowestMassStorageTechAvailable = 3
+iLowestEnergyStorageTechAvailable = 3
 
 --Variables against a unit:
     --TML and TMD
@@ -57,6 +59,8 @@ refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we 
 reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
 refbProtectedByTerrain = 'M28BuildUnitBlockByTer' --true if a target of a TML was protected by terrain
 refbSalvoDelayActive = 'M28BuildSalvoDelayActive' --true if want to hold off on targets due to salvo
+refiTimeTMDHitMissile = 'M28UTmHM' --Gametimeseconds that tmd intercepted enemy missile
+toLaunchersIntercepted = 'M28BLnInt' --table of launchers that a TMD has intercepted
 
     --Shield related
 reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
@@ -1146,14 +1150,18 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
 
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+    local iExistingValidTMD = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
-        local iExistingValidTMD = table.getn(tExistingTMD)
+        iExistingValidTMD = table.getn(tExistingTMD)
 
         --Max TMD limit - no. of mexes in the zone * 0.5 if lower; also higher TMD if we have Aeon TMD
         local iTMDLimit = math.min(30, math.max(10, (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]) * 0.5, tLZTeamData[M28Map.subrefLZSValue] / 5000))
         if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iTMDLimit = math.min(iTMDLimit, math.max(4, tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2], tLZTeamData[M28Map.subrefLZSValue] / 5000)) end
-        if bDebugMessages == true then LOG(sFunctionRef..': iExistingValidTMD='..iExistingValidTMD..'; iTMDLimit='..iTMDLimit) end
+        if tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 40 then
+            iTMDLimit = iTMDLimit + 2
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingValidTMD='..iExistingValidTMD..'; iTMDLimit='..iTMDLimit..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')) end
         if iExistingValidTMD >= iTMDLimit then
             local iEnemyTotalTMLCount = 0
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
@@ -1163,7 +1171,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
             if iExistingValidTMD > math.min(31, iTMDLimit + (iEnemyTotalTMLCount - 1) * 2) then
                 --Too much TMD already, clear any units wanting TMD; send error message if we have loads of TMD
                 if iExistingValidTMD >= 10 then
-                    M28Utilities.ErrorHandler('Have at least TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+                    M28Utilities.ErrorHandler('Have at least '..iExistingValidTMD..' TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
                 end
                 tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1186,6 +1194,37 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
             if iCurDist < iClosestDist then
                 iClosestDist = iCurDist
                 oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': If dont have a unit to cover with TMD and TMD has intercepted enemy missile recently then build TMD to cover TMD, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')..'; iExistingValidTMD='..iExistingValidTMD) end
+    if not(oClosestUnit) and tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and iExistingValidTMD > 0 and iExistingValidTMD <= 10 and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60 then
+        --Consider doubling up on TMD by having a TMD request TMD if it has fired recently
+        local oClosestTMDFiredRecently
+        local iCurLaunchers, iCurTMD
+        for iTMD, oTMD in tExistingTMD do
+            if oTMD[refiTimeTMDHitMissile] and GetGameTimeSeconds() - oTMD[refiTimeTMDHitMissile] <= 60 and M28Conditions.IsTableOfUnitsStillValid(oTMD[toLaunchersIntercepted]) then
+
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, oTMD:GetPosition())
+                if iCurDist < iClosestDist then
+                    --Do we have enough TMD already covering this unit?
+                    iCurLaunchers = table.getn(oTMD[toLaunchersIntercepted])
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurLaunchers='..iCurLaunchers..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; Is table of TMD covering this unit empty='..tostring(M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]))) end
+                    if iCurLaunchers > 1 then
+                        iCurTMD = 1
+                        for iLauncher, oLauncher in oTMD[toLaunchersIntercepted] do
+                            RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD })
+                        end
+                        if M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]) then iCurTMD = 1
+                        else iCurTMD = table.getn(oTMD[reftTMDCoveringThisUnit]) end
+                        if iCurLaunchers > iCurTMD - 1 or (iCurLaunchers >= 4 and iCurLaunchers > iCurTMD - 2) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTMD='..iCurTMD..' so want to build more to cover this TMD and stop it being overwhelmed') end
+                            iClosestDist = iCurDist
+                            oClosestUnit = oTMD
+                        end
+
+                    end
+                end
             end
         end
     end
@@ -1647,7 +1686,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
-        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber(ScenarioInfo.Options.CmpAIDelay)..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
         if not(aiBrain.HostileCampaignAI) or tonumber(ScenarioInfo.Options.CmpAIDelay) <= GetGameTimeSeconds() then
             --Aeon SML - one case having 11s threshold was fine, another when it was 12.1s since it fired a nuke it ended up clearing the old order
             local iTimeToWaitBetweenLaunches = 6 --i.e. TML
