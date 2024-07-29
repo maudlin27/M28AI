@@ -60,6 +60,7 @@ reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts te
 refbProtectedByTerrain = 'M28BuildUnitBlockByTer' --true if a target of a TML was protected by terrain
 refbSalvoDelayActive = 'M28BuildSalvoDelayActive' --true if want to hold off on targets due to salvo
 refiTimeTMDHitMissile = 'M28UTmHM' --Gametimeseconds that tmd intercepted enemy missile
+toLaunchersIntercepted = 'M28BLnInt' --table of launchers that a TMD has intercepted
 
     --Shield related
 reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
@@ -1196,7 +1197,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
             end
         end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': If dont have a unit to cover with TMD and TMD has intercepted enemy missile recently then build TMD to cover TMD, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')..'; iExistingValidTMD='..iExistingValidTMD) end
     if not(oClosestUnit) and tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and iExistingValidTMD > 0 and iExistingValidTMD <= 10 and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60 then
         --Consider doubling up on TMD by having a TMD request TMD if it has fired recently
         local oClosestTMDFiredRecently
@@ -1207,7 +1208,6 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, oTMD:GetPosition())
                 if iCurDist < iClosestDist then
                     --Do we have enough TMD already covering this unit?
-                    bDebugMessages = true
                     iCurLaunchers = table.getn(oTMD[toLaunchersIntercepted])
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurLaunchers='..iCurLaunchers..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; Is table of TMD covering this unit empty='..tostring(M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]))) end
                     if iCurLaunchers > 1 then
@@ -1217,7 +1217,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                         end
                         if M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]) then iCurTMD = 1
                         else iCurTMD = table.getn(oTMD[reftTMDCoveringThisUnit]) end
-                        if iCurLaunchers > iCurTMD - 1 then
+                        if iCurLaunchers > iCurTMD - 1 or (iCurLaunchers >= 4 and iCurLaunchers > iCurTMD - 2) then
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurTMD='..iCurTMD..' so want to build more to cover this TMD and stop it being overwhelmed') end
                             iClosestDist = iCurDist
                             oClosestUnit = oTMD

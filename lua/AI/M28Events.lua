@@ -3324,56 +3324,81 @@ end
 function OnMissileIntercepted(oLauncher, target, oTMD, position)
     --M28AI specific - also exclude if TMD is owned by the same team, as as of 24/09/2023 there's a bug with FAF where this callback triggers with oTMD being another or the same MML
     if M28Utilities.bM28AIInGame then
-        if not(oLauncher.Dead) and oLauncher:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oTMD) and not(oLauncher:GetAIBrain().M28Team == oTMD:GetAIBrain().M28Team) then
+        if not(oLauncher.Dead) and M28UnitInfo.IsUnitValid(oTMD) and not(oLauncher:GetAIBrain().M28Team == oTMD:GetAIBrain().M28Team) then
             local sFunctionRef = 'OnMissileIntercepted'
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+            local oLauncherBrain = oLauncher:GetAIBrain()
             --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
             if bDebugMessages == true then LOG('Missile intercepted, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId))..'; is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))) end
             if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) then --and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
                 local iLauncherTeam = oLauncher:GetAIBrain().M28Team
                 if bDebugMessages == true then LOG('MML intercepted by tmd, oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')..'; oTMD='..(oTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTMD) or 'nil')..'; Launcher team='..iLauncherTeam..'; Launcher brain='..oLauncher:GetAIBrain().Nickname..'; TMD nickname='..oTMD:GetAIBrain().Nickname) end
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
-                if (iLandZone or 0) > 0 and iPlateau > 0 then
+                if oLauncherBrain.M28AI and (iLandZone or 0) > 0 and iPlateau > 0 then
                     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iLauncherTeam]
                     tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
                 end
                 local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
                 if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 then
-                    local tLZTeamData
-                    if not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
-                        tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iLauncherTeam]
+                    if oLauncherBrain.M28AI and not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
+                        local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iLauncherTeam]
                         tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
                     end
                     local oBrainTMD = oTMD:GetAIBrain()
                     if oBrainTMD.M28AI then
-                        if not(tLZTeamData) then tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iLauncherTeam] end
+                        --Replace team data since want to get from TMD team perspective now
+                        local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][oBrainTMD.M28Team]
                         tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] = GetGameTimeSeconds()
                         oTMD[M28Building.refiTimeTMDHitMissile] = GetGameTimeSeconds()
-                        if M28UnitInfo.IsUnitValid(oLauncher) then
+                        if M28UnitInfo.IsUnitValid(oLauncher) then --redundancy
                             local bRecordedAlready = false
                             if not(oTMD[M28Building.toLaunchersIntercepted]) then oTMD[M28Building.toLaunchersIntercepted] = {}
                             elseif M28Conditions.IsTableOfUnitsStillValid(oTMD[M28Building.toLaunchersIntercepted]) then
-                                for iRecordedLauncher, oRecordedLauncher in oTMD[M28UnitInfo.toLaunchersIntercepted] do
+                                for iRecordedLauncher, oRecordedLauncher in oTMD[M28Building.toLaunchersIntercepted] do
                                     if oRecordedLauncher == oLauncher then
                                         bRecordedAlready = true
                                         break
                                     end
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to record oLauncher against TMD table of launchers intercepted if not already recorded, bRecordedAlready='..tostring(bRecordedAlready)..'; oTMD[M28Building.refiTimeTMDHitMissile]='..(oTMD[M28Building.refiTimeTMDHitMissile] or 'nil')..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)) end
                             if not(bRecordedAlready) then table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher) end
                         end
                     end
                 end
                 --sometimes the launcher is receiving its orders from an adjacent zone, so want that adjacnet zone's combat logic to recognise this when deciding whether to syncrhonise shots
-                if oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iPlateau) and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iTMDLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iTMDPlateau) then
+                if oLauncher.M28AI and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iPlateau) and not( oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2] == iTMDLandZone and oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1] == iTMDPlateau) then
                     local tAssignedLZTeamData = M28Map.tAllPlateaus[oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oLauncher[M28Land.refiCurrentAssignmentPlateauAndLZ][2]][M28Map.subrefLZTeamData][iLauncherTeam]
                     tAssignedLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] = GetGameTimeSeconds()
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) and M28UnitInfo.IsUnitValid(oLauncher) then
                 if bDebugMessages == true then LOG('Will call nuke missile death logic') end
                 M28Building.UpdateForNukeMissileDeath(oLauncher)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
+                local oBrainTMD = oTMD:GetAIBrain()
+                if oBrainTMD.M28AI then
+                    local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
+                    if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][oBrainTMD.M28Team]
+                        tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] = GetGameTimeSeconds()
+                        oTMD[M28Building.refiTimeTMDHitMissile] = GetGameTimeSeconds()
+                        if M28UnitInfo.IsUnitValid(oLauncher) then --redundancy
+                            local bRecordedAlready = false
+                            if not(oTMD[M28Building.toLaunchersIntercepted]) then oTMD[M28Building.toLaunchersIntercepted] = {}
+                            elseif M28Conditions.IsTableOfUnitsStillValid(oTMD[M28Building.toLaunchersIntercepted]) then
+                                for iRecordedLauncher, oRecordedLauncher in oTMD[M28Building.toLaunchersIntercepted] do
+                                    if oRecordedLauncher == oLauncher then
+                                        bRecordedAlready = true
+                                        break
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to record oLauncher against TMD table of launchers intercepted if not already recorded, bRecordedAlready='..tostring(bRecordedAlready)..'; oTMD[M28Building.refiTimeTMDHitMissile]='..(oTMD[M28Building.refiTimeTMDHitMissile] or 'nil')..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)) end
+                            if not(bRecordedAlready) then table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher) end
+                        end
+                    end
+                end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         end
