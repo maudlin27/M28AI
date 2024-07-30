@@ -9246,6 +9246,10 @@ end
 
 function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlateau, tStartLZData, tStartLZTeamData)
     --Assesses enemy mobile land threat and MAA threat on same island as our start position
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CompareNearbyAlliedAndEnemyLandThreats'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iMaxModDistance = 0.6
     local iMaxTravelDist = M28Map.iMapSize * 0.75
     local bHaveTeammates = false
@@ -9306,4 +9310,6 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

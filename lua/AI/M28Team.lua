@@ -327,7 +327,7 @@ function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
             tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFaction] = {[1]=0,[2]=0,[3]=0}
         end
     end
-
+    ForkThread(M28Land.LandSubteamOverseer, iTotalLandSubteamCount)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished creating subteam for '..iTotalLandSubteamCount..'; tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech]='..repru(tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech])) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
