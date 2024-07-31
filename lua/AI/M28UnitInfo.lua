@@ -838,7 +838,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
     local sFunctionRef = 'GetAirThreatLevel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)) end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround or false)) end
 
     if M28Utilities.IsTableEmpty(tUnits) then
         --if tUnits == nil then
@@ -932,6 +934,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             iHealthPercentage = GetUnitHealthPercent(oUnit)
                         end
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
+                    elseif oUnit:GetFractionComplete() < 1 then
+                        if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
+                            iHealthThreatFactor = oUnit:GetFractionComplete()
+                        else
+                            iHealthThreatFactor = 0
+                        end
                     end
                     if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                         if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
@@ -943,7 +951,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         end
                     end
                     iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
-                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                 end
             else
                 --Calculate the base threat for hte blueprint (start of game)
