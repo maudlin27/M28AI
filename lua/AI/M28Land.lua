@@ -3684,7 +3684,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 15 and iPlateau == 69 and GetGameTimeSeconds() >= 7*60 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
@@ -4494,7 +4494,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             if bAdd then
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies')
+                                    LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies, iDistUntilInRange='..iDistUntilInRange)
                                     LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Angle to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iAngleFromClosestFriendlyUnitToMidpoint='..(iAngleFromClosestFriendlyUnitToMidpoint or 'nil'))
                                 end
                                 table.insert(tNearbyAdjacentEnemies, oUnit)
@@ -5739,7 +5739,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             local iAngleFromClosestFriendlyUnit = 0
                             if oClosestFriendlyUnit then iAngleFromClosestFriendlyUnit = M28Utilities.GetAngleFromAToB(oClosestFriendlyUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) end
-                            iAdjacentDistThreshold = iAdjacentDistThreshold + 20
+                            if M28Map.iMapSize >= 1024 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold + 20
+                            elseif M28Team.iPlayersAtGameStart > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 2 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold + 10
+                            --1v1 - be even more aggressive
+                            elseif M28Team.iPlayersAtGameStart <= 2 and M28Map.iMapSize <= 512 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold - 5
+                            end
                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
                             local iStructureUnitDistThresholdAdjust = math.max(-30, -iAdjacentDistThreshold + 15)
