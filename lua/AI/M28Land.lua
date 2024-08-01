@@ -1651,7 +1651,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                     local tSecondClosestFirstZoneLZTeamData = tSecondClosestFirstZoneLZData[M28Map.subrefLZTeamData][iTeam]
                     --Does the closest first zone closer to the enemy and has significantly more enemy combat threat than the second closest first zone?
                     if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..((tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))..'; Second closest net combat='.. ((tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist)) end
-                    if tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
+                    if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Switching rally point so will treat second closest as the actual closest') end
                         iClosestLZRef = iSecondClosestLZRef
                         iClosestDist = iSecondClosestDist
@@ -4494,7 +4494,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             if bAdd then
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies')
+                                    LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies, iDistUntilInRange='..iDistUntilInRange)
                                     LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Angle to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iAngleFromClosestFriendlyUnitToMidpoint='..(iAngleFromClosestFriendlyUnitToMidpoint or 'nil'))
                                 end
                                 table.insert(tNearbyAdjacentEnemies, oUnit)
@@ -5739,7 +5739,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             local iAngleFromClosestFriendlyUnit = 0
                             if oClosestFriendlyUnit then iAngleFromClosestFriendlyUnit = M28Utilities.GetAngleFromAToB(oClosestFriendlyUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) end
-                            iAdjacentDistThreshold = iAdjacentDistThreshold + 20
+                            if M28Map.iMapSize >= 1024 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold + 20
+                            elseif M28Team.iPlayersAtGameStart > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 2 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold + 10
+                            --1v1 - be even more aggressive
+                            elseif M28Team.iPlayersAtGameStart <= 2 and M28Map.iMapSize <= 512 then
+                                iAdjacentDistThreshold = iAdjacentDistThreshold - 5
+                            end
                             --If dealing with PD, then will only include as a 'close enough' threat if the dist is closer than mobile units, factoring in range
                             if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
                             local iStructureUnitDistThresholdAdjust = math.max(-30, -iAdjacentDistThreshold + 15)
@@ -9246,6 +9253,10 @@ end
 
 function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlateau, tStartLZData, tStartLZTeamData)
     --Assesses enemy mobile land threat and MAA threat on same island as our start position
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CompareNearbyAlliedAndEnemyLandThreats'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iMaxModDistance = 0.6
     local iMaxTravelDist = M28Map.iMapSize * 0.75
     local bHaveTeammates = false
@@ -9306,4 +9317,6 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

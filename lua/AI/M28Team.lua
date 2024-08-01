@@ -327,7 +327,7 @@ function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
             tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFaction] = {[1]=0,[2]=0,[3]=0}
         end
     end
-
+    ForkThread(M28Land.LandSubteamOverseer, iTotalLandSubteamCount)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished creating subteam for '..iTotalLandSubteamCount..'; tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech]='..repru(tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech])) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3600,6 +3600,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0

@@ -332,9 +332,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
             if M28OldUnit.OnTeleportUnit then return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation) end
         end,
-        InitiateTeleportThread = function(self, teleporter, location, orientation)
-            ForkThread(M28Events.OnStartTeleport, self, teleporter, location, orientation)
-            if M28OldUnit.InitiateTeleportThread then return M28OldUnit.InitiateTeleportThread(self, teleporter, location, orientation) end
+                                    --function(self, teleporter, bp, location, teledistance, teleRange, orientation, telecostpaid)
+        InitiateTeleportThread = function(self, teleporter, ...) --LOUD uses different variables
+            ForkThread(M28Events.OnStartTeleport, self, teleporter, unpack(arg))
+            if M28OldUnit.InitiateTeleportThread then return M28OldUnit.InitiateTeleportThread(self, teleporter, unpack(arg)) end
         end,
         --LOUD specific
         OnShieldIsCharging = function(self)

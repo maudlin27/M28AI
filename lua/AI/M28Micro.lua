@@ -609,8 +609,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                         --If we are a large unit then only dodge if will be a while for the shot to hit
                         local oBP = oTarget:GetBlueprint()
                         local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
-                        if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed) end
-                        if iAverageSize < 1 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
+                        if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
                             --Are we not underwater?
                             if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                 --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
@@ -618,7 +618,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
                                         --Dont cancel upgrade/teleport
                                         bCancelDodge = true
-                                    --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
+                                        --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
                                     elseif oTarget:IsUnitState('Moving') and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0) <= 2 and oWeapon.Blueprint.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.STRUCTURE, oUnit.UnitId) and oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition], oTarget:GetPosition()) >= 5 then
                                         bCancelDodge = true
                                     elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then

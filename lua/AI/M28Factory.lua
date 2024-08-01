@@ -1075,10 +1075,23 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Core expansion - have no land combat so will try to get some')
             end
-            --Get LAB if we arent seraphim
-            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and ConsiderBuildingCategory(M28UnitInfo.refCategoryAttackBot, oFactory.UnitId) then
-                return sBPIDToBuild
-            elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then
+            --Get LAB if we arent seraphim, and this is the only land fac in this zone
+            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) then
+                local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local bHaveOtherFactiresThatHaveBuilt = false
+                if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
+                    for iUnit, oUnit in tFactoriesInZone do
+                        if oUnit:GetFractionComplete() == 1 and not(oUnit == oFactory) and oUnit[refiTotalBuildCount] > 0 then
+                            bHaveOtherFactiresThatHaveBuilt = true
+                            break
+                        end
+                    end
+                end
+                if not(bHaveOtherFactiresThatHaveBuilt) and ConsiderBuildingCategory(M28UnitInfo.refCategoryAttackBot, oFactory.UnitId) then
+                    return sBPIDToBuild
+                end
+            end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then
                 return sBPIDToBuild
             end
         elseif  not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 then

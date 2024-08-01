@@ -6790,7 +6790,12 @@ end
 
 function UpdateActiveShortlistForCombatDrops(iTeam)
     --assumes reftTransportCombatPlateauLandZoneDropShortlist already set to {} prior to calling this, updates this for any potential combat drop zones
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateTransportLocationShortlist'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate] = GetGameTimeSeconds()
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering active combat drop locations, is table of potential combat drop zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]) == false then
         --Get start plateau and zone based on friendly base nearest rally point
         local iCurMexCount
@@ -6799,13 +6804,17 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 --Check for zones where enemy has mexes, we have no friendly units, enemy lacks significant groundAA or mobile DF threat or T2+ PD, then consider adding to shortlist
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop in P'..iPlateau..'Z'..iLandZone..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy groundAA='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)..'; Enemy mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Best enemy structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Enemy AirAA threat='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= 160 and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= 60 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < 29 and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 then
                     --Does enemy have most of the mexes here?
                     local toEnemyMexCount = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mexes empty='..tostring( M28Utilities.IsTableEmpty(toEnemyMexCount))) end
                     if M28Utilities.IsTableEmpty(toEnemyMexCount) == false then
                         iCurMexCount = table.getn(toEnemyMexCount)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy mex count='..iCurMexCount..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
                         if iCurMexCount >= math.min(4, math.max(2, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
                             --Check whether its safe to travel here for each individual transport
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
                             table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
                         end
                     end
@@ -6813,6 +6822,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)

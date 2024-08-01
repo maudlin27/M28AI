@@ -3377,16 +3377,66 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     else
         --Consider attacking nearby enemies if no enemy experimental
         local iNearestEnemyExperimental = 1000
+        local oNearestEnemyExperimental
         local iCurDist
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
-                if iCurDist < iNearestEnemyExperimental then iNearestEnemyExperimental = iCurDist end
+                if iCurDist < iNearestEnemyExperimental then
+                    iNearestEnemyExperimental = iCurDist
+                    oNearestEnemyExperimental = oUnit
+                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iNearestEnemyExperimental='..iNearestEnemyExperimental..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; ACU dist to rally='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition())) end
         if (iNearestEnemyExperimental <= 150 and iNearestEnemyExperimental >= (oACU[M28UnitInfo.refiDFRange] or 0) + 5) or (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 and M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition()) > 10) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will move ACU to rally point instead of base, unless it means moving close to the exp, in which case will try moving in the opposite direction if we can') end
+            if oNearestEnemyExperimental then
+                local iAngleToNearestExp = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestEnemyExperimental:GetPosition())
+                local iAngleToRally = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)
+                local iAngleThreshold = 115
+                if M28Utilities.GetAngleDifference(iAngleToNearestExp, iAngleToRally) <= iAngleThreshold then
+                    --We aren't moving away from the experimental by much
+                    local tPotentialAltLocation
+                    local iClosestAltLocation = 10000
+                    --If we have ot her core bases we can retreat to them, otherwise try moving in the opposite direction
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateauOrZero]) == false then
+                        for iLandZone, _ in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateauOrZero] do
+                            if not(iLandZone == iLandOrWaterZone) then
+                                local tAltLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandZone]
+                                local iAngleToAltMidpoint = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tAltLZData[M28Map.subrefMidpoint])
+                                if M28Utilities.GetAngleDifference(iAngleToNearestExp, iAngleToAltMidpoint) > iAngleThreshold then
+                                    local iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tAltLZData[M28Map.subrefMidpoint])
+                                    if iCurDist < iClosestAltLocation then
+                                        iClosestAltLocation = iCurDist
+                                        tPotentialAltLocation = { tAltLZData[M28Map.subrefMidpoint][1], tAltLZData[M28Map.subrefMidpoint][2], tAltLZData[M28Map.subrefMidpoint][3]}
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if not(tPotentialAltLocation) then
+                        local iAmphibiousLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious, oACU:GetPosition())
+                        if iAmphibiousLabelWanted then
+                            for iMoveDist = 10, 30, 5 do
+                                tPotentialAltLocation = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToNearestExp + 180, iMoveDist, true, true, M28Map.bIsCampaignMap)
+                                if M28Utilities.IsTableEmpty(tPotentialAltLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious, tPotentialAltLocation) == iAmphibiousLabelWanted then
+                                    break
+                                else
+                                    tPotentialAltLocation = nil
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Angle to rally is too close to exp, so tried searching for alt locations, tPotentialAltLocation='..repru(tPotentialAltLocation)) end
+                    if M28Utilities.IsTableEmpty(tPotentialAltLocation) == false then
+                        tRallyPoint = {tPotentialAltLocation[1], tPotentialAltLocation[2], tPotentialAltLocation[3]}
+                    end
+                end
+            end
+
             M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runb')
+
         else
             if tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                 --Do nothing

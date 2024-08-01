@@ -838,7 +838,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
     local sFunctionRef = 'GetAirThreatLevel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)) end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround or false)) end
 
     if M28Utilities.IsTableEmpty(tUnits) then
         --if tUnits == nil then
@@ -932,6 +934,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             iHealthPercentage = GetUnitHealthPercent(oUnit)
                         end
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
+                    elseif oUnit:GetFractionComplete() < 1 then
+                        if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
+                            iHealthThreatFactor = oUnit:GetFractionComplete()
+                        else
+                            iHealthThreatFactor = 0
+                        end
                     end
                     if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                         if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
@@ -943,7 +951,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         end
                     end
                     iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
-                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                 end
             else
                 --Calculate the base threat for hte blueprint (start of game)
@@ -1636,10 +1644,13 @@ function RecordUnitRange(oUnit)
                         if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         end
-                    elseif oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
+                    elseif( oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' or oCurWeapon.FireTargetLayerCapsTable.Air == 'Air|Land|Water') and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Air =='Air|Land|water' and oCurWeapon.Damage >= 2 then --e.g. loud penetration fighter
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed|Air' and oCurWeapon.Damage >= 2 then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
@@ -1650,7 +1661,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Label == 'AntiTorpedo' then
+                    elseif oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo2' or oCurWeapon.Label == 'AntiTorpedo3' then
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
                         --Do nothing - LOUD weapon labels where there is no or negligible damage
