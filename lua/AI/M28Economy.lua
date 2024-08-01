@@ -1395,6 +1395,11 @@ function ManageMassStalls(iTeam)
                                         end
                                     end
 
+                                    --LOUD - pause fewer mexes due to greater need to focus on ecoing
+                                    if iMexesToPause > 0 and M28Utilities.bLoudModActive and not(M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction]) and oBrain[refiGrossMassBaseIncome] >= 3 then
+                                        iMexesToPause = math.max(0, iMexesToPause - 1)
+                                    end
+
                                     while iMexesToPause > 0 do
                                         local iLowestProgress = 0.8
                                         local oLowestProgress
@@ -1420,6 +1425,15 @@ function ManageMassStalls(iTeam)
                                             break
                                         end
                                         iMexesToPause = iMexesToPause - 1
+                                    end
+                                    if M28Utilities.bLoudModActive and M28Utilities.IsTableEmpty(tRelevantUnits) == false then
+                                        --Further check for loud - dont pause any T3 mex upgrades since they arem ore efficient
+                                        for iCurRelevantUnitEntry = table.getn(tRelevantUnits), 1, -1 do
+                                            local oCurRelevantUnit = tRelevantUnits[iCurRelevantUnitEntry]
+                                            if EntityCategoryContains(categories.TECH3, oCurRelevantUnit.UnitId) then
+                                                table.remove(tRelevantUnits, iCurRelevantUnitEntry)
+                                            end
+                                        end
                                     end
                                 end
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther]) == false then
@@ -2005,12 +2019,13 @@ function ManageEnergyStalls(iTeam)
                                     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) then
                                         local iMexesToPause
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
-                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])
+                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) - M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])
                                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 35 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
-                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]))
+                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))
                                         else
-                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
+                                            iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
                                         end
+
                                         while iMexesToPause > 0 do
                                             local iLowestProgress = 0.85
                                             local oLowestProgress
@@ -2851,6 +2866,50 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we arent upgrading due to low power') end
                 ForkThread(M28Utilities.DelayedFunction, 10, ConsiderUpgradingMexDueToCompletion, {oJustBuilt})
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderPgenUpgrade(oUnit, iOverrideSecondsToWait)
+    --Called when we have just constructed a t3 pgen that is capable of being upgraded - tries to upgrade immediately unless are stalling mass
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderFutureMexUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTimeToWait = iOverrideSecondsToWait or 0
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+    if iTimeToWait > 0 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iTimeToWait)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction] and not(M28Conditions.HaveLowPower(iTeam)) and M28Conditions.HaveLowMass(iTeam)) or not(M28Conditions.SafeToUpgradeUnit(oUnit)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough mass or want to produce more so will delay consideration of pgen upgrade, or we are dealing with unsafe to upgrade unit') end
+            ForkThread(ConsiderPgenUpgrade, oUnit, 10)
+        else
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            local tLZOrWZData, tLZOrWZTeamData
+            if iPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+
+            if not(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam)) then
+                --Wnat to upgrade pgen
+                if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                UpgradeUnit(oUnit, true)
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Want t1 spam so will reconsider later') end
+                ForkThread(ConsiderPgenUpgrade, oUnit, 10)
             end
         end
     end

@@ -1152,7 +1152,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for the game time='..GetGameTimeSeconds()..' and iWaterZone='..iWaterZone..', is tAmphibiousUnits empty='..tostring(M28Utilities.IsTableEmpty(tAmphibiousUnits))) end
     for iUnit, oUnit in tAmphibiousUnits do
-        if oUnit[refiCurrentAssignmentWaterZone] == iWaterZone then
+        if oUnit[refiCurrentAssignmentWaterZone] == iWaterZone and M28UnitInfo.IsUnitValid(oUnit) then --Unit valid check for redundancy due to error message that got
             if bAmphibiousCheck and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then iCurLabel = (NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition()) or tWZData[M28Map.refiMidpointAmphibiousLabel] or 0)
             else
                 iCurLabel = tWZData[M28Map.refiMidpointAmphibiousLabel]

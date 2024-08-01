@@ -1644,10 +1644,13 @@ function RecordUnitRange(oUnit)
                         if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         end
-                    elseif oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
+                    elseif( oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' or oCurWeapon.FireTargetLayerCapsTable.Air == 'Air|Land|Water') and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Air =='Air|Land|water' and oCurWeapon.Damage >= 2 then --e.g. loud penetration fighter
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed|Air' and oCurWeapon.Damage >= 2 then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
@@ -1658,7 +1661,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Label == 'AntiTorpedo' then
+                    elseif oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo2' or oCurWeapon.Label == 'AntiTorpedo3' then
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
                         --Do nothing - LOUD weapon labels where there is no or negligible damage

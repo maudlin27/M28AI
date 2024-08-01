@@ -2045,7 +2045,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
+                            if sUpgrade and not(sUpgrade == '') then
+                                ForkThread(M28Economy.ConsiderPgenUpgrade, oJustBuilt)
+                            else
+                                ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            end
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
@@ -3638,11 +3643,17 @@ function OnTeleportComplete(self, teleporter, location, orientation)
     end
 end
 
-function OnStartTeleport(self, teleporter, location, orientation)
+function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation,  teledistance, teleRange, LOUDorientation, telecostpaid)
+    --FAF function(self, teleporter, location, orientation)
+    --LOUD function(self, teleporter, bp, location, teledistance, teleRange, orientation, telecostpaid)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnStartTeleport'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local location
+        if M28Utilities.bLoudModActive then location = orientationorlocation
+        else location = locationorbp
+        end
 
         if M28UnitInfo.IsUnitValid(self) then
             local iTeleportTeam = self:GetAIBrain().M28Team
