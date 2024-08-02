@@ -40,6 +40,7 @@ refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an 
 refbWantMoreEngineersBeforeUpgrading = 'M28FWnE' --against oFactory, true if have run the factory condition and it concluded wen eeded more engineers before upgrading
 refbPausedToStopDefaultAI = 'M28FPsC' --true if we have paused factory to stop a campaign AI giving it orders
 refbActiveDelayedCheck = 'M28FAcDC' --true if we are running code to consider if factory has nearby blocked units
+refbPrimaryHighMexIslandFactory = 'M28FaPrim' --true if this is the primary factory for a zone that has a decent number of mexes (so it doesnt get paused in a mass stall)
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)

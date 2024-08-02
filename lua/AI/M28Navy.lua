@@ -1453,7 +1453,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if oUnit:GetFractionComplete() == 1 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
                 if oUnit[refbActiveRaider] then
                     --Consider if want shielding or stealth
                     RecordIfUnitWantsShieldOrStealth(oUnit)
@@ -1466,13 +1466,17 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                     elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
                         --ACU logic - handled via M28ACU file, as amy not want to kite with it
                         bWaterZoneOrAdjHasUnitsWantingScout = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have an ACU so wont manage here') end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId) then
                         if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) or (bUseFrigatesAsScouts and EntityCategoryContains(M28UnitInfo.refCategoryFrigate, oUnit.UnitId)) then
                             table.insert(tScouts, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Including as a land scout') end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
                             table.insert(tMobileShields, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Including as a mobile shield') end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryStealthBoat, oUnit.UnitId) then
                             table.insert(tMobileStealths, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Including as a mobile stealth') end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
                             bIncludeUnit = false
                             bWaterZoneOrAdjHasUnitsWantingScout = true
@@ -1527,6 +1531,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                 else
                                     table.insert(tUnavailableUnitsInThisWZ, oUnit)
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Think we have a land unit traveling from 1 island to another, bIncludeUnit='..tostring(bIncludeUnit)..'; if include will record unit as receiving assignment from this zone, otherwise treat as unavailable') end
                             else
                                 table.insert(tUnavailableUnitsInThisWZ, oUnit)
                             end
@@ -1534,7 +1539,9 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         end
                     elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
                         --Structure logic - handled separately e.g. via M28Factory for factories
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a building so ignoring') end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Other logic, considering if to add to temp unit table, unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is it attached='..tostring(oUnit:IsUnitState('Attached'))) end
                         if not(oUnit:IsUnitState('Attached')) then
                             table.insert(tTempOtherUnits, oUnit)
                             if not(tbBlueprintsAddedToTempTable[oUnit.UnitId]) then
