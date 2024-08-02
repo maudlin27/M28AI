@@ -371,7 +371,6 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
         --Plateau factory - set flag to not pause if it's the first factory
         if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then
-            bDebugMessages = true
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitJustBuilt:GetPosition())
             if iPlateau and iLandZone then
                 local aiBrain = oUnitJustBuilt:GetAIBrain()

@@ -1511,7 +1511,7 @@ function GetUnitStrikeDamage(oUnit)
         iAOE, iStrikeDamage = GetBomberAOEAndStrikeDamage(oUnit)
     elseif EntityCategoryContains(refCategoryTorpBomber, sBP) then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
-            if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' then
+            if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' or (oCurWeapon.Label and string.find(oCurWeapon.Label, 'Torpedo')) then
                 iStrikeDamage = (oCurWeapon.DoTPulses or 1) * (oCurWeapon.MuzzleSalvoSize or 1) * oCurWeapon.Damage
                 break
             end
@@ -1599,7 +1599,7 @@ function RecordUnitRange(oUnit)
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
-                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
+                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' or (oCurWeapon.FireTargetLayerCapsTable.Air == 'Seabed|Sub|Water' and EntityCategoryContains(categories.AIR * categories.ANTINAVY, oUnit.UnitId)) then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' or oCurWeapon.WeaponCategory == 'Kamikaze' then
@@ -1636,7 +1636,7 @@ function RecordUnitRange(oUnit)
                     elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                         --LOUD Additional checks since often units dont have a range category for a weapon - use FireTargetLayerCapsTable to help differentiate between AA; torpedo; and ground attacks (with damaged used to ignore most 'cosmetic' and special countermeasure type weapons:
-                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' or oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then
+                    elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or (oCurWeapon.FireTargetLayerCapsTable.Air == 'Air' and not(oCurWeapon.FireTargetLayerCapsTable.Land)) or oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' or oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
@@ -1651,6 +1651,8 @@ function RecordUnitRange(oUnit)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed|Air' and oCurWeapon.Damage >= 2 then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
@@ -1665,6 +1667,8 @@ function RecordUnitRange(oUnit)
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
                         --Do nothing - LOUD weapon labels where there is no or negligible damage
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' then
+                        oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)

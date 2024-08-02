@@ -1186,7 +1186,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 if bDebugMessages == true then LOG(sFunctionRef..': Failed ot build shield with t2 engi, tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] ='..(tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount]  or 'nil')) end
                 if tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] >= 10 then M28Utilities.ErrorHandler('Still trying to build t3 shields with t2 engineers', true) end
             elseif not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
-                if M28Utilities.bLoudModActive and (iOptionalEngineerAction == refActionBuildExperimental or iOptionalEngineerAction == refActionBuildSecondExperimental or iOptionalEngineerAction == refActionBuildGameEnder or iOptionalEngineerAction == refActionBuildLandExperimental or iOptionalEngineerAction == refActionBuildExperimentalNavy or iOptionalEngineerAction == refActionBuildAirExperimental) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer - categories.SUBCOMMANDER) then
+                if M28Utilities.bLoudModActive and (iOptionalEngineerAction == refActionBuildExperimental or iOptionalEngineerAction == refActionBuildSecondExperimental or iOptionalEngineerAction == refActionBuildGameEnder or iOptionalEngineerAction == refActionBuildLandExperimental or iOptionalEngineerAction == refActionBuildExperimentalNavy or iOptionalEngineerAction == refActionBuildAirExperimental) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer - categories.SUBCOMMANDER, oEngineer.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; Engineer highest land factory tech='..oEngineer:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech]..'; bUnitRestrictionsArePresent='..tostring(M28Overseer.bUnitRestrictionsArePresent)..'; iOptionalEngineerAction='..(iOptionalEngineerAction or 'nil')) end
                 else
                     M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. ask sparky to build sxomething it cant, try to build support factory without the HQ, want T1 engi to assist exp construction but construction is queued not startd or if unit restrictions are present - refer to log for more details')
@@ -8053,7 +8053,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Utilities.bLoudModActive and not(bBPIsInAdditionToExisting) and tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueBuild then iTotalBuildPowerWanted = iTotalBuildPowerWanted * 0.8 end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -15252,9 +15252,15 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
                 end
                 if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
+                    iBPWanted = 30
+                    if bHaveLowMass then
+                        if iExistingWaterFactory > 0 then iBPWanted = 20 else iBPWanted = 25 end
+                    end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.35 end
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': We want to build a naval factory')
                     end
+
                     HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
                 end
             end
@@ -15430,6 +15436,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     if not(bHaveLowMass) then iBPWanted = 60 else
                         iBPWanted = 30
                         if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iBPWanted = 15 end
+                        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.35 end
                     end
                     HaveActionToAssign(refActionBuildNavalFactory, 1, iBPWanted, nil)
                 end
@@ -15679,7 +15686,11 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                             LOG(sFunctionRef .. ': Later naval fac builder We want to build a naval factory')
                         end
                         iBPWanted = 35
-                        if bHaveLowMass then iBPWanted = 25 end
+                        if bHaveLowMass then
+                            iBPWanted = 25
+                            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.35 end
+                        end
+
                         HaveActionToAssign(refActionBuildNavalFactory, 1, iBPWanted, nil)
                     end
                 end
@@ -15693,11 +15704,24 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if tWZTeamData[M28Map.subrefWZbCoreBase] and iExistingWaterFactory > 0 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
         --e.g. 1 BP building a frigate uses 0.2 mass per second, or 0.02 mass per tick; if want 40% of team mass income spent on navy, then want to assign 20 BP per 1 mass per tick (i.e. 20 BP per 10 mass per sec)
         iBPWanted = math.min(1000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * 20)
+        --Adjust BP for number of naval facs (as might be spread out over a number of zones)
+        local iTeamNavalFacs = (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeNaval] or 0)
+        if iTeamNavalFacs >= 3 and iTeamNavalFacs > iExistingWaterFactory then
+            local iNavalFacAdj = math.max(1, iExistingWaterFactory) / iTeamNavalFacs
+            if iNavalFacAdj < 1 then
+                iBPWanted = iBPWanted * iNavalFacAdj
+            end
+        end
+
         if not (bHaveLowMass) and not (bHaveLowPower) then
             iBPWanted = iBPWanted * 1.5
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then iBPWanted = iBPWanted * 1.5 end
-        elseif bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
-            iBPWanted = iBPWanted * 0.7
+        elseif bHaveLowMass then
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+                iBPWanted = iBPWanted * 0.4
+            elseif GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 30 then
+                iBPWanted = iBPWanted * 0.75
+            end
         end
         if bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
         iBPWanted = math.max(5, iBPWanted)
