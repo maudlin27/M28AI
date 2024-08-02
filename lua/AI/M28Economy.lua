@@ -369,6 +369,83 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
         --Update factory count
         if bDebugMessages == true then LOG(sFunctionRef..': Just built factory or gateway, if we have built an HQ then will run more code') end
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
+        --Plateau factory - set flag to not pause if it's the first factory
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitJustBuilt:GetPosition())
+            if iPlateau and iLandZone then
+                local aiBrain = oUnitJustBuilt:GetAIBrain()
+                local iTeam = aiBrain.M28Team
+                local tFactoryLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                local tFactoryLZTeamData = tFactoryLZData[M28Map.subrefLZTeamData][iTeam]
+                --Are we in the same island as a friendly start position?
+                local bHaveStartInSameIsland = false
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) == false then
+                    for iStartLandZone, _ in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau] do
+                        local tStartLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iStartLandZone]
+                        if tStartLZData[M28Map.subrefLZIslandRef] == tFactoryLZData[M28Map.subrefLZIslandRef] then
+                            bHaveStartInSameIsland = true
+                            break
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Just built land fac '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' in P'..iPlateau..'Z'..iLandZone..'; bHaveStartInSameIsland='..tostring(bHaveStartInSameIsland)) end
+                if not(bHaveStartInSameIsland) then
+                    local bHaveOtherFactoriesOfSameTech = false
+                    if M28Utilities.IsTableEmpty(tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
+                        local iSearchCategory
+                        if iFactoryTechLevel == 1 then iSearchCategory = M28UnitInfo.refCategoryLandFactory
+                        elseif iFactoryTechLevel == 2 then iSearchCategory = M28UnitInfo.refCategoryLandFactory - categories.TECH1
+                        else iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH3
+                        end
+
+                        local tFactoriesOfSameTech = EntityCategoryFilterDown(iSearchCategory, tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tFactoriesOfSameTech) == false then
+                            for iExistingFactory, oExistingFactory in tFactoriesOfSameTech do
+                                if M28UnitInfo.IsUnitValid(oExistingFactory) and not(oExistingFactory == oUnitJustBuilt) and oExistingFactory:GetFractionComplete() == 1 then
+                                    bHaveOtherFactoriesOfSameTech = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': bHaveOtherFactoriesOfSameTech='..tostring(bHaveOtherFactoriesOfSameTech)..'; Mex count for factory island='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0)..'; Mod dist%='..tFactoryLZTeamData[M28Map.refiModDistancePercent]) end
+                    if not(bHaveOtherFactoriesOfSameTech) then
+                        --Do we have enough mexes to warrant always building from this factory?
+                        local bHaveEnoughMexes = false
+                        if (tFactoryLZData[M28Map.subrefLZMexCount] or 0) >= 3 or (tFactoryLZData[M28Map.subrefLZIslandRef] and ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 7 or ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 5 and tFactoryLZTeamData[M28Map.refiModDistancePercent] >= 0.2))) then
+                            bHaveEnoughMexes = true
+                        elseif M28Utilities.IsTableEmpty(tFactoryLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            local iNearbyMexCount = (tFactoryLZData[M28Map.subrefLZMexCount] or 0)
+                            for _, iAdjLZ in tFactoryLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                iNearbyMexCount = iNearbyMexCount + (tAdjLZData[M28Map.subrefLZMexCount] or 0)
+                            end
+                            if iNearbyMexCount >= 5 then
+                                bHaveEnoughMexes = true
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMexCount='..iNearbyMexCount..'; bHaveEnoughMexes='..tostring(bHaveEnoughMexes)) end
+                        end
+                        if bHaveEnoughMexes then
+                            --Set flag of any other factories in this zone to false
+                            if M28Utilities.IsTableEmpty(tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                local tAllLandFacsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                if M28Utilities.IsTableEmpty(tAllLandFacsInZone) == false then
+                                    for iFactory, oFactory in tAllLandFacsInZone do
+                                        if not(oFactory == oUnitJustBuilt) then
+                                            oFactory[M28Factory.refbPrimaryHighMexIslandFactory] = false
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just set land factory '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' to be the primary factory for P'..iPlateau..'Z'..iLandZone..'at time='..GetGameTimeSeconds()) end
+                            oUnitJustBuilt[M28Factory.refbPrimaryHighMexIslandFactory] = true
+                        end
+                    end
+                end
+            end
+        end
+
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
             local sFactoryRef
@@ -1489,15 +1566,17 @@ function ManageMassStalls(iTeam)
                                         --Do we actually want to pause the unit? check any category specific logic
                                         bApplyActionToUnit = true
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading')))
+                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading'))..'; refbPrimaryHighMexIslandFactory='..tostring(oUnit[M28Factory.refbPrimaryHighMexIslandFactory] or false))
                                         end
                                         --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
                                         if oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ)) then
                                             bApplyActionToUnit = false
+                                        elseif oUnit[M28Factory.refbPrimaryHighMexIslandFactory] then bApplyActionToUnit = false
                                             --Air HQ - dont pause first ever unit or transport
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
                                             bApplyActionToUnit = false
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and ((bDontPauseUpgradingT1LandOrT2Land and (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId or oUnit:IsUnitState('Upgrading'))) or oUnit[M28Factory.refiTotalBuildCount] <= 10)) then
+
                                             --Is this on a dif island to closest enemy base?
                                             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                             if tUnitLZTeamData and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnitLZTeamData[M28Map.reftClosestEnemyBase])) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ * 3 then
@@ -1609,19 +1688,19 @@ function ManageMassStalls(iTeam)
 
 
                                         if iCategoryRef == categories.COMMAND then
-                                            --want in addition to above as ACU might have personal shield
+                                        --want in addition to above as ACU might have personal shield
 
-                                            if oUnit:IsUnitState('Upgrading') then
-                                                bApplyActionToUnit = false
-                                            elseif oUnit.GetWorkProgress then
-                                                --if oUnit:GetWorkProgress() >= 0.85 then
-                                                bApplyActionToUnit = false
-                                                --dont pause t1 mex construction
-                                                if oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
-                                                    bApplyActionToUnit = false
-                                                end
-                                            end
+                                        if oUnit:IsUnitState('Upgrading') then
+                                        bApplyActionToUnit = false
+                                        elseif oUnit.GetWorkProgress then
+                                        --if oUnit:GetWorkProgress() >= 0.85 then
+                                        bApplyActionToUnit = false
+                                        --dont pause t1 mex construction
+                                        if oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
+                                        bApplyActionToUnit = false
                                         end
+                                            end
+                                            end
                                     end
                                 end
 
@@ -2707,6 +2786,8 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     local sFunctionRef = 'ConsiderFutureMexUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iTimeToWait = iOverrideSecondsToWait
     if not(iTimeToWait) then
         if EntityCategoryContains(categories.TECH1, oMex.UnitId) then
@@ -2717,7 +2798,9 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             else
                 iTimeToWait = 8 * 60
             end
-        else
+        elseif bT3MexCanBeUpgraded and M28Utilities.bLoudModActive and EntityCategoryContains(categories.TECH3, oMex.UnitId) then
+            iTimeToWait = 0
+        else --redundancy
             local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
             local iMexesInZone = (tLZData[M28Map.subrefLZMexCount] or 0)
             if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 25 then
@@ -2728,10 +2811,12 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitSeconds(iTimeToWait)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to wait before considering upgrading this mex again='..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
+    if iTimeToWait > 0 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iTimeToWait)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Is oMex still valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
     if M28UnitInfo.IsUnitValid(oMex) then
         local iTeam = oMex:GetAIBrain().M28Team
@@ -2874,8 +2959,8 @@ end
 
 function ConsiderPgenUpgrade(oUnit, iOverrideSecondsToWait)
     --Called when we have just constructed a t3 pgen that is capable of being upgraded - tries to upgrade immediately unless are stalling mass
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ConsiderFutureMexUpgrade'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderPgenUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iTimeToWait = iOverrideSecondsToWait or 0
@@ -3052,4 +3137,32 @@ function ConsiderImmediateUpgradeOfFactory(oFactory)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UnpausePausedMexFollowingUpgrade(oJustBuilt, bBuiltMexCanUpgrade)
+    local iTeam = oJustBuilt:GetAIBrain().M28Team
+    if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+            local iMexToUnpause = 1
+            if not(bBuiltMexCanUpgrade) and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iMexToUnpause = 2 end
+            local iClosestToCompletion, oMexToUnpause, iCurProgress
+            while iMexToUnpause > 0 do
+                iClosestToCompletion = -1
+                iMexToUnpause = iMexToUnpause - 1
+                for iMex, oMex in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes] do
+                    iCurProgress = oMex:GetWorkProgress()
+                    if iCurProgress > iClosestToCompletion and oMex[M28UnitInfo.refbPaused] then
+                        iClosestToCompletion = iCurProgress
+                        oMexToUnpause = oMex
+                    end
+                end
+                if oMexToUnpause then
+                    M28UnitInfo.PauseOrUnpauseMassUsage(oMexToUnpause, false, iTeam)
+                else
+                    break
+                end
+            end
+
+        end
+    end
 end

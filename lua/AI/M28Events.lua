@@ -1939,6 +1939,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
                                         if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
                                     end
+                                    --Unpause a paused mex if we are in a stall
+                                    ForkThread(M28Economy.UnpausePausedMexFollowingUpgrade, oJustBuilt, not((sUpgrade or '') == nil))
                                 end
                                 --COnsider upgrading another mex in this zone
                                 ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer)

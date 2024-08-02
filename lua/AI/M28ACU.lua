@@ -451,7 +451,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
 
                     --Assist upgrade if we have any
                     local oUnitToAssist
-                    local iHighestFractionComplete = 0
+                    local iHighestFractionComplete = -1
                     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                         for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                             if M28UnitInfo.IsUnitValid(oUpgrading) then
@@ -920,7 +920,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 else
                                     local oUnitToAssist
                                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
-                                        local iHighestFractionComplete = 0
+                                        local iHighestFractionComplete = -1
                                         local oUnitToAssist
                                         for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                             if M28UnitInfo.IsUnitValid(oUpgrading) then
@@ -3465,7 +3465,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                             local oUnitToAssist
                             if (not(M28Conditions.HaveLowPower(iTeam)) or (aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 25 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
                                 local bOnlyGetMexToAssist = M28Conditions.HaveLowMass(aiBrain)
-                                local iHighestFractionComplete = 0
+                                local iHighestFractionComplete = -1
 
                                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                                     for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
