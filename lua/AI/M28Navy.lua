@@ -4669,7 +4669,7 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
             for iDistAbsMod = 0, 100, 10 do
                 for iModFactor = -1, 1, 2 do
                     if iDistAbsMod > 0 or iModFactor == -1 then
-                        local tPotentialViaPoint = M28Utilities.MoveInDirection(tStartingWZData[M28Map.subrefMidpoint], iAngleToTarget, 200 + iDistAbsMod * iModFactor, true, false. M28Map.bIsCampaignMap)
+                        local tPotentialViaPoint = M28Utilities.MoveInDirection(tStartingWZData[M28Map.subrefMidpoint], iAngleToTarget, 200 + iDistAbsMod * iModFactor, true, false, M28Map.bIsCampaignMap)
                         if M28Utilities.IsTableEmpty(tPotentialViaPoint) == false then
                             iCurSegX, iCurSegZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
                             if M28Map.tPondBySegment[iCurSegX][iCurSegZ] == iPond then
