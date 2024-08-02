@@ -3053,3 +3053,31 @@ function ConsiderImmediateUpgradeOfFactory(oFactory)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function UnpausePausedMexFollowingUpgrade(oJustBuilt, bBuiltMexCanUpgrade)
+    local iTeam = oJustBuilt:GetAIBrain().M28Team
+    if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+            local iMexToUnpause = 1
+            if not(bBuiltMexCanUpgrade) and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iMexToUnpause = 2 end
+            local iClosestToCompletion, oMexToUnpause, iCurProgress
+            while iMexToUnpause > 0 do
+                iClosestToCompletion = -1
+                iMexToUnpause = iMexToUnpause - 1
+                for iMex, oMex in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes] do
+                    iCurProgress = oMex:GetWorkProgress()
+                    if iCurProgress > iClosestToCompletion and oMex[M28UnitInfo.refbPaused] then
+                        iClosestToCompletion = iCurProgress
+                        oMexToUnpause = oMex
+                    end
+                end
+                if oMexToUnpause then
+                    M28UnitInfo.PauseOrUnpauseMassUsage(oMexToUnpause, false, iTeam)
+                else
+                    break
+                end
+            end
+
+        end
+    end
+end

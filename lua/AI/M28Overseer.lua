@@ -1194,7 +1194,7 @@ function GetCivilianCaptureTargets(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
+    ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

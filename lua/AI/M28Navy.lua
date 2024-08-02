@@ -4575,7 +4575,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                             end
                         end
                         --SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iMAAFactorAdjust, iStartingWZ)
-                        SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZ, nil,        iWaterZone, tCombatAAByOrigRef)
+                        SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZ, nil,        iWaterZone, tWZData, tCombatAAByOrigRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished sending MAA to support iWZ='..iWZ..'; Is table of MAA to advance empty yet='..tostring(M28Utilities.IsTableEmpty(tMAAToAdvance))) end
                         if M28Utilities.IsTableEmpty(tMAAToAdvance) then
                             break
@@ -4596,7 +4596,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                                 if (bDontCheckIfInCampaignArea or M28Conditions.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
                                     local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
                                     if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tAltWZTeamData[M28Map.subrefWZThreatAlliedAA] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.4 then
-                                        SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, nil, iWaterZone)
+                                        SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, nil, iWaterZone, tWZData)
                                     end
                                 end
                             end
@@ -4619,7 +4619,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                                 if tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 or tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 then
                                     iFactorAdjust = 2
                                     if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then iFactorAdjust = 4 end
-                                    SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, iFactorAdjust, iWaterZone)
+                                    SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, iFactorAdjust, iWaterZone, tWZData)
                                     if M28Utilities.IsTableEmpty(tMAAToAdvance) then break end
                                 end
                             end
@@ -4638,7 +4638,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iMAAFactorAdjust, iStartingWZ, tOptionalCombatAAByOrigRef)
+function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iMAAFactorAdjust, iStartingWZ, tStartingWZData, tOptionalCombatAAByOrigRef)
     --Assigns MAA to the water zone up to the level at which the WZ doesnt want more MAA support, but increases the MAA wanted by the water zone by iMAAFactorAdjust (or 1 if not specified)
     --tOptionalCombatAAByOrigRef - if we have missile cruisers or cybran cruisers then want ot update this table if removing units from tMAAToAdvance
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -4660,6 +4660,28 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
     else
         local iMAAThreatWanted = tAltTeamWZData[M28Map.subrefWZMAAThreatWanted] * (iMAAFactorAdjust or 1) - tAltTeamWZData[M28Map.subrefWZThreatAlliedAA]
         local tbRemovedMAAReferencesByRef = {}
+        --If target is far away find an intermediary zone to go to, to reduce risk that order just gets cancelled
+        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tStartingWZData[M28Map.subrefMidpoint], tTargetPosition)
+        local tViaPoint
+        if iDistToTarget >= 400 then
+            local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartingWZData[M28Map.subrefMidpoint], tTargetPosition)
+            local iCurSegX, iCurSegZ
+            for iDistAbsMod = 0, 100, 10 do
+                for iModFactor = -1, 1, 2 do
+                    if iDistAbsMod > 0 or iModFactor == -1 then
+                        local tPotentialViaPoint = M28Utilities.MoveInDirection(tStartingWZData[M28Map.subrefMidpoint], iAngleToTarget, 200 + iDistAbsMod * iModFactor, true, false. M28Map.bIsCampaignMap)
+                        if M28Utilities.IsTableEmpty(tPotentialViaPoint) == false then
+                            iCurSegX, iCurSegZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
+                            if M28Map.tPondBySegment[iCurSegX][iCurSegZ] == iPond then
+                                tViaPoint = {tPotentialViaPoint[1], tPotentialViaPoint[2], tPotentialViaPoint[3]}
+                                break
+                            end
+                        end
+                    end
+                end
+                if tViaPoint then break end
+            end
+        end
         for iUnit, oUnit in tMAAToAdvance do
             if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iStartingWZ then
                 tDistToTargetByRef[iUnit] = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetPosition)
@@ -4671,7 +4693,14 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
         end
 
         for iUnitRef, iDistance in M28Utilities.SortTableByValue(tDistToTargetByRef, false) do
-            M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tTargetPosition, iResisueOrderDistanceHover, false, 'NMVEWZ'..iWZToSupport)
+            if tViaPoint then
+                M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tViaPoint, iResisueOrderDistanceHover, false, 'NMViaEWZ'..iWZToSupport)
+                if tMAAToAdvance[iUnitRef][M28Orders.refiOrderCount] <= 1 then
+                    M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tTargetPosition, iResisueOrderDistanceHover, true, 'NMViaPEWZ'..iWZToSupport)
+                end
+            else
+                M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tTargetPosition, iResisueOrderDistanceHover, false, 'NMVEWZ'..iWZToSupport)
+            end
             iMAAThreatWanted = iMAAThreatWanted - M28UnitInfo.GetAirThreatLevel({ tMAAToAdvance[iUnitRef] }, false, false, true, false, false, false)
             tbRemovedMAAReferencesByRef[iUnitRef] = true
             if iMAAThreatWanted < 0 then break end
