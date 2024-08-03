@@ -378,18 +378,18 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 local tFactoryLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tFactoryLZTeamData = tFactoryLZData[M28Map.subrefLZTeamData][iTeam]
                 --Are we in the same island as a friendly start position?
-                local bHaveStartInSameIsland = false
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) == false then
+                local bHaveStartInSameIslandOrLOUD = false
+                if not(M28Utilities.bLoudModActive) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) == false then
                     for iStartLandZone, _ in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau] do
                         local tStartLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iStartLandZone]
                         if tStartLZData[M28Map.subrefLZIslandRef] == tFactoryLZData[M28Map.subrefLZIslandRef] then
-                            bHaveStartInSameIsland = true
+                            bHaveStartInSameIslandOrLOUD = true
                             break
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Just built land fac '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' in P'..iPlateau..'Z'..iLandZone..'; bHaveStartInSameIsland='..tostring(bHaveStartInSameIsland)) end
-                if not(bHaveStartInSameIsland) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Just built land fac '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' in P'..iPlateau..'Z'..iLandZone..'; bHaveStartInSameIslandOrLOUD='..tostring(bHaveStartInSameIslandOrLOUD)) end
+                if not(bHaveStartInSameIslandOrLOUD) then
                     local bHaveOtherFactoriesOfSameTech = false
                     if M28Utilities.IsTableEmpty(tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
@@ -413,7 +413,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                     if not(bHaveOtherFactoriesOfSameTech) then
                         --Do we have enough mexes to warrant always building from this factory?
                         local bHaveEnoughMexes = false
-                        if (tFactoryLZData[M28Map.subrefLZMexCount] or 0) >= 3 or (tFactoryLZData[M28Map.subrefLZIslandRef] and ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 7 or ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 5 and tFactoryLZTeamData[M28Map.refiModDistancePercent] >= 0.2))) then
+                        if (tFactoryLZData[M28Map.subrefLZMexCount] or 0) >= 3 or (tFactoryLZData[M28Map.subrefLZIslandRef] and ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 7 or ((M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0) >= 5 and tFactoryLZTeamData[M28Map.refiModDistancePercent] >= 0.2))) or M28Utilities.bLoudModActive and (tFactoryLZData[M28Map.subrefLZMexCount] or 0) >= 2 then
                             bHaveEnoughMexes = true
                         elseif M28Utilities.IsTableEmpty(tFactoryLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             local iNearbyMexCount = (tFactoryLZData[M28Map.subrefLZMexCount] or 0)
@@ -2957,10 +2957,10 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderPgenUpgrade(oUnit, iOverrideSecondsToWait)
+function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
     --Called when we have just constructed a t3 pgen that is capable of being upgraded - tries to upgrade immediately unless are stalling mass
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ConsiderPgenUpgrade'
+    local sFunctionRef = 'ConsiderPowerPgenUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iTimeToWait = iOverrideSecondsToWait or 0
@@ -2976,7 +2976,7 @@ function ConsiderPgenUpgrade(oUnit, iOverrideSecondsToWait)
         local iTeam = oUnit:GetAIBrain().M28Team
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction] and not(M28Conditions.HaveLowPower(iTeam)) and M28Conditions.HaveLowMass(iTeam)) or not(M28Conditions.SafeToUpgradeUnit(oUnit)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough mass or want to produce more so will delay consideration of pgen upgrade, or we are dealing with unsafe to upgrade unit') end
-            ForkThread(ConsiderPgenUpgrade, oUnit, 10)
+            ForkThread(ConsiderPowerPgenUpgrade, oUnit, 10)
         else
             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             local tLZOrWZData, tLZOrWZTeamData
@@ -2994,7 +2994,51 @@ function ConsiderPgenUpgrade(oUnit, iOverrideSecondsToWait)
                 UpgradeUnit(oUnit, true)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want t1 spam so will reconsider later') end
-                ForkThread(ConsiderPgenUpgrade, oUnit, 10)
+                ForkThread(ConsiderPowerPgenUpgrade, oUnit, 10)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderMassFabUpgrade(oUnit, iOverrideSecondsToWait)
+    --Called when we have just constructed a t3 mass fab that is capable of being upgraded - tries to upgrade immediately unless are stalling energy
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderMassFabUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTimeToWait = iOverrideSecondsToWait or 0
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider wait '..iTimeToWait..' for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+    if iTimeToWait > 0 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iTimeToWait)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction] and (M28Conditions.HaveLowPower(iTeam) or M28Conditions.HaveLowMass(iTeam))) or not(M28Conditions.SafeToUpgradeUnit(oUnit)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough energy or want to produce more so will delay consideration of mass fab upgrade, or we are dealing with unsafe to upgrade unit') end
+            ForkThread(ConsiderMassFabUpgrade, oUnit, 10)
+        else
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            local tLZOrWZData, tLZOrWZTeamData
+            if iPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+
+            if not(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam)) then
+                --Wnat to upgrade pgen
+                if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mass fab unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                UpgradeUnit(oUnit, true)
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Want t1 spam so will reconsider later') end
+                ForkThread(ConsiderMassFabUpgrade, oUnit, 10)
             end
         end
     end

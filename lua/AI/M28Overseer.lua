@@ -960,7 +960,7 @@ function CheckUnitCap(aiBrain)
                                         end
                                     end
                                     if bKillUnit then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                                         if not(oUnit[M28UnitInfo.refbTriedToKill]) then
                                             if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
                                                 iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25

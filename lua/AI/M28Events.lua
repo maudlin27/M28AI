@@ -1384,6 +1384,7 @@ function OnMissileBuilt(self, weapon)
                 end
 
                 --If 2+ missiles then pause, and consider unpausing later
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]))..'; Have low power='..tostring(M28Conditions.HaveLowPower(self:GetAIBrain().M28Team))..'; Gross mass='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]..'; Mass % stored='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored]) end
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
                     if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or
                             --SMD specific
@@ -1810,6 +1811,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             if not(oJustBuilt.M28OnConstructedCalled) then
                 oJustBuilt.M28OnConstructedCalled = true
 
+
+
                 if bDebugMessages == true then LOG(sFunctionRef..': First time calling for unit '..(oJustBuilt.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) or 'nil')..' owned by '..oJustBuilt:GetAIBrain().Nickname..', was this M28 brain='..tostring(oJustBuilt:GetAIBrain().M28AI or false)..'; Built at time='..GetGameTimeSeconds()) end
 
                 --Both M28 and Non-M28 where not already run onconstructioncalled:
@@ -1884,7 +1887,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                     --Check build locations for units not built at a factory
                     local bDontClearEngineer = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will now consider logic for units not built at a factory, was this a structure or experimental='..tostring(EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will now consider logic for units not built at a factory, was this a structure or experimental='..tostring(EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId))..'; Upgradesto='..(oJustBuilt:GetBlueprint().UpgradesTo or 'nil')..'; is this a mass fab that can upgrade='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMassFab, oJustBuilt.UnitId) and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == ''))) end
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
 
                         if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
@@ -2049,11 +2052,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
-                                ForkThread(M28Economy.ConsiderPgenUpgrade, oJustBuilt)
+                                ForkThread(M28Economy.ConsiderPowerPgenUpgrade, oJustBuilt)
                             else
                                 ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                             end
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab, oJustBuilt.UnitId) and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
+                            ForkThread(M28Economy.ConsiderMassFabUpgrade, oJustBuilt, 0)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
@@ -2090,9 +2095,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.TeamEconomyRefresh(iTeam)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
-                            end
-                            --Clear engineers that just built this
+                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                        end
+                        --Clear engineers that just built this
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
                         --Check if we have transports wanting combat drops
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
