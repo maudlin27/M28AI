@@ -1370,7 +1370,6 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     end
 
 
-
     if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages
@@ -1536,7 +1535,7 @@ function OnMexConstructionStarted(oUnit)
         tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; on team '..(oUnit:GetAIBrain().M28Team or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; on team '..(oUnit:GetAIBrain().M28Team or 'nil')..'; % complete='..oUnit:GetFractionComplete()) end
     local bFoundMexLocation = false
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
         --Find the closest mex location in the zone
@@ -1611,27 +1610,31 @@ function OnMexConstructionStarted(oUnit)
     end
     if not(bFoundMexLocation) then
         --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont have an unbuilt location that existed for this mex, is it because mex is upgrading? oUnit.CanTakeDamage='..tostring(oUnit.CanTakeDamage or false)..'; oUnit.IsUpgrade='..tostring(oUnit.IsUpgrade or false)..'; LZ time of last mex death='..(GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0))..'; reprs of unit='..reprs(oUnit)) end
+        local bCheckOnlyForLowerTechExistingMex = true
         if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
             --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
-            if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
-                local tNearbyRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 0.49)
-                local tUnitsWhereDied = GetUnitsInRect(tNearbyRect)
-                local bHaveMexHere = false
-                if M28Utilities.IsTableEmpty(tNearbyRect) == false then
-                    for iBuilding, oBuilding in tNearbyRect do
-                        if not(oBuilding == oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oBuilding.UnitId) and M28UnitInfo.IsUnitValid(oBuilding) then
+            if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then bCheckOnlyForLowerTechExistingMex = false end
+            local tNearbyRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 0.49)
+            local tNearbyUnits = GetUnitsInRect(tNearbyRect)
+            local bHaveMexHere = false
+            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                for iBuilding, oBuilding in tNearbyUnits do
+                    if not(oBuilding == oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oBuilding.UnitId) and M28UnitInfo.IsUnitValid(oBuilding) then
+                        if not(bCheckOnlyForLowerTechExistingMex) or M28UnitInfo.GetUnitTechLevel(oBuilding) < M28UnitInfo.GetUnitTechLevel(oUnit) then
                             bHaveMexHere = true
                             break
                         end
                     end
                 end
-                if not(bHaveMexHere) then
-                    --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
-                    if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
-                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bCheckOnlyForLowerTechExistingMex='..tostring(bCheckOnlyForLowerTechExistingMex)..'; bHaveMexHere='..tostring(bHaveMexHere)..'; Is table of nearby units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+            if not(bHaveMexHere) then
+                --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
+                if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
+                    M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
             end
         end
     end
