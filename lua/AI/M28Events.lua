@@ -354,7 +354,25 @@ function OnUnitDeath(oUnit)
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
                                 for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations] do
                                     if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                                        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
+                                        --Check we have no built hydros that are a different unit (to support upgrading hydros)
+                                        local rPotentialTargetRect = M28Utilities.GetRectAroundLocation(tHydroLocation, 1)
+                                        local tUnitsInRect = GetUnitsInRect(rPotentialTargetRect)
+                                        local bHaveHydroOnPoint = false
+                                        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                            local tHydrosInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tUnitsInRect)
+                                            if M28Utilities.IsTableEmpty(tHydrosInRect) == false then
+                                                for iExistingHydro, oExistingHydro in tHydrosInRect do
+                                                    if M28UnitInfo.IsUnitValid(oExistingHydro) and not(oExistingHydro == oUnit) then
+                                                        bHaveHydroOnPoint = true
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Have another hydro unit blocking this hydro point so wont mark it as available, oExistingHydro='..oExistingHydro.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingHydro)) end
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if not(bHaveHydroOnPoint) then
+                                            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
+                                        end
                                         break
                                     end
                                 end
