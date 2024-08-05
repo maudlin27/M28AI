@@ -1459,6 +1459,13 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        if not(oConstruction.UnitId) then --LOUD compatibility redundancy (OnCreate should also do this)
+            if not(M28Utilities.bFAFActive) then
+                if not(oConstruction.EntityId) then oConstruction.EntityId = oConstruction:GetEntityId() end
+                oConstruction.UnitId = oConstruction:GetBlueprint().BlueprintId
+            end
+        end
+
 
 
         --Update land zone queued orders
@@ -1612,6 +1619,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield, if part of special shield defence then will assign to GE template') end
                             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
                                 M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
                             else
@@ -1656,6 +1664,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                         --If this is a fixed shield then instead update shield coverage
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to update shield coverage of units') end
                             M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
                         end
 
@@ -2520,6 +2529,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
             end
         end
+
         if M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
 
             local sFunctionRef = 'OnCreate'

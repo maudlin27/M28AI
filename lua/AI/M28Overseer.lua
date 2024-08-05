@@ -518,8 +518,14 @@ end
 
 
 function TestCustom(aiBrain)
-    local sTest = 'Test'
-    LOG('Size of sTest='..string.len(sTest))
+    M28Map.DrawSpecificLandZone(336, 70, 3)
+    local tFirstLZData = M28Map.tAllPlateaus[336][M28Map.subrefPlateauLandZones][60]
+    LOG('Land zone for segment 53-216='..(M28Map.tLandZoneBySegment[53][216] or 'nil')..'; Terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 316.5, 29.86328125, 1293.5 }) or 'nil')..'; Segment cont four zone60='..(tFirstLZData[M28Map.subrefLZTotalSegmentCount] or 'nil'))
+    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition({394.5, 30, 1371.5})
+    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30, 1371.5 }) or 'nil'))
+    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30.921875, 1293.5 }) or 'nil'))
+    M28Utilities.DrawLocation({ 394.5, 30.921875, 1293.5 }, 4, 150, nil) --gold
+    M28Utilities.DrawLocation({ 394.5, 30, 1371.5 }, 5, 150, nil) --light blue
     --[[while true do
         local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
         LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
@@ -1226,7 +1232,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging

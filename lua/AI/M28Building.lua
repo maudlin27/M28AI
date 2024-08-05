@@ -1370,7 +1370,6 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     end
 
 
-
     if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages

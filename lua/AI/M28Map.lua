@@ -49,6 +49,7 @@ iMapWaterHeight = 0 --Surface height of water on the map
 tMassPoints = {} --[x] is an integer count, returns the location of a mass point; stores all mexes on the map
 tHydroPoints = {} --[x] is an integer count, returns the location of a hydro point; stores all hydro points on the map
 tMexByPathingAndGrouping = {} --Stores position of each mex based on the pathing group that it's part of; [a][b][c]: [a] = pathing type ('Land' etc.); [b] = Segment grouping; [c] = Mex position
+tMexPathingLabelOverride = {} --[x] is the entry in tMassPoints, returns {iPlateauOverride, iIslandOverride, iPondOverride}
 tHydroNearStart = {} --[x] is an integer count, records any hydro that we have recorded as being in a starting zone of any player (done so on high hydro maps we can avoid assigning these to zones again)
 
 --Player start points
@@ -930,6 +931,8 @@ local function RecordMexForPathingGroup()
             end
         end
     end
+    local tbMexNeedsPathingAdjust = {}
+    local bHadInvalidMex = false
     for iPathingType, sPathing in tsPathingTypes do
         tMexByPathingAndGrouping[sPathing] = {}
         iValidCount = 0
@@ -937,10 +940,17 @@ local function RecordMexForPathingGroup()
         if bDebugMessages == true then LOG(sFunctionRef..': About to record all mexes for pathing type sPathing='..sPathing) end
 
         for iCurMex, tMexLocation in tMassPoints do
+
             iValidCount = iValidCount + 1
             iCurResourceGroup = NavUtils.GetTerrainLabel(sPathing, tMexLocation)
+
             if not(iCurResourceGroup) then
-                if bDebugMessages == true then LOG('Dont have a resource group for mex location '..repru(tMexLocation)..'; This is expected if mexes are located outside the playable area or are testing water pathing for land mexes and vice versa') end
+                if sPathing == refPathingTypeHover or (sPathing == refPathingTypeLand and tbMexNeedsPathingAdjust[iCurMex] == nil) then
+                    tbMexNeedsPathingAdjust[iCurMex] = true
+                    bHadInvalidMex = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unable to find any land or navy pathing groups, or lack a hover pathing type, so want to search wider for the mex to find a pathing group') end
+                end
+                if bDebugMessages == true then LOG('For sPathing '..sPathing..' we dont have a resource group for mex location '..repru(tMexLocation)..'; This is expected if mexes are located outside the playable area or are testing water pathing for land mexes and vice versa') end
             else
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': iCurMex='..iCurMex..'; About to get segment group for pathing='..sPathing..'; location='..repru((tMexLocation or {'nil'}))..'; iCurResourceGroup='..(iCurResourceGroup or 'nil'))
@@ -953,12 +963,84 @@ local function RecordMexForPathingGroup()
                 else iValidCount = table.getn(tMexByPathingAndGrouping[sPathing][iCurResourceGroup]) + 1
                 end
                 tMexByPathingAndGrouping[sPathing][iCurResourceGroup][iValidCount] = tMexLocation
+                if sPathing == refPathingTypeLand or sPathing == refPathingTypeNavy then tbMexNeedsPathingAdjust[iCurMex] = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': iValidCount='..iValidCount..'; sPathing='..sPathing..'; iCurResourceGroup='..iCurResourceGroup..'; just added tMexLocation='..repru(tMexLocation)..' to this group') end
             end
         end
         if sPathing == refPathingTypeLand and iValidCount == 0 then M28Utilities.ErrorHandler('Dont have any mexes recording for land pathing type') end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..'; tMexByPathingAndGrouping='..repru(tMexByPathingAndGrouping)) end
+    if bHadInvalidMex then
+        local iBaseSegmentX, iBaseSegmentZ, iDistAdjust, iPossiblePlateau, iPossibleIsland, iPossiblePond, bFoundAlternative
+        function ConsiderAltLocation(iCurMex, tAltLocation, tMexLocation)
+            iPossiblePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tAltLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': tAltLocation='..repru(tAltLocation)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')) end
+            if iPossiblePlateau then
+                iPossiblePond = NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltLocation)
+                iPossibleIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, tAltLocation)
+                if bDebugMessages == true then LOG(sFunctionRef..': iPossiblePond='..(iPossiblePond or 'nil')..'; iPossibleIsland='..(iPossibleIsland or 'nil')) end
+                if iPossibleIsland or iPossiblePond then
+                    tMexPathingLabelOverride[iCurMex] = {iPossiblePlateau, iPossibleIsland, iPossiblePond}
+                    local iValidPlateauCount = 1
+                    local iValidIslandCount = 1
+                    local iValidPondCount = 1
+                    if M28Utilities.IsTableEmpty(tMexByPathingAndGrouping[refPathingTypeHover][iPossiblePlateau]) == false then
+                        iValidPlateauCount = table.getn(tMexByPathingAndGrouping[refPathingTypeHover][iPossiblePlateau]) + 1
+                    else
+                        tMexByPathingAndGrouping[refPathingTypeHover][iPossiblePlateau] = {}
+                    end
+                    tMexByPathingAndGrouping[refPathingTypeHover][iPossiblePlateau][iValidPlateauCount] = tMexLocation
+                    if iPossiblePond then
+                        if M28Utilities.IsTableEmpty(tMexByPathingAndGrouping[refPathingTypeNavy][iPossiblePond]) == false then
+                            iValidPondCount = table.getn(tMexByPathingAndGrouping[refPathingTypeNavy][iPossiblePond]) + 1
+                        else
+                            tMexByPathingAndGrouping[refPathingTypeNavy][iPossiblePond] = {}
+                        end
+                        tMexByPathingAndGrouping[refPathingTypeNavy][iPossiblePond][iValidPondCount] = tMexLocation
+                    end
+                    if iPossibleIsland then
+                        if M28Utilities.IsTableEmpty(tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland]) == false then
+                            iValidIslandCount = table.getn(tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland]) + 1
+                        else
+                            tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland][iPossibleIsland] = {}
+                        end
+                        tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland][iValidIslandCount] = tMexLocation
+                    end
+                    bFoundAlternative = true
+                    return true
+                end
+            end
+            if bDebugMessages == true then M28Utilities.DrawLocation(tAltLocation, 2, 150, iLandZoneSegmentSize * 0.5) end
+        end                
+        for iCurMex, tMexLocation in tMassPoints do
+            if tbMexNeedsPathingAdjust[iCurMex] then
+                bFoundAlternative = false
+                iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMexLocation)
+                local tBasePosition = tMexLocation --for ease of reference since code was copied from similar function elsewhere
+                if bDebugMessages == true then LOG(sFunctionRef..': Trying to find alternative location for tMex='..repru(tMexLocation)..'; iCurMex='..iCurMex) end
+                for iBaseAdjust = 1, 4 do
+
+                    iDistAdjust = math.max(2, iLandZoneSegmentSize) * iBaseAdjust
+                    local tLocationAdjust = {{-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will look in a box around the unit to see if can find a valid plateau, iDistAdjust='..iDistAdjust) end
+                    for iEntry, tAdjustXZ in tLocationAdjust do
+                        if ConsiderAltLocation(iCurMex, { tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] }, tMexLocation) then break end
+                    end
+                    if not(bFoundAlternative) then
+                        --Try in a 1x1 box around the unit to see if we can find a plateau that is land pathable, and if so, see if we can path to a land zone, and if so then update to record this as the closest land zone
+                        iDistAdjust = 1
+                        tLocationAdjust = {{0,0}, {-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will look in a smaller radius box around the unit to see if can find a valid plateau, iDistAdjust='..iDistAdjust) end
+                        for iEntry, tAdjustXZ in tLocationAdjust do
+                            if ConsiderAltLocation(iCurMex, { tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] }, tMexLocation) then break end
+                        end
+                    end
+                    if bFoundAlternative then break end
+                end
+                if not(bFoundAlternative) then M28Utilities.ErrorHandler('Have a mex where we couldnt find a nearby valid land or water zone, Mex=X'..tMexLocation[1]..'Y'..tMexLocation[2]..'Z'..tMexLocation[3]) end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..'; tMexByPathingAndGrouping='..repru(tMexByPathingAndGrouping)..'; tMexPathingLabelOverride='..repru(tMexPathingLabelOverride)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1578,7 +1660,7 @@ function AssignSegmentsNearMexesToLandZones()
 
 
     function GetNeighbours(iSegmentX, iSegmentZ, tBasePosition)
-    --Get the adjacent segments to iSegmentX and Z, and the position of these adjacent segments (ntoe this is slightly different from the segment midpoint as it is based on tBasePosition for simplicity)
+        --Get the adjacent segments to iSegmentX and Z, and the position of these adjacent segments (ntoe this is slightly different from the segment midpoint as it is based on tBasePosition for simplicity)
         local tTableBeforePositions = {{iSegmentX - 1, iSegmentZ, {{tBasePosition[1] - 1, 0, tBasePosition[3]}}}, {iSegmentX, iSegmentZ - 1, {{tBasePosition[1], 0, tBasePosition[3] - 1}}}, {iSegmentX, iSegmentZ + 1, {{tBasePosition[1], 0, tBasePosition[3] + 1}}}, {iSegmentX + 1, iSegmentZ, {{tBasePosition[1] + 1, 0, tBasePosition[3]}}}}
         if iLandZoneSegmentSize > 1 then
             for iEntry, tSubtable in tTableBeforePositions do
@@ -1606,18 +1688,46 @@ function AssignSegmentsNearMexesToLandZones()
     local bHadSomeEntries = false
     local iMexLandZone, iMexLandLabel, bSameLandLabel
     if bDebugMessages == true then LOG(sFunctionRef..': About to start cycling through plateaus and mexes, iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
+    local bConsiderMexOverride = false
+    local tiMexZoneOverrideForPlateau
+    local bHaveOverrideForCurPlateau = false
+    local bAssignAdjacentToNilPlateau = false
+    if M28Utilities.IsTableEmpty(tMexPathingLabelOverride) == false then
+        bConsiderMexOverride = true
+        if iLandZoneSegmentSize >= 2 then bAssignAdjacentToNilPlateau = true end
+    end
+
     --Cycle through every plateau
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         local tbSegmentHasDifferentZone = {}
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
+            bHaveOverrideForCurPlateau = false
+            if bConsiderMexOverride then tiMexZoneOverrideForPlateau = { } end
             local iBaseQueueCount = 0
             local tiAdjacentSegmentsForSearchCountByMex = {}
             tiAdjacentSegmentsForSearchCountByMex[0] = {}
             --Cycle through every mex in the current plateau and record as the 'base' position to start searching from
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+
                 iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMex)
                 iMexLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
-                iMexLandLabel = NavUtils.GetTerrainLabel('Land', tMex)
+                iMexLandLabel = nil
+                if bConsiderMexOverride then
+                    for iEntry, tPosition in tMassPoints do
+                        if tPosition[1] == tMex[1] and tPosition[3] == tMex[3] then
+                            if  tMexPathingLabelOverride[iEntry] then
+                                bHaveOverrideForCurPlateau = true
+                                iMexLandLabel = tMexPathingLabelOverride[iEntry][2]
+                                table.insert(tiMexZoneOverrideForPlateau, {iMex, iMexLandZone})
+                            end
+                            break
+                        end
+                    end
+                    if not(iMexLandLabel) then iMexLandLabel = NavUtils.GetTerrainLabel('Land', tMex) end
+                else
+                    iMexLandLabel = NavUtils.GetTerrainLabel('Land', tMex)
+                end
+
 
                 if (iMexLandZone or 0) > 0 and (iMexLandLabel or 0) > 0 then
                     iBaseQueueCount = iBaseQueueCount + 1
@@ -1656,11 +1766,42 @@ function AssignSegmentsNearMexesToLandZones()
 
 
 
-
             --Cycle through each base position and consider adjcent pathable segments for inclusion in the base position's zone.  Record any such segments as the base points for the next search count (so the process repeats up to iMaxSegmentSearchDistance times)
             for iSearchCount = 1, iMaxSegmentSearchDistance + 1 do --+1 since we only consider iSearchCount-1 values
                 tiAdjacentSegmentsForSearchCountByMex[iSearchCount] = {}
                 bHadSomeEntries = false
+                if bHaveOverrideForCurPlateau and iSearchCount == 4 then
+                    --Manual assignment of 3 segments around an 'override' mex to the same zone if mex has an override, where they arent assigned - this is because it is likely that the neighbours of the mex wont return a valid pathing label, but we stillw ant a small area to constitute a zone for the mex
+                    if M28Utilities.IsTableEmpty(tiMexZoneOverrideForPlateau) == false then --, {iMex, iMexLandZone}
+                        local iCurSegmentX, iCurSegmentZ
+                        for iEntry, tMexAndLZ in tiMexZoneOverrideForPlateau do
+                            local tMexPosition = tAllPlateaus[iPlateau][subrefPlateauMexes][tMexAndLZ[1]]
+                            local iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMexPosition)
+                            local iCurPlateau
+                            local bAssignAdjacentToNilPlateau = false
+                            if iLandZoneSegmentSize >= 2 then bAssignAdjacentToNilPlateau = true end
+                            for iAdjustX = -3, 3, 1 do
+                                for iAdjustZ = -3, 3, 1 do
+                                    iCurSegmentX = iBaseSegmentX + iAdjustX
+                                    iCurSegmentZ = iBaseSegmentZ + iAdjustZ
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering assigning nearby segments, iAdjustX='..iAdjustX..'; iAdjustZ='..iAdjustZ..'; Cur SegX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]='..(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')) end
+                                    if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                        local tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Hover label for this segment position='..(NavUtils.GetLabel(refPathingTypeHover, tCurPosition) or 'nil')) end
+                                        iCurPlateau = NavUtils.GetLabel(refPathingTypeHover, tCurPosition)
+                                        if iCurPlateau == iPlateau or (bAssignAdjacentToNilPlateau and not(iCurPlateau) and (math.abs(iAdjustX) <= 1 and math.abs(iAdjustZ) <= 1)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Are we at or above water height? terrain height='..GetTerrainHeight(tCurPosition[1], tCurPosition[3])..' Map water height='..iMapWaterHeight) end
+                                            if GetTerrainHeight(tCurPosition[1], tCurPosition[3]) >= iMapWaterHeight then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Manually recording land zone '..tMexAndLZ[2]..' for the mex at position '..repru(tMexPosition)..'; iAdjustX='..iAdjustX..'; iAdjustZ='..iAdjustZ) end
+                                                RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, tMexAndLZ[2])
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
                 for iBaseQueueCount, tiQueueEntries in tiAdjacentSegmentsForSearchCountByMex[iSearchCount-1] do --i.e. at count-1 = 0 this is each mex; each search count after that is all adjacent locations ot the previous search count entry?
                     tiAdjacentSegmentsForSearchCountByMex[iSearchCount][iBaseQueueCount] = {}
                     for iEntry, tiSegmentXZAndZone in tiQueueEntries do
@@ -1704,6 +1845,7 @@ function AssignSegmentsNearMexesToLandZones()
             end
         end
     end
+
     if bDebugMessages == true then LOG('End of code') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2261,11 +2403,17 @@ local function AssignMexesALandZone()
         tiPlateauLandZoneByMexRef[iPlateau] = {}
     end
 
-    --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
-    function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount)
-        if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby mexes to land zone, iPlateau='..iPlateau..'; iCurLandZone='..iCurLandZone..'; tMex='..repru(tMex)..'; iRecursiveCount='..iRecursiveCount..'; Hover terrain label for tMex='..NavUtils.GetTerrainLabel(refPathingTypeHover, tMex)) end
+    local bHaveLabelOverrides = false
+    if M28Utilities.IsTableEmpty(tMexPathingLabelOverride) == false then bHaveLabelOverrides = true end
 
-        local iLandGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex)
+    --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
+    function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount, iCurMex)
+        if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby mexes to land zone, iPlateau='..(iPlateau or 'nil')..'; iCurLandZone='..(iCurLandZone or 'nil')..'; tMex='..repru(tMex)..'; iRecursiveCount='..(iRecursiveCount or 'nil')..'; Hover terrain label for tMex='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tMex) or 'nil')) end
+
+        local iLandGroupWanted
+        if bHaveLabelOverrides and iCurMex and tMexPathingLabelOverride[iCurMex][2] then iLandGroupWanted = tMexPathingLabelOverride[iCurMex][2]
+        else iLandGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex)
+        end
         local iMaxRange
         local iCurDist
         local iRecursiveThreshold = 10 --If around 13 or 14 then run into recursive limit and crash
@@ -2284,7 +2432,7 @@ local function AssignMexesALandZone()
 
         for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
             if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
-                if NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
+                if (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted or (bHaveLabelOverrides and tMexPathingLabelOverride[iAltMex][2] == iLandGroupWanted)) and not(IsUnderwater(tAltMex, false, 0.1)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..' for zone '..iCurLandZone..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)
                     --First assign mexes that are very close to each other to the same zone; if mex is further away but still close enough then add to a table for further logic
@@ -2305,7 +2453,7 @@ local function AssignMexesALandZone()
         --First do recursive logic on the very close mexes
         if M28Utilities.IsTableEmpty(tVeryCloseMexesToDoRecursiveLogic) == false and iRecursiveCount < iRecursiveThreshold then
             for iAltMex, tAltMex in tVeryCloseMexesToDoRecursiveLogic do
-                AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
+                AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1, iAltMex) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
             end
         end
         --Next do recursive logic on further away mexes (and add those mexes to this land zone), if they are still unassigned
@@ -2320,7 +2468,7 @@ local function AssignMexesALandZone()
                     end
                 end
                 if iRecursiveCount < iRecursiveThreshold then
-                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
+                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1, iAltMex) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
                 end
             end
         end
@@ -2440,6 +2588,8 @@ local function AssignMexesALandZone()
             if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all mexes on plateau '..iPlateau..' and assign them to the nearest start position on taht plateau, if there is one') end
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 --Only consider if mex isnt underwater
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex '..iMex..'; tMex '..repru(tMex)..'; iMapWaterHeight='..iMapWaterHeight) end
                 if tMex[2] >= iMapWaterHeight then
                     --Find the closest start point
                     iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
@@ -2476,7 +2626,7 @@ local function AssignMexesALandZone()
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex='..iMex..'; tMex='..repru(tMex)..' for iPlateau='..iPlateau..'; will look for the closest brain start position and assign the mex to the same zone if it is close enough. iClosestStraightLineIndex='..(iClosestStraightLineIndex or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mex is above water, considering iMex='..iMex..'; tMex='..repru(tMex)..' for iPlateau='..iPlateau..'; will look for the closest brain start position and assign the mex to the same zone if it is close enough. iClosestStraightLineIndex='..(iClosestStraightLineIndex or 'nil')) end
                     if iClosestStraightLineIndex then
                         iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
                         iClosestBrainIndex = iClosestStraightLineIndex
@@ -2515,7 +2665,7 @@ local function AssignMexesALandZone()
                         if not(tPotentialNearMexesByBrain[iClosestBrainIndex]) then tPotentialNearMexesByBrain[iClosestBrainIndex] = {} end
                         if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy, iClosestBrainIndex='..iClosestBrainIndex..'; iPlateau='..iPlateau..'; iMax='..iMex) end
                         table.insert(tPotentialNearMexesByBrain[iClosestBrainIndex], {iPlateau, iMex})
-
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Not recording mex against a start position land zone')
                     end
                 end
             end
@@ -2578,7 +2728,7 @@ local function AssignMexesALandZone()
         if table.getn(tResources) >= 3 then iStartRecursiveCountToUse = table.getn(tResources) - 2 end
         for iResource, tResourceLocation in tResources do
             if (tiStartIndexPlateauAndLZ[iBrainIndex][2] or 0) > 0 then
-                AddNearbyMexesToLandZone(tiStartIndexPlateauAndLZ[iBrainIndex][1], tiStartIndexPlateauAndLZ[iBrainIndex][2], tResourceLocation, iStartRecursiveCountToUse)
+                AddNearbyMexesToLandZone(tiStartIndexPlateauAndLZ[iBrainIndex][1], tiStartIndexPlateauAndLZ[iBrainIndex][2], tResourceLocation, iStartRecursiveCountToUse, nil)
             end
         end
     end
@@ -2662,6 +2812,7 @@ local function AssignMexesALandZone()
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 --Ignore if we have already recorded this mex above
                 if not(tbStartingMexesRecordedByPlateau[iPlateau][iMex]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a mex that we havent yet assigned, iPlateau='..iPlateau..'; iMex='..iMex..'; tMex='..repru(tMex)..'; iMapWaterHeight='..iMapWaterHeight) end
                     --Only consider if mex isnt underwater
                     if tMex[2] >= iMapWaterHeight then
                         --Find the closest start point
@@ -2715,6 +2866,7 @@ local function AssignMexesALandZone()
                             AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
                             if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
                         end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Mex is underwater so not assigning')
                     end
                 end
             end
@@ -2730,7 +2882,7 @@ local function AssignMexesALandZone()
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 --Only do this if we didnt record as part of start position (as we already add nearby mexes as part of that)
                 if not(tbStartingMexesRecordedByPlateau[iPlateau][iMex]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with mexes not assigned from either start zone logic, so will look for nearby mex, iMex='..iMex..'; tMex='..repru(tMex)..'; Is mex underwater='..tostring(IsUnderwater(tMex, false, 0.1))) end
                     if not(IsUnderwater(tMex, false, 0.1)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiPlateauLandZoneByMexRef for this ref='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
                         if not(tiPlateauLandZoneByMexRef[iPlateau][iMex]) then
@@ -2739,7 +2891,7 @@ local function AssignMexesALandZone()
                             if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
 
                             --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
-                            AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
+                            AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0, iMex)
                         end
                     end
                 end
@@ -2768,6 +2920,7 @@ local function AssignMexesALandZone()
                     iMinZ = math.min(tMex[3], iMinZ)
                     iMaxZ = math.max(tMex[3], iMaxZ)
                 end
+                if iZone == 45 then LOG(sFunctionRef..': Zone45 - Mexes against zone='..repru(tZone[subrefLZMexLocations])) end
                 M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
             end
         end

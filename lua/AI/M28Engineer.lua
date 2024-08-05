@@ -9266,7 +9266,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
                     bGetShield = false
                 elseif M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < (1 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     bGetShield = false
-                --LOUD - shields have a high E cost so dont build generally until we have very high energy
+                    --LOUD - shields have a high E cost so dont build generally until we have very high energy
                 elseif M28Utilities.bLoudModActive and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.HaveLowPower(iTeam)) then
                     bGetShield = false
                 end
@@ -9288,19 +9288,30 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
                 SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15)
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
                     iCurMass = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
-                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil'))
+                        if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false then
+                            for iRecorded, oRecorded in oUnit[M28Building.reftoShieldsProvidingCoverage] do
+                                LOG(sFunctionRef..': oRecorded shield covering this='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecorded)..'; is unit valid='..tostring(M28UnitInfo.IsUnitValid(oRecorded)))
+                            end
+                        else
+                            LOG(sFunctionRef..': No shields are recorded as providing coverage')
+                        end
+                    end
                     if iCurMass and (iCurMass > iHighestMassValue or (oUnit[refiFailedShieldConstructionCount] or 0) < iLowestShieldAttempt) then
                         --Check we are likely to be able ot build a shield nearby
                         if (oUnit[refiFailedShieldBuildDistance] or 0) <= 17 then --Cybran ED4 has a readius of 17
                             if oUnit:GetFractionComplete() >= 0.35 or not(EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId)) or not(bHaveLowMass) then
-                                iHighestMassValue = iCurMass
-                                oUnitToShield = oUnit
-                                iLowestShieldAttempt = (oUnit[refiFailedShieldConstructionCount] or 0)
+                                --Redundancy - check we dont already ahve 2+ shields covering this for lower mass units
+                                if iCurMass > 30000 or M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) or table.getn(oUnit[M28Building.reftoShieldsProvidingCoverage]) <= 1 then
+                                    iHighestMassValue = iCurMass
+                                    oUnitToShield = oUnit
+                                    iLowestShieldAttempt = (oUnit[refiFailedShieldConstructionCount] or 0)
+                                end
                             end
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)..'; (oUnit[refiFailedShieldConstructionCount] or 0)='..(oUnit[refiFailedShieldConstructionCount] or 0)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)..'; (oUnit[refiFailedShieldConstructionCount] or 0)='..(oUnit[refiFailedShieldConstructionCount] or 0)..'; Is table of shields already providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]))) end
             end
             if oUnitToShield then
                 if (not(EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitToShield.UnitId)) or (EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oUnitToShield.UnitId) and not(bHaveLowMass) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) and (iHighestMassValue >= iHighMassThreshold or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 2)) or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000) then
@@ -10834,7 +10845,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Energy storage if we have none and at least 1 T2+ mex
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
-    if M28Building.iLowestEnergyStorageTechAvailable <= 2 and (not(M28Utilities.bLoudModActive) or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+    if M28Building.iLowestEnergyStorageTechAvailable <= 2 and (not(M28Utilities.bLoudModActive) or (not(M28Economy.bT3MexCanBeUpgraded) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]))) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --Is the number of storage in this LZ <= lowest storage count?
         local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local iStorageInThisLZ = 0
@@ -12188,7 +12199,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iStorageInThisLZ='..iStorageInThisLZ) end
             if iStorageInThisLZ <= M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] and ((not(bSaveMassForMML) and not(bPrioritiseProduction)) or iStorageInThisLZ == 0) then
-                if (not(M28Utilities.bLoudModActive) and M28Building.iLowestEnergyStorageTechAvailable <= 2) or (iStorageInThisLZ == 0 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
+                if (not(M28Utilities.bLoudModActive) and M28Building.iLowestEnergyStorageTechAvailable <= 2) or (iStorageInThisLZ == 0 and not(M28Economy.bT3MexCanBeUpgraded) and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get storage, Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
                     iBPWanted = 5
                     if not(bHaveLowMass) then iBPWanted = 20 end
@@ -12522,7 +12533,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Mass fab for LOUD or 40km+ maps (higher priority) when are spending all our mass and dont have low power, provided we have already built an experimental
     iCurPriority = iCurPriority + 1
-    if (M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 or M28Map.bIsLowMexMap) and bHaveLowMass and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and not(M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 then
+    if (M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 or M28Map.bIsLowMexMap) and bHaveLowMass and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and not(M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 150 then
         iBPWanted = 60
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = 40 end
         HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted) --NOTE: Have a separate function more generally for mass fabs and quantum gateways
