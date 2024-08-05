@@ -2920,7 +2920,6 @@ local function AssignMexesALandZone()
                     iMinZ = math.min(tMex[3], iMinZ)
                     iMaxZ = math.max(tMex[3], iMaxZ)
                 end
-                if iZone == 45 then LOG(sFunctionRef..': Zone45 - Mexes against zone='..repru(tZone[subrefLZMexLocations])) end
                 M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
             end
         end
