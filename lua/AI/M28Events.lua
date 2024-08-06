@@ -1491,6 +1491,14 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
         end
 
+        --Both M28 and non-M28:
+        if not(oConstruction[M28UnitInfo.refbConstructionStart]) then
+            --Mex and hydro upgrade tracking redundancy if not FAF
+            if not(M28Utilities.bFAFActive) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oEngineer.UnitId) then
+                oConstruction.IsUpgrade = true
+            end
+        end
+
 
         --M28 specific
         if oEngineer:GetAIBrain().M28AI then
@@ -1729,6 +1737,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             M28Building.RecordIfShieldIsProtectingUnit(oShield, oConstruction, iShieldRadius, true)
                         end
                     end
+
                 end
             end
         end

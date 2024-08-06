@@ -2928,7 +2928,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                             if bDebugMessages == true then LOG(sFunctionRef..': Doing safety check, is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy air to ground threat='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and M28Utilities.IsTableEmpty(oJustBuilt[M28Building.reftTMLInRangeOfThisUnit]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
                                 --Upgrade another mex in this zone (or this mex if T3 LOUD)
-                                if iMexTechLevel == 3 and M28Utilities.bLoudModActive then
+                                if iMexTechLevel == 3 and M28Utilities.bLoudModActive and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Upgrading this unit again') end
                                     UpgradeUnit(oJustBuilt, true)
                                 elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then --redundancy
@@ -2941,7 +2941,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                     if bDebugMessages == true then LOG(sFunctionRef..': is M28Utilities.IsTableEmpty(tMexOfCategory)='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) == false then
                                         for iMex, oMex in tMexOfCategory do
-                                            if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex == oJustBuilt) and not(oMex == oOptionalEngineer) then
+                                            if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex == oJustBuilt) and not(oMex == oOptionalEngineer) and not((oMex:GetBlueprint().General.UpgradesTo or '') == '') then
                                                 UpgradeUnit(oMex, true)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade the mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as have just compelted a mex upgrade in this zone') end
                                                 break
