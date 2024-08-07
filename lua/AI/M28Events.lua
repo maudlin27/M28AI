@@ -502,6 +502,9 @@ function OnUnitDeath(oUnit)
                                 --end
                             end
 
+                            --Gameender build tracker
+                            if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] = math.max(0, (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] or 0) - 1) end
+
                             --GE template shielding
                             if oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
                                 local tArtiTemplate = M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]]
@@ -1895,6 +1898,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
                             ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
 
                     end
 
