@@ -1493,9 +1493,22 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
         --Both M28 and non-M28:
         if not(oConstruction[M28UnitInfo.refbConstructionStart]) then
-            --Mex and hydro upgrade tracking redundancy if not FAF
-            if not(M28Utilities.bFAFActive) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oEngineer.UnitId) then
-                oConstruction.IsUpgrade = true
+            --Construction is being done of a building, by a building
+            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEngineer.UnitId) then
+                --Mex and hydro upgrade tracking redundancy if not FAF
+                if not(M28Utilities.bFAFActive) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oEngineer.UnitId) then
+                    oConstruction.IsUpgrade = true
+                end
+                --Intel approximation - a human player would be able to infer that if they'd scouted a mex and now it is greyed out, that means the opponent has upgraded it; so it is reasonable for the AI to be given the same information
+                local iConstructionTeam = oConstruction:GetAIBrain().M28Team
+                for iTeam = 1, M28Team.iTotalTeamCount, 1 do
+                    if not(iTeam == iConstructionTeam) and oEngineer[M28UnitInfo.reftbConsideredForAssignmentByTeam][iTeam] then
+                        local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+                        if oFirstM28Brain then
+                            M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oConstruction, false, false, true)
+                        end
+                    end
+                end
             end
         end
 
