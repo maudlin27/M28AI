@@ -219,6 +219,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
     reftoRecentlyFiredAlliedNukeLaunchers = 'M28ANukeLaunchers' --table of M28 owned nuke launchers that have recently fired a missile
+    refbSMDBlockingLastNukeTarget = 'SMDBlNuk' --true if last nuke target was blocked by SMD
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond

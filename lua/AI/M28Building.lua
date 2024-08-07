@@ -1687,7 +1687,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then bDebugMessages = true end
+
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
@@ -1789,8 +1789,44 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         if EntityCategoryContains(categories.AEON, oLauncher.UnitId) then iMinDelayBetweenNukes = iMinDelayBetweenNukes + 5 end
                     else
                         --yolona - refuce min delay if enemy has lots of SMD as may be trying to overwhelm
-                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) >= 3 then
-                            iMinDelayBetweenNukes = 9
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
+                            local bAllowMultipleNukesAtTarget = false
+
+                            if M28Team.tTeamData[iTeam][M28Team.refbSMDBlockingLastNukeTarget] then
+                                bAllowMultipleNukesAtTarget = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has SMDs and there was an SMD blockign the last nuke target so we want to reduce the delay between nuke targets') end
+                            else
+                                local bEnemyHasLoadedOrLotsOfSMD = false
+                                if table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) >= 3 then
+                                    bEnemyHasLoadedOrLotsOfSMD = true
+                                else
+                                    for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                                        if oSMD:GetTacticalSiloAmmoCount() > 0 then
+                                            bEnemyHasLoadedOrLotsOfSMD = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasLoadedOrLotsOfSMD='..tostring(bEnemyHasLoadedOrLotsOfSMD)) end
+
+                                if bEnemyHasLoadedOrLotsOfSMD then
+                                    --if any nuke target in the last 30s is currently covered by SMD, then remove min delay
+                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+                                        local iTimeSinceFired
+                                        local iLoopCheck
+                                        local iThresholdTime = GetGameTimeSeconds() - 30
+                                        for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering nuke launch location if it was fired within threshold time, fired in threshold='..tostring(iTime >= iThresholdTime)..'; IsSMDBlockingTarget='..tostring(IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 30, 0, false))..'; iTime='..iTime..'; tLocation='..repru(tLocation)) end
+                                            if iTime >= iThresholdTime and IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 30, 0, false) then
+                                                bAllowMultipleNukesAtTarget = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want to allow multiple nukes at targets') end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if bAllowMultipleNukesAtTarget then iMinDelayBetweenNukes = 0 end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the min delay between nukes at the same location for a yolona, iMinDelayBetweenNukes='..iMinDelayBetweenNukes..'; Is table of enemy SMD empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]))) end
                     end
@@ -1816,6 +1852,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
                     if M28UnitInfo.IsUnitValid(oLauncher) then
+                        local bHaveBlockingSMD = false
                         if bTML then
 --DEALING WITH TML---------------------------------------------------
                             --local tHighHealthTargets = {}
@@ -1978,7 +2015,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking nuke launch locations, is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]))..'; Time of check='..GetGameTimeSeconds()) end
                             function RefreshRecentlyNukedLocations()
-                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false and iMinDelayBetweenNukes > 0 then
                                     local iTimeSinceFired
                                     local iLoopCheck
                                     for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
@@ -2349,24 +2386,68 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 LOG(sFunctionRef..': Checking if we are a yolona in which case we want to target any blocking SMD first, tTarget='..repru(tTarget)..'; bCheckForSMD='..tostring(bCheckForSMD)..'; Yolona='..tostring(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId))..'; Is table of enemy SMD empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]))..'; If enemy has more than 1 SMD will consider targeting SMD instead of the best target for the missile')
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then LOG(sFunctionRef..': Number of enemy SMD='..table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD])) end
                             end
-                            if tTarget and not(bCheckForSMD) and EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) > 1 and not(oLauncher[M28UnitInfo.refbEasyBrain]) then
+                            if tTarget and not(bCheckForSMD) and EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
                                 --WOrk out which SMD are intercepting our missile
                                 local tSMDBlockingTarget = IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0, true)
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef..': Is table of enemy SMD blocking target empty='..tostring(M28Utilities.IsTableEmpty(tSMDBlockingTarget)))
                                     if M28Utilities.IsTableEmpty(tSMDBlockingTarget) == false then LOG(sFunctionRef..': Number of SMD blocking target='..table.getn(tSMDBlockingTarget)) end
                                 end
-                                --Only target down SMD if we have 2+ SMD blocking our desired target (otherwise it may be better to just ignore)
-                                if M28Utilities.IsTableEmpty(tSMDBlockingTarget) == false and table.getn(tSMDBlockingTarget) > 1 then
-                                    local tAltTarget = GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, oLauncher:GetPosition(), tSMDBlockingTarget, iAOE, iDamage)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Yolona target will be intercepted by SMD, want to take out the nearest blocking SMD first, tTarget='..repru(tTarget)..'; tAltTarget after facotirng in blockgin SMD='..repru(tAltTarget)) end
-                                    if tAltTarget and (table.getn(tSMDBlockingTarget) >= 3 or HaventRecentlyNukedLocation(tAltTarget)) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will now draw ttarget and talttarget, tTarget will be in blue, tAltTarget will be in gold')
-                                            M28Utilities.DrawLocation(tTarget)
-                                            M28Utilities.DrawLocation(tAltTarget, 4)
-                                        end
+                                --Only target down SMD if we have 2+ SMD or a loaded SMD blocking our desired target (otherwise it may be better to just ignore)
+                                if M28Utilities.IsTableEmpty(tSMDBlockingTarget) == false then
+                                    local bLotsOfSMDOrLoaded = false
+                                    if table.getn(tSMDBlockingTarget) >= 4 then
+                                        bLotsOfSMDOrLoaded = true
+                                    else
+                                        local iSMDCount = 0
+                                        for iBlockingSMD, oBlockingSMD in tSMDBlockingTarget do
 
-                                        tTarget = tAltTarget
+                                            if oBlockingSMD:GetFractionComplete() == 1 then
+                                                iSMDCount = iSMDCount + 1
+                                                if oBlockingSMD:GetTacticalSiloAmmoCount() > 0 then
+                                                    bLotsOfSMDOrLoaded = true
+                                                end
+                                            end
+                                        end
+                                        if not(bLotsOfSMDOrLoaded) and iSMDCount >= 2 then
+                                            bLotsOfSMDOrLoaded = true
+                                        end
+                                    end
+                                    if bLotsOfSMDOrLoaded then
+                                        bHaveBlockingSMD = true
+                                        local tAltTarget = GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, oLauncher:GetPosition(), tSMDBlockingTarget, iAOE, iDamage)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Yolona target will be intercepted by SMD, want to take out the nearest blocking SMD first, tTarget='..repru(tTarget)..'; tAltTarget after facotirng in blockgin SMD='..repru(tAltTarget)) end
+                                        if tAltTarget then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will now draw ttarget and talttarget, tTarget will be in blue, tAltTarget will be in gold')
+                                                M28Utilities.DrawLocation(tTarget)
+                                                M28Utilities.DrawLocation(tAltTarget, 4)
+                                            end
+
+                                            tTarget = tAltTarget
+                                        end
+                                    end
+                                end
+                            elseif not(tTarget) and EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
+                                local tPotentialSMDTargets = {}
+                                for iRecordedSMD, oRecordedSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                                    if M28UnitInfo.IsUnitValid(oRecordedSMD) and oRecordedSMD:GetFractionComplete() >= 0.9 then
+                                        table.insert(tPotentialSMDTargets, oRecordedSMD)
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is tPotentialSMDTargets empty='..tostring(M28Utilities.IsTableEmpty(tPotentialSMDTargets))) end
+                                if M28Utilities.IsTableEmpty(tPotentialSMDTargets) == false then
+                                    if table.getn(tPotentialSMDTargets) == 1 then
+                                        tTarget = tPotentialSMDTargets[1]:GetPosition()
+                                    else
+                                        local bHaveNonRecentTarget = false
+                                        for iRecordedSMD, oRecordedSMD in tPotentialSMDTargets do
+                                            if not(HaventRecentlyNukedLocation(oRecordedSMD:GetPosition())) then
+                                                tTarget = oRecordedSMD:GetPosition()
+                                                bHaveNonRecentTarget = true
+                                                break
+                                            end
+                                        end
+                                        if not(bHaveNonRecentTarget) and not(tTarget) then tTarget = tPotentialSMDTargets[1]:GetPosition() end
                                     end
                                 end
                             end
@@ -2438,13 +2519,15 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
 
                                     M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget--]]
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
+                                    if not(bHaveBlockingSMD) then bHaveBlockingSMD = IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; bHaveBlockingSMD='..tostring(bHaveBlockingSMD)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                                     --Send a voice taunt if havent in last 10m and we expect to do significant damage
-                                    if iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
-                                        if bCheckForSMD or not(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), 60, 0)) then
-                                            M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
-                                            ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
-                                        end
+                                    if not(bHaveBlockingSMD) and iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
+                                        M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
+                                        ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                    elseif bHaveBlockingSMD then
+                                        --Record that our last nuke target had a blocking SMD (so we allow any delay between nuke missiles)
+                                        M28Team.tTeamData[iTeam][M28Team.refbSMDBlockingLastNukeTarget] = true
                                     end
                                 end
                             end
