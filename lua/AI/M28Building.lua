@@ -1687,6 +1687,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then bDebugMessages = true end
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
@@ -1729,7 +1730,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                 local bTML = false
                 local bSML = false
                 local bCheckForSMD = false
-                local iMinDelayBetweenNukes = 55 --Aeon nuke takes 60s to get to corner of setons, think it takes 5s longer to fire, so will go with 55 for non-aeon
+                local iMinDelayBetweenNukes = 15 + 40 * M28Map.iMapSize / 1024 --Aeon nuke takes 60s to get to corner of setons, think it takes 5s longer to fire, so will go with 55 for non-aeon; as a very rough approximation will allow 15s for non-Aeon to fire and then rise and then fall, and 40s for travelling, so are slightly better on 40km+ maps at not double-nuking the same spot
+
                 local iTeam = aiBrain.M28Team
                 local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
                 if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then
@@ -1778,7 +1780,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
 
-                            if not(bCheckForSMD) then
+                            if not(bCheckForSMD) and iEnemySMD > 0 then
                                 iMinDelayBetweenNukes = math.min(10, math.max(5, 15 - iNukeCount/2))
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore SMD, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; iNukeCount='..iNukeCount..'; iEnemySMD (if we have lots of nukes)='..iEnemySMD..'; bCheckForSMD='..tostring(bCheckForSMD)..'; Time='..GetGameTimeSeconds()..'; iMinDelayBetweenNukes='..iMinDelayBetweenNukes) end
@@ -1790,6 +1792,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) >= 3 then
                             iMinDelayBetweenNukes = 9
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the min delay between nukes at the same location for a yolona, iMinDelayBetweenNukes='..iMinDelayBetweenNukes..'; Is table of enemy SMD empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]))) end
                     end
 
 
@@ -1814,6 +1817,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
                     if M28UnitInfo.IsUnitValid(oLauncher) then
                         if bTML then
+--DEALING WITH TML---------------------------------------------------
                             --local tHighHealthTargets = {}
                             local tStartPos = oLauncher:GetPosition()
                             local tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
@@ -1933,8 +1937,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets..'; tTarget='..repru((tTarget or {'nil'}))..'; Is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))) end
-
                         else --SML - work out which location would deal the most damage - consider all high value structures and the enemy start position
+--DEALING WITH NUKE---------------------------------------------------
                             --Reduce AOE by 0.5 if >10 to be more reliable (since height differences mean we might incorrectly think we will hit a high value target?)
                             if iAOE > 10 then iAOE = math.max(10, iAOE - 0.5) end
                             iBestTargetValue = 0
@@ -2250,7 +2254,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
                             if iBestTargetValue < 20000 then --Mex is 4.6k base, with a 1.75 factor is 8050; with mass storage would be 9450; therefore if want to hit 3+ mex equivalents with a nuke, min value should be at least 19k (just over 2 capped T3 mexes)
-                                if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                                if iBestTargetValue < 2000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': CLearing target as not valuable enough') end
                                     tTarget = nil
                                 end
                             end --Increased vs M27 as will only apuse if no target
