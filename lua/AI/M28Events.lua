@@ -354,7 +354,25 @@ function OnUnitDeath(oUnit)
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
                                 for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations] do
                                     if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                                        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
+                                        --Check we have no built hydros that are a different unit (to support upgrading hydros)
+                                        local rPotentialTargetRect = M28Utilities.GetRectAroundLocation(tHydroLocation, 1)
+                                        local tUnitsInRect = GetUnitsInRect(rPotentialTargetRect)
+                                        local bHaveHydroOnPoint = false
+                                        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                            local tHydrosInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tUnitsInRect)
+                                            if M28Utilities.IsTableEmpty(tHydrosInRect) == false then
+                                                for iExistingHydro, oExistingHydro in tHydrosInRect do
+                                                    if M28UnitInfo.IsUnitValid(oExistingHydro) and not(oExistingHydro == oUnit) then
+                                                        bHaveHydroOnPoint = true
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Have another hydro unit blocking this hydro point so wont mark it as available, oExistingHydro='..oExistingHydro.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingHydro)) end
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if not(bHaveHydroOnPoint) then
+                                            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations], tHydroLocation)
+                                        end
                                         break
                                     end
                                 end
@@ -483,6 +501,9 @@ function OnUnitDeath(oUnit)
                                 M28Building.CheckIfUnitWantsFixedShield(oUnit) --I.e. if a fixed hsield has died that is owned by M28, then want to run this function so can reassess if we hae any units that now want shielding
                                 --end
                             end
+
+                            --Gameender build tracker
+                            if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] = math.max(0, (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] or 0) - 1) end
 
                             --GE template shielding
                             if oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
@@ -1384,6 +1405,7 @@ function OnMissileBuilt(self, weapon)
                 end
 
                 --If 2+ missiles then pause, and consider unpausing later
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]))..'; Have low power='..tostring(M28Conditions.HaveLowPower(self:GetAIBrain().M28Team))..'; Gross mass='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]..'; Mass % stored='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored]) end
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
                     if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or
                             --SMD specific
@@ -1458,11 +1480,39 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        if not(oConstruction.UnitId) then --LOUD compatibility redundancy (OnCreate should also do this)
+            if not(M28Utilities.bFAFActive) then
+                if not(oConstruction.EntityId) then oConstruction.EntityId = oConstruction:GetEntityId() end
+                oConstruction.UnitId = oConstruction:GetBlueprint().BlueprintId
+            end
+        end
+
 
 
         --Update land zone queued orders
         if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
+        end
+
+        --Both M28 and non-M28:
+        if not(oConstruction[M28UnitInfo.refbConstructionStart]) then
+            --Construction is being done of a building, by a building
+            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEngineer.UnitId) then
+                --Mex and hydro upgrade tracking redundancy if not FAF
+                if not(M28Utilities.bFAFActive) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oEngineer.UnitId) then
+                    oConstruction.IsUpgrade = true
+                end
+                --Intel approximation - a human player would be able to infer that if they'd scouted a mex and now it is greyed out, that means the opponent has upgraded it; so it is reasonable for the AI to be given the same information
+                local iConstructionTeam = oConstruction:GetAIBrain().M28Team
+                for iTeam = 1, M28Team.iTotalTeamCount, 1 do
+                    if not(iTeam == iConstructionTeam) and oEngineer[M28UnitInfo.reftbConsideredForAssignmentByTeam][iTeam] then
+                        local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+                        if oFirstM28Brain then
+                            M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oConstruction, false, false, true)
+                        end
+                    end
+                end
+            end
         end
 
 
@@ -1611,6 +1661,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield, if part of special shield defence then will assign to GE template') end
                             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
                                 M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
                             else
@@ -1655,6 +1706,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                         --If this is a fixed shield then instead update shield coverage
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to update shield coverage of units') end
                             M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
                         end
 
@@ -1701,6 +1753,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             M28Building.RecordIfShieldIsProtectingUnit(oShield, oConstruction, iShieldRadius, true)
                         end
                     end
+
                 end
             end
         end
@@ -1810,6 +1863,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             if not(oJustBuilt.M28OnConstructedCalled) then
                 oJustBuilt.M28OnConstructedCalled = true
 
+
+
                 if bDebugMessages == true then LOG(sFunctionRef..': First time calling for unit '..(oJustBuilt.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) or 'nil')..' owned by '..oJustBuilt:GetAIBrain().Nickname..', was this M28 brain='..tostring(oJustBuilt:GetAIBrain().M28AI or false)..'; Built at time='..GetGameTimeSeconds()) end
 
                 --Both M28 and Non-M28 where not already run onconstructioncalled:
@@ -1843,6 +1898,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
                             ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
+
+                        if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
 
                     end
 
@@ -1884,7 +1941,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                     --Check build locations for units not built at a factory
                     local bDontClearEngineer = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will now consider logic for units not built at a factory, was this a structure or experimental='..tostring(EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will now consider logic for units not built at a factory, was this a structure or experimental='..tostring(EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId))..'; Upgradesto='..(oJustBuilt:GetBlueprint().UpgradesTo or 'nil')..'; is this a mass fab that can upgrade='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMassFab, oJustBuilt.UnitId) and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == ''))) end
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
 
                         if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
@@ -2049,11 +2106,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
-                                ForkThread(M28Economy.ConsiderPgenUpgrade, oJustBuilt)
+                                ForkThread(M28Economy.ConsiderPowerPgenUpgrade, oJustBuilt)
                             else
                                 ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                             end
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMassFab, oJustBuilt.UnitId) and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
+                            ForkThread(M28Economy.ConsiderMassFabUpgrade, oJustBuilt, 0)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
@@ -2090,9 +2149,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.TeamEconomyRefresh(iTeam)
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
-                            end
-                            --Clear engineers that just built this
+                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                        end
+                        --Clear engineers that just built this
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
                         --Check if we have transports wanting combat drops
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
@@ -2515,6 +2574,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
             end
         end
+
         if M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnit.UnitId)) then --redundancy, doesnt look like units like cybran build drones cause this to happen
 
             local sFunctionRef = 'OnCreate'

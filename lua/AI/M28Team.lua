@@ -219,11 +219,13 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
     reftoRecentlyFiredAlliedNukeLaunchers = 'M28ANukeLaunchers' --table of M28 owned nuke launchers that have recently fired a missile
+    refbSMDBlockingLastNukeTarget = 'SMDBlNuk' --true if last nuke target was blocked by SMD
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
+    refiFriendlyGameEnderCount = 'GameEndCn' --number of active gameenders we think we have (based on constructed/100% created - death)
     reftoPotentialTeleSnipeTargets = 'M28TeamTeleSnipe' --Table of locations we think woudl be good to teleport to
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
@@ -634,6 +636,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = 1
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
+    tTeamData[iTotalTeamCount][refiFriendlyGameEnderCount] = 0
     tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
     tTeamData[iTotalTeamCount][refiEnemyT3ArtiCount] = 0
     tTeamData[iTotalTeamCount][refiEnemyNovaxCount] = 0

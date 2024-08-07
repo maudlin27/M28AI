@@ -518,8 +518,14 @@ end
 
 
 function TestCustom(aiBrain)
-    local sTest = 'Test'
-    LOG('Size of sTest='..string.len(sTest))
+    M28Map.DrawSpecificLandZone(336, 70, 3)
+    local tFirstLZData = M28Map.tAllPlateaus[336][M28Map.subrefPlateauLandZones][60]
+    LOG('Land zone for segment 53-216='..(M28Map.tLandZoneBySegment[53][216] or 'nil')..'; Terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 316.5, 29.86328125, 1293.5 }) or 'nil')..'; Segment cont four zone60='..(tFirstLZData[M28Map.subrefLZTotalSegmentCount] or 'nil'))
+    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition({394.5, 30, 1371.5})
+    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30, 1371.5 }) or 'nil'))
+    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30.921875, 1293.5 }) or 'nil'))
+    M28Utilities.DrawLocation({ 394.5, 30.921875, 1293.5 }, 4, 150, nil) --gold
+    M28Utilities.DrawLocation({ 394.5, 30, 1371.5 }, 5, 150, nil) --light blue
     --[[while true do
         local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
         LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
@@ -960,7 +966,7 @@ function CheckUnitCap(aiBrain)
                                         end
                                     end
                                     if bKillUnit then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                                         if not(oUnit[M28UnitInfo.refbTriedToKill]) then
                                             if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
                                                 iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25

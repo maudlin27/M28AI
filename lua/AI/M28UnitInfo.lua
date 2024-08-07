@@ -193,9 +193,11 @@ refCategoryPD = categories.STRUCTURE * categories.DIRECTFIRE
 refCategoryT3PD = refCategoryPD * categories.TECH3
 refCategoryTMD = categories.STRUCTURE * categories.ANTIMISSILE - categories.SILO * categories.TECH3 --Not perfect but should pick up most TMD without picking up SMD
 refCategoryFixedShield = categories.SHIELD * categories.STRUCTURE
-refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH2 - categories.TACTICALMISSILEPLATFORM
-refCategoryFixedT3Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3
-refCategoryExperimentalArti = categories.EXPERIMENTAL * categories.ARTILLERY - categories.MOBILE * categories.UEF
+refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH2 - categories.TACTICALMISSILEPLATFORM + categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3 * categories.SIZE8 --done so mods like LOUD that add a t3 smaller arti can be built as well
+refCategoryFixedT3Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3 - categories.SIZE8 --done to support mods (like in LOUD) that add a t3 arti unit like the t2 arti unit (rather than like a duke)
+
+
+refCategoryExperimentalArti = categories.EXPERIMENTAL * categories.ARTILLERY - categories.MOBILE * categories.UEF - categories.MOBILE * categories.CYBRAN - categories.MOBILE * categories.AEON --e.g. one of the LOUD standard mods adds an aeon mobile experimental arti that has a short range
 refCategorySML = categories.NUKE * categories.SILO
 refCategorySMD = categories.ANTIMISSILE * categories.SILO * categories.TECH3 * categories.STRUCTURE
 refCategoryTML = categories.SILO * categories.STRUCTURE * categories.TECH2 - categories.ANTIMISSILE
