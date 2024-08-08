@@ -69,14 +69,14 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     local sPlateauAndZoneDesc = ''
     if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        sPlateauAndZoneDesc = ':P='..(iPlateauOrZero or 0)..'Z='..(iLandOrWaterZone or 0)
+        sPlateauAndZoneDesc = 'P'..(iPlateauOrZero or 0)..'Z'..(iLandOrWaterZone or 0)
     end
     if M28Config.M28ShowUnitNames then --redundancy
         if not(M28Utilities.bFAFActive) and oUnit:GetAIBrain().M28AI then
             --Be clear which units belong to M28 if not playing in FAF
-            oUnit:SetCustomName('M28:'..(oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sBaseOrder..sExtraOrder)
         else
-            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
+            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sBaseOrder..sExtraOrder)
         end
     end
 end
