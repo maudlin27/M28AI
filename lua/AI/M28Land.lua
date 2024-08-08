@@ -5581,7 +5581,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then bAttackWithOutrangedDFUnits = true
                         else
                             CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat(tOutrangedCombatUnits)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to attack with outranged units, iOurDFAndT1ArtiCombatThreat using only SR units='..iOurDFAndT1ArtiCombatThreat..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Enemy combat in adj zones='..GetEnemyCombatThreatInAdjacentZones()..'; iOutrangedThreat='..iOutrangedThreat) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to attack with outranged units, iOurDFAndT1ArtiCombatThreat using only SR units='..iOurDFAndT1ArtiCombatThreat..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Enemy combat in adj zones='..GetEnemyCombatThreatInAdjacentZones()..'; iOutrangedThreat='..M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)) end
                             if iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat then
                                 if iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 3 or (iOurDFAndT1ArtiCombatThreat >= 16000 and iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 1.1) then
                                     bAttackWithOutrangedDFUnits = true
