@@ -1964,6 +1964,7 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause, iOptional
 end
 
 function ForkedPauseUnit(oUnit, bPauseNotUnpause)
+    --Even adding a not(oUnit.Dead) check can still have an error in LOUD; however forked thread so shoudlnt matter
     oUnit:SetPaused(bPauseNotUnpause)
 end
 
