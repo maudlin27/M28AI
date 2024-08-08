@@ -1806,8 +1806,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             end
 
             if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-                --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
-                if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) then
+                --If a building has just build a building, then make sure all M28 are aware of it (since a player would be able to infer this)
+                if EntityCategoryContains(categories.STRUCTURE - categories.ENGINEER, oEngineer.UnitId) then
                     local tTeamsUpdated = {}
                     for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
                         if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
