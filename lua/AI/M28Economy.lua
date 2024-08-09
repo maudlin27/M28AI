@@ -41,9 +41,9 @@ refiOurHighestNavalFactoryTech = 'M28EOurHighestNavalFactoryTech' --against aiBr
 
 
 --Against unit variables:
-refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
-refiLastEnergyUsage = 'M28EconomyLastEnergyUsage' --per tick energy usage of the unit (set when the unit is paused)
-refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit set when unit is paused
+refoBrainRecordedForEconomy = 'M28EBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
+refiLastEnergyUsage = 'M28ELastEnergyUsage' --per tick energy usage of the unit (set when the unit is paused)
+refiLastMassUsage = 'M28ELastMassUsage' --per tick massu sage of the unit set when unit is paused
 refiStorageMassAdjacencyBonus = 'M28EMassStorAdj' --Adjacency bonus from a mass storage
 refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used for hydros) is active
 
@@ -2790,19 +2790,27 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     local sFunctionRef = 'ConsiderFutureMexUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oMex:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
 
     local iTimeToWait = iOverrideSecondsToWait
     local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oMex)
     if not(iTimeToWait) then
         if iMexTechLevel == 1 then
-            iTimeToWait = 7 * 60
+            if M28Map.iMapSize >= 1024 then
+                if M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 then iTimeToWait = 5 * 60
+                else
+                    iTimeToWait = 6 * 60
+                end
+            else
+                iTimeToWait = 7 * 60
+            end
         elseif iMexTechLevel == 2 then
             if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 10 then
                 iTimeToWait = 8 * 60 + 4 * 60 * (10-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 8 * 60
             end
+            if M28Utilities.bLoudModActive then iTimeToWait = iTimeToWait - 40 end
         elseif bT3MexCanBeUpgraded and M28Utilities.bLoudModActive and iMexTechLevel == 3 then
             iTimeToWait = 0
         else --redundancy
@@ -2828,9 +2836,8 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
         if bDebugMessages == true then LOG(sFunctionRef..': Are we in t1 spam mode='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)) end
         if not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
             --Only do this if there are 3+ mexes in the zone, or it's a plateau
-
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to upgrade mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; safe to upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oMex))..'; iMexTechLevel='..iMexTechLevel..'; Team has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Time='..GetGameTimeSeconds()) end
-            if M28Conditions.SafeToUpgradeUnit(oMex) and not(M28Team.tLandSubteamData[oMex:GetAIBrain().M28LandSubteam][M28Team.refbPrioritiseProduction]) and (not(M28Conditions.TeamHasLowMass(iTeam)) or iMexTechLevel == 3) then
+            if M28Conditions.SafeToUpgradeUnit(oMex) and not(M28Team.tLandSubteamData[oMex:GetAIBrain().M28LandSubteam][M28Team.refbPrioritiseProduction]) then
                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oMex:GetPosition())
                 local tLZOrWZData, tLZOrWZTeamData
                 if iPlateauOrZero == 0 then
@@ -2840,8 +2847,8 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                     tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                     tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                 end
-
-                if not(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Zoen wants t1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) or false)..'; Team has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam) or false)..'; iMexTechLevel='..iMexTechLevel..'; LZ mex count='..(tLZOrWZData[M28Map.subrefLZMexCount] or 0)..'; Active mex upgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)..'; T1 mexes in zone='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..'; Brain gross mass='..oMex:GetAIBrain()[refiGrossMassBaseIncome]) end
+                if not(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam)) and (not(M28Conditions.TeamHasLowMass(iTeam)) or iMexTechLevel == 3 or ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) >= 3 and (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or oMex:GetAIBrain()[refiGrossMassBaseIncome] >= 8 or M28Utilities.bLoudModActive))) then
 
                     --Are there enough mexes that we want to consider upgrading?
                     if bDebugMessages == true then
@@ -2908,26 +2915,29 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
     local sFunctionRef = 'ConsiderUpgradingMexDueToCompletion'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oJustBuilt) then --needed as might call this via a delay now
+        if oJustBuilt:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
         if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) then
             local aiBrain = oJustBuilt:GetAIBrain()
             local iTeam = aiBrain.M28Team
-            if bDebugMessages == true then LOG(sFunctionRef..': Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Prioritise production for land team='..tostring(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] or false)..'; Team low on mass='..M28Conditions.TeamHasLowMass(iTeam)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Prioritise production for land team='..tostring(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] or false)..'; Team low on mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))) end
             if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
                 if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] and M28Conditions.TeamHasLowMass(iTeam) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we want to prioritise production at the moment') end
                     ForkThread(M28Utilities.DelayedFunction, 60, ConsiderUpgradingMexDueToCompletion, {oJustBuilt})
                 else
+                    local bTryingToUpgradeMex = false
                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                     local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oJustBuilt)
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 'nil')..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]..'; tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]) end
                     if (tLZOrWZData[M28Map.subrefLZMexCount] > 1 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and ((M28Map.iMapSize >= 1024 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] < 2) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] < tLZOrWZData[M28Map.subrefLZMexCount] * 0.3 or (M28Utilities.bLoudModActive and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oJustBuilt.UnitId)) and (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] < math.max(1, tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 0.5 + tLZOrWZData[M28Map.subrefLZMexCount] * 0.15 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) or (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] <= 1 and M28Map.iMapSize >= 1024) or (M28Utilities.bLoudModActive and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oJustBuilt.UnitId)))) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checkign we dont have lower tech mexes or loud active, iMexTechLevel='..iMexTechLevel..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive)) end
-                        if tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel == 3 and (M28Utilities.bLoudModActive or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0)) then --In LOUD, T3 mex upgrades are more efficient than t2 to t3 apparently
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checkign we dont have lower tech mexes or loud active, iMexTechLevel='..iMexTechLevel..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive)..'; Active mex upgrades='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]..'; LZ Mex count='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Gross mass income='..aiBrain[refiGrossMassBaseIncome]) end
+                        if tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 or (iMexTechLevel == 3 and (M28Utilities.bLoudModActive or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] > 0)) or (M28Utilities.bLoudModActive and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] == 0 and tLZOrWZData[M28Map.subrefLZMexCount] >= 3 and aiBrain[refiGrossMassBaseIncome] >= 6)  then --In LOUD, T3 mex upgrades are more efficient than t2 to t3 apparently
                             --Basic safety check (much more limited than normal one):
                             if bDebugMessages == true then LOG(sFunctionRef..': Doing safety check, is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy air to ground threat='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and M28Utilities.IsTableEmpty(oJustBuilt[M28Building.reftTMLInRangeOfThisUnit]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 then
                                 --Upgrade another mex in this zone (or this mex if T3 LOUD)
+                                bTryingToUpgradeMex = true
                                 if iMexTechLevel == 3 and M28Utilities.bLoudModActive and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Upgrading this unit again') end
                                     UpgradeUnit(oJustBuilt, true)
@@ -2952,6 +2962,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                             end
                         end
                     end
+                    if not(bTryingToUpgradeMex) then ForkThread(M28Utilities.DelayedFunction, 20, ConsiderUpgradingMexDueToCompletion, {oJustBuilt}) end
                 end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we arent upgrading due to low power') end
