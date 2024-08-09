@@ -9279,7 +9279,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
                 iOurMobileDFThreat = iOurMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
                 iEnemyMobileDFThreat = iEnemyMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
                 iEnemyGroundAAThreat = iEnemyGroundAAThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
-                if tCurLZTeamData[M28Map.refiModDistancePercent] <= 0.3 then iEnemyNetMobileDFCloseToBase = tCurLZTeamData[M28Map.refiModDistancePercent] + math.max(0, tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] - tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                if (tCurLZTeamData[M28Map.refiModDistancePercent] or 1) <= 0.3 then iEnemyNetMobileDFCloseToBase = iEnemyNetMobileDFCloseToBase + math.max(0, (tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) end
             else
                 if not(bHaveTeammates) or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.9 or tPathingData[M28Map.subrefLZTravelDist] >= iMaxTravelDist then
                     break
