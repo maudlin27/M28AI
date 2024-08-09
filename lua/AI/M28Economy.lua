@@ -2951,7 +2951,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                 elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then --redundancy
                                     local iMexCategory
                                     if iMexTechLevel <= 2 then iMexCategory = M28UnitInfo.refCategoryT1Mex --i.e. if we have just upgraded a t1 mex to t2, then we want to look for other t1 mexes in the zone to upgrade
-                                    else iMexTechLevel = M28UnitInfo.refCategoryMex
+                                    else iMexCategory = M28UnitInfo.refCategoryMex
                                     end
                                     local tMexOfCategory = EntityCategoryFilterDown(iMexCategory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     local bAlreadyUpgraded = false

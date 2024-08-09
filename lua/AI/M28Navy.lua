@@ -2972,11 +2972,13 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     iCurMidpointDist = nil
                     if iCurDist < iClosestDist then
                         if bDealingWithAdjZone then
-                            iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-                            if iCurMidpointDist <= iClosestToMidpointDist then
-                                iClosestDist = iCurDist
-                                oNearestEnemyToFriendlyBase = oUnit
-                                iClosestToMidpointDist = iCurMidpointDist
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                                if iCurMidpointDist <= iClosestToMidpointDist then
+                                    iClosestDist = iCurDist
+                                    oNearestEnemyToFriendlyBase = oUnit
+                                    iClosestToMidpointDist = iCurMidpointDist
+                                end
                             end
                         else
                             iClosestDist = iCurDist
