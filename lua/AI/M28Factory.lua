@@ -874,7 +874,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 60 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= (1 + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield)) * 16 then
             local iCurMobileShields = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandShield)
             if iCurMobileShields <= 35 and (iCurMobileShields * 250 <= math.max(2000, (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]))) then
-                bConsiderMobileShields = true
+                --Allow 1 shield per 25 gross E income (50 for LOUD)
+
+                if iCurMobileShields <= 3 or (iCurMobileShields * 25 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome] and (not(M28Utilities.bLoudModActive) or iCurMobileShields * 50 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome])) then
+                    bConsiderMobileShields = true
+                end
             end
         end
     end

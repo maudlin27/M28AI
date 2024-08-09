@@ -7555,6 +7555,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)
 
         local iMobileShieldMassThreshold = 150 --When assigning mobile shields will also restrict further so e.g. seraphim mobile shields will have a higher threshold
+        --Shield overflow mechanic doesnt exist outside faf so consider shielding weaker units
+        if not(M28Utilities.bFAFActive) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 300 then iMobileShieldMassThreshold = 40 end --want to consider shielding t1 units in the zone if we potentially have a decent t1 force
         local iMobileShieldHigherMAAMassThreshold = 400 --for if we have MAA and enemy doesnt have much air threat
         local iMobileStealthMassThreshold = 200 --will get adjusted further
         local iMobileStealthHigherMassThreshold = 500 --i.e. wont stealth loyalists and titans
