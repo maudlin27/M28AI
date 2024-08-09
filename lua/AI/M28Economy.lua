@@ -2925,7 +2925,6 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
         if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) then
-            if oJustBuilt.UnitId == 'ueb1302' and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 3 then bDebugMessages = true end
             local aiBrain = oJustBuilt:GetAIBrain()
             local iTeam = aiBrain.M28Team
             local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oJustBuilt)

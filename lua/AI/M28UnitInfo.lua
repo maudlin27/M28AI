@@ -1699,7 +1699,12 @@ function RecordUnitRange(oUnit)
             end
         end
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
-            oUnit[refbCanKite] = true
+            --Manual overrides
+            if oUnit.UnitId == 'brmt3ava' then
+                --Cant kite well so flag it cant kite
+            else
+                oUnit[refbCanKite] = true
+            end
         end
 
         --Special unit adjustments:
@@ -1730,6 +1735,7 @@ function RecordUnitRange(oUnit)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
