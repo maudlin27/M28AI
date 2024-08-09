@@ -9269,6 +9269,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
     local iEnemyMobileDFThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
     local iEnemyGroundAAThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
     local iCurLZ
+    local iEnemyNetMobileDFCloseToBase = 0
     if M28Utilities.IsTableEmpty(tStartLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
         for iEntry, tPathingData in tStartLZData[M28Map.subrefLZPathingToOtherLandZones] do
             iCurLZ = tPathingData[M28Map.subrefLZNumber]
@@ -9278,6 +9279,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
                 iOurMobileDFThreat = iOurMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
                 iEnemyMobileDFThreat = iEnemyMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
                 iEnemyGroundAAThreat = iEnemyGroundAAThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
+                if tCurLZTeamData[M28Map.refiModDistancePercent] <= 0.3 then iEnemyNetMobileDFCloseToBase = tCurLZTeamData[M28Map.refiModDistancePercent] + math.max(0, tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] - tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
             else
                 if not(bHaveTeammates) or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.9 or tPathingData[M28Map.subrefLZTravelDist] >= iMaxTravelDist then
                     break
@@ -9291,7 +9293,9 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
 
     --Decide if we want to prioritise production over ecoing temporarily
     local bPrioritiseProduction = false
-    if iOurMobileDFThreat < iEnemyMobileDFThreat and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] < math.max(iEnemyMobileDFThreat * 0.4, iEnemyGroundAAThreat * 2) then
+    if iEnemyNetMobileDFCloseToBase >= 800 and (iEnemyNetMobileDFCloseToBase * 4 >= M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] < iEnemyGroundAAThreat * 2) then bPrioritiseProduction = true
+        bPrioritiseProduction = true
+    elseif iOurMobileDFThreat < iEnemyMobileDFThreat and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] < math.max(iEnemyMobileDFThreat * 0.4, iEnemyGroundAAThreat * 2) then
         --Further restrictions if campaign map or low threat values
         local iEnemyPlayerCount = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains])
         if not(M28Map.bIsCampaignMap) and GetGameTimeSeconds() >= 600 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and (iEnemyMobileDFThreat > 2000 * iEnemyPlayerCount or iEnemyMobileDFThreat - iOurMobileDFThreat > 1000 + 1000*iEnemyPlayerCount) then
@@ -9321,6 +9325,6 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyNetMobileDFCloseToBase='..iEnemyNetMobileDFCloseToBase..'; Time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

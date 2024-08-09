@@ -1993,14 +1993,14 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     --If can upgrade then consider future upgrade
                                     local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                                     if sUpgrade and not(sUpgrade == '') then
-                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt) --i.e. to cover cases where after this mex survives a while we want ot upgrade it some more
                                         if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
                                     end
                                     --Unpause a paused mex if we are in a stall
                                     ForkThread(M28Economy.UnpausePausedMexFollowingUpgrade, oJustBuilt, not((sUpgrade or '') == nil))
                                 end
                                 --COnsider upgrading another mex in this zone
-                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer)
+                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer) --i.e. intention is to cover cases where we have the eco from just completing a mex upgrade to then upgrade another of the same tech level (or in some cases upgrade this/a simialr tech to higher tech)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
