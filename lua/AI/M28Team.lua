@@ -3284,7 +3284,7 @@ function ConsiderNormalUpgrades(iM28Team)
                 bLookForMexNotHQ = not(tTeamData[iM28Team][refbFocusOnT1Spam])
 
                 --Get preferred upgrade type - ideally are always improving mass income (if have safe mexes to upgrade)
-                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and (not(M28Utilities.bLoudModActive) or not(M28Conditions.HaveLowMass(iM28Team))) then
                     --Already have mexes upgrading - do we want to also upgrade an HQ instead of a mex?
                     if (tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1) or (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1))) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8) then
                         --Do we already ahve a factory HQ upgrading? If so then consider income based on player count
@@ -4316,7 +4316,7 @@ function ConsiderGiftingSupportFactoriesToTeammateWithBetterHQ(aiBrain, sHQJustD
 
 
                 --Do we have support factories?
-                local toSupportFactoriesToConsiderTransferring = aiBrain:GetListOfUnits(iFactoryCategory * categories.SUPPORTFACTORY * iTechCategory * iFactionCategory)
+                local toSupportFactoriesToConsiderTransferring = aiBrain:GetListOfUnits(iFactoryCategory * categories.SUPPORTFACTORY * iTechCategory * iFactionCategory, false, true)
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of support facs empty='..tostring(M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring))) end
                 if M28Utilities.IsTableEmpty(toSupportFactoriesToConsiderTransferring) == false then
                     local oTeammateToTransferTo
