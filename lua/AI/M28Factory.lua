@@ -634,35 +634,40 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 if bInSameIsland then
                     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
                     local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+                    if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 then
+                        --Sniperbots are really bad in LOUD other than Aeon T2 sniperbot so dont want to build skirmishers in case we build them
+                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                    else
+                        iBaseCategoryWanted = M28UnitInfo.refCategorySkirmisher * iTechCategory
 
-                    iBaseCategoryWanted = M28UnitInfo.refCategorySkirmisher * iTechCategory
-                    if not(tLZTargetTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
-                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                        if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
-                    elseif oFactory:GetAIBrain().M28Easy then
-                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                    elseif tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
-                        local iCurSkirmishersOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * iTechCategory)
-                        if iCurSkirmishersOfTech > 2 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemies are nearby so want DF tanks more than skirmishers once we have a couple of skirmishers, unless we have similar numbers and skirmishers seem to be doing ok') end
-                            local iCurDFTankOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryDFTank * iTechCategory)
-                            if iCurDFTankOfTech < iCurSkirmishersOfTech then
-                                iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                            else
-                                local aiBrain = oFactory:GetAIBrain()
-                                local iDFLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDFTank * iTechCategory)
-                                local iSkirmisherLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySkirmisher * iTechCategory)
-                                --We have >= DF tanks to skirmishers in actual units; if our LC is < this, then want to do DF tanks, otherwise want to analyse closer
-                                if iDFLCOfTech <= iSkirmisherLCOfTech then
+                        if not(tLZTargetTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                            iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
+                        elseif oFactory:GetAIBrain().M28Easy then
+                            iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                        elseif tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                            local iCurSkirmishersOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * iTechCategory)
+                            if iCurSkirmishersOfTech > 2 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemies are nearby so want DF tanks more than skirmishers once we have a couple of skirmishers, unless we have similar numbers and skirmishers seem to be doing ok') end
+                                local iCurDFTankOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryDFTank * iTechCategory)
+                                if iCurDFTankOfTech < iCurSkirmishersOfTech then
                                     iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                                elseif iCurDFTankOfTech / iDFLCOfTech > iCurSkirmishersOfTech / iSkirmisherLCOfTech then
-                                    iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                else
+                                    local aiBrain = oFactory:GetAIBrain()
+                                    local iDFLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDFTank * iTechCategory)
+                                    local iSkirmisherLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySkirmisher * iTechCategory)
+                                    --We have >= DF tanks to skirmishers in actual units; if our LC is < this, then want to do DF tanks, otherwise want to analyse closer
+                                    if iDFLCOfTech <= iSkirmisherLCOfTech then
+                                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                    elseif iCurDFTankOfTech / iDFLCOfTech > iCurSkirmishersOfTech / iSkirmisherLCOfTech then
+                                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                    end
                                 end
                             end
                         end
                     end
                     --LOUD - prioritise T2 sniperbots
-                    if M28Utilities.bLoudModActive and iFactoryTechLevel == 2 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
+                    if M28Utilities.bLoudModActive and iFactoryTechLevel == 2 and categories.ual0204 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
                         iBaseCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
                         if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then iBaseCategoryWanted =  M28UnitInfo.refCategorySkirmisher * iTechCategory end
                     end
@@ -3287,7 +3292,8 @@ function SetPreferredUnitsByCategory(aiBrain)
     --SAL0311 or brot3bt (Amphibious) (Navy Maps) (Can be built on land but honestly just build harbs with the BAL0310)
     aiBrain[reftBlueprintPriorityOverride]['brot3hm'] = 1
 
-
+    --Aeon T2 sniperbot (very good so will build wherever it's an option)
+    aiBrain[reftBlueprintPriorityOverride]['ual0204'] = 2
 end
 
 function IdleFactoryMonitor(aiBrain)
