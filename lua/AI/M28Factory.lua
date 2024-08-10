@@ -666,6 +666,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                         iBaseCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
                         if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then iBaseCategoryWanted =  M28UnitInfo.refCategorySkirmisher * iTechCategory end
                     end
+                    if M28Utilities.bLoudModActive and categories.brmt2medm then iBaseCategoryWanted = iBaseCategoryWanted + categories.brmt2medm end
 
                     if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
@@ -1600,12 +1601,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2) then
                     return sBPIDToBuild
-                else
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * categories.TECH2) then
-                        return sBPIDToBuild
-                    elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2) then
-                        return sBPIDToBuild
-                    end
+                elseif ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * categories.TECH2) then
+                    return sBPIDToBuild
                 end
             end
         end
@@ -1786,6 +1783,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
         --Initial T2+ tanks if have at least 5 engis of our current tech level and dont have many tanks, and can path to enemy by land (core base only)
+        local iSkirmisherCategory = M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+        if M28Utilities.bLoudModActive and iFactoryTechLevel == 2 and categories.brmt2medm then iSkirmisherCategory = iSkirmisherCategory + categories.brmt2medm end
+
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] then
             --Can we path to enemy base from this land zone?
@@ -1796,10 +1796,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             if iCurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 8000 or M28Conditions.TeamHasAirControl(iTeam)) and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                 if bCanPathToEnemyWithLand then
-                    if iFactoryTechLevel == 2 and not(aiBrain.M28Easy) and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    if iFactoryTechLevel == 2 and not(aiBrain.M28Easy) and ConsiderBuildingCategory(iSkirmisherCategory) then
                         return sBPIDToBuild
                         --Initial T3 tanks - want tanks instead of sniperbots if enemy has lower health units/isnt at T3
-                    elseif iFactoryTechLevel == 3 and not(aiBrain.M28Easy) and oFactory[refiTotalBuildCount] >= 5 and (oFactory[refiTotalBuildCount] >= 15 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] >= 2400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3)) and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    elseif iFactoryTechLevel == 3 and not(aiBrain.M28Easy) and oFactory[refiTotalBuildCount] >= 5 and (oFactory[refiTotalBuildCount] >= 15 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] >= 2400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3)) and ConsiderBuildingCategory(iSkirmisherCategory) then
                         return sBPIDToBuild
                     elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                         return sBPIDToBuild
@@ -2160,7 +2160,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         LOG(sFunctionRef .. ': Have fewer DF tanks than engineers so want to get more skirmishers or (if cant build any) DF tanks')
                     end
 
-                    if (not(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau]) or iIndirectFireOfThisTech >= 8) and not(aiBrain.M28Easy) and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    if (not(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau]) or iIndirectFireOfThisTech >= 8) and not(aiBrain.M28Easy) and ConsiderBuildingCategory(iSkirmisherCategory) then
                         return sBPIDToBuild
                     else
                         --Cant get skirmishers (or dont want to), so get indirect fire if we have none before getting normal tnaks
@@ -2195,7 +2195,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 elseif iFactoryTechLevel == 2 then
                     iIndirectRatioWanted = 9
                 elseif iFactoryTechLevel == 3 then
-                    if aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 60 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat + iSkirmisherCategory) >= 60 then
                         if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
                             iIndirectRatioWanted = 3.5
                         else
@@ -2674,7 +2674,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bEnemiesRelativelyNear then
                 if bHaveHighestLZTech then
                     if bCanPathToEnemyWithLand then
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank + iSkirmisherCategory) then
                             return sBPIDToBuild
                         end
                     else
@@ -3252,6 +3252,42 @@ function SetPreferredUnitsByCategory(aiBrain)
     --Engineers
     aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
     aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1 --fire beetle (so build wagners instead if going for fast units)
+
+    --Az LOUD unit mod suggestions
+    --Seraphim T2:
+    aiBrain[reftBlueprintPriorityOverride]['bsl0206'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brpt2btbot'] = 1
+    --UEF T2
+    aiBrain[reftBlueprintPriorityOverride]['bel0211'] = 1
+    --Cybran T2:
+    aiBrain[reftBlueprintPriorityOverride]['brmt2medm'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brmt2ht'] = 1
+    --Aeon T2:
+    aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
+
+    --Seraphim T3:
+    aiBrain[reftBlueprintPriorityOverride]['wsl0308'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brpt3bot'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['bsl0306'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['bsl0310'] = 1
+    --UEF T3:
+    aiBrain[reftBlueprintPriorityOverride]['xel0307'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['bel0307'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brnt3abb'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brnt3bt'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['wel0305'] = 1
+    --Cybran T3:
+    aiBrain[reftBlueprintPriorityOverride]['brl0307'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['brmt3bm2'] = 1
+    --aiBrain[reftBlueprintPriorityOverride]['brmt3bt'] (good tank if you cant afford Bricks/etc but you want something better then loyalist)
+    --Aeon T3:
+    aiBrain[reftBlueprintPriorityOverride]['bal0310'] = 1
+    --SAL0311 or brot3bt (Amphibious) (Navy Maps) (Can be built on land but honestly just build harbs with the BAL0310)
+    aiBrain[reftBlueprintPriorityOverride]['brot3hm'] = 1
+
+
 end
 
 function IdleFactoryMonitor(aiBrain)
