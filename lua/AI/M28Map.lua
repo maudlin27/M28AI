@@ -1323,7 +1323,7 @@ function RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateau, iLandZone)
     end
     if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments]) then
         LOG('ERROR - RecordSegmentLandZoneTempLog: iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones]))
-        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1, 200, 3)
+        --M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1, 200, 3)
     else
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments], {iSegmentX, iSegmentZ})
         tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] + 1

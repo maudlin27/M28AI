@@ -13550,7 +13550,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': Stalling energy so reducing factories wanted to 1') end
         iFactoriesWanted = 1
     end
-    bDebugMessages = false
+
 
     --Do we want emergency PD?
     if bDebugMessages == true then LOG(sFunctionRef..': Considering emergency PD for zone '..iLandZone..', iExistingFactory='..iExistingFactory..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Ally AA threat='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; SValue='..(tLZTeamData[M28Map.subrefLZSValue] or 0)) end
@@ -13736,7 +13736,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 HaveActionToAssign(refActionBuildLandFactory, iMinFacTechLevelWanted, iBPWanted, iMaxTechLevelIfAny)
             end
         end
-        bDebugMessages = false
+
 
         --High reclaim zone when ahve low mass - want to be reclaiming ahead of building mexes
         iCurPriority = iCurPriority + 1

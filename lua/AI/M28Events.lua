@@ -1148,7 +1148,7 @@ function OnWeaponFired(oWeapon)
                 if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     --Micro torp bombers if this is the last shot and torp only has 1 rack
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
-                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
+                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or oWeapon.bp.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or oWeapon.bp.MuzzleSalvoSize or 0) then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                             ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                         end
@@ -1187,7 +1187,7 @@ function OnWeaponFired(oWeapon)
                         ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
                     end
                 else
-                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and oWeapon.Blueprint.DamageType == 'Nuke' then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and (oWeapon.Blueprint.DamageType or oWeapon.bp.DamageType) == 'Nuke' then
                         --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit brain='..oUnit:GetAIBrain().Nickname..'; GetCurrentTarget()='..reprs(oWeapon:GetCurrentTarget())..'; GetCurrentTargetPos='..reprs(oWeapon:GetCurrentTargetPos())) end
                         if not(oUnit:GetAIBrain().M28AI) and oWeapon.GetCurrentTargetPos then
@@ -1200,7 +1200,7 @@ function OnWeaponFired(oWeapon)
                         end
                     end
                     --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot, oWeapon.unit.UnitId='..(oWeapon.unit.UnitId or 'nil')) end
                     ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
                 end
 
@@ -1218,8 +1218,9 @@ function OnWeaponFired(oWeapon)
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
-                    if (oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (oWeapon.Blueprint.RangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs(oWeapon.Blueprint.RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs(oWeapon.Blueprint)) end
+                    local iWeaponRangeCategory = (oWeapon.Blueprint.RangeCategory or oWeapon.bp.RangeCategory)
+                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
                         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oTarget = oWeapon:GetCurrentTarget() end

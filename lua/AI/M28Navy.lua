@@ -86,7 +86,6 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
                 if M28Utilities.IsTableEmpty(tMoveInDirection) and M28Conditions.IsLocationInPlayableArea(tMoveInDirection) then
                     return tMoveInDirection
                 else
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find valid location to move towards so will just go with midpoint') end
                 end
             end
