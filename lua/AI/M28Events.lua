@@ -2532,6 +2532,10 @@ function OnTransportUnload(oUnit, oTransport, bone)
             if oTransport[M28Air.refiTargetIslandForDrop] then
                 oUnit[M28Air.refiLastIslandDrop] = oTransport[M28Air.refiTargetIslandForDrop]
                 oUnit[M28Air.refiTimeLastDropped] = GetGameTimeSeconds()
+                if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                    if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.refiTimeLastDroppedEngi] = GetGameTimeSeconds() end
+                end
             end
         end
         if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport then oUnit[M28Engineer.refiAssignedAction] = nil end
