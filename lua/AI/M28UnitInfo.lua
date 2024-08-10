@@ -229,17 +229,36 @@ refCategoryEngineerStation = refCategoryRover + refCategoryHive + refCategoryKen
 
 refCategoryAntiAir = categories.ANTIAIR --used so we can identify units with decent AA threat
 refCategoryMAA = categories.LAND * categories.MOBILE * categories.ANTIAIR - categories.EXPERIMENTAL
-refCategoryAttackBot = categories.LAND
-if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
-    refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - refCategoryMAA -categories.REPAIR
+refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
+if categories.uel0106 and categories.url0106 and categories.ual0106 then
+    refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
 else
-    refCategoryAttackBot = categories.LAND * categories.MOBILE * categories.DIRECTFIRE * categories.BOT + categories.LAND * categories.MOBILE * categories.TANK * categories.TECH1 * categories.SERAPHIM - refCategoryMAA -categories.REPAIR --(repair exclusion added as basic way to differentiate between mantis (which has repair category) and LAB; alternative way is to specify the fastest when choosing the blueprint to build
+    --Exclude certain modded units from attackbot designation, but include in T1 indirect fire
+    if categories.brot1exm1 then
+        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brot1exm1
+    end
+    if categories.brmt1exm1 then
+        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brmt1exm1
+    end
+    if categories.uel0108 then
+        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.uel0108
+    end
+    if categories.brpt1exm1 then
+        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brpt1exm1
+    end
 end
+if categories.brot1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brot1exm1 end
+if categories.brmt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brmt1exm1 end
+if categories.uel0108 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end
+if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end
+
+
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
 refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAND
-refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
+
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
 refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
@@ -269,7 +288,6 @@ else
 end
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
 refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
-
 
 --Air units
 refCategoryAirScout = categories.AIR * categories.SCOUT
@@ -754,7 +772,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                             else
                                                 iMassMod = 0.15 --e.g. uef cruiser - 1 frigate can almost solo it if it dodges the missiles
                                             end
-                                        elseif EntityCategoryContains(refCategoryAttackBot * categories.TECH1, oUnit.UnitId) then
+                                        elseif EntityCategoryContains(refCategoryLightAttackBot * categories.TECH1, oUnit.UnitId) then
                                             iMassMod = 0.85
                                         elseif EntityCategoryContains(categories.BATTLESHIP - refCategoryBattlecruiser, oUnit.UnitId) then
                                             iMassMod = 0.85
@@ -904,7 +922,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         local tCargo = oUnit:GetCargo()
                         --Filter to just LABs (note unfortunately it doesnt distinguish between mantis and LABs so matnis get treated as LABs to be prudent)
                         if tCargo then
-                            tCargo = EntityCategoryFilterDown(refCategoryAttackBot, tCargo)
+                            tCargo = EntityCategoryFilterDown(refCategoryLightAttackBot, tCargo)
                             if M28Utilities.IsTableEmpty(tCargo) == false then
                                 --Get mass value ignoring health:
                                 --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
