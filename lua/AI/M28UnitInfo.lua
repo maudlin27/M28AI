@@ -1718,7 +1718,7 @@ function RecordUnitRange(oUnit)
         end
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
             --Manual overrides
-            if oUnit.UnitId == 'brmt3ava' then
+            if oUnit.UnitId == 'brmt3ava' or oUnit.UnitId == 'wel0405' then
                 --Cant kite well so flag it cant kite
             else
                 oUnit[refbCanKite] = true

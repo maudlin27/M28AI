@@ -939,6 +939,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
+            if sBPIDToBuild == 'wrl0305' then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
             if bDebugMessages == true then LOG(sFunctionRef..': After adjusting for overrides still have blueprint to build='..sBPIDToBuild) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
@@ -3311,12 +3312,18 @@ function SetPreferredUnitsByCategory(aiBrain)
     --T1 skirmisher bots
     aiBrain[reftBlueprintPriorityOverride]['brot1exm1'] = 1
     aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
-    LOG('TEMP LOG Set priority override for brmt1exm1 to 1, aiBrain='..aiBrain.Nickname)
     aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
     aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
 
     --Aeon T2 sniperbot (very good so will build wherever it's an option)
     aiBrain[reftBlueprintPriorityOverride]['ual0204'] = 2
+
+    --LOUD - sniperbots at t3+ are weak
+    if M28Utilities.bLoudModActive then
+        aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1
+        aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1
+        aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1
+    end
 end
 
 function IdleFactoryMonitor(aiBrain)
