@@ -306,6 +306,15 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnTransportUnload, self, transport, bone)
             if M28OldUnit.OnDetachedFromTransport then return M28OldUnit.OnDetachedFromTransport(self, transport, bone) end
         end,
+
+
+        OnTransportDetach = function(self, attachBone, detachedUnit)
+            M28OldUnit.OnTransportDetach(self, attachBone, detachedUnit)
+            if not(M28OldUnit.OnDetachedFromTransport) then
+                ForkThread(M28Events.OnTransportUnload, detachedUnit, self, attachBone)
+            end
+        end,
+
         OnDetectedBy = function(self, index)
 
             ForkThread(M28Events.OnDetectedBy, self, index)

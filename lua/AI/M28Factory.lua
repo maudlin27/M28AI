@@ -3299,7 +3299,7 @@ function SetPreferredUnitsByCategory(aiBrain)
     aiBrain[reftBlueprintPriorityOverride]['wel0305'] = 1
     --Cybran T3:
     aiBrain[reftBlueprintPriorityOverride]['brl0307'] = 1
-    aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
+    aiBrain[reftBlueprintPriorityOverride]['srl0311'] = -1 --Az changed mind, apparently they miss a lot
     aiBrain[reftBlueprintPriorityOverride]['brmt3bm2'] = 1
     --aiBrain[reftBlueprintPriorityOverride]['brmt3bt'] (good tank if you cant afford Bricks/etc but you want something better then loyalist)
     --Aeon T3:
