@@ -1977,7 +1977,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     local sFunctionRef = 'GetLocationToMoveForConstruction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual01052' then bDebugMessages = true end
 
     local sPathing = M28UnitInfo.GetUnitPathingType(oUnit)
     local iPathingGroupWanted = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
@@ -2014,7 +2014,6 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
             if bDebugMessages == true then LOG(sFunctionRef..': Have a valid location engi can move to='..repru(tPotentialMoveLocation)..'; Dist from target='..M28Utilities.GetDistanceBetweenPositions(tPotentialMoveLocation, tTargetLocation)..'; iDistanceToMove='..(iDistanceToMove or 'nil')..'; will check no buildings in a radius of 5 that are blocking this location') end
             local rRectangleToSearch = M28Utilities.GetRectAroundLocation(tPotentialMoveLocation, 5)
             local tBlockingUnits = GetUnitsInRect(rRectangleToSearch)
-            local bDontMove = false
             if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
                 local tBlockingBuildings = EntityCategoryFilterDown(categories.STRUCTURE, tBlockingUnits)
                 for iBuilding, oBuilding in tBlockingBuildings do
@@ -2031,9 +2030,17 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
                 end
             end
 
-
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return tPotentialMoveLocation
+            --Wierd case where sometimes the location can be really far away - make sure this isnt the case
+            local iDistFromMoveToTarget = M28Utilities.GetDistanceBetweenPositions(tPotentialMoveLocation, tTargetLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': returning tPotentialMoveLocation='..repru(tPotentialMoveLocation)..'; Dist to engineer='..M28Utilities.GetDistanceBetweenPositions(tPotentialMoveLocation, oUnit:GetPosition())..'; Dist to build location='..M28Utilities.GetDistanceBetweenPositions(tTargetLocation, oUnit:GetPosition())..'; iDistFromMoveToTarget='..iDistFromMoveToTarget) end
+            if iDistFromMoveToTarget < iDistanceWantedFromTarget + 1 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return tPotentialMoveLocation
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Backup for moving there') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return nil
+            end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Cant move to the desired location, will draw in red') M28Utilities.DrawLocation(tPotentialMoveLocation, 2)
         end
         if iDistanceToMove <= 1 then
@@ -13411,7 +13418,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local iFactoriesWanted = 0
     local iExistingFactory = 0
     local bExistingFactoryIsComplete = false
-
     if bDebugMessages == true then LOG(sFunctionRef..': About to determine factories wanted, tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZFortify] then
         local tExistingFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -13526,11 +13532,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Factories wanted after considering='..iFactoriesWanted) end
-    elseif tLZData[M28Map.subrefLZMexCount] >= 4 and not(bAdjacentToCoreZone) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Zone has lots of mexes even though it isnt an expansino zone, consider if we want land fac for it') end
-        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 then
-            --Can we path to enemy base with land and lack T3 air?
+    elseif tLZData[M28Map.subrefLZMexCount] >= 3 and not(bAdjacentToCoreZone) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Zone has lots of mexes even though it isnt an expansino zone, consider if we want land fac for it, mod dist='..tLZTeamData[M28Map.refiModDistancePercent]) end
+        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and (tLZData[M28Map.subrefLZMexCount] >= 4 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.2) then
+            --Can we path to enemy base with land and lack T3 air, or is our mod dist relatively high?
             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] or tLZTeamData[M28Map.refiModDistancePercent] >= 0.25) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone, false))) end
                 if M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone, false) then
                     iFactoriesWanted = 1
                     if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 then iFactoriesWanted = 2 end

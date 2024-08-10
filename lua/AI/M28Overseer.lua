@@ -520,7 +520,10 @@ end
 
 
 function TestCustom(aiBrain)
-    LOG('Does unit brmt1exm1 contain DFTank category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank, 'brmt1exm1')))
+    M28Map.DrawSpecificWaterZone(61, 4, 1000)
+    LOG('Midpoint of WZ61='..repru(M28Map.tPondDetails[M28Map.tiPondByWaterZone[61]][M28Map.subrefPondWaterZones][61][M28Map.subrefMidpoint]))
+
+
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end

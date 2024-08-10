@@ -939,7 +939,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
-            if sBPIDToBuild == 'wrl0305' then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
             if bDebugMessages == true then LOG(sFunctionRef..': After adjusting for overrides still have blueprint to build='..sBPIDToBuild) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild

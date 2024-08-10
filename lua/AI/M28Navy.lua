@@ -48,6 +48,7 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearestWaterRallyPoint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; iTeam='..(iTeam or 'nil')..'; Is table of rally points by pond for this pond empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond]) == false then
         local iCurDist
@@ -76,11 +77,18 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
         --Water zone specific - if we have a naval fac in this water zone, then choose that as the retreat point
         local tRallyWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iClosestWZRef]
         local tRallyWZTeamData = tRallyWZData[M28Map.subrefWZTeamData][iTeam]
-
+        if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZRef for iWaterZone'..iWaterZone..' is '..iClosestWZRef..'; Is table of allied units empty for this water zone='..tostring(M28Utilities.IsTableEmpty(tRallyWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Midpoint of this zone='..repru(tRallyWZData[M28Map.subrefMidpoint])) end
         if M28Utilities.IsTableEmpty(tRallyWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
             local tFriendlyFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories,     tRallyWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tFriendlyFactories) == false then
-                return M28Utilities.MoveInDirection(tFriendlyFactories[1]:GetPosition(), M28Utilities.GetAngleFromAToB(tFriendlyFactories[1]:GetPosition(), tRallyWZData[M28Map.subrefMidpoint]), 8, true, false, true)
+                local tMoveInDirection = M28Utilities.MoveInDirection(tFriendlyFactories[1]:GetPosition(), M28Utilities.GetAngleFromAToB(tFriendlyFactories[1]:GetPosition(), tRallyWZData[M28Map.subrefMidpoint]), 8, true, false, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to move towards rally if possible, tMoveInDirection='..repru(tMoveInDirection)..'; Is this in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tMoveInDirection))) end
+                if M28Utilities.IsTableEmpty(tMoveInDirection) and M28Conditions.IsLocationInPlayableArea(tMoveInDirection) then
+                    return tMoveInDirection
+                else
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find valid location to move towards so will just go with midpoint') end
+                end
             end
         end
 
@@ -2896,7 +2904,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; tRallyPoint='..repru(tRallyPoint)) end
     local iBestAvailableSubmarineRange = 0
     local bHaveRunFromAir = false
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
