@@ -27,6 +27,8 @@ end
 tiM28VoiceTauntByType = {} --[x] = string for the type of voice taunt (functionref), returns gametimeseconds it was last issued
 bConsideredSpecificMessage = false --set to true by any AI, e.g. for start of game messages (not implemented, see M27 for example implementation)
 bSentSpecificMessage = false
+bSentCheatMessage = false --true if we have sent message about forcing cheat to be enabled
+
 iTimeOfLastAudioMessage = -100 --Time of last audio message being sent, used to avoid multiple audio messages playing at the same time
 tbAssignedPersonalities = {} --M28 brains assigned a particular 'personality' for purposes of voice taunts
 refiAssignedPersonality = 'M28ChatPers' --Assigned against the brain, indicates characters pecific voice taunts to consider

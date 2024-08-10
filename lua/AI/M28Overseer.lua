@@ -269,21 +269,23 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
             bNonAISimModsActive = true
-            bIncompatible = true
-            if iSimModCount == 1 then
-                sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
-            else
-                sIncompatibleMessage = sIncompatibleMessage .. '; '
-            end
-            sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
-            if bDebugMessages == true then
-                LOG('Whitelist of mod names=' .. repru(tModIsOk))
-                LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
-            end
+            if not(M28Utilities.bLoudModActive) then
+                bIncompatible = true
+                if iSimModCount == 1 then
+                    sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
+                else
+                    sIncompatibleMessage = sIncompatibleMessage .. '; '
+                end
+                sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
+                if bDebugMessages == true then
+                    LOG('Whitelist of mod names=' .. repru(tModIsOk))
+                    LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
+                end
 
-            if string.find(tModData.name, 'Flying engineers') then
-                bFlyingEngineers = true
-                if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                if string.find(tModData.name, 'Flying engineers') then
+                    bFlyingEngineers = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                end
             end
         elseif tModIsOk[tModData.name] then
             if not(bHaveOtherAIMod) then
@@ -368,7 +370,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
         else
-            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected'..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
         end
     end
     if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
