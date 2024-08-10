@@ -3057,18 +3057,25 @@ function OnPlayableAreaChange(rect, voFlag)
         local sFunctionRef = 'OnPlayableAreaChange'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
         local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
         if type(rect) == 'string' then
             rect = ScenarioUtils.AreaToRect(rect)
         end
-        if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then M28Map.SetupPlayableAreaAndSegmentSizes(rect) end
-        ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
-        ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
-        --Wait 5s then consider campaign special objectives
-        ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
-        --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
-        ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
+        if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then
+            --Check actually have playable area (to cover bug in a LOUD map where playable area is set to 0,0,0,0
+            if not((rect[1] == 0 and rect[2] == 0 and rect[3] == 0 and rect[4] == 0)) then
+                M28Map.SetupPlayableAreaAndSegmentSizes(rect)
+            end
+        end
+        if M28Map.bIsCampaignMap or not(ScenarioInfo.type == "skirmish") then
+            ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
+            ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
+            --Wait 5s then consider campaign special objectives
+            ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
+            --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
+            ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end

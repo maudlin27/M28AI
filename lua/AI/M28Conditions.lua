@@ -2012,6 +2012,7 @@ function DoesACUHaveValidOrder(oACU)
     local tLastOrders = oACU[M28Orders.reftiLastOrders]
     if bDebugMessages == true then LOG(sFunctionRef..': tLastOrders='..reprs(tLastOrders)) end
     if not(tLastOrders) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Last orders is empty') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     elseif M28Utilities.IsTableEmpty(tLastOrders) then
@@ -2024,7 +2025,7 @@ function DoesACUHaveValidOrder(oACU)
             if oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]) then
                 --We can build last order, but are we trying to build a mex somewhere that already has a completed mex?
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; In playable area='..tostring(M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]))) end
                     if M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]) then
                         if CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

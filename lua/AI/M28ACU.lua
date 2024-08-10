@@ -484,7 +484,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
@@ -2598,7 +2598,7 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local aiBrain = oACU:GetAIBrain()
-    if aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 then
         if bDebugMessages == true then LOG(sFunctionRef..': Mass overflow scenario - dont want to build mex, as would rather get factory or assist something building') end
@@ -4135,7 +4135,7 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
