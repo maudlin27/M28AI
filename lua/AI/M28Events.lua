@@ -1053,61 +1053,63 @@ function OnBombFired(oWeapon, projectile)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
                 end
+                --Logic relating to the bomber itself:
+                if not(oUnit.Dead) then
+                    --Ahwassa - micro the bomber
+                    if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
+                        --Experimental bomber - micro to turn around and go to rally point
+                        if oUnit:GetAIBrain().M28AI then
+                            if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': will get ahwassa to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))) end
 
-                --Ahwassa - micro the bomber
-                if EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
-                    --Experimental bomber - micro to turn around and go to rally point
-                    if oUnit:GetAIBrain().M28AI then
-                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': will get ahwassa to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))) end
+                                --Decide whether to retreat to air rally point or nearest base; most of the time go to rally, but switch to base if angel to rally is significantly different and has a high mod dist, in case we risk passing by enemy AA on the way
+                                local aiBrain = oUnit:GetAIBrain()
+                                local tNearestFriendlyBase
+                                local bCloseToDangerousFriendlyBase = false
+                                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                if tLZOrWZTeamData then
+                                    tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                                    if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
+                                end
+                                if not(tNearestFriendlyBase) then tNearestFriendlyBase = M28Map.GetPlayerStartPosition(aiBrain) end
 
-                            --Decide whether to retreat to air rally point or nearest base; most of the time go to rally, but switch to base if angel to rally is significantly different and has a high mod dist, in case we risk passing by enemy AA on the way
-                            local aiBrain = oUnit:GetAIBrain()
-                            local tNearestFriendlyBase
-                            local bCloseToDangerousFriendlyBase = false
-                            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
-                            if tLZOrWZTeamData then
-                                tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                                if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
-                            end
-                            if not(tNearestFriendlyBase) then tNearestFriendlyBase = M28Map.GetPlayerStartPosition(aiBrain) end
-
-                            local tAirRallyPoint = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
-                            local tRallyLZOrWZData, tRallyLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
-                            local tRetreatLocation
-                            if not(bCloseToDangerousFriendlyBase) and tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
-                                local iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tNearestFriendlyBase)
-                                local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAirRallyPoint)
-                                if M28Utilities.GetAngleDifference(iAngleToBase, iAngleToRally) >= 35 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) >= 60 then
-                                    if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
-                                        tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
-                                    else
-                                        local iRallyPlateauOrZero, iRallyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tAirRallyPoint)
-                                        local iUnitPlateauOrZero, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                        if iRallyPlateauOrZero and iUnitPlateauOrZero and iRallyZone and iUnitZone then
-                                            M28Air.CalculateAirTravelPath(iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone)
-                                            if M28Air.DoesEnemyHaveAAThreatAlongPath(aiBrain.M28Team, iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone, false, 1000, 1000, false, aiBrain.M28AirSubteam, true, false, oUnit:GetPosition(), false) then
-                                                tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                local tAirRallyPoint = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                                local tRallyLZOrWZData, tRallyLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
+                                local tRetreatLocation
+                                if not(bCloseToDangerousFriendlyBase) and tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
+                                    local iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tNearestFriendlyBase)
+                                    local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAirRallyPoint)
+                                    if M28Utilities.GetAngleDifference(iAngleToBase, iAngleToRally) >= 35 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) >= 60 then
+                                        if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
+                                            tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                        else
+                                            local iRallyPlateauOrZero, iRallyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tAirRallyPoint)
+                                            local iUnitPlateauOrZero, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                            if iRallyPlateauOrZero and iUnitPlateauOrZero and iRallyZone and iUnitZone then
+                                                M28Air.CalculateAirTravelPath(iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone)
+                                                if M28Air.DoesEnemyHaveAAThreatAlongPath(aiBrain.M28Team, iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone, false, 1000, 1000, false, aiBrain.M28AirSubteam, true, false, oUnit:GetPosition(), false) then
+                                                    tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                                end
                                             end
                                         end
                                     end
                                 end
+                                if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
+                                ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
                             end
-                            if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
-                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
-                        end
 
-                        --Have friendly gunships dodge
-                        M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
-                    end
-                    --T1 bombers targeting enemy ACU when not in snipe mode - consider reassigning/retreating if groundAA or AirAA threat nearby
-                elseif EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryBomber + categories.TECH2 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.toActiveSnipeTargets]) then
-                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                    local oLastTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
-                    if M28UnitInfo.IsUnitValid(oLastTarget) and EntityCategoryContains(categories.COMMAND, oLastTarget.UnitId) then
-                        --Check we arent close to killing the ACU
-                        if oLastTarget:GetHealth() > (oLastTarget[M28Air.refiStrikeDamageAssigned] or 0) * 5 then
-                            ForkThread(M28Air.ConsiderIfBomberTargetingACUShouldReassign, oUnit, oLastTarget)
+                            --Have friendly gunships dodge
+                            M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
+                        end
+                        --T1 bombers targeting enemy ACU when not in snipe mode - consider reassigning/retreating if groundAA or AirAA threat nearby
+                    elseif EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryBomber + categories.TECH2 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.toActiveSnipeTargets]) then
+                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                        local oLastTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
+                        if M28UnitInfo.IsUnitValid(oLastTarget) and EntityCategoryContains(categories.COMMAND, oLastTarget.UnitId) then
+                            --Check we arent close to killing the ACU
+                            if oLastTarget:GetHealth() > (oLastTarget[M28Air.refiStrikeDamageAssigned] or 0) * 5 then
+                                ForkThread(M28Air.ConsiderIfBomberTargetingACUShouldReassign, oUnit, oLastTarget)
+                            end
                         end
                     end
                 end
@@ -1146,7 +1148,7 @@ function OnWeaponFired(oWeapon)
                 if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     --Micro torp bombers if this is the last shot and torp only has 1 rack
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
-                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
+                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or oWeapon.bp.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or oWeapon.bp.MuzzleSalvoSize or 0) then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                             ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                         end
@@ -1185,7 +1187,7 @@ function OnWeaponFired(oWeapon)
                         ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
                     end
                 else
-                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and oWeapon.Blueprint.DamageType == 'Nuke' then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and (oWeapon.Blueprint.DamageType or oWeapon.bp.DamageType) == 'Nuke' then
                         --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit brain='..oUnit:GetAIBrain().Nickname..'; GetCurrentTarget()='..reprs(oWeapon:GetCurrentTarget())..'; GetCurrentTargetPos='..reprs(oWeapon:GetCurrentTargetPos())) end
                         if not(oUnit:GetAIBrain().M28AI) and oWeapon.GetCurrentTargetPos then
@@ -1198,7 +1200,7 @@ function OnWeaponFired(oWeapon)
                         end
                     end
                     --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot, oWeapon.unit.UnitId='..(oWeapon.unit.UnitId or 'nil')) end
                     ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
                 end
 
@@ -1216,8 +1218,9 @@ function OnWeaponFired(oWeapon)
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
-                    if (oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (oWeapon.Blueprint.RangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs(oWeapon.Blueprint.RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs(oWeapon.Blueprint)) end
+                    local iWeaponRangeCategory = (oWeapon.Blueprint.RangeCategory or oWeapon.bp.RangeCategory)
+                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
                         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oTarget = oWeapon:GetCurrentTarget() end
@@ -1806,8 +1809,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             end
 
             if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-                --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
-                if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) then
+                --If a building has just build a building, then make sure all M28 are aware of it (since a player would be able to infer this)
+                if EntityCategoryContains(categories.STRUCTURE - categories.ENGINEER, oEngineer.UnitId) then
                     local tTeamsUpdated = {}
                     for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
                         if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
@@ -1993,14 +1996,14 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     --If can upgrade then consider future upgrade
                                     local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                                     if sUpgrade and not(sUpgrade == '') then
-                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt)
+                                        ForkThread(M28Economy.ConsiderFutureMexUpgrade, oJustBuilt) --i.e. to cover cases where after this mex survives a while we want ot upgrade it some more
                                         if EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then M28Economy.bT3MexCanBeUpgraded = true end
                                     end
                                     --Unpause a paused mex if we are in a stall
                                     ForkThread(M28Economy.UnpausePausedMexFollowingUpgrade, oJustBuilt, not((sUpgrade or '') == nil))
                                 end
                                 --COnsider upgrading another mex in this zone
-                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer)
+                                ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer) --i.e. intention is to cover cases where we have the eco from just completing a mex upgrade to then upgrade another of the same tech level (or in some cases upgrade this/a simialr tech to higher tech)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                             --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
@@ -2530,6 +2533,10 @@ function OnTransportUnload(oUnit, oTransport, bone)
             if oTransport[M28Air.refiTargetIslandForDrop] then
                 oUnit[M28Air.refiLastIslandDrop] = oTransport[M28Air.refiTargetIslandForDrop]
                 oUnit[M28Air.refiTimeLastDropped] = GetGameTimeSeconds()
+                if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                    if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.refiTimeLastDroppedEngi] = GetGameTimeSeconds() end
+                end
             end
         end
         if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport then oUnit[M28Engineer.refiAssignedAction] = nil end
@@ -3055,18 +3062,25 @@ function OnPlayableAreaChange(rect, voFlag)
         local sFunctionRef = 'OnPlayableAreaChange'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
         local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
         if type(rect) == 'string' then
             rect = ScenarioUtils.AreaToRect(rect)
         end
-        if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then M28Map.SetupPlayableAreaAndSegmentSizes(rect) end
-        ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
-        ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
-        --Wait 5s then consider campaign special objectives
-        ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
-        --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
-        ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
+        if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then
+            --Check actually have playable area (to cover bug in a LOUD map where playable area is set to 0,0,0,0
+            if not((rect[1] == 0 and rect[2] == 0 and rect[3] == 0 and rect[4] == 0)) then
+                M28Map.SetupPlayableAreaAndSegmentSizes(rect)
+            end
+        end
+        if M28Map.bIsCampaignMap or not(ScenarioInfo.type == "skirmish") then
+            ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
+            ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
+            --Wait 5s then consider campaign special objectives
+            ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
+            --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
+            ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end

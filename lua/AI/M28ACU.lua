@@ -50,7 +50,7 @@ refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. 
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
 refbACUHasBeenGivenABuildOrderRecently = 'M28ACUBuildR' --true if ACU has been given a build order recently
 
-function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
+function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild, tOptionalSearchLocation)
     local sFunctionRef = 'ACUBuildUnit'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -95,8 +95,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         if not(bAlreadyHaveOrder) then
             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
                                                                                 --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
-            local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
-            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
+            local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, tOptionalSearchLocation,            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
+            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         tOptionalSearchLocation,        false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
             if bDebugMessages == true then
                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
                 LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateauOrZero..'; Land or water zone='..(iLandOrWaterZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil)..'; tLZData midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))..'; iMaxAreaToSearchForAdjacencyAndUnderConstruction='..(iMaxAreaToSearchForAdjacencyAndUnderConstruction or 'nil'))
@@ -2599,6 +2599,7 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
 
     local aiBrain = oACU:GetAIBrain()
 
+
     if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 then
         if bDebugMessages == true then LOG(sFunctionRef..': Mass overflow scenario - dont want to build mex, as would rather get factory or assist something building') end
     else
@@ -2650,7 +2651,9 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                         end
                     end
                 end
-                if bHaveMexWithinACUBuildRange then iSearchRange = iACUBuildRange end
+                if bHaveMexWithinACUBuildRange then
+                    iSearchRange = iACUBuildRange + 0.5 --added +0.5 in v117 just in case (but issue were investigating caused by different problem)
+                end
 
                 local bHaveEngineersAssignedAlready = false
                 local tEngisInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -2670,6 +2673,29 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                     local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
                     if bDebugMessages == true then LOG(sFunctionRef..': Have tried telling ACU to build mex, tLastOrder='..reprs(tLastOrder)) end
                     if tLastOrder and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueRepair) then
+                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                            local tLastTarget = {tLastOrder[M28Orders.subreftOrderPosition][1], tLastOrder[M28Orders.subreftOrderPosition][2], tLastOrder[M28Orders.subreftOrderPosition][3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Trying workaround as for some reason ACU doesnt have valid order, will try building on the next mex, tLastTarget='..repru(tLastTarget)) end
+                            if table.getn(tPotentialLocations) > 1 then
+                                local iClosestMex = 10000
+                                local tClosestMex
+                                local iCurDist
+                                for iLocation, tLocation in tPotentialLocations do
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLocation, oACU:GetPosition())
+                                    if iCurDist < iClosestMex then
+                                        tClosestMex = {tLocation[1], tLocation[2], tLocation[3]}
+                                        iClosestMex = iCurDist
+                                    end
+                                end
+                                if tClosestMex then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will retry build order at location '..repru(tClosestMex)) end
+                                    ACUBuildUnit(aiBrain, oACU, M28UnitInfo.refCategoryMex, 30, 100, nil, nil, tClosestMex)
+                                    --Track micro temporarily
+                                    M28Micro.TrackTemporaryUnitMicro(oACU, 2.9, nil, true)
+                                end
+                            end
+
+                        end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end

@@ -974,6 +974,15 @@ function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iTeam='..(iTeam or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Lowest % energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] or 'nil')..'; Gross energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; Reclaim total energy='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalEnergyReclaim] or 'nil')..'; Net team energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 'nil')) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalEnergyReclaim] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.05 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.3 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return false
+        --LOUD specific - more likely to have lower % stored due to higher E storage
+        elseif M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= math.min(0.25, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] * 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 40 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return false
+        end
+
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     end
@@ -1101,6 +1110,7 @@ function ZoneWantsT1Spam(tLZTeamData, iTeam)
     elseif IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) and GetGameTimeSeconds() <= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] <= 2 then
         return true
     end
+    return false
 end
 
 function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
@@ -2002,6 +2012,7 @@ function DoesACUHaveValidOrder(oACU)
     local tLastOrders = oACU[M28Orders.reftiLastOrders]
     if bDebugMessages == true then LOG(sFunctionRef..': tLastOrders='..reprs(tLastOrders)) end
     if not(tLastOrders) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Last orders is empty') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     elseif M28Utilities.IsTableEmpty(tLastOrders) then
@@ -2014,7 +2025,7 @@ function DoesACUHaveValidOrder(oACU)
             if oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]) then
                 --We can build last order, but are we trying to build a mex somewhere that already has a completed mex?
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; In playable area='..tostring(M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]))) end
                     if M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]) then
                         if CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2592,18 +2603,19 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and M28Map.iMapSize >= 1024 then
-                --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 2 mexes of a higher tech level first
+                --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
+                local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
                 if oFactory[M28Factory.refiTotalBuildCount] >= 60 then
                     bWantMoreMexes = false
                 elseif iFactoryTechLevel == 1 then
-                    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(2, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) then
+                    if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(3, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 + iLifetimeCount or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 + iLifetimeCount)) then
                         bWantMoreMexes = false
                     end
-                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) then
+                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 + iLifetimeCount or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 + 2 * iLifetimeCount) then
                     bWantMoreMexes = false
                 end
-                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) then
+                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
                     bWantMoreMexes = false
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': LOUD - holding off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end

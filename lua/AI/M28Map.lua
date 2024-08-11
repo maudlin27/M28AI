@@ -299,6 +299,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
+            refiTimeLastDroppedEngi = 'TimLsEDr' --gametimeseconds we last dropped an engi here
             subrefQueuedBuildings = 'QBByBP' --Queued buildings for a land zone
                 subrefQueueRef = 1 --Unique queue reference number
                 subrefBuildingID = 2 --Blueprint/UnitId of the building queued
@@ -1322,7 +1323,7 @@ function RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateau, iLandZone)
     end
     if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments]) then
         LOG('ERROR - RecordSegmentLandZoneTempLog: iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones]))
-        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1, 200, 3)
+        --M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1, 200, 3)
     else
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments], {iSegmentX, iSegmentZ})
         tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] + 1

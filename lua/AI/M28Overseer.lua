@@ -269,21 +269,23 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
             bNonAISimModsActive = true
-            bIncompatible = true
-            if iSimModCount == 1 then
-                sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
-            else
-                sIncompatibleMessage = sIncompatibleMessage .. '; '
-            end
-            sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
-            if bDebugMessages == true then
-                LOG('Whitelist of mod names=' .. repru(tModIsOk))
-                LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
-            end
+            if not(M28Utilities.bLoudModActive) then
+                bIncompatible = true
+                if iSimModCount == 1 then
+                    sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
+                else
+                    sIncompatibleMessage = sIncompatibleMessage .. '; '
+                end
+                sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
+                if bDebugMessages == true then
+                    LOG('Whitelist of mod names=' .. repru(tModIsOk))
+                    LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
+                end
 
-            if string.find(tModData.name, 'Flying engineers') then
-                bFlyingEngineers = true
-                if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                if string.find(tModData.name, 'Flying engineers') then
+                    bFlyingEngineers = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                end
             end
         elseif tModIsOk[tModData.name] then
             if not(bHaveOtherAIMod) then
@@ -368,7 +370,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
         else
-            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected'..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
         end
     end
     if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
@@ -518,234 +520,10 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificLandZone(336, 70, 3)
-    local tFirstLZData = M28Map.tAllPlateaus[336][M28Map.subrefPlateauLandZones][60]
-    LOG('Land zone for segment 53-216='..(M28Map.tLandZoneBySegment[53][216] or 'nil')..'; Terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 316.5, 29.86328125, 1293.5 }) or 'nil')..'; Segment cont four zone60='..(tFirstLZData[M28Map.subrefLZTotalSegmentCount] or 'nil'))
-    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition({394.5, 30, 1371.5})
-    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30, 1371.5 }) or 'nil'))
-    LOG('SegmentX and Z for nearby mex='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; Land terrain label='..(M28Utilities.NavUtils.GetTerrainLabel('Land', { 394.5, 30.921875, 1293.5 }) or 'nil'))
-    M28Utilities.DrawLocation({ 394.5, 30.921875, 1293.5 }, 4, 150, nil) --gold
-    M28Utilities.DrawLocation({ 394.5, 30, 1371.5 }, 5, 150, nil) --light blue
-    --[[while true do
-        local tLABs = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAttackBot * categories.TECH1, false, true)
-        LOG('Is table of tLABs empty='..tostring(M28Utilities.IsTableEmpty(tLABs)))
-        if M28Utilities.IsTableEmpty(tLABs) == false then
-            local iRandom = math.random(0,1)
-            iRandom = iRandom * 2 - 1
-            for iUnit, oUnit in tLABs do
-                if not(oUnit:IsUnitState('Moving')) and oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then
-                    M28Orders.IssueTrackedMove(oUnit, {oUnit:GetPosition()[1] + 10 * iRandom, oUnit:GetPosition()[2], oUnit:GetPosition()[3] + 10 * iRandom}, 0, false, 'TestMv', true)
-                end
-                --M28Micro.MoveInCircleTemporarily(oUnit, 10, false, true, nil, nil)
-                M28Micro.TrackTemporaryUnitMicro(oUnit, 1, nil, true)
-            end
-        end
-        WaitSeconds(0.5)
-    end--]]
-    --M28Profiler.CompareDifferentThreatCalculations(aiBrain)
+    M28Map.DrawSpecificWaterZone(61, 4, 1000)
+    LOG('Midpoint of WZ61='..repru(M28Map.tPondDetails[M28Map.tiPondByWaterZone[61]][M28Map.subrefPondWaterZones][61][M28Map.subrefMidpoint]))
 
 
-    --M28Profiler.SpawnSetUnitsForBrain(aiBrain)
-    --[[local iXAdjust = -8
-    local iZAdjust = -8
-    for iMex, tMex in M28Map.tMassPoints do
-        LOG(sFunctionRef..': for iMex='..iMex..'; can we build novax with a '..iXAdjust..','..iZAdjust..' offset='..tostring(aiBrain:CanBuildStructureAt('xeb2402', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Can we build a mai template='..tostring(aiBrain:CanBuildStructureAt('mai2820', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust}))..'; Result for size 26 blueprint='..tostring(aiBrain:CanBuildStructureAt('mai2826', {tMex[1]+iXAdjust,GetSurfaceHeight(tMex[1]+iXAdjust,tMex[3]+iZAdjust),tMex[3]+iZAdjust})))
-    end--]]
-
-    --brian size profiling:
-    --[[
-    for iBrain, oBrain in ArmyBrains do
-        oBrain.TestCount = (oBrain.TestCount or 59) + 1
-        if oBrain.TestCount >= 5 then
-
-            local Utils = import('/lua/system/utils.lua')
-            LOG('Size of brain '..oBrain.Nickname..' at time='..GetGameTimeSeconds()..'='..Utils.ToBytes(oBrain))
-            LOG('reprs of brain='..reprs(oBrain))
-            for iTable, tTable in oBrain do
-                LOG('size of table '..iTable..'='..Utils.ToBytes(tTable))
-            end
-            oBrain.TestCount = 0
-        end
-    end--]]
-    --local tsLotsOfStrings = {}
-    --[[for iCurEntry = 1, 100 do
-        tsLotsOfStrings[iCurEntry] = {}
-        for iNextEntry = 1, 1000 do
-            tsLotsOfStrings[iCurEntry][iNextEntry] = 'Test of string 1'..'Test of string 2'..'Test of string 3'
-        end
-    end--]]
-    --local NavUtils = M28Utilities.NavUtils
-    --local tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo('Land', {43, 28, 430},{188, 22, 268.5}, nil)
-    --LOG(sFunctionRef..': iLandTravelDistance='..iLandTravelDistance)
-    --LOG(sFunctionRef..': All reclaim segments assigned to P64Z2='..repru(M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2][M28Map.subrefReclaimSegments]))
-    --M28Map.DrawLandZones()
-    --M28Utilities.IsLineFromAToBInRangeOfCircleAtC(480.91683959961, 347.65859985352, 826.56427001953, 41.712692260742, 213.6215057373, 91)
-    --M28Profiler.IncreaseMemoryUsage(150000) --Can be used to test if high memory usage is likely to lead to a crash
-    --M28Map.DrawSpecificLandZone(64, 2, 4)
-    --ScenarioInfo.Options
-    --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
-
-    --Rerun adj zones so can see what is happening
-    --M28Map.RecordWaterZoneAdjacentLandZones()
-
-    --Spawn in a novax for testing:
-    --[[local oACU = aiBrain:GetListOfUnits(categories.COMMAND)[1]
-    local tPos = oACU:GetPosition()
-    tPos[1] = tPos[1] + 10
-    tPos[3] = tPos[3] + 10
-    CreateUnit('xeb2402', oACU.Army, tPos[1], tPos[2], tPos[3], 0, 0, 0, 0, 'Air')--]]
-    --LOG('Is novax restricted='..tostring(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())))
-
-    --M28Map.DrawLandZonePath(88, 21, 34)
-
-
-    --M28Map.DrawSpecificLandZone(89, 28, 4)
-    --[[
-    M28Map.DrawSpecificLandZone(88, 34, 5)--]]
-    --local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
-    --LOG(sFunctionRef..': is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
-    --[[local iCurColour = 0
-    for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
-        iCurColour = iCurColour + 1
-        if iCurColour >= 9 then iCurColour = 1 end
-        M28Map.DrawSpecificLandZone(88, iLandZone)
-    end--]]
-
-    --New water zone logic testing
-    --local tWZData = M28Map.tPondDetails[51][M28Map.subrefPondWaterZones][269]
-    --LOG('Repru of WZData other pathing='..reprs(tWZData[M28Map.subrefWZOtherWaterZones]))
-
-    --Setons hover label testing
-    --[[local NavUtils = M28Utilities.NavUtils
-    local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
-    for iLocation, tLocation in tLocations do
-        M28Utilities.DrawLocation(tLocation, iLocation)
-        LOG(sFunctionRef..': Hover label for position '..iLocation..'='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tLocation) or 'nil')..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocation) or 'nil'))
-    end--]]
-
-
-    --[[local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-    local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
-    local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)--]]
-    --ScenarioFramework.SetPlayableArea(rRect)
-    --M28Map.DrawSpecificLandZone(2, 1, 4)
-    --M28Map.DrawWaterZones()
-    --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
-    else M28Map.DrawSpecificWaterZone(7)
-    end--]]
-    --AIx 10.0
-    --ScenarioInfo.Options.CheatMult = tostring(10.0)
-    --ScenarioInfo.Options.BuildMult = tostring(10.0)
-
-    --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
-    --Island zero - P218 LZ1
-    --Twin rivers - bottomright core base: P117LZ3
-    --[[while true do
-        WaitSeconds(20)
-        local iTeam = aiBrain.M28Team
-        if GetGameTimeSeconds() >= 240 then
-            local tLZData = M28Map.tAllPlateaus[218][M28Map.subrefPlateauLandZones][3]
-            M28Engineer.DrawBuildableLocations(tLZData, 1)
-            LOG(sFunctionRef..': about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
-        end
-    end--]]
-
-    --Hook assist order
-    --[[local M28OldIssueGuard = _G.IssueGuard
-    _G.IssueGuard = function(units, target)
-        LOG('IssueGuard hook - will give trail if hooked factory')
-        for iUnit, oUnit in units do
-            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then M28Utilities.ErrorHandler('Audit trail', true, true) end
-        end
-        M28OldIssueGuard(units, target)
-    end,
-    LOG('Have attempted to hook issueguard')
-    local M28OldIssueFactoryAssist = _G.IssueFactoryAssist
-    _G.IssueFactoryAssist = function(units, target)
-        LOG('IssueFactoryAssist hook - will give trail if hooked factory')
-        for iUnit, oUnit in units do
-            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
-                if oUnit:GetAIBrain().M28AI then
-                    M28Utilities.ErrorHandler('Audit trail', true, true)
-                end
-            end
-        end
-        M28OldIssueFactoryAssist(units, target)
-    end,--]]
-
-
-
-    --Scenario data
-    --WaitSeconds(10)
-    --LOG('WIll do reprs of ScenarioFramework')
-    --LOG('reprs='..reprs(ScenarioFramework))
-
-
-    --[[LOG('WIll do reprs of just options'..reprs(ScenarioInfo.Options))
-    LOG('Will now try cycling through each entry in ScenarioInfo and note the iEntry value')
-    for iEntry, vValue in ScenarioInfo do
-        LOG('iEntry='..iEntry)
-    end--]]
-
-    --local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
-    --LOG('WZ25 pond 552 closest friendly base='..repru(tWZTeamData[M28Map.reftClosestFriendlyBase]))
-    --WaitSeconds(5)
-    --M28Air.CalculateAirTravelPath(0, 18, 0, 22)
-    --[[M28Utilities.DrawLocation({10,GetTerrainHeight(10,10),10}, 3)
-    M28Utilities.DrawLocation({12,GetTerrainHeight(12,12),10}, 4)
-    M28Utilities.DrawLocation({14,GetTerrainHeight(14,14),14}, 5)--]]
-
-
-    --Destroy a T3 fixed shield to see if we rebuild it
-    --[[if GetGameTimeSeconds() >= 1200 and GetGameTimeSeconds() <= 1201 then
-        local tFixedShields = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield)
-        if M28Utilities.IsTableEmpty(tFixedShields) == false then
-            for iUnit, oUnit in tFixedShields do
-                oUnit:Kill()
-                break
-            end
-        end
-    end--]]
-
-    --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
-    --[[local NavUtils = M28Utilities.NavUtils
-    local tPosition = { 260.06228637695, 67.514915466309, 148.83508300781 }
-    M28Utilities.DrawLocation(tPosition)
-    LOG('NavUtils for tPosition='..(NavUtils.GetLabel('Land', tPosition) or 'nil'))--]]
-
-    --[[local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
-    local tStartMidpoint = tLZData[M28Map.subrefMidpoint]
-    local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, 1, 27, 20, 3)--]]
-    --LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
-
-    --Draw specific land zones
-    --M28Map.DrawSpecificLandZone(27, 33, 2)
-    --M28Map.DrawSpecificLandZone(27, 34, 1)
-
-    --Test alternative to table.remove for sequentially indexed numerical keys
-    --[[local tTestArray = {[1] = 'Test1', [2] = 'Test2', [3] = 'Test3', [4] = 'Test4'}
-    local function WantToKeep(tArray, i, j)
-        if tArray[i] == 'Test2' then return false else return true end
-    end
-    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
-    LOG('Finished updating array, tTestArray='..repru(tTestArray))--]]
-
-
-    --Check for sparky and how many orders it has
-    --[[local tOurSparkies = aiBrain:GetListOfUnits(categories.FIELDENGINEER, false, true)
-    if M28Utilities.IsTableEmpty(tOurSparkies) == false then
-        for iUnit, oUnit in tOurSparkies do
-            local tQueue = oUnit:GetCommandQueue()
-            LOG('Considering sparky '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..': About to list out command queue details. Is queue empty='..tostring(M28Utilities.IsTableEmpty(tQueue)))
-
-            if M28Utilities.IsTableEmpty(tQueue) == false then
-                LOG('Total commands='..table.getn(tQueue))
-                for iCommand, tOrder in ipairs(tQueue) do
-                    LOG('iCommand='..iCommand..'; tOrder='..repru(tOrder)..'; position='..repru(tOrder.position)..'; Type='..repru(tOrder.type))
-                end
-            end
-        end
-    end--]]
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end

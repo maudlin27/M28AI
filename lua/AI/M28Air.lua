@@ -1457,7 +1457,6 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordOtherLandAndWaterZonesByDistance'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if bDebugMessages == true then LOG(sFunctionRef..': Start time='..GetGameTimeSeconds()..'; Is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
         if M28Utilities.IsTableEmpty(tStartLZOrWZData) then M28Utilities.ErrorHandler('Trying to record other land and water zones when we dont have valid LZOrWZData entry')
@@ -2928,7 +2927,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     if M28Utilities.IsTableEmpty(tInCombatUnits) == false then
         tExistingThreatAssignedByUnitRef = UpdateOrdersForExistingAirAATargets(tInCombatUnits, not(M28Utilities.IsTableEmpty(tAvailableAirAA)))
     end
-
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = true
     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
         local tEnemyAirTargets = {}
         local tbPlateauAndLandZonesConsidered = {} --[x] = plateau, [y] = land zone, returns true if considered
@@ -3480,6 +3479,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is air rally outside playable area='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea])) end
                     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = false
                         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] then
                             --First check for enemy units near the revised rally point instead
                             local aiBrain
@@ -5503,6 +5503,8 @@ function ManageGunships(iTeam, iAirSubteam)
                                                         iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
+                                                elseif M28Utilities.bLoudModActive then --make gunships less likely to attack
+                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3
                                                 end
                                             else
                                                 if tSubtable[M28Map.subrefiDistance] <= 200 then
@@ -5510,6 +5512,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 else
                                                     iGunshipThreatFactorWanted = 4.5
                                                 end
+                                                if M28Utilities.bLoudModActive then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 end
                                             end
                                             --Reduce threat factor if we have air control
                                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iGunshipThreatFactorWanted = math.max(math.min(2.7, iGunshipThreatFactorWanted), iGunshipThreatFactorWanted * 0.8) end
@@ -5520,6 +5523,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 else
                                                     iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted * 0.8)
                                                 end
+                                                if M28Utilities.bLoudModActive then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 end
                                             end
 
                                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 0.85 end
