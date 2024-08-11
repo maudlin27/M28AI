@@ -2016,6 +2016,7 @@ function DoesACUHaveValidOrder(oACU)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     elseif M28Utilities.IsTableEmpty(tLastOrders) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Table of last orders is empty') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
@@ -2024,8 +2025,9 @@ function DoesACUHaveValidOrder(oACU)
             if bDebugMessages == true then LOG(sFunctionRef..': Last order was to build somethingw ith blueprint '..(tLastOrder[M28Orders.subrefsOrderBlueprint] or 'nil')..'; Can build='..tostring(oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]))) end
             if oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]) then
                 --We can build last order, but are we trying to build a mex somewhere that already has a completed mex?
+                if bDebugMessages == true then LOG(sFunctionRef..': We can build the blueprint, is last order to build a mex?='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]))) end
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; In playable area='..tostring(M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We are trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; In playable area='..tostring(M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]))) end
                     if M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]) then
                         if CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
