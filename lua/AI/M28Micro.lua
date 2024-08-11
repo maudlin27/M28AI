@@ -954,7 +954,7 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop for move commands for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeToRun='..iTimeToRun..'; iStartTime='..iStartTime..'; iCurFacingDirection='..iCurFacingDirection..'; tUnitStartPosition='..repru(tUnitStartPosition)..'; bRecentMicro='..tostring((bRecentMicro or false))..'; bDontClearCommandsFirst='..tostring(bDontClearCommandsFirst or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 'nil')..'; GameTime='..iGameTime..'; Dif='..iGameTime-(oUnit[M28UnitInfo.refiGameTimeMicroStarted] or 0)..'; bDontTreatAsMicroAction='..tostring((bDontTreatAsMicroAction or false))..'; iAngleMaxSingleAdj='..iAngleMaxSingleAdj..'; iTicksBetweenOrders='..iTicksBetweenOrders) end
         if bRecentMicro == false and not(bDontClearCommandsFirst) then
             M28Orders.UpdateRecordedOrders(oUnit)
-            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
             if not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove) then
                 M28Orders.IssueTrackedClearCommands(oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': Issued clear commands order to the unit') end

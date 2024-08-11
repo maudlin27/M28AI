@@ -2934,6 +2934,81 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             local iShotMissFactor
             local iArtiAngleFactor
 
+            local iFriendlyUnitReductionFactor = 2
+            local iFriendlyUnitAOEFactor = 2
+            local iSizeAdjust = 0.25
+            local iMultipleShotMod = 1
+            local iMobileValueFactorInner = 0.4
+            local iShieldReductionFactor = 0.25 --i.e. amount by which value of target will be reduced if it is under shielding
+
+            --First consider other T3 arti on team, and if target is in our range, then prefer to target that as well as synchronised targeting likely to be best (but only if the target had a value of 20k+)
+            local tBestArtiSynchronisedGroundTarget, oArtiSynchronisedTarget
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                local tBrainT3Arti = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, false, true)
+                if M28Utilities.IsTableEmpty(tBrainT3Arti) == false then
+                    local iOtherDistToUs
+                    local tLocationsConsidered = {}
+                    local bConsiderCurOrder
+                    for iOtherArti, oOtherArti in tBrainT3Arti do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oOtherArti='..oOtherArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOtherArti)..'; Last target value='..(oOtherArti[refiLastTargetValue] or 0)..'; iBestValue='..iBestValue..'; Other arti order count='..(oOtherArti[M28Orders.refiOrderCount] or 'nil')..'; reprs of oOtherArti[M28Orders.reftiLastOrders][oOtherArti[M28Orders.refiOrderCount]]='..reprs(oOtherArti[M28Orders.reftiLastOrders][oOtherArti[M28Orders.refiOrderCount]])) end
+                        if not(oOtherArti == oArti) and M28UnitInfo.IsUnitValid(oOtherArti) and (oOtherArti[refiLastTargetValue] or 0) >= math.max(iBestValue * 0.75, 10000) then
+                            local tLastArtiOrder = oOtherArti[M28Orders.reftiLastOrders][oOtherArti[M28Orders.refiOrderCount]]
+                            local oLastArtiUnitTarget = tLastArtiOrder[M28Orders.subrefoOrderUnitTarget]
+                            local tLastArtiTarget
+                            if M28Utilities.IsTableEmpty(tLastArtiOrder[M28Orders.subreftOrderPosition]) == false then
+                                tLastArtiTarget = {tLastArtiOrder[M28Orders.subreftOrderPosition][1], tLastArtiOrder[M28Orders.subreftOrderPosition][2], tLastArtiOrder[M28Orders.subreftOrderPosition][3]}
+                            elseif oLastArtiUnitTarget then
+                                tLastArtiTarget = oLastArtiUnitTarget:GetPosition()
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Last arti order position='..repru(tLastArtiOrder[M28Orders.subreftOrderPosition])..'; Last arti order target='..(tLastArtiOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastArtiOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')) end
+                            if M28Utilities.IsTableEmpty(tLastArtiTarget) == false then
+                                bConsiderCurOrder = true
+                                if M28Utilities.IsTableEmpty(tLocationsConsidered) == false then
+                                    for iLocation, tLocation in tLocationsConsidered do
+                                        if M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oArti:GetPosition()) <= 10 then
+                                            bConsiderCurOrder = false
+                                            break
+                                        end
+                                    end
+                                end
+                                if bConsiderCurOrder then
+                                    table.insert(tLocationsConsidered, tLastArtiTarget)
+                                    iOtherDistToUs = M28Utilities.GetDistanceBetweenPositions(tLastArtiTarget, oArti:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering order of other target oOtherArti='..oOtherArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOtherArti)..' with iOtherDistToUs='..iOtherDistToUs..'; Other arti position='..repru(tLastArtiTarget)) end
+                                    if iOtherDistToUs >= iMinRange and iOtherDistToUs <= iMaxRange then
+                                        local iTargetPlateauOrZero, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastArtiTarget)
+                                        local bDontConsiderIfUnderwater = true
+                                        if iTargetPlateauOrZero == 0 then bDontConsiderIfUnderwater = true end
+                                        iCurValue = M28Logic.GetDamageFromBomb(aiBrain, tLastArtiTarget, iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil,                    not(bDontConsiderIfUnderwater))
+                                        --Adjust curvalue for shot count as well
+                                        local tAltLZOrWZData, tAltLZOrWZTeamData
+                                        if iTargetPlateauOrZero == 0 then
+                                            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iTargetZone]][M28Map.subrefPondWaterZones][iTargetZone]
+                                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                        else
+                                            tAltLZOrWZData = M28Map.tAllPlateaus[iTargetPlateauOrZero][M28Map.subrefPlateauLandZones][iTargetZone]
+                                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                        end
+                                        iShotMissFactor = GetArtiValueFactorForShotFailures((tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
+                                        --Reduce shot miss factor as have multiple arti firing at it
+                                        if iShotMissFactor < 1 then iShotMissFactor = 1 - (1 - iShotMissFactor) * 0.5 end
+                                        --Increase value by 25% due to synchronisation benefit, and ignore angle factor
+                                        iCurValue = iCurValue * iShotMissFactor * 1.25
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; after applying iShotMissFactor='..iShotMissFactor..'; iBestValue so far='..iBestValue) end
+                                        if iCurValue > iBestValue then
+                                            iBestValue = iCurValue
+                                            tBestArtiSynchronisedGroundTarget = {tLastArtiTarget[1], tLastArtiTarget[2], tLastArtiTarget[3]}
+                                            oArtiSynchronisedTarget = oLastArtiUnitTarget
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider this as our preferred synchronised shot target') end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
             for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
                 local tAltLZOrWZData
                 local tAltLZOrWZTeamData
@@ -3006,6 +3081,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
 
                         --Record as best/second best
                         if iCurValue > iBestValue then
+                            tBestArtiSynchronisedGroundTarget = nil
+                            oArtiSynchronisedTarget = nil
                             iSecondBestValue = iBestValue
                             iSecondBestPlateauOrZero = iBestPlateauOrZero
                             iSecondBestLZOrWZ = iBestLZOrWZ
@@ -3026,12 +3103,6 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             end
 
             --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
-            local iFriendlyUnitReductionFactor = 2
-            local iFriendlyUnitAOEFactor = 2
-            local iSizeAdjust = 0.25
-            local iMultipleShotMod = 1
-            local iMobileValueFactorInner = 0.4
-            local iShieldReductionFactor = 0.25 --i.e. amount by which value of target will be reduced if it is under shielding
             --Reduce value of shields against high damage and aoe targets
             if iDamage >= 7500 and iAOE >= 6 then iShieldReductionFactor = math.min(math.max(iShieldReductionFactor, 0.8), iShieldReductionFactor * 1.5) end
 
@@ -3039,7 +3110,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 local tAltLZOrWZData
                 local tAltLZOrWZTeamData
                 local iCurValue
-                local iBestValue = 0
+                local iBestCurValue = 0
                 local oBestUnitTarget
                 if iPlateauOrZero == 0 then
                     tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
@@ -3088,49 +3159,55 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             local oUnit = tPriorityUnits[iEntry]
                             --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
                             iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true,                           nil,                                    nil,                    nil,                    not(bDontConsiderIfUnderwater))
-                            if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestCurValue='..(iBestCurValue or 'nil')) end
                             local iMinValue = 0
                             --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
                             if (iCurValue or 0) >= 0 and M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and (oUnit:GetFractionComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
                                 --redundancy for buildings and under construction units
                                 iMinValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestCurValue='..(iBestCurValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end
                                 iCurValue = math.max((iCurValue or 0), iMinValue)
                             end
-                            if iCurValue > iBestValue then
-                                iBestValue = iCurValue
+                            if iCurValue > iBestCurValue then
+                                tBestArtiSynchronisedGroundTarget = nil
+                                oArtiSynchronisedTarget = nil
+                                iBestCurValue = iCurValue
                                 oBestUnitTarget = oUnit
-                                if bDebugMessages == true then LOG(sFunctionRef..': Setting the best unit target to '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iBestValue='..iBestValue) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Setting the best unit target to '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iBestCurValue='..iBestCurValue) end
                             end
                         end
                     end
                 end
-                return oBestUnitTarget, iBestValue
+                return oBestUnitTarget, iBestCurValue
             end
-
-            local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
-            if not(iBestAngleFactor) then iBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
-            if not(iBestTargetValue) then iBestTargetValue = 0 end
-            iBestTargetValue = iBestAngleFactor * iBestTargetValue
-            if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
-            if iSecondBestLZOrWZ then
-                local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
-                if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestTargetValue before considering this='..(iBestTargetValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
-                if not(iSecondBestAngleFactor) then iSecondBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
-                if not(iAltTargetValue) then iAltTargetValue = 0
-                elseif oAltTarget.GetPosition then
-                    --Get value from targeting the best target in this alt zone
-                    --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, bCheckIfUnderwater)
-                    iAltTargetValue  = M28Logic.GetDamageFromBomb(aiBrain, oAltTarget:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
-                end
-                iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
-                if bDebugMessages == true then LOG(sFunctionRef..': iAltTargetValue='..iAltTargetValue..'; iBestTargetValue before reflecting this='..iBestTargetValue) end
-                if iAltTargetValue > iBestTargetValue then
-                    oBestTarget = oAltTarget
-                    iBestTargetValue = iAltTargetValue
+            local oBestTarget
+            if iBestLZOrWZ and iBestPlateauOrZero then
+                oBestTarget, iBestValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
+                if not(iBestAngleFactor) then iBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+                if not(iBestValue) then iBestValue = 0 end
+                iBestValue = iBestAngleFactor * iBestValue
+                if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
+                if iSecondBestLZOrWZ then
+                    local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestValue before considering this='..(iBestValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
+                    if not(iSecondBestAngleFactor) then iSecondBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+                    if not(iAltTargetValue) then iAltTargetValue = 0
+                    elseif oAltTarget.GetPosition then
+                        --Get value from targeting the best target in this alt zone
+                        --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, bCheckIfUnderwater)
+                        iAltTargetValue  = M28Logic.GetDamageFromBomb(aiBrain, oAltTarget:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
+                    end
+                    iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAltTargetValue='..iAltTargetValue..'; iBestValue before reflecting this='..iBestValue) end
+                    if iAltTargetValue > iBestValue then
+                        oBestTarget = oAltTarget
+                        iBestValue = iAltTargetValue
+                    end
                 end
             end
-            if not(oBestTarget) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering first and second best zones, oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; tBestArtiSynchronisedGroundTarget='..repru(tBestArtiSynchronisedGroundTarget)..'; oArtiSynchronisedTarget='..(oArtiSynchronisedTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiSynchronisedTarget) or 'nil')) end
+            if oArtiSynchronisedTarget and tBestArtiSynchronisedGroundTarget then oBestTarget = oArtiSynchronisedTarget end
+            if not(oBestTarget) and not(tBestArtiSynchronisedGroundTarget) then
                 M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
                 local bGivenAltTarget = false
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
@@ -3153,9 +3230,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             end
                         end
                         if bNearbyEnemyUnits then
-                            iBestTargetValue = iDamage
+                            iBestValue = iDamage
                             --Is this the same as the last target?
-                            oArti[refiLastTargetValue] = iBestTargetValue
+                            oArti[refiLastTargetValue] = iBestValue
                             local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
                             if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
                                 oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
@@ -3172,7 +3249,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 local tLeadingTarget
                 local bAttackUnitNotGround = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; Does this contain mobile='..tostring(EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId))..'; Fraction complete='..oBestTarget:GetFractionComplete()..'; Is moving unit state='..tostring(oBestTarget:IsUnitState('Moving'))..'; Unit state='..M28UnitInfo.GetUnitState(oBestTarget)) end
-                if EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId) and oBestTarget:GetFractionComplete() == 1 and oBestTarget:IsUnitState('Moving') and not(oArti[M28UnitInfo.refbEasyBrain]) and (M28Utilities.bFAFActive or not(oArti.UnitId == 'url0401')) then
+                if not(tBestArtiSynchronisedGroundTarget) and EntityCategoryContains(categories.MOBILE, oBestTarget.UnitId) and oBestTarget:GetFractionComplete() == 1 and oBestTarget:IsUnitState('Moving') and not(oArti[M28UnitInfo.refbEasyBrain]) and (M28Utilities.bFAFActive or not(oArti.UnitId == 'url0401')) then
                     --If best target is mobile and moving, then consider a leading shot instead
                     local oBP = oArti:GetBlueprint()
                     local iWeaponVelocity
@@ -3197,7 +3274,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
                 end
-                if tLeadingTarget then
+                if tBestArtiSynchronisedGroundTarget then
+                    tActualTarget = tBestArtiSynchronisedGroundTarget
+                elseif tLeadingTarget then
                     if bDebugMessages == true then LOG(sFunctionRef..': Changing Arti target for oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..' to try and lead target, oBestTarget position='..repru(oBestTarget:GetPosition())..'; tLeadingTarget='..repru(tLeadingTarget)..'; Time='..GetGameTimeSeconds()) end
                     tActualTarget = tLeadingTarget
                 elseif M28Utilities.bFAFActive or not(oArti.UnitId == 'url0401') then
@@ -3214,13 +3293,17 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
 
                 --Double check are still in range
                 local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestTargetValue='..(iBestTargetValue or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestValue='..(iBestValue or 'nil')) end
                 if iTargetDist > iMaxRange or iTargetDist < iMinRange then
-                    bAttackUnitNotGround = false --redundancy
-                    tActualTarget = oBestTarget:GetPosition()
+                    if oBestTarget then
+                        bAttackUnitNotGround = false --redundancy
+                        tActualTarget = oBestTarget:GetPosition()
+                    else
+                        M28Utilities.ErrorHandler('Dont have oBestTarget, and our original target isnt in range, did we pick another t3 arti target that is out of range somehow?')
+                    end
                 end
 
-                if M28Map.bIsCampaignMap and (iBestTargetValue or 0) < 0 then
+                if M28Map.bIsCampaignMap and (iBestValue or 0) < 0 then
                     --Disable weapon
                     M28UnitInfo.DisableUnitWeapon(oArti)
                     if bDebugMessages == true then LOG(sFunctionRef..': Disabling Arti weapon, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)) end
@@ -3228,19 +3311,23 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 else
 
                     --Issue attack order
-                    oArti[refiLastTargetValue] = iBestTargetValue
+                    oArti[refiLastTargetValue] = iBestValue
                     oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
                     local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
                     if not(M28Utilities.bFAFActive) and oArti.UnitId == 'url0401' then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will do delayed order change for arti as it is scathis and not FAF') end
                         ForkThread(DelayedScathisOrderChange, bAttackUnitNotGround, oArti, oBestTarget, tActualTarget)
                     elseif bAttackUnitNotGround then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Issuing tracked attack for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' to attack oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)) end
                         M28Orders.IssueTrackedAttack(oArti, oBestTarget, false, 'ScaAtU', false)
                     else
-                        if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tActualTarget) > 1 then
+                        if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) or M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], tActualTarget) > 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Issuing tracked ground attack for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' to attack oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)) end
                             M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false, oBestTarget)
                         end
                     end
                     IncreaseArtiShotCount(tActualTarget, iTeam, iShotCount)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sent order to attack to oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..', iBestValue='..iBestValue..'; tActualTarget='..repru(tActualTarget)) end
                 end
             end
 
