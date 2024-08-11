@@ -251,7 +251,7 @@ end
 if categories.brot1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brot1exm1 end
 if categories.brmt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brmt1exm1 end
 if categories.uel0108 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end
-if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end
+if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brpt1exm1 end
 
 
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
