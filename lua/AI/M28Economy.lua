@@ -2868,6 +2868,9 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             end
             if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
         end
+        if M28Utilities.bLoudModActive and M28UnitInfo.GetUnitLifetimeCount(oMex) == 1 and iMexTechLevel == 1 then
+            iTimeToWait = math.min(iTimeToWait, 180)
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait before considering upgrading this mex again='..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
     if iTimeToWait > 0 then
