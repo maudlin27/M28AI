@@ -674,10 +674,18 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             end
                         end
                     end
-                    --LOUD - prioritise T2 sniperbots
-                    if M28Utilities.bLoudModActive and iFactoryTechLevel == 2 and categories.ual0204 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
-                        iBaseCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
-                        if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then iBaseCategoryWanted =  M28UnitInfo.refCategorySkirmisher * iTechCategory end
+                    --LOUD - prioritise T2 Aeon sniperbots
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to prioritise T2 aeon sniperbots in loud, Factory techlevel='..iFactoryTechLevel..'; is aeon sniperbot category nil='..tostring(categories.ual0204 == nil)..'; Is factory Aeon='..tostring(EntityCategoryContains(categories.AEON, oFactory.UnitId))..'; Factory build count='..oFactory[refiTotalBuildCount]) end
+                    if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                        local iAltCategoryWanted
+                        if iFactoryTechLevel == 2 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
+                            iAltCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
+                            if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
+                        elseif iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,4) == 1) then
+                            iAltCategoryWanted = categories.ual0204
+                            if bDebugMessages == true then LOG(sFunctionRef..': can we build a blueprint with t2 sniperbot blueprint? Is the blueprint nil='..tostring(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) == nil)) end
+                            if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
+                        end
                     end
                     if M28Utilities.bLoudModActive and categories.brmt2medm then iBaseCategoryWanted = iBaseCategoryWanted + categories.brmt2medm end
 
@@ -689,7 +697,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot
                             if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then iBaseCategoryWanted = iOrigCategory end
                         end
-                        
+
                     else
                         --We can build skirmishers, but if we have built fewer than 15 T3 tanks, and enemy is using T2 and lower tech, consider building t3 tanks instead
                         if iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= 2 and M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryDFTank * iTechCategory) <= 15 then
@@ -702,24 +710,24 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                     iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
                 end
 
-                --Absolver override
-                if bConsiderAbsolvers then
-                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
-                        --Want absolvers unless we are already building some in this zone
-                        local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
-                        if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * M28UnitInfo.refCategoryAmphibious + iAbsolverCategory * categories.HOVER end
+                    --Absolver override
+                    if bConsiderAbsolvers then
+                        if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
+                            --Want absolvers unless we are already building some in this zone
+                            local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
+                            if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * M28UnitInfo.refCategoryAmphibious + iAbsolverCategory * categories.HOVER end
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
-                        --Can we actually build a unit with this categoyr?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
+                            --Can we actually build a unit with this categoyr?
 
-                        local sAbsolver = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAbsolverCategory, oFactory)
-                        if sAbsolver then
-                            iBaseCategoryWanted = iAbsolverCategory
+                            local sAbsolver = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAbsolverCategory, oFactory)
+                            if sAbsolver then
+                                iBaseCategoryWanted = iAbsolverCategory
+                            end
                         end
                     end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
                 end
-            elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
-            end
             if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
                 iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
             end

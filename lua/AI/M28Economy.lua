@@ -2984,7 +2984,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                     end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) and iMexTechLevel <= 2 then
                                         --Consider mex of higher tech level if not already
-                                        tMexOfCategory = EntityCategoryFilterDown(iMexCategory, M28UnitInfo.refCategoryMex)
+                                        tMexOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and find a mex to upgrade, is M28Utilities.IsTableEmpty(tMexOfCategory)='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) == false and not(bAlreadyUpgraded) then

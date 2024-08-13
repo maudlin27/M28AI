@@ -9051,12 +9051,35 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         local bHaveFirebase = false
-        local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+        local tArtiLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+        local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
         if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
             if table.getn(tAllT2Arti) >= 3 then bHaveFirebase = true
             else
+                local iConstructedT2Arti = 0
+                local iShieldedT2Arti = 0
+                for iArti, oArti in tAllT2Arti do
+                    if M28UnitInfo.IsUnitValid(oArti) and oArti:GetFractionComplete() == 1 then
+                        iConstructedT2Arti = iConstructedT2Arti + 1
+                    end
+                    if M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) == false then
+                        iShieldedT2Arti = iShieldedT2Arti + 1
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iConstructedT2Arti='..iConstructedT2Arti..'; iShieldedT2Arti='..iShieldedT2Arti) end
+                if iConstructedT2Arti >= 1 and (M28Utilities.bLoudModActive or (iConstructedT2Arti >= 2 and iShieldedT2Arti >= 1)) then
+                    local iModDistThreshold = 0.5
+                    if M28Map.iMapSize >= 1024 then iModDistThreshold = 0.45
+                    elseif M28Map.iMapSize >= 512 then iModDistThreshold = 0.55
+                    else
+                        iModDistThreshold = 0.75
+                    end
+                    if tArtiLZTeamData[M28Map.refiModDistancePercent] >= iModDistThreshold then
+                        bHaveFirebase = true
+                    end
+                end
                 local iTotalKills = 0
                 for iUnit, oUnit in tAllT2Arti do
                     iTotalKills = iTotalKills + (oUnit.VetExperience or oUnit.Sync.totalMassKilled or 0)
