@@ -15,4 +15,12 @@ Tooltips = {
         title = "Time between M28 orders",
         description = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
     },
+    pref_M28PrioritiseBPs = {
+        title = 'M28: Prioritise stronger units?',
+        description = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
+    },
+    pref_M28DodgeMicro = {
+        title = 'M28: Use dodge micro?',
+        description = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy)',
+    },
 }

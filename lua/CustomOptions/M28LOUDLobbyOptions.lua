@@ -1850,4 +1850,48 @@ LobbyGlobalOptions = {
             },
         },
     },
+    {
+        default = 1,
+        label = "M28: Prioritise stronger units?",
+        help = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
+        key = 'M28PrioritiseBPs',
+        pref = 'pref_M28PrioritiseBPs',
+        --pref = 'lob_teams_combo',
+        --type = 'index',
+        --value_text = "%s",
+        --value_help = "Resource and build multiplier limit",
+        values = {
+            {
+                text = 'Yes',
+                help = 'Apply land unit prioritisation',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Dont prioritise certain land units',
+                key = 2,
+            },
+        },
+
+    },
+    {
+        default = 1,
+        label = "M28: Use dodge micro?",
+        help = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy)',
+        key = 'M28DodgeMicro',
+        pref = 'pref_M28DodgeMicro',
+
+        values = {
+            {
+                text = 'Yes',
+                help = 'Dodge slow moving shots',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Dont try dodging shots',
+                key = 2,
+            },
+        },
+    },
 }

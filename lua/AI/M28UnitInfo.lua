@@ -1560,7 +1560,7 @@ function RecordUnitRange(oUnit)
     local sFunctionRef = 'RecordUnitRange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'bal0110' then bDebugMessages = true end
 
     local oBP = oUnit:GetBlueprint()
     local bWeaponUnpacks = false
