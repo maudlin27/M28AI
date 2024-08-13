@@ -784,7 +784,7 @@ end
 function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
-    --bLowerPriorityMicro - if true then this will be ignored by 'higher priority micro'
+    --bLowerPriorityMicro - if this is true then this will be ignored by 'higher priority micro'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TrackTemporaryUnitMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

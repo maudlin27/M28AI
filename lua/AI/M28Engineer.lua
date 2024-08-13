@@ -702,7 +702,7 @@ end
 function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckBlacklistIfNoGameEnder)
     --Use if e.g. a building has just started construction meaning we likely cant build nearby
     --First get a blueprint of the same size (or just use htis if this is a different size)
-    --bCheckBlacklistIfNoGameEnder - if true then will check to the blacklist; if false then won't check unless there is a gameender in the zone
+    --bCheckBlacklistIfNoGameEnder - if this is true then will check to the blacklist; if this is false then won't check unless there is a gameender in the zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfSegmentsStillBuildable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2123,7 +2123,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
     --Determines the blueprint and location for oEngineer to build at; also returns the location
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
-    --bLookForQueuedBuildings: Optional, if true, then doesnt choose a target if another engineer already has that target function ref assigned to build something
+    --bLookForQueuedBuildings: Optional, if this is true, then doesnt choose a target if another engineer already has that target function ref assigned to build something
     --Returns nil if dealing with a non-resource based building
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -5126,7 +5126,7 @@ end
 function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
     --Gets engineer to find the nearest unassigned reclaim segment in the land zone that has mass/energy, to move to the middle of it, and reclaim it
     --Factors in how much mass is in the segment and how many engineers have been assigned already and adjusts the chosen segment accordingly
-    --bOnlyConsiderReclaimInRangeOfEngineer - if true then will use oEngineer position instead of the midpoint of the reclaim segment that want to target
+    --bOnlyConsiderReclaimInRangeOfEngineer - if this is true then will use oEngineer position instead of the midpoint of the reclaim segment that want to target
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetEngineerToReclaimNearbyArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -9414,7 +9414,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
     --bOptionalReturnMassToCompleteOtherZoneUnderConstruction will return the amount of mass needed to complete all under construction experimentals in other zones; if iOptionalTableRefToIgnoreForThisZone is specified then will include this zone unless it is a table ref equal to the specified one
     --iOptionalSearchRange Will only include those within iOptionalSearchRange; if 0 then will only include exp in this zone
     --iOptionalCategoryFilter - if specified, then will only count engineers who are building or are queued to build a unit meeting this category (will include everything if nil)
-    --bOptionalClearEngineersInOtherZonesWithoutConstruction - if true, then will clear any engineers building an experimental in a dif zone to the one specified if it is only queued up for all those units and none have started construction
+    --bOptionalClearEngineersInOtherZonesWithoutConstruction - if this is true, then will clear any engineers building an experimental in a dif zone to the one specified if it is only queued up for all those units and none have started construction
     --iOptionalTableRefToIgnoreForThisZone - if specified, then will only ignore engineers assigned to this table ref for the zone
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

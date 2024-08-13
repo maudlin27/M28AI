@@ -2555,12 +2555,12 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
 
     --iStartPlateauOrZero: 0 if water zone
     --iEndPlateauOrZero: 0 if water zone
-    --bIgnoreAirAAThreat - if true will only consider if groundAA threat, not airAA threat
+    --bIgnoreAirAAThreat - if this is true will only consider if groundAA threat, not airAA threat
     --iGroundAAThreatThreshold - if set, then will only avoid if has MAA above this levle (e.g. intended for gunships)
-    --bUsingTorpBombers - if true, and we want to avoid somewhere due to too much ground AA threat, then flag that we have a torp bomber shortfall
+    --bUsingTorpBombers - if this is true, and we want to avoid somewhere due to too much ground AA threat, then flag that we have a torp bomber shortfall
 
-    --bDoDetailedCheckForAA - if true then will calculate how close to the midpoint AA units are
-    --bReturnGroundAAThreatInstead - if true will return the groundAA threat
+    --bDoDetailedCheckForAA - if this is true then will calculate how close to the midpoint AA units are
+    --bReturnGroundAAThreatInstead - if this is true will return the groundAA threat
     --tOptionalStartMidpointAdjustForDetailedCheck - ended up removing the code that was making use of this, but in theory this allows a different position to be used than the midpoint for the detailed check
     --bReturnGroundAAUnitsAlongsideAAThreat - only set to true if bReturnGroundAAThreatInstead is true; will also return a table of those groundAA units; recommended that use with bDoDetailedCheckForAA since minimal extra overhead then (so expect the detailed check isn't as expensive vs the normal check which has to do entitycateogyrfilterdown if this is falgged
 

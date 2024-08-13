@@ -425,7 +425,7 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
 
     --If just sending a message rather than a taunt then can use this. sMessageType will be used to check if we have sent similar messages recently with the same sMessageType
     --if bOnlySendToTeam is true then will both only consider if message has been sent to teammates before (not all AI), and will send via team chat
-    --bWaitUntilHaveACU - if true then will wait until aiBrain has an ACU (e.g. use for start of game messages in campaign)
+    --bWaitUntilHaveACU - if this is true then will wait until aiBrain has an ACU (e.g. use for start of game messages in campaign)
     local sFunctionRef = 'SendForkedMessageForSpecialUseOnly'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

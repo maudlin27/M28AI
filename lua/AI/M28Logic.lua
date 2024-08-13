@@ -86,7 +86,7 @@ end
 function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
     --If iAOE is specified then will end once reach the iAOE range
     --(aiBrain included as argument as want to retry CheckBlockingTerrain in the future)
-    --bReturnDistanceThatBlocked - if true then returns either distance at which shot is blocked, or the distance+1 between the start and end position
+    --bReturnDistanceThatBlocked - if this is true then returns either distance at which shot is blocked, or the distance+1 between the start and end position
 
     --Angle (looking only at vertical dif) from shot start to shot end, theta: Tan Theta = Opp/Adj, so Theta = tan-1 Opp/Adj
     --Once have this angle, then the height if move vertically to the target is: Sin theta = opp / hyp
@@ -254,7 +254,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
     local sFunctionRef = 'IsTargetUnderShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Determines if target is under a shield
-    --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
+    --bCumulativeShieldHealth - if this is true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
 
 
 
@@ -465,10 +465,10 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     --Below is largely a copy of M27 logic
     --iFriendlyUnitDamageReductionFactor - optional, assumed to be 0 if not specified; will reduce the damage from the bomb by any friendly units in the aoe
     --iFriendlyUnitAOEFactor - e.g. if 2, then will search for friendly units in 2x the aoe
-    --bCumulativeShieldHealthCheck - if true, then will treat a unit as unshielded if its cumulative shield health check is below the damage
+    --bCumulativeShieldHealthCheck - if this is true, then will treat a unit as unshielded if its cumulative shield health check is below the damage
     --iOptionalSizeAdjust - Defaults to 1, % of value to assign to a normal (mex sized) target; if this isn't 1 then will adjust values accordingly, with T3 power given a value of 1, larger buildings given a greater value, and T1 PD sized buildings given half of iOptionalSizeAdjust
     --iOptionalModIfNeedMultipleShots - Defaults to 0.1; % of value to assign if we wont kill the target with a single shot (experimentals will always give at least 0.5 value)
-    --bT3ArtiShotReduction - if true then will reduce value of targets where we have fired lots of shots at them
+    --bT3ArtiShotReduction - if this is true then will reduce value of targets where we have fired lots of shots at them
     --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default), i.e. what % of the mass damage should be used if the shield means 0 damage will be dealt
     --iOptionalReclaimFactor - if this isnt nil, then will include the value of reclaim if the location looks like it is available to the enemy and damage is high enough that it's reasonable to assume we will kill the reclaim; requires there to be a friendly unit damage reduction factor (to avoid too much of a CPU load given how oftne this function is called)
 

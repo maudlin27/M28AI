@@ -603,7 +603,7 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
     --iAngle: 0 = north, 90 = east, etc.; use GetAngleFromAToB if need angle from 2 positions
     --tStart = {x,y,z} (y isnt used); try to use a location that is inside the playable area as tStart
     --if bKeepInMapBounds is true then will limit to map bounds
-    --bTravelUnderwater - if true then will get the terrain height instead of the surface height
+    --bTravelUnderwater - if this is true then will get the terrain height instead of the surface height
 
     --local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     --local sFunctionRef = 'MoveInDirection'

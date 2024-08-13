@@ -4911,9 +4911,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 bMoveBlockedNotAttackMove = true
             end
 
-            local bConsiderSpecialMMLLogic = false --if true then will consider synchronising MML shots and adjusting who they will target from the default
+            local bConsiderSpecialMMLLogic = false --if this is true then will consider synchronising MML shots and adjusting who they will target from the default
             local tMMLForSynchronisation = {}
-            local bOnlyRetreatIndirectIfEnemyDFAlmostInRange = false --if true (e.g. dealing with t2 arti and dont want T3 mobile arti to run from low level enemy threats) then indirect fire units should only run from nearest enemy if it is almost in range of them
+            local bOnlyRetreatIndirectIfEnemyDFAlmostInRange = false --if this is true (e.g. dealing with t2 arti and dont want T3 mobile arti to run from low level enemy threats) then indirect fire units should only run from nearest enemy if it is almost in range of them
             if iFriendlyBestMobileIndirectRange > 0 then
                 local iAvailableMMLThreat = 0
                 local tFriendlyMML = EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tAvailableCombatUnits)

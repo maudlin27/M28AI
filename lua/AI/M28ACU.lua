@@ -3591,7 +3591,7 @@ end
 
 function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheckIfLocationWithLowPDThreat)
     --oACU - if nil then will assume has a range of 30
-    --bJustCheckIfLocationWithLowPDThreat - if true, then returns true if think there is a low PD threat location to teleport to
+    --bJustCheckIfLocationWithLowPDThreat - if this is true, then returns true if think there is a low PD threat location to teleport to
 
 
     local sFunctionRef = 'GetBestLocationForTeleSnipeTarget'
