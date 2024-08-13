@@ -2604,7 +2604,8 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                     end
                 end
             end
-            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and M28Map.iMapSize >= 1024 then
+            if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
+            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))

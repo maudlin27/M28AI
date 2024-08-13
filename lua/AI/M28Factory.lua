@@ -453,7 +453,7 @@ end
 
 function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, iTargetLandZone, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bDontGetCombat, bDontGetIndirect)
     local sFunctionRef = 'GetLandZoneSupportCategoryWanted'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1971,6 +1971,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28Map.iMapSize <= 256 then
                     iUnitCountToUpgrade = iUnitCountToUpgrade + math.max(iUnitCountToUpgrade * 1.25, 20)
                     if bDebugMessages == true then LOG(sFunctionRef..': Significantly increasing units to upgrade as are in t1 spam mode') end
+                end
+            end
+            if M28Utilities.bLoudModActive then
+                if iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] < 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
+                    iUnitCountToUpgrade = iUnitCountToUpgrade * 2
+                    if bDebugMessages == true then LOG(sFunctionRef..': Increasing unit count requirement as we lack t2 mexes') end
+                elseif iFactoryTechLevel == 2 and tLZTeamData[M28Map.subrefMexCountByTech][3] < 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 then
+                    iUnitCountToUpgrade = iUnitCountToUpgrade * 2
+                    if bDebugMessages == true then LOG(sFunctionRef..': Increasing unit count requirement as we lack t3 mexes') end
                 end
             end
 
