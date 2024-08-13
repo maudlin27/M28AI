@@ -2040,9 +2040,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.TeamEconomyRefresh(iTeam)
                             M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oJustBuilt.UnitId) then
-                            --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
-                            M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such (exception - LOUD if cant build mass storage)
+                            if M28Building.iLowestMassStorageTechAvailable <= 2 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
+                                M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            end
                             if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                                 --Make first land factory built be a core base if it isnt already
                                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
