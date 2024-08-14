@@ -5826,6 +5826,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
                 local bConsolidateAtMidpoint = false
+                local bOnlyAttackWithUnitsInThisZone = false
                 CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat()
                 if iOurDFAndT1ArtiCombatThreat > 0 and M28Utilities.IsTableEmpty(tOurDFAndT1ArtiUnits) == false then
                     local iOurDFAndT1ArtiUnits = table.getn(tOurDFAndT1ArtiUnits)
@@ -5919,6 +5920,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     bAttackWithEverything = true
                                 end
                             end
+                            if bAttackWithEverything then bOnlyAttackWithUnitsInThisZone = true end
                         end
                     end
 
@@ -6021,8 +6023,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     for iUnit, oUnit in tAvailableCombatUnits do
                         --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
                         if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking with everything, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
-                        if ProceedWithUnitOrder(oUnit) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking with everything, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOnlyAttackWithUnitsInThisZone='..tostring(bOnlyAttackWithUnitsInThisZone)) end
+                        if bOnlyAttackWithUnitsInThisZone and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Wont attack with this unit as were doing a suicide attack with units from the cur zone only') end
+                            oUnit[refiCurrentAssignmentValue] = 0
+                        elseif ProceedWithUnitOrder(oUnit) then
                             if oUnit[M28UnitInfo.refbEasyBrain] then
                                 if bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAesWE'..iLandZone)
