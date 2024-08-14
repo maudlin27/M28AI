@@ -5920,7 +5920,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     bAttackWithEverything = true
                                 end
                             end
-                            if bAttackWithEverything then bOnlyAttackWithUnitsInThisZone = true end
+                            if bAttackWithEverything then bOnlyAttackWithUnitsInThisZone = true end --This is needed to e.g. stop fatboy from suiciding into enemy mexes despite facing a major enemy threat in an adjacent zone (happened in v118)
                         end
                     end
 
