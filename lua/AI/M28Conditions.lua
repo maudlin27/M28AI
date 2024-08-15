@@ -1725,7 +1725,14 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     end
                                     if iAirFactoriesForEveryLandFactory > 0.5 and M28Utilities.bLoudModActive then
                                         if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
-                                            iAirFactoriesForEveryLandFactory = 0.5
+                                            --If enemy has significant AA threat then want to get land more than air, so apply more of a reduction
+                                            local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
+                                            if iEnemyNearbyAA >= 8000 or (iEnemyNearbyAA >= 3000 and iEnemyNearbyAA * 3 >= M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] +  M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) then
+                                                iAirFactoriesForEveryLandFactory = 0.5
+                                            else
+                                                iAirFactoriesForEveryLandFactory = math.min(iAirFactoriesForEveryLandFactory, 1)
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Can path to enemy with land, iEnemyNearbyAA='..iEnemyNearbyAA..'; iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory) end
                                         else
                                             iAirFactoriesForEveryLandFactory = math.min(iAirFactoriesForEveryLandFactory, 2)
                                         end
