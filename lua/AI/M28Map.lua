@@ -7559,7 +7559,9 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 local iLowestDist = 10000
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
-                    if not(bIsCampaignMap) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; M28Team='..aiBrain.M28Team..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated]='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 'nil')..'; iTimeLastPlayerDefeat='..M28Overseer.iTimeLastPlayerDefeat..'; Cur time='..GetGameTimeSeconds()..'; Time since team defeated='..GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0)) end
+                    --LOUD - even after 10s this can trigger when enemy team is all dead, so only display error after 37s
+                    if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 40) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
                     for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                         iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget
@@ -9011,7 +9013,9 @@ function ReassessPositionsForPlayerDeath(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     for iTeam = 1, M28Team.iTotalTeamCount do
-        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering team '..iTeam..'; Active M28 count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
+            --Check we still have enemies
             --Reset primary enemy base location (redundancy)
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 if not(aiBrain == oBrain) and not(oBrain.M28IsDefeated) then
@@ -9033,6 +9037,8 @@ function ReassessPositionsForPlayerDeath(aiBrain)
             end
             local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
             M28Navy.FlagWaterZoneStartPositions(iTeam)
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) then
+            M28Team.tTeamData[iTeam][M28Team.refiTimeOfEnemiesDefeated] = GetGameTimeSeconds()
         end
     end
 end

@@ -46,6 +46,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if this is true will try and avoid t2 mex and spam land
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
     refiTimeOfLastTeammateDeath = 'M28TeamLstTmD' --gametimeseconds that a teammate last died (based on ACU dying in demoralisation)
+    refiTimeOfEnemiesDefeated = 'M28EnDft' --gametimeseconds that we registered all enemies of this team as being defeated
 
     --Team economy subrefs
     refiPausedUnitCount = 'M28TeamPausTo' --total number of paused units
@@ -3816,7 +3817,9 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     local sFunctionRef = 'RefreshActiveBrainListForBrainDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; brain '..oDefeatedBrain.Nickname..' has died, will update all teams for this, iTotalTeamCount='..iTotalTeamCount) end
+
     LOG('Brain death detected for '..oDefeatedBrain.Nickname)
+    M28Overseer.iTimeLastPlayerDefeat = GetGameTimeSeconds()
     for iTeam = 1, iTotalTeamCount do
         if oDefeatedBrain.M28Team == iTeam then
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then

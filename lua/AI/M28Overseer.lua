@@ -28,6 +28,7 @@ tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so tabl
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
 iTimeOfLatestBrainToCheckForM28Logic = -1
+iTimeLastPlayerDefeat = 0 --GetGameTimeSeconds that a player defeat is registered (so can hide error messages)
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
