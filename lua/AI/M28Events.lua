@@ -2040,9 +2040,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.TeamEconomyRefresh(iTeam)
                             M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oJustBuilt.UnitId) then
-                            --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
-                            M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such (exception - LOUD if cant build mass storage)
+                            if M28Building.iLowestMassStorageTechAvailable <= 2 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
+                                M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                            end
                             if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                                 --Make first land factory built be a core base if it isnt already
                                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
@@ -3062,14 +3064,15 @@ function OnPlayableAreaChange(rect, voFlag)
         local sFunctionRef = 'OnPlayableAreaChange'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Playable area change detected, rect='..repru(rect)..'; voFlag='..reprs(voFlag)..'; Time='..GetGameTimeSeconds()..'; bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
         local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
         if type(rect) == 'string' then
             rect = ScenarioUtils.AreaToRect(rect)
         end
         if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then
             --Check actually have playable area (to cover bug in a LOUD map where playable area is set to 0,0,0,0
-            if not((rect[1] == 0 and rect[2] == 0 and rect[3] == 0 and rect[4] == 0)) then
+            if not((rect[1] or rect['x0']) == 0 and (rect[2] or rect['y0']) == 0 and (rect[3] or rect['x1']) == 0 and (rect[4] or rect['y1']) == 0) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will call SetupPlayableAreaAndSegmentSizes, rect[1]='..(rect[1] or 'nil')..'; rect[2]='..(rect[2] or 'nil')..'; rect[3]='..(rect[3] or 'nil')..'; rect[4]='..(rect[4] or 'nil')..'; rect[1] == 0='..tostring((rect[1] == 0))..'; rect='..repru(rect)) end
                 M28Map.SetupPlayableAreaAndSegmentSizes(rect)
             end
         end

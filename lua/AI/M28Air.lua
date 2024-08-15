@@ -1955,6 +1955,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             local iRevisedSegmentX, iRevisedSegmentZ
             if not(iSupportPlateau) then
                 local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tSupportRallyPoint)
+                if bDebugMessages == true then LOG(sFunctionRef..': Trying to move support rally point to a location that is on a valid land or water zone, iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; tSupportRallyPoint before change='..repru(tSupportRallyPoint)) end
                 for iAdjustBase = 1, 30 do
                     for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
                         for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
@@ -1989,19 +1990,34 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     if iSupportLZOrWZ then break end
                 end
                 if not(iSupportLZOrWZ) or not(iRevisedSegmentX) or not(iRevisedSegmentZ) then
-                    M28Utilities.ErrorHandler('We have tried searching for nearby valid segment and failed to find one, may result in errors, wont update the support rally point')
+                    M28Utilities.ErrorHandler('We have tried searching for nearby valid segment and failed to find one, may result in errors, wont update the support rally point', true, true)
+                    tSupportRallyPoint = nil
                 else
                     --Update tSupportRallyPoint
                     if bDebugMessages == true then LOG(sFunctionRef..': Will use segment nearby that has a valid zone, iCurSegment: X'..iRevisedSegmentX..'Z'..iRevisedSegmentZ..' at position '..repru(M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))) end
                     tSupportRallyPoint = M28Map.GetPositionFromPathingSegments(iRevisedSegmentX, iRevisedSegmentZ)
                 end
             end
-            if iSupportLZOrWZ then
+            if iSupportLZOrWZ and iSupportPlateau then
                 M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tSupportRallyPoint
+                if bDebugMessages == true then LOG(sFunctionRef..': Have valid plateau and zone so setting subsupportpoint to supportrallypoint') end
             else
                 --Do nothing - i.e. retain the previous rally point unless we dont have one
+                local bUsePreferredRallyInstead = false
                 if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) then
+                    bUsePreferredRallyInstead = true
+                else
+                    local iSupportPlateauOrZero, iSupportLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
+                    if not(iSupportPlateauOrZero) or not(iSupportLandOrWaterZone) then
+                        bUsePreferredRallyInstead = true
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Wont change air sub support point from what it was last cycle as it appears to have a valid plateau and water zone') end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will use previous support point if we have one as a redundancy, iAirSubteam='..iAirSubteam..'; M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])='..repru(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]))..'; bUsePreferredRallyInstead='..tostring(bUsePreferredRallyInstead)) end
+                if bUsePreferredRallyInstead then
                     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updated support poitn to preferred rally point='..repru(tPreferredRallyPoint)) end
                 end
             end
         end
@@ -2016,7 +2032,8 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             else
                 M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to be the rally point, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
+            local iSupportPlateau, iSupportLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to be the rally point as we didnt have a support point from before, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Post change iSupportPlateau='..(iSupportPlateau or 'nil')..'; iSupportLZOrWZ='..(iSupportLZOrWZ or 'nil')) end
         end
         local tStartMidpoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
         if M28Utilities.IsTableEmpty(tStartMidpoint) == false then
@@ -2555,12 +2572,12 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
 
     --iStartPlateauOrZero: 0 if water zone
     --iEndPlateauOrZero: 0 if water zone
-    --bIgnoreAirAAThreat - if true will only consider if groundAA threat, not airAA threat
+    --bIgnoreAirAAThreat - if this is true will only consider if groundAA threat, not airAA threat
     --iGroundAAThreatThreshold - if set, then will only avoid if has MAA above this levle (e.g. intended for gunships)
-    --bUsingTorpBombers - if true, and we want to avoid somewhere due to too much ground AA threat, then flag that we have a torp bomber shortfall
+    --bUsingTorpBombers - if this is true, and we want to avoid somewhere due to too much ground AA threat, then flag that we have a torp bomber shortfall
 
-    --bDoDetailedCheckForAA - if true then will calculate how close to the midpoint AA units are
-    --bReturnGroundAAThreatInstead - if true will return the groundAA threat
+    --bDoDetailedCheckForAA - if this is true then will calculate how close to the midpoint AA units are
+    --bReturnGroundAAThreatInstead - if this is true will return the groundAA threat
     --tOptionalStartMidpointAdjustForDetailedCheck - ended up removing the code that was making use of this, but in theory this allows a different position to be used than the midpoint for the detailed check
     --bReturnGroundAAUnitsAlongsideAAThreat - only set to true if bReturnGroundAAThreatInstead is true; will also return a table of those groundAA units; recommended that use with bDoDetailedCheckForAA since minimal extra overhead then (so expect the detailed check isn't as expensive vs the normal check which has to do entitycateogyrfilterdown if this is falgged
 

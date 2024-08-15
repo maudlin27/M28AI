@@ -101,9 +101,9 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                         local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
                         if not(M28Chat.bSentCheatMessage) then
                             M28Chat.bSentCheatMessage = true
-                            oBrain.CheatEnabled = true
                             M28Chat.SendMessage(oBrain, 'CheatMod', 'AIx modifier set for non-AIx M28 brain, assuming brain should be treated as if it was AIx', 0, 1000000, false, true, nil, nil)
                         end
+                        oBrain.CheatEnabled = true
                     end
                     --If have assigned an AIX modifier then enable cheats
 

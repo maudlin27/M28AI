@@ -4911,9 +4911,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 bMoveBlockedNotAttackMove = true
             end
 
-            local bConsiderSpecialMMLLogic = false --if true then will consider synchronising MML shots and adjusting who they will target from the default
+            local bConsiderSpecialMMLLogic = false --if this is true then will consider synchronising MML shots and adjusting who they will target from the default
             local tMMLForSynchronisation = {}
-            local bOnlyRetreatIndirectIfEnemyDFAlmostInRange = false --if true (e.g. dealing with t2 arti and dont want T3 mobile arti to run from low level enemy threats) then indirect fire units should only run from nearest enemy if it is almost in range of them
+            local bOnlyRetreatIndirectIfEnemyDFAlmostInRange = false --if this is true (e.g. dealing with t2 arti and dont want T3 mobile arti to run from low level enemy threats) then indirect fire units should only run from nearest enemy if it is almost in range of them
             if iFriendlyBestMobileIndirectRange > 0 then
                 local iAvailableMMLThreat = 0
                 local tFriendlyMML = EntityCategoryFilterDown(M28UnitInfo.refCategoryMML, tAvailableCombatUnits)
@@ -5826,6 +5826,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
                 local bConsolidateAtMidpoint = false
+                local bOnlyAttackWithUnitsInThisZone = false
                 CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat()
                 if iOurDFAndT1ArtiCombatThreat > 0 and M28Utilities.IsTableEmpty(tOurDFAndT1ArtiUnits) == false then
                     local iOurDFAndT1ArtiUnits = table.getn(tOurDFAndT1ArtiUnits)
@@ -5919,6 +5920,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     bAttackWithEverything = true
                                 end
                             end
+                            if bAttackWithEverything then bOnlyAttackWithUnitsInThisZone = true end --This is needed to e.g. stop fatboy from suiciding into enemy mexes despite facing a major enemy threat in an adjacent zone (happened in v118)
                         end
                     end
 
@@ -6021,8 +6023,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     for iUnit, oUnit in tAvailableCombatUnits do
                         --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
                         if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking with everything, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
-                        if ProceedWithUnitOrder(oUnit) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking with everything, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOnlyAttackWithUnitsInThisZone='..tostring(bOnlyAttackWithUnitsInThisZone)) end
+                        if bOnlyAttackWithUnitsInThisZone and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone and oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Wont attack with this unit as were doing a suicide attack with units from the cur zone only') end
+                            oUnit[refiCurrentAssignmentValue] = 0
+                        elseif ProceedWithUnitOrder(oUnit) then
                             if oUnit[M28UnitInfo.refbEasyBrain] then
                                 if bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAesWE'..iLandZone)
@@ -9051,12 +9056,35 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         local bHaveFirebase = false
-        local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+        local tArtiLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+        local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
         if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
             if table.getn(tAllT2Arti) >= 3 then bHaveFirebase = true
             else
+                local iConstructedT2Arti = 0
+                local iShieldedT2Arti = 0
+                for iArti, oArti in tAllT2Arti do
+                    if M28UnitInfo.IsUnitValid(oArti) and oArti:GetFractionComplete() == 1 then
+                        iConstructedT2Arti = iConstructedT2Arti + 1
+                    end
+                    if M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) == false then
+                        iShieldedT2Arti = iShieldedT2Arti + 1
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iConstructedT2Arti='..iConstructedT2Arti..'; iShieldedT2Arti='..iShieldedT2Arti) end
+                if iConstructedT2Arti >= 1 and (M28Utilities.bLoudModActive or (iConstructedT2Arti >= 2 and iShieldedT2Arti >= 1)) then
+                    local iModDistThreshold = 0.5
+                    if M28Map.iMapSize >= 1024 then iModDistThreshold = 0.45
+                    elseif M28Map.iMapSize >= 512 then iModDistThreshold = 0.55
+                    else
+                        iModDistThreshold = 0.75
+                    end
+                    if tArtiLZTeamData[M28Map.refiModDistancePercent] >= iModDistThreshold then
+                        bHaveFirebase = true
+                    end
+                end
                 local iTotalKills = 0
                 for iUnit, oUnit in tAllT2Arti do
                     iTotalKills = iTotalKills + (oUnit.VetExperience or oUnit.Sync.totalMassKilled or 0)

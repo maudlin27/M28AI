@@ -43,7 +43,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     rebTeamOnlyHasCampaignAI = 'M28TeamOnlyCampAI' --True if team only has campaign AI on it (so can e.g. disable the 'check playable area' tests in some scenarios
     refiHighestBrainResourceMultiplier = 'M28HighestMult' --Highest AIx Resource on team (as a number)
     refiHighestBrainBuildMultiplier = 'M28HighestBPMult' --Highest AIx BP modifier on team (as a number)
-    refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if true will try and avoid t2 mex and spam land
+    refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if this is true will try and avoid t2 mex and spam land
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
     refiTimeOfLastTeammateDeath = 'M28TeamLstTmD' --gametimeseconds that a teammate last died (based on ACU dying in demoralisation)
 
@@ -2751,6 +2751,8 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                 bBehindOnT3OrNotStartedT2Mex = true
                 iWantedUpgradingMexValue = iWantedUpgradingMexValue * 1.5
             end
+        elseif M28Utilities.bLoudModActive and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.5 and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossMass] >= 1.2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+            iWantedUpgradingMexValue = 1
         end
         if not(bBehindOnT3OrNotStartedT2Mex) and tTeamData[iM28Team][refiMexCountByTech][3] == 0 then
             local iOurT2MexCount = tTeamData[iM28Team][refiMexCountByTech][2]
@@ -2762,7 +2764,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
         if bHaveSafeMexToUpgrade or M28Overseer.bNoRushActive then
             --if upgrading 1 mex from t1 to t2 costs roughly 0.8 mass per tick, and we want to be spenting 1/3 of mass per tick on this, then want 1/3 of gross mass / 0.8, i.e. 0.4167
             --However, are finding we are spending too much mass with this approach and end up always mass stalling, and only upgrading mexes, meaning HQs dont upgrade (when using a value of 0.4167 * gross mass income)
-            iWantedUpgradingMexValue = math.max((tTeamData[iM28Team][subrefiTeamGrossMass] - 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 0.3, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.125)
+            iWantedUpgradingMexValue = math.max(iWantedUpgradingMexValue, (tTeamData[iM28Team][subrefiTeamGrossMass] - 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 0.3, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.125)
             --if are already upgrading 1 mex per brain and are stalling mass, then reduce the amount wanted
             if (tTeamData[iM28Team][subrefiTeamMassStored] < 50 or tTeamData[iM28Team][subrefbTeamIsStallingMass]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and (table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) > 1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5 and tTeamData[iM28Team][subrefiTeamNetMass] <= -math.max(-0.5, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.08)) then
                 iWantedUpgradingMexValue = iWantedUpgradingMexValue * 0.2
@@ -3372,7 +3374,7 @@ function ConsiderGettingUpgrades(iM28Team)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored]..'; Stalling energy='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingEnergy])..'; Stalling mass='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingMass])..'; tTeamData[iM28Team][subrefiTeamGrossMass]='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; tTeamData[iM28Team][subrefiTeamGrossEnergy]='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]='..tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]..'; tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]) end
     if tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.6 and (GetGameTimeSeconds() >= 150 or (GetGameTimeSeconds() >= 60 and GetGameTimeSeconds() >= 150 / tTeamData[iM28Team][refiHighestBrainResourceMultiplier]) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.9 and tTeamData[iM28Team][subrefiTeamNetEnergy] >= 3 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.95) or (M28Map.bIsLowMexMap and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] >= 0.99 or (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) then
         --Further general eco conditions on upgrading early game
-        if GetGameTimeSeconds() >= 300 or M28Map.bIsCampaignMap or GetGameTimeSeconds() >= 60 + 240 / (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) - 30 * math.min(3, math.max(0, tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1.5)) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.4) or M28Map.bIsLowMexMap or M28Overseer.bNoRushActive then
+        if GetGameTimeSeconds() >= 300 or M28Map.bIsCampaignMap or GetGameTimeSeconds() >= 60 + 240 / (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) - 30 * math.min(3, math.max(0, tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1.5)) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * (0.5 + tTeamData[iM28Team][refiHighestBrainResourceMultiplier] * 0.5) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.4) or M28Map.bIsLowMexMap or M28Overseer.bNoRushActive or M28Utilities.bLoudModActive and GetGameTimeSeconds() >= 200 then
             if bDebugMessages == true then LOG(sFunctionRef..': Have enough energy that we will check for priority upgrades and then normal upgrades') end
             tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] = 0
             tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] = 0

@@ -94,7 +94,7 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         if bDebugMessages == true then LOG(sFunctionRef..': tLastOrder='..reprs(tLastOrder)..'; bAlreadyHaveOrder='..tostring(bAlreadyHaveOrder)) end
         if not(bAlreadyHaveOrder) then
             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
-                                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
+            --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
             local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, tOptionalSearchLocation,            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
             if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         tOptionalSearchLocation,        false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
             if bDebugMessages == true then
@@ -3591,7 +3591,7 @@ end
 
 function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheckIfLocationWithLowPDThreat)
     --oACU - if nil then will assume has a range of 30
-    --bJustCheckIfLocationWithLowPDThreat - if true, then returns true if think there is a low PD threat location to teleport to
+    --bJustCheckIfLocationWithLowPDThreat - if this is true, then returns true if think there is a low PD threat location to teleport to
 
 
     local sFunctionRef = 'GetBestLocationForTeleSnipeTarget'

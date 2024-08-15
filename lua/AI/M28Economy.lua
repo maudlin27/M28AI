@@ -628,14 +628,43 @@ function ConsiderHydroUpgradeLoop(oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': oUpgradedBP='..reprs(oUpgradedBP)) end
                 local iMassPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostMass * iBuildPower / oUpgradedBP.Economy.BuildTime) * iBrainCount * 2
                 local iEnergyPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostEnergy * iBuildPower / oUpgradedBP.Economy.BuildTime ) * iBrainCount * 2
+                local iStoredMassAlternative = oUpgradedBP.Economy.BuildCostMass * 4
+                local iDelay = 10
+                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
+                    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                    local iResourceFactorAdjust = 1.5
+                    if tLZTeamData[M28Map.refiModDistancePercent] >= 0.45 then
+                        if iUnitTechLevel >= 2 then
+                            iDelay = 120
+                            iResourceFactorAdjust = 6
+                        else
+                            iDelay = 60
+                            iResourceFactorAdjust = 3
+                        end
+
+                    else
+                        if iUnitTechLevel >= 2 then
+                            iDelay = 60
+                            iResourceFactorAdjust = 2.5
+                        else
+                            iDelay = 30
+                            iResourceFactorAdjust = 1.75
+                        end
+                    end
+                    iMassPerTickWanted = iMassPerTickWanted * iResourceFactorAdjust
+                    iEnergyPerTickWanted = iEnergyPerTickWanted * iResourceFactorAdjust
+                    iStoredMassAlternative = iStoredMassAlternative * iResourceFactorAdjust
+                    if bDebugMessages == true then LOG(sFunctionRef..': iResourceFactorAdjust='..iResourceFactorAdjust) end
+                end
                 local iGrossMassPerTickAlternative = iMassPerTickWanted * 20
                 local iGrossEnergyPerTickAlternative = iEnergyPerTickWanted * 20
-                local iStoredMassAlternative = oUpgradedBP.Economy.BuildCostMass * 4
 
                 if bDebugMessages == true then LOG(sFunctionRef..': iBuildPower='..iBuildPower..'; iMasPerTickWanted='..iMassPerTickWanted..'; iEnergyPerTickWanted='..iEnergyPerTickWanted) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitSeconds(10)
+                WaitSeconds(iDelay)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
                 while M28UnitInfo.IsUnitValid(oUnit) do
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to upgrade at time='..GetGameTimeSeconds()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain='..aiBrain.Nickname..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iEnergyPerTickWanted='..iEnergyPerTickWanted..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; iMassPerTickWanted='..iMassPerTickWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
                     if M28Conditions.WantMorePower(iTeam) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyPerTickWanted or (iEnergyPerTickWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyPerTickAlternative) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassPerTickWanted or ((aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative and (aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative * 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -1)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassPerTickAlternative)))) then
@@ -643,7 +672,7 @@ function ConsiderHydroUpgradeLoop(oUnit)
                         break
                     end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(10)
+                    WaitSeconds(iDelay)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
             elseif bDebugMessages == true then LOG(sFunctionRef..': Couldnt locate an actual blueprint')
@@ -2839,6 +2868,9 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             end
             if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
         end
+        if M28Utilities.bLoudModActive and M28UnitInfo.GetUnitLifetimeCount(oMex) == 1 and iMexTechLevel == 1 then
+            iTimeToWait = math.min(iTimeToWait, 180)
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait before considering upgrading this mex again='..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
     if iTimeToWait > 0 then
@@ -2984,7 +3016,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                     end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) and iMexTechLevel <= 2 then
                                         --Consider mex of higher tech level if not already
-                                        tMexOfCategory = EntityCategoryFilterDown(iMexCategory, M28UnitInfo.refCategoryMex)
+                                        tMexOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and find a mex to upgrade, is M28Utilities.IsTableEmpty(tMexOfCategory)='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) == false and not(bAlreadyUpgraded) then

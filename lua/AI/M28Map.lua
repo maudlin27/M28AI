@@ -7860,7 +7860,7 @@ function AddZoneForDelayedRefresh(iPlateauOrZero, iLandOrWaterZone)
 end
 
 function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone, bUpdateAllReclaimSegmentsWithMass, bAlsoUpdateIfNoMass)
-    --bUpdateAllReclaimSegmentsWithMass - optional, kif true, then when updating will update the reclaim value in each reclaim segment; i.e. set this to true if we try reclaiming in an area and expect to have reclaim but dont
+    --bUpdateAllReclaimSegmentsWithMass - optional, kif this is  true, then when updating will update the reclaim value in each reclaim segment; i.e. set this to true if we try reclaiming in an area and expect to have reclaim but dont
     --bAlsoUpdateIfNoMass - optional; if bUpdateAllReclaimSegmentsWithMass is true, then if thisi s true will ignore the 'must have mass value to update' condition - intended for start of game logic like deciding tarnsport drop start of game shortlist
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RefreshLandOrWaterZoneReclaimValue'

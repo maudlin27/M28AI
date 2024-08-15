@@ -60,10 +60,10 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
-    local sBaseOrder = 'Clear'
-    if oUnit[reftiLastOrders] then
-        sBaseOrder = (oUnit[reftiLastOrders][oUnit[refiOrderCount]][subrefiOrderType] or 'Unknown')
-    end
+    --local sBaseOrder = 'Clear'
+    --if oUnit[reftiLastOrders] then
+        --sBaseOrder = (oUnit[reftiLastOrders][oUnit[refiOrderCount]][subrefiOrderType] or 'Unknown')
+    --end
     local sExtraOrder = ''
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
     local sPlateauAndZoneDesc = ''
@@ -74,9 +74,9 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     if M28Config.M28ShowUnitNames then --redundancy
         if not(M28Utilities.bFAFActive) and oUnit:GetAIBrain().M28AI then
             --Be clear which units belong to M28 if not playing in FAF
-            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sBaseOrder..sExtraOrder)
+            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sExtraOrder)
         else
-            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sBaseOrder..sExtraOrder)
+            oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..sExtraOrder)
         end
     end
 end
