@@ -1,7 +1,7 @@
 General: See the M28AI forum post on the FAF forums for links to a devlog and details of updates:
 https://forum.faforever.com/topic/5331/m28ai-devlog-v1
 
-For the best experience with M28AI it is recommended you play on Forged Alliance Forever (FAF).  However, it should be compatible with both LOUD and Steam.  If you encounter issues with it, contact maudlin27 on discord.
+For the best experience with M28AI it is recommended you play on Forged Alliance Forever (FAF).  However, it should be compatible with LOUD, Steam and GOG versions of the game.  If you encounter issues with it, contact maudlin27 on discord.
 
 Installation:
 Forged Alliance Forever (FAF):
@@ -32,3 +32,5 @@ C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\
 -If the SorianAI mod is also included, then additional game options should show up to configure M28AI further
 
 
+GOG:
+M28AI should work on GOG similarly to steam (see above) - i.e. add the M28AI folder to the mods.scd archive.
