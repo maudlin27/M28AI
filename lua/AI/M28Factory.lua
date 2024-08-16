@@ -5572,6 +5572,9 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             end
         end
 
+        local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
+        if M28Utilities.bLoudModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing), or if we have decent air to ground threat and lack air control
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have sufficient eco to build something from a carrier, bHaveLowMass='..tostring(bHaveLowMass)..'; have low energy='..tostring(bHaveLowEnergy)..'; Gross mass income='..(aiBrain[M28Economy.refiGrossMassBaseIncome] or 'nil')..'; Energy gross income='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy when last stalled='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0)) end
         if not(bHaveLowMass) and not(bHaveLowEnergy) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 250 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6) and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 2500 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= math.max(750, (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) + 300)))  then

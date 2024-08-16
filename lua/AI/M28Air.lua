@@ -806,6 +806,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local iSegmentX, iSegmentZ
             local iTeam = oBrain.M28Team
             local bProceed
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tCurUnits empty='..tostring(M28Utilities.IsTableEmpty(tCurUnits))..'; oBrain='..oBrain.Nickname..'; iTeam='..iTeam..'; iAirSubteam='..iAirSubteam) end
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
@@ -864,7 +865,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 if bDebugMessages == true then LOG(sFunctionRef..' Unit with ground attack order was linked to target that is dead so will be made available') end
                                 table.insert(tAvailableUnits, oUnit)
                             elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90)
-                                or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
+                                    or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
                                 table.insert(tInUseUnits, oUnit)
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby') end
@@ -883,7 +884,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 --AirAA with a combat target that it is near - add to special logic table (as will need to consider updating its move order)
                                 if oExistingValidAttackTarget and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) and IsAirUnitInCombat(oUnit, iTeam) then
                                     table.insert(tSpecialLogicUnits, oUnit)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': AirAA unit is in combat') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': AirAA unit is in combat so added it to table of special logic units, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
                                 else
                                     bProceed = true
                                     --Transports - treat as unavailable if have a target island or WZ drop point and are close to it
@@ -2395,14 +2396,15 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TargetUnitWithAirAA'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if M28Conditions.IsLocationInPlayableArea(oEnemyUnit:GetPosition()) then
         local iClosestUnitDist = iOptionalClosestDist or M28Utilities.GetDistanceBetweenPositions(oAirAA:GetPosition(), oEnemyUnit:GetPosition())
         --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
+        if bDebugMessages == true then LOG(sFunctionRef..': oAirAA='..(oAirAA.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAirAA) or 'nil')..'; .Dead='..tostring(oAirAA.Dead or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA))..'; oEnemyUnit='..(oEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit) or 'nil')..'; Is oEnemyUnit valid='..tostring(M28UnitInfo.IsUnitValid(oEnemyUnit))) end
         if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
-            SuicideASFIntoStrat(oEnemyUnit, oAirAA, true)
+            ForkThread(SuicideASFIntoStrat, oEnemyUnit, oAirAA, true) --Must call via fork thread due to waitticks)
         elseif (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId)))
-            and ((M28UnitInfo.CanSeeUnit(oAirAA:GetAIBrain(), oEnemyUnit)) or oAirAA[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+                and ((M28UnitInfo.CanSeeUnit(oAirAA:GetAIBrain(), oEnemyUnit)) or oAirAA[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+            --Note - sometimes get lua error from above re the logic for existing airaa orders; however we are checking oEnemyUnit is a valid unit before calling, and also are checking oAirAA is valid
             M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAAA', false)
             if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
         else
@@ -2425,6 +2427,7 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
         end
         --end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': FInished targeting code for oAirAA='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2435,9 +2438,11 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
 
     local sUnitRef
     local tExistingThreatAssignedByUnitRef = {}
+    if bDebugMessages == true then LOG(sFunctionRef..': updating orders for all InCombatUnits, bReturnTableOfAssignedThreat='..tostring(bReturnTableOfAssignedThreat or false)..'; Is table of tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; Brain of first in combat unit='..tInCombatUnits[1]:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
     for iAAUnit, oAirAA in tInCombatUnits do
         --Update move orders
         if M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to target enemy unit '..oAirAA[refoAirAACurTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA[refoAirAACurTarget])..' with oAirAA='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..' at time='..GetGameTimeSeconds()) end
             TargetUnitWithAirAA(oAirAA, oAirAA[refoAirAACurTarget])
 
             if bReturnTableOfAssignedThreat then
@@ -2451,6 +2456,7 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
             oAirAA[refoAirAACurTarget] = nil
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished targeting AirAA existing targets') end
     if bReturnTableOfAssignedThreat then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tExistingThreatAssignedByUnitRef
@@ -2942,6 +2948,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     --Update orders for any in combat airaa units, and track the assigned damage to them
     local tExistingThreatAssignedByUnitRef = {}
     if M28Utilities.IsTableEmpty(tInCombatUnits) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to update orders for all incombat units, iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()) end
         tExistingThreatAssignedByUnitRef = UpdateOrdersForExistingAirAATargets(tInCombatUnits, not(M28Utilities.IsTableEmpty(tAvailableAirAA)))
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = true
@@ -9098,6 +9105,7 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
 end
 
 function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
+    --WARNING: Call via fork thread due to waitseconds logic in below
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideASFIntoStrat'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

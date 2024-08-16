@@ -6112,6 +6112,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local bTriedBuildingSomething = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tTableRef[M28Map.subrefGEArtiLocations])) end
@@ -6169,7 +6170,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     end
 
     if bDebugMessages == true then
-        LOG(sFunctionRef..': sArtiToBuild before considering engi last order='..(sArtiToBuild or 'nil')..'; oEngineerToBuild='..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..'; iCyclesWaitingForEngineer='..(tTableRef[M28Map.subrefiCyclesWaitingForEngineer] or 'nil')..'; Is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; bUsingSACU='..tostring(bUsingSACU or false)..'; Time='..GetGameTimeSeconds())
+        LOG(sFunctionRef..': sArtiToBuild before considering engi last order='..(sArtiToBuild or 'nil')..'; oEngineerToBuild='..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..'; iCyclesWaitingForEngineer='..(tTableRef[M28Map.subrefiCyclesWaitingForEngineer] or 'nil')..'; Is table of available engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; bUsingSACU='..tostring(bUsingSACU or false)..'; is oEngineerToBuild valid='..tostring(M28UnitInfo.IsUnitValid(oEngineerToBuild))..'; Time='..GetGameTimeSeconds())
         if sArtiToBuild then
             local tBlueprints = EntityCategoryGetUnitList(tLZTeamData[M28Map.refiLastGameEnderTemplateCategory])
             LOG(sFunctionRef..': All blueprints that meet GE template category:')
@@ -6178,7 +6179,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             end
         end
     end
-    if sArtiToBuild and oEngineerToBuild then
+    if sArtiToBuild and M28UnitInfo.IsUnitValid(oEngineerToBuild) then
         local sLastBlueprint = oEngineerToBuild[M28Orders.reftiLastOrders][oEngineerToBuild[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil'
         if sLastBlueprint and not(sLastBlueprint == sArtiToBuild) and EntityCategoryContains(tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], sLastBlueprint) then
             sArtiToBuild = sLastBlueprint
@@ -6355,12 +6356,12 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
 
             local tMoveLocation = GetLocationToMoveForConstruction(oEngineerToBuild, tLocationToBuild, sArtiToBuild, 0, false)
             if tMoveLocation and (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) <= 10 then
-                if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to move to '..repru(tMoveLocation)..' and then build '..sArtiToBuild..' at location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
+                if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..' to move to '..repru(tMoveLocation)..' and then build '..sArtiToBuild..' at location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
                 M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, tMoveLocation, 1, false, 'GEMBArtT'..iTableRef)
                 bTriedBuildingSomething = true
                 if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
             else
-                if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..' to build '..sArtiToBuild..' at build location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
+                if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..' to build '..sArtiToBuild..' at build location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
                 ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
                 M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, false, 'GEBArt')
                 bTriedBuildingSomething = true
@@ -6368,7 +6369,8 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false, nil, iTeam) end
             oEngineerToBuild[refbPrimaryBuilder] = true
             if not(oEngineerToBuild[M28Building.reftArtiTemplateRefs][3] == iTableRef) or not( oEngineerToBuild[M28Building.reftArtiTemplateRefs][2] == iLandZone) then
-                RecordEngineerAsPartofGameEnderTemplate(oEngineerToBuild[M28Building.reftArtiTemplateRefs], iPlateau, iLandZone, iTableRef, nil, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': will send the oEngineerToBuild to be recorded as part of the GE template, iTeam='..iTeam..'; P'..iPlateau..'Z'..iLandZone..'T'..iTableRef..' time='..GetGameTimeSeconds()) end
+                RecordEngineerAsPartofGameEnderTemplate(oEngineerToBuild, iPlateau, iLandZone, iTableRef, nil, false)
                 --oEngineerToBuild[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTableRef}
             end --Redundancy
         end
@@ -7655,6 +7657,7 @@ function RecordEngineerAsPartofGameEnderTemplate(oEngineer, iPlateau, iLandZone,
 
     local iCurPriority = (oEngineer[refiAssignedActionPriority] or 1)
     local tLZTeamData = tOptionalLZTeamData
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; is unit valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer))) end
     if not(tOptionalLZTeamData) then tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team] end
 
     --If engineer already has a GE template assigned, then remove it from that table
