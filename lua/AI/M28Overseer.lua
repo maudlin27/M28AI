@@ -400,7 +400,8 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF For the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
         M28Chat.SendMessage(aiBrain, 'SteamCompatibility', sMessage, 2, 10)
     elseif M28Utilities.bLoudModActive then
-        M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
+        --Probably done enough testing that can drop the warning now
+        --M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
