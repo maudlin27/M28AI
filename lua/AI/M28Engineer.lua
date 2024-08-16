@@ -11147,7 +11147,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 end
-
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
             iBPWanted = 240
@@ -12209,15 +12208,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
             local tExperimentalsUnderConstruction = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tExperimentalsUnderConstruction) == false then
-                for iUnit, oUnit in tExperimentalsUnderConstruction do
+                for iCurEntry = table.getn(tExperimentalsUnderConstruction), 1, -1 do
+                    local oUnit = tExperimentalsUnderConstruction[iCurEntry]
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        iHighestCompleteExperimentalInZone = math.max(iHighestCompleteExperimentalInZone, oUnit:GetFractionComplete())
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering exp under construction='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with fraction complete='..oUnit:GetFractionComplete()) end
+                        if oUnit:GetFractionComplete() == 1 then
+                            table.remove(tExperimentalsUnderConstruction, iCurEntry)
+                        else
+                            iHighestCompleteExperimentalInZone = math.max(iHighestCompleteExperimentalInZone, oUnit:GetFractionComplete())
+                        end
+                    else
+                        table.remove(tExperimentalsUnderConstruction, iCurEntry)
                     end
                 end
             end
 
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone..' in zone '..iLandZone) end
         if iHighestCompleteExperimentalInZone > 0 then
             --As a very rough guide, every 1 build power on a GC will use roughly 0.5 mass per sec; so if want 50% of entire team eco on this experimental, then want to assign
             if bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 1000 then
