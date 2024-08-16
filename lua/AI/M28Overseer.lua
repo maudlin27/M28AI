@@ -29,6 +29,7 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
 iTimeOfLatestBrainToCheckForM28Logic = -1
 iTimeLastPlayerDefeat = 0 --GetGameTimeSeconds that a player defeat is registered (so can hide error messages)
+iT3EngineerUnitCapThresholdCount = 35 --i.e. wont ctrlk T3 engineers if we have fewer than this number
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
@@ -684,7 +685,7 @@ function CheckUnitCap(aiBrain)
             else
                 --If we have <35 T3 engis then exclude engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 35 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
                     end
                 end

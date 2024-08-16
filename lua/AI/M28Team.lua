@@ -222,7 +222,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoRecentlyFiredAlliedNukeLaunchers = 'M28ANukeLaunchers' --table of M28 owned nuke launchers that have recently fired a missile
     refbSMDBlockingLastNukeTarget = 'SMDBlNuk' --true if last nuke target was blocked by SMD
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
-    refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
+    refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap; -1 means have started on things like T3 engineers and T3 land combat units
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed

@@ -369,7 +369,17 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjustment for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' for if close to unit cap, sBPIDToBuild='..(sBPIDToBuild or 'nil')..'; aiBrain[M28Overseer.refbCloseToUnitCap]='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; aiBrain[M28Overseer.refiExpectedRemainingCap]='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
+        --If just ctrlKd in last 60s and are ctrlking t3 land or engis then dont build naything (relevant e.g. for engineers from air fac, as land fac aborts much earlier)
         if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
+        if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount then
+            if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return nil
+                end
+            end
+        end
         if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild)) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 150 and (aiBrain[M28Overseer.refiExpectedRemainingCap] <= 100 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.95)) then
             --Exception - build T2 engineers if we dont have many T3 engineers and have at least 10 leeway and havent been destroying these units
             if aiBrain[M28Overseer.refiExpectedRemainingCap] >= 20 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH2, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 25 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 2 and (not(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed]) or not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) then
@@ -760,10 +770,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
-
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
+    end
+
+    --Dont build anything if last unit cap was at -1 and we killed a unit in last minute
+    if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Not building from land fac due to recent unit cap ctrlk') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
     end
 
     local iLandFactoriesInLZ = 0
