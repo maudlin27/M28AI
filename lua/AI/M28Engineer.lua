@@ -942,7 +942,15 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
     local sFunctionRef = 'SearchForBuildableLocationsNearDestroyedBuilding'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Cant fork thread as causes error, and need to wait a few seconds for death animation to take effect
-    table.insert(tRecentlyDestroyedBuildings, {[subrefDestroyedBuildingBlueprint] = oDestroyedBuilding.UnitId, [subrefDestroyedBuildingLocation] = {oDestroyedBuilding:GetPosition()[1], oDestroyedBuilding:GetPosition()[2], oDestroyedBuilding:GetPosition()[3]}, [subrefDestroyedBuildingTime] = GetGameTimeSeconds()})
+    if bDebugMessages == true then LOG(sFunctionRef..': Adding new entry for oDestroyedBuilding='..(oDestroyedBuilding.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oDestroyedBuilding) or 'nil')..' at position='..repru(oDestroyedBuilding:GetPosition())) end
+    --Redundancy for e.g. a survival map that had a unit die off-map
+    local tBuildingPosition = oDestroyedBuilding:GetPosition()
+    if tBuildingPosition[1] <= M28Map.rMapPotentialPlayableArea[3] and tBuildingPosition[3] <= M28Map.rMapPotentialPlayableArea[4] then
+        table.insert(tRecentlyDestroyedBuildings, {[subrefDestroyedBuildingBlueprint] = oDestroyedBuilding.UnitId, [subrefDestroyedBuildingLocation] = {tBuildingPosition[1], tBuildingPosition[2], tBuildingPosition[3]}, [subrefDestroyedBuildingTime] = GetGameTimeSeconds()})
+    else
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Not recording destroyed building='..(oDestroyedBuilding.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oDestroyedBuilding) or 'nil')..' at position='..repru(oDestroyedBuilding:GetPosition())..' as not within M28Map.rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -16448,6 +16456,7 @@ function CheckDestroyedBuildingLocations()
         --As a rough test, in sandbox it looked like an Aeon T2 shield took about 3.5s to complete, so will go with 3.9s to be safe
         if GetGameTimeSeconds() - tSubtable[subrefDestroyedBuildingTime] >= 3.9 then
             iLastEntryToRemove = iEntry
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in recently destroyed buildings, tSubtable='..reprs(tSubtable)..'; Map playable area='..repru(M28Map.rMapPlayableArea)..'; subrefDestroyedBuildingLocation='..reprs(tSubtable[subrefDestroyedBuildingLocation])) end
             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tSubtable[subrefDestroyedBuildingLocation])
             local tLZOrWZData
             local tZoneBySegmentRef
