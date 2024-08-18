@@ -4175,8 +4175,23 @@ function RecordLandZonePatrolPaths()
     local sFunctionRef = 'RecordLandZonePatrolPaths'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local iFailureCount
+    function GetFailureCountForLocation(iPlateau, tLocation)
+        iFailureCount = 0
+        for iAdjustX = -3, 3 do
+            for iAdjustZ = -3, 3 do
+                local tAdjustLocation = {tLocation[1] + iAdjustX, tLocation[2], tLocation[3] + iAdjustZ}
+                if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tAdjustLocation) == iPlateau) then
+                    iFailureCount = iFailureCount + 1
+                end
+            end
+        end
+        return iFailureCount
+    end
+
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
+            if iLandZone == 2 and iPlateau == 510 then bDebugMessages = true else bDebugMessages = false end
             --Are we interested in patrolling this land zone? Want to ignore very small land zones
             if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZSubtable[subrefLZMexCount]='..(tLZSubtable[subrefLZMexCount] or 'nil')..'; tLZSubtable[subrefLZTotalSegmentCount]='..(tLZSubtable[subrefLZTotalSegmentCount] or 'nil')) end
             if tLZSubtable[subrefLZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
@@ -4238,6 +4253,30 @@ function RecordLandZonePatrolPaths()
                     end
                 end
 
+                --Now for each entry in the patrol path, check that we dont have any blocking terrain nearby (otherwise e.g. a megalith patrolling along here will get stuck and never move)
+                local iAngleToMidpoint
+                local iFailureCount, iAltFailureCount
+                for iEntry, tLocation in tUnorderedPatrolPaths do
+                    iFailureCount = GetFailureCountForLocation(iPlateau, tLocation)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iFailureCount for iEntry='..iEntry..'='..iFailureCount) end
+                    if iFailureCount > 0 then
+                        iAngleToMidpoint = M28Utilities.GetAngleFromAToB(tLocation, tLZSubtable[subrefMidpoint])
+                        local tCurAlternative = M28Utilities.MoveInDirection(tLocation, iAngleToMidpoint, 5, true, false, false)
+                        if M28Utilities.IsTableEmpty(tCurAlternative) == false then
+                            iAltFailureCount = GetFailureCountForLocation(iPlateau, tCurAlternative)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAltFailureCount='..iAltFailureCount) end
+                            if iAltFailureCount < iFailureCount then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will use the alternative location, Orig tLocation='..repru(tLocation)..'; tCurAlternative='..repru(tCurAlternative))
+                                    M28Utilities.DrawLocation(tLocation, 1)
+                                    M28Utilities.DrawLocation(tCurAlternative, 2)
+                                end
+                                tLocation[1] = tCurAlternative[1]
+                                tLocation[2] = tCurAlternative[2]
+                                tLocation[3] = tCurAlternative[3]
+                            end
+                        end
+                    end
+                end
 
                 --Order the path based on distance, and add the midpoint of the land zone
                 --Originally did based on distance, but based on angle looks slightly better

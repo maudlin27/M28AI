@@ -320,22 +320,49 @@ function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrd
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
-function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, bCheckIfStuck)
     --If the unit's last movement point isnt the first point in the path, then will reissue orders, with the path start point based on the estimated last path that it got to
+    --bCheckIfStuck - put in due to issues where megalith would get stuck with valid orders for the AI; this will check if unit hasnt moved a while, and if so will reset its orders
     local sFunctionRef = 'PatrolPath'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oUnit.UnitId == 'xrl0403' then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Last orders='..repru(oUnit[reftiLastOrders])..'; First point on path='..repru(tPath[1])..'; Will now refresh last orders') end
     UpdateRecordedOrders(oUnit)
 
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if bDebugMessages == true then LOG(sFunctionRef..': Unit orders after update='..repru(oUnit[reftiLastOrders])..'; Last order='..repru(tLastOrder)..'; Is the last order a move order='..tostring(tLastOrder[subrefiOrderType] == refiOrderIssueMove)..'; Last order position='..repru(tLastOrder[subreftOrderPosition])..'; tLastOrder pos 2 of table='..repru(tLastOrder[2])..'; Dist between path1 nd last order position='..M28Utilities.GetDistanceBetweenPositions(tPath[1], (tLastOrder[subreftOrderPosition] or {0,0,0}))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Unit orders after update='..repru(oUnit[reftiLastOrders])..'; Last order='..repru(tLastOrder)..'; Is the last order a move order='..tostring(tLastOrder[subrefiOrderType] == refiOrderIssueMove)..'; Last order position='..repru(tLastOrder[subreftOrderPosition])..'; tLastOrder pos 2 of table='..repru(tLastOrder[2])..'; Dist between path1 nd last order position='..M28Utilities.GetDistanceBetweenPositions(tPath[1], (tLastOrder[subreftOrderPosition] or {0,0,0}))..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; oUnit[M28UnitInfo.refiPatrolStuckCount]='..(oUnit[M28UnitInfo.refiPatrolStuckCount] or 'nil')) end
     local bMoveNotAttackMove = (oUnit[M28UnitInfo.refiCombatRange] or 0) <= 0
     local iOrderType
     if bMoveNotAttackMove then iOrderType = refiOrderIssueMove else iOrderType = refiOrderIssueAggressiveMove end
+    local bUnitIsStuck = false
+    if bCheckIfStuck then
+        if not(tLastOrder) or not(tLastOrder[subrefiOrderType] == iOrderType) or M28Utilities.IsTableEmpty(oUnit[reftiLastOrders][1][subreftOrderPosition]) then
+            --Dont have orders so ignore stuck check
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have correct orders so will get new ones') end
+        else
+            local iDistToCurTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[reftiLastOrders][1][subreftOrderPosition])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit dist to target='..iDistToCurTarget) end
+            if iDistToCurTarget < 12 then --have had megalith stuck at a distance of 8.6
+                if iDistToCurTarget < 6 then
+                    oUnit[M28UnitInfo.refiPatrolStuckCount] = (oUnit[M28UnitInfo.refiPatrolStuckCount] or 0) + 1
+                elseif iDistToCurTarget < 9 then
+                    oUnit[M28UnitInfo.refiPatrolStuckCount] = (oUnit[M28UnitInfo.refiPatrolStuckCount] or 0) + 0.75
+                else
+                    oUnit[M28UnitInfo.refiPatrolStuckCount] = (oUnit[M28UnitInfo.refiPatrolStuckCount] or 0) + 5
+                end
+                if oUnit[M28UnitInfo.refiPatrolStuckCount] >= 10 then
+                    bUnitIsStuck = true
+                    oUnit[M28UnitInfo.refiPatrolStuckCount] = 0
+                end
+            else
+                oUnit[M28UnitInfo.refiPatrolStuckCount] = 0
+            end
+        end
+    end
 
-    if (not(tLastOrder) or not(tLastOrder[subrefiOrderType] == iOrderType) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if (not(tLastOrder) or bUnitIsStuck or not(tLastOrder[subrefiOrderType] == iOrderType) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         --Our last active order isn't to move to the first point in the path, so will be reissuing the path
         if bDebugMessages == true then LOG(sFunctionRef..'; Will reissue orders to move along the path based on the closest point') end
 
@@ -354,9 +381,17 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
             end
         end
 
-        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if bUnitIsStuck or not(bAddToExistingQueue) then
+            IssueTrackedClearCommands(oUnit)
+        end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
 
+        local iPathSize = table.getn(tPath)
+        if bUnitIsStuck then
+            if iClosestPathRef == iPathSize then iClosestPathRef = 1
+            else iClosestPathRef = iClosestPathRef + 1
+            end
+        end
         for iPath = iClosestPathRef, table.getn(tPath) do
             local tOrderPosition = {tPath[iPath][1], tPath[iPath][2], tPath[iPath][3]}
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
@@ -367,8 +402,9 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
                 IssueAggressiveMove({oUnit}, tOrderPosition)
             end
         end
-        --Make the unit go to the first point on the path as its last order
+        --Make the unit go to the first point on the path as its last order, but adjust very slightly
         local tOrderPosition = {tPath[1][1], tPath[1][2], tPath[1][3]}
+        --if bDebugMessages == true and true then tOrderPosition[1] = tOrderPosition[1] + 0.1 tOrderPosition[3] = tOrderPosition[3] + 0.1 end
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         if bMoveNotAttackMove then
@@ -376,6 +412,7 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
         else
             IssueAggressiveMove({oUnit}, tOrderPosition)
         end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want to refresh unit patrol orders')
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

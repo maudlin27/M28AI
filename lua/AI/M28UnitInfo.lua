@@ -45,6 +45,7 @@ refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)
+refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolling
 refbUnitStuckAlternating = 'M28UnitStckAlt' --true if the unit appears to be moving between the same two zones again and again
 refiTimeLastTriedRetreating = 'M28UnitTimeLstRetr' --Gametimeseconds that unit last tried retreating
 reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
