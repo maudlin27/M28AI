@@ -5306,9 +5306,9 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 end
 
 function GetBlueprintToBuildForExperimentalFactoryBuilding(aiBrain, oFactory)
-    --Likeliy to just be novax for now
+    --Likeliy to just be novax for now; also includes the 'observational satellite' building added by a unit mod
 
-    local sFunctionRef = 'GetBlueprintToBuildForQuantumGateway'
+    local sFunctionRef = 'GetBlueprintToBuildForExperimentalFactoryBuilding'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

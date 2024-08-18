@@ -250,6 +250,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyMobileDFTotal = 'EMDFTo'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
             subrefLZThreatAllyMobileDFTotal = 'ATDFT'
+            subrefLZAllyBestCombatRange = 'ABCmRn' --best df or indirectfire range in this zone
             subrefLZThreatEnemyMobileIndirectByRange = 'EMIFByRange'
             subrefLZThreatEnemyMobileIndirectTotal = 'EMIFTo'
             subrefLZThreatAllyMobileIndirectByRange = 'AMIFByRange'

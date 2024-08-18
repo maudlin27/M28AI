@@ -183,6 +183,10 @@ refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STR
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
 refCategoryMobileLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE * categories.EXTERNALFACTORYUNIT
 refCategorySpecialFactory = categories.FACTORY * categories.EXPERIMENTAL * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT --e.g. novax centre (that can build novax)
+if categories.seb3303 then
+    refCategorySpecialFactory = refCategorySpecialFactory + categories.seb3303
+    refCategoryLandFactory = refCategoryLandFactory - categories.seb3303
+end
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT
@@ -291,6 +295,7 @@ refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 
 --Air units
 refCategoryAirScout = categories.AIR * categories.SCOUT
+if categories.sea0002 then refCategoryAirScout = refCategoryAirScout + categories.sea0002 end --observational satellite
 refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - categories.GROUNDATTACK - categories.EXPERIMENTAL
 refCategoryBomber = categories.AIR * categories.BOMBER - refCategoryAntiNavy - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL

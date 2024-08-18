@@ -617,6 +617,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = 0
         tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = 0
         tLZTeamData[M28Map.subrefLZThreatAllyMAA] = 0
+        tLZTeamData[M28Map.subrefLZAllyBestCombatRange] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -675,11 +676,29 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             end
         end
 
+        --Update combat range
+        local iBestRange = 0
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        tLZTeamData[M28Map.subrefLZAllyBestCombatRange] = iBestRange
+
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
-
     end
 
     --Add non-M28 teammate defences

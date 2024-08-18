@@ -2108,7 +2108,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 end
                             end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower, oJustBuilt.UnitId) then --In LOUD t2 pgen upgrades to t3 are as efficient as t3 pgens
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
                                 ForkThread(M28Economy.ConsiderPowerPgenUpgrade, oJustBuilt)
@@ -2904,11 +2904,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
                         --Non-weapon priority logic
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))..'; Is it a special factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId))) end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
                             --If have been gifted factory or created via cheat then want to start building something
                             oUnit[M28Factory.refiTotalBuildCount] = 0
                             if oUnit:GetFractionComplete() >= 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
                                 ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
                             end
                         end
