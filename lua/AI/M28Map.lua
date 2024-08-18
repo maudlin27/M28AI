@@ -4191,7 +4191,6 @@ function RecordLandZonePatrolPaths()
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
-            if iLandZone == 2 and iPlateau == 510 then bDebugMessages = true else bDebugMessages = false end
             --Are we interested in patrolling this land zone? Want to ignore very small land zones
             if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZSubtable[subrefLZMexCount]='..(tLZSubtable[subrefLZMexCount] or 'nil')..'; tLZSubtable[subrefLZTotalSegmentCount]='..(tLZSubtable[subrefLZTotalSegmentCount] or 'nil')) end
             if tLZSubtable[subrefLZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
