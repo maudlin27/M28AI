@@ -28,6 +28,8 @@ tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so tabl
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
 iTimeOfLatestBrainToCheckForM28Logic = -1
+iTimeLastPlayerDefeat = 0 --GetGameTimeSeconds that a player defeat is registered (so can hide error messages)
+iT3EngineerUnitCapThresholdCount = 35 --i.e. wont ctrlk T3 engineers if we have fewer than this number
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
@@ -399,7 +401,8 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF For the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
         M28Chat.SendMessage(aiBrain, 'SteamCompatibility', sMessage, 2, 10)
     elseif M28Utilities.bLoudModActive then
-        M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
+        --Probably done enough testing that can drop the warning now
+        --M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -450,7 +453,7 @@ function M28BrainCreated(aiBrain)
         --LOG('M28 in game 3')
 
         --Send a message warning players this could take a while
-        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
+        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
@@ -682,7 +685,7 @@ function CheckUnitCap(aiBrain)
             else
                 --If we have <35 T3 engis then exclude engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 35 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
                     end
                 end

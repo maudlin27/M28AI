@@ -1685,3 +1685,102 @@ function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAirAAHoverAttackTowardsTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oTarget = oWeapon:GetCurrentTarget()
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is oTarget valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')) end
+    if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetFractionComplete() == 1 then
+        local iOurSpeed = oUnit:GetBlueprint().Air.MaxAirspeed
+        local iEnemySpeed = oTarget:GetBlueprint().Air.MaxAirspeed
+        --Want to consider hover-turning against enemy asfs if we have same speed as them and we arent chasing them (suggesting they might be turning or they might be facing us)
+        --(wont use hover-logic on enemy asfs once we have reached 100+ asfs to avoid massive slowdown)
+        if bDebugMessages == true then LOG(sFunctionRef..': iOurSpeed='..(iOurSpeed or 'nil')..'; iEnemySpeed='..(iEnemySpeed or 'nil')) end
+        if iOurSpeed and iEnemySpeed and iOurSpeed >= iEnemySpeed and (iOurSpeed >= iEnemySpeed * 1.2 or (M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 100 and M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28UnitInfo.GetUnitFacingAngle(oTarget)) <= 130)) then
+            local iOurRange = (oUnit[M28UnitInfo.refiAARange] or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': iOurRange='..iOurRange..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is it an air unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oTarget.UnitId))) end
+            if iOurRange > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oTarget.UnitId) then
+                --Want to try and do hover-micro
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                local iCurDistToTarget
+                local iCurAngleToTarget
+                local iCurFacingAngle
+                local iMinDistToTarget = math.min(iOurRange * 0.8, math.max(iOurRange * 0.5, iOurRange - 5))
+                local iHalfDistThreshold = iOurRange * 0.5
+                local iCurAngleDif
+                local bTurnClockwise
+                local bAbortIfTooFar = false
+                if iEnemySpeed >= iOurSpeed * 0.95 then bAbortIfTooFar = true end
+                local iReorderDist
+                WaitTicks(1)
+                while M28UnitInfo.IsUnitValid(oTarget) and M28UnitInfo.IsUnitValid(oUnit) do
+                    local tMoveViaPoint
+                    --First decide if we want to move towards target
+                    iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTarget:GetPosition())
+                    if iCurDistToTarget > iMinDistToTarget then
+                        tMoveViaPoint = oTarget:GetPosition()
+                        iReorderDist = 0.5
+                        if bDebugMessages == true then LOG(sFunctionRef..': Too far from target so want to move to target, iCurDistToTarget='..iCurDistToTarget) end
+                    else
+                        --Move towards target
+                        iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oTarget:GetPosition())
+                        iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+                        iCurAngleDif = M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif) end
+                        if iCurAngleDif > 15 then
+                            iReorderDist = 0.1
+                            --Turn towards target - decide which is closest way
+                            if iCurAngleToTarget > iCurFacingAngle then
+                                if iCurAngleToTarget - 180 <= iCurFacingAngle then
+                                    --We are a larger angle than enemy, and turning anti-clockwise would mean we become smaller than them, so should turn anti-clockwise
+                                    bTurnClockwise = false
+                                else
+                                    bTurnClockwise = true
+                                end
+                            else
+                                if iCurAngleToTarget + 180 >= iCurFacingAngle then
+                                    --We are a smaller angle than enemy, and turning clockwise would mean we become larger than them sooner than if we had turned anti-clockwwise
+                                    bTurnClockwise = true
+                                else
+                                    bTurnClockwise = false
+                                end
+                            end
+                            if bTurnClockwise then
+                                tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + 15, 0.1, true, false, false)
+                            else
+                                tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle - 15, 0.1, true, false, false)
+                            end
+                        elseif iCurDistToTarget < iHalfDistThreshold then
+                            --Move a fraction of the way towards target
+                            iReorderDist = 0.1
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleToTarget, 0.1, true, false, false)
+                        else
+                            --Move 25% towards target
+                            iReorderDist = math.min(iCurDistToTarget * 0.25, iCurDistToTarget - iHalfDistThreshold)
+
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                            if iReorderDist > 5 then iReorderDist = 5 end
+                        end
+                    end
+                    if tMoveViaPoint then
+                        M28Orders.IssueTrackedMove(oUnit, tMoveViaPoint, iReorderDist, false, 'AAHvM', true)
+                    else
+                        M28Utilities.ErrorHandler('Made mistake have nil move via point')
+                    end
+                    --Abort if enemy same speed as us and out of our range
+                    if bAbortIfTooFar and iCurDistToTarget > iOurRange then
+                        break
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

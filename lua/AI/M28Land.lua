@@ -617,6 +617,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = 0
         tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = 0
         tLZTeamData[M28Map.subrefLZThreatAllyMAA] = 0
+        tLZTeamData[M28Map.subrefLZAllyBestCombatRange] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -675,11 +676,29 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             end
         end
 
+        --Update combat range
+        local iBestRange = 0
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] do
+                iBestRange = math.max(iBestRange, iRange)
+            end
+        end
+        tLZTeamData[M28Map.subrefLZAllyBestCombatRange] = iBestRange
+
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
-
     end
 
     --Add non-M28 teammate defences
@@ -5934,6 +5953,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         bAttackWithEverything = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Will attack with everything as ACU is in trouble') end
                     end
+                    --Early game where enemy might outrange us slightly e.g. unupgraded ACU vs t1 tanks
+                    if not(bAttackWithEverything) and tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] <= 22 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and iOurDFAndT1ArtiCombatThreat > math.max(900, iEnemyCombatThreat * 1.2) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy still is relatively short range so press attack') end
+                        bAttackWithEverything = true
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': We dont outrange enemy, considering if we have much more threat than them, iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat..'; bWantReinforcements='..tostring(bWantReinforcements)..'; bAttackWithEverything='..tostring(bAttackWithEverything)..'; iClosestFriendlyUnitToAnEnemyFirebase='..iClosestFriendlyUnitToAnEnemyFirebase..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveACUInTroubleAndRecentlyInCombat='..tostring(bHaveACUInTroubleAndRecentlyInCombat or false)) end
                 else
                     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
@@ -7321,7 +7345,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                                                         oUnit[refiCurrentAssignmentValue] = 0
                                                     else
-                                                        M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                                                        M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP', false, true)
                                                     end
                                                 end
                                             else

@@ -46,6 +46,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbFocusOnT1Spam = 'M28TeamAvdT2Mx' --if this is true will try and avoid t2 mex and spam land
     refbActiveT1SpamMonitor = 'M28TeamAcTSpM' --true if have active t1 spam monitor
     refiTimeOfLastTeammateDeath = 'M28TeamLstTmD' --gametimeseconds that a teammate last died (based on ACU dying in demoralisation)
+    refiTimeOfEnemiesDefeated = 'M28EnDft' --gametimeseconds that we registered all enemies of this team as being defeated
 
     --Team economy subrefs
     refiPausedUnitCount = 'M28TeamPausTo' --total number of paused units
@@ -221,7 +222,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoRecentlyFiredAlliedNukeLaunchers = 'M28ANukeLaunchers' --table of M28 owned nuke launchers that have recently fired a missile
     refbSMDBlockingLastNukeTarget = 'SMDBlNuk' --true if last nuke target was blocked by SMD
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
-    refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
+    refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap; -1 means have started on things like T3 engineers and T3 land combat units
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
@@ -3816,7 +3817,9 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     local sFunctionRef = 'RefreshActiveBrainListForBrainDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; brain '..oDefeatedBrain.Nickname..' has died, will update all teams for this, iTotalTeamCount='..iTotalTeamCount) end
+
     LOG('Brain death detected for '..oDefeatedBrain.Nickname)
+    M28Overseer.iTimeLastPlayerDefeat = GetGameTimeSeconds()
     for iTeam = 1, iTotalTeamCount do
         if oDefeatedBrain.M28Team == iTeam then
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then

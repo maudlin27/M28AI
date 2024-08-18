@@ -1155,6 +1155,14 @@ function OnWeaponFired(oWeapon)
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     ForkThread(M28Building.ConsiderManualT2ArtiTarget, oUnit, oWeapon)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                    --Micro asfs and inties to hover-fire at slower targets
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
+                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or oWeapon.bp.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or oWeapon.bp.MuzzleSalvoSize or 0) then
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            ForkThread(M28Micro.ConsiderAirAAHoverAttackTowardsTarget, oUnit, oWeapon)
+                        end
+                    end
                 end
 
 
@@ -2108,7 +2116,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 end
                             end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower, oJustBuilt.UnitId) then --In LOUD t2 pgen upgrades to t3 are as efficient as t3 pgens
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
                                 ForkThread(M28Economy.ConsiderPowerPgenUpgrade, oJustBuilt)
@@ -2904,11 +2912,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
                         --Non-weapon priority logic
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))..'; Is it a special factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId))) end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
                             --If have been gifted factory or created via cheat then want to start building something
                             oUnit[M28Factory.refiTotalBuildCount] = 0
                             if oUnit:GetFractionComplete() >= 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
                                 ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
                             end
                         end
