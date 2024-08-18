@@ -453,7 +453,7 @@ function M28BrainCreated(aiBrain)
         --LOG('M28 in game 3')
 
         --Send a message warning players this could take a while
-        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map for v'..import('/mods/M28AI/mod_info.lua').version..', this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
+        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
