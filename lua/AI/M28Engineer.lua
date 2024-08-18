@@ -948,7 +948,6 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
     if tBuildingPosition[1] <= M28Map.rMapPotentialPlayableArea[3] and tBuildingPosition[3] <= M28Map.rMapPotentialPlayableArea[4] then
         table.insert(tRecentlyDestroyedBuildings, {[subrefDestroyedBuildingBlueprint] = oDestroyedBuilding.UnitId, [subrefDestroyedBuildingLocation] = {tBuildingPosition[1], tBuildingPosition[2], tBuildingPosition[3]}, [subrefDestroyedBuildingTime] = GetGameTimeSeconds()})
     else
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Not recording destroyed building='..(oDestroyedBuilding.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oDestroyedBuilding) or 'nil')..' at position='..repru(oDestroyedBuilding:GetPosition())..' as not within M28Map.rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
