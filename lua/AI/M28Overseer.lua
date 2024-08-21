@@ -1975,6 +1975,7 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
     --First consider if we need to create/change team composition
     for iBrain, oBrain in ArmyBrains do
         local bApplyM28AI = M28Conditions.ApplyM28ToOtherAI(oBrain)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain '..iBrain..' oBrain='..oBrain.Nickname..'; bApplyM28AI='..tostring(bApplyM28AI or false)..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)) end
         if bApplyM28AI and not(oBrain.M28AI) then
             if bDebugMessages == true then LOG(sFunctionRef..': Starting applying M28AI to brain '..oBrain.Nickname) end
             oBrain.M28AI = true --redundancy, below should do this as well
@@ -2052,7 +2053,7 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
         elseif not(bApplyM28AI) and oBrain.M28AI then
             oBrain.M28AI = false
             oBrain.M28Team = nil
-            CreateNewTeam(oBrain)
+            M28Team.CreateNewTeam(oBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': No longer applying M28AI to brain '..oBrain.Nickname..'; assigned it to the team '..(oBrain.M28Team or 'nil')) end
         end
     end

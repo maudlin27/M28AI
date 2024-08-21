@@ -4600,7 +4600,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local iTeam = aiBrain.M28Team
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
     if not(tWZTeamData) then
-        M28Utilities.ErrorHandler('Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' doesnt have WZ team data; iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
+        M28Utilities.ErrorHandler('Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' doesnt have WZ team data; iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; iTeam='..(aiBrain.M28Team or 'nil'))
         if bDebugMessages == true then M28Utilities.DrawLocation(oFactory:GetPosition()) end
     end
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)

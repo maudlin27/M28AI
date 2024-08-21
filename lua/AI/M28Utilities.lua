@@ -902,23 +902,25 @@ end
 
 --Below written by ChatGPT; included here instead of in M28Conditions so dont have to load as many modules
 function DoesAINicknameContainM28(sNickname, bOnlyM28Easy, bOnlyAIx)
-    local suffixes = {
-        "%(AIx: M28 Easy%)$",
-    }
-    if bOnlyM28Easy then
-        if not(bOnlyAIx) then
-            table.insert(suffixes, "%(AI: M28 Easy%)$")
+    if sNickname then
+        local suffixes = {
+            "%(AIx: M28 Easy%)$",
+        }
+        if bOnlyM28Easy then
+            if not(bOnlyAIx) then
+                table.insert(suffixes, "%(AI: M28 Easy%)$")
+            end
+        else
+            table.insert(suffixes, "%(AIx: M28%)$")
+            if not(bOnlyAIx) then
+                table.insert(suffixes, "%(AI: M28%)$")
+            end
         end
-    else
-        table.insert(suffixes, "%(AIx: M28%)$")
-        if not(bOnlyAIx) then
-            table.insert(suffixes, "%(AI: M28%)$")
-        end
-    end
 
-    for _, suffix in ipairs(suffixes) do
-        if string.find(sNickname, suffix) then
-            return true
+        for _, suffix in ipairs(suffixes) do
+            if string.find(sNickname, suffix) then
+                return true
+            end
         end
     end
     return false

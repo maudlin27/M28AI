@@ -711,33 +711,35 @@ function CreateNewTeam(aiBrain)
                     end
                 end
                 if bHaveSameEnemies then
-                    oBrain.M28Team = iTotalTeamCount
-                    table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
-                    if oBrain.M28AI then
-                        table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
-                        tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                    if not(oBrain.M28Team) or oBrain.M28Team == iTotalTeamCount then --e.g. campaign might change team part-way through, dont want to change team of existing players or breaks their logic
+                        oBrain.M28Team = iTotalTeamCount
+                        table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
+                        if oBrain.M28AI then
+                            table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
+                            tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                        end
+                        if oBrain.CheatEnabled then
+                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                        else
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
+                        end
+                        bHaveM28BrainInTeam = true
+                        --Check if we have omni vision for the team
+                        if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                            tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
+                        end
+                        --Record brain details in log for ease of reference
+                        local sAIxref = ''
+                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+                        if oBrain.CheatEnabled then
+                            sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
+                        end
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                     end
-                    if oBrain.CheatEnabled then
-                        tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                        tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                    else
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = 1
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
-                    end
-                    bHaveM28BrainInTeam = true
-                    --Check if we have omni vision for the team
-                    if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
-                        tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
-                    end
-                    --Record brain details in log for ease of reference
-                    local sAIxref = ''
-                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
-                    if oBrain.CheatEnabled then
-                        sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
-                    end
-                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                 end
             end
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
