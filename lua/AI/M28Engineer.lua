@@ -14077,7 +14077,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.refiRadarCoverage] < math.min(50, M28UnitInfo.iT1RadarSize - 5) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 2000 and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 60 and (not(bHaveLowPower) or (M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250)) and not(bTeammateHasBuiltHere) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 15 then
         if M28Utilities.bLoudModActive or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 and  tLZTeamData[M28Map.subrefMexCountByTech][2] +  tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
-            if M28Utilities.bLoudModActive or (tLZTeamData[M28Map.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 70) then
+            if M28Utilities.bLoudModActive or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 70) then
                 iBPWanted = 5
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get either t1 or t2 radar, tLZTeamData[M28Map.subrefLZAllyBestCombatRange]='..tLZTeamData[M28Map.subrefLZAllyBestCombatRange]..'; M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]='..M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]) end
                 if tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 80 or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then

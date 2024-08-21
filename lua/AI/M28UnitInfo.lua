@@ -2700,7 +2700,6 @@ end
 
 function CloakUnit(oUnit)
     if M28Utilities.bFAFActive and oUnit.HideUnit then
-        LOG('About to hide unit, fraction complete='..oUnit:GetFractionComplete())
         oUnit:HideUnit()
     elseif oUnit.InvisState then
         oUnit:InvisState()

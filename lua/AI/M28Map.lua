@@ -9188,7 +9188,7 @@ function ReassessPositionsForPlayerDeath(aiBrain)
 end
 
 function RecordLurkerZonesForIsland(iPlateau, iIsland, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordLurkerZonesForIsland'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

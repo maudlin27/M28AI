@@ -1538,7 +1538,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Seraphim high priority land scouts at start for 'lurker' mode - decided to remove as after testing M28 did significantly worse on polar depression 1v1 with RNG (with this, it got crushed by 1.1 RNG; wtihout it, it crushed RNG)
         --[[iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel == 1 and M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 and EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': High priority selen builder, total build count='..oFactory[refiTotalBuildCount]..'; Cur land scouts='.. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)) end
             if oFactory[refiTotalBuildCount] <= 15 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) <= 1 + 1.5 * M28Map.iMapSize / 256 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
