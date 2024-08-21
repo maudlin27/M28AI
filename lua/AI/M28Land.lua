@@ -4542,6 +4542,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))) end
+        local iAdjacentDistGeneralMod = math.min(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX], tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then iAdjacentDistGeneralMod = iAdjacentDistGeneralMod + 25 end
         function AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureFurtherDistAdjust, iAngleFromClosestFriendlyUnitToMidpoint)
             --Only include units in the threat calculation if they are close enough to this LZ, or we have a firebase threat adjust
             if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 then
@@ -4555,8 +4557,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if oUnit:GetFractionComplete() >= 0.95 and M28UnitInfo.IsUnitValid(oUnit) then
                             iDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
                             if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
-                                if iDistUntilInRange  <= iAdjacentDistThreshold + iStructureFurtherDistAdjust then
-                                    if iDistUntilInRange <= 20 then
+                                if iDistUntilInRange  <= iAdjacentDistThreshold + iStructureFurtherDistAdjust + iAdjacentDistGeneralMod then
+                                    if iDistUntilInRange <= iAdjacentDistGeneralMod then
                                         if bDebugMessages == true then LOG(sFunctionRef..': PD is almost within its DF range of the midpoint of target zone, oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iDistUntilInRange='..iDistUntilInRange) end
                                         bAdd = true
                                     elseif iDistUntilInRange * 2 <= math.min(40, iAdjacentDistThreshold + iStructureFurtherDistAdjust) then
@@ -4568,15 +4570,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
                                 end
                             else
-                                if iDistUntilInRange  <= iAdjacentDistThreshold then
+                                if iDistUntilInRange  <= iAdjacentDistThreshold + iAdjacentDistGeneralMod then
                                     bAdd = true
                                 end
                             end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Considering whether to add enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies, bAdd='..tostring(bAdd)..'; iDistUntilInRange='..iDistUntilInRange..'; iAdjacentDistGeneralMod='..iAdjacentDistGeneralMod..'; iAdjacentDistThreshold='..iAdjacentDistThreshold)
+                                LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Angle to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iAngleFromClosestFriendlyUnitToMidpoint='..(iAngleFromClosestFriendlyUnitToMidpoint or 'nil'))
+                            end
                             if bAdd then
-                                if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to adjacent enemies, iDistUntilInRange='..iDistUntilInRange)
-                                    LOG('threat of this unit='..M28UnitInfo.GetCombatThreatRating({oUnit}, true)..'; Fraction complete='..oUnit:GetFractionComplete()..'; iDistUntilInRange of midpoint='..iDistUntilInRange..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Angle to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iAngleFromClosestFriendlyUnitToMidpoint='..(iAngleFromClosestFriendlyUnitToMidpoint or 'nil'))
-                                end
                                 table.insert(tNearbyAdjacentEnemies, oUnit)
                             end
                         end
@@ -4849,6 +4851,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iStructureUnitDistThresholdAdjust = iMinDist + 10 - iAdjacentDistThreshold
                         end
                         if iEnemyBestStructureDFRange >= 50 then iAdjacentDistThreshold = math.max(iAdjacentDistThreshold + math.max(0, 5 + iEnemyBestStructureDFRange - (iFriendlyBestMobileDFRange or 0)), 35) end
+                        --we adjust the distsances more generally based on the current zone size, so reduce the adj dist threshold based on this
+                        if iAdjacentDistThreshold > 10 then iAdjacentDistThreshold = math.max(10, iAdjacentDistThreshold - iAdjacentDistGeneralMod) end
                         for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                             if not(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]) and not(tbZonesConsidered[iAdjLZ]) then
                                 tbZonesConsidered[iAdjLZ] = true
