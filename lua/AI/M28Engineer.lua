@@ -74,6 +74,7 @@ refoUnitActivelyShielding = 'M28EngUntActShd' --against the engineer, gives the 
 refbActiveUnitShieldingThread = 'M28EngActivShld' --against the gameender/similar unit, true if it has a thread that isa ctively trying to use engineers to protect it
 reftEngineersActivelyShielding = 'M28EngActiveEngShd' --against the gameender/similar unit, contains table of all the engineers assigned toa ctively try and protect it
 refbDontIncludeAsPartCompleteBuildingForConstruction = 'M28EngActiveShdD' --True if shield is being used for active special shielding defence - i.e. will check for this flag to make sure a normal build shield action doenst assist it
+refiLastClearedForReclaim = 'M28EngLstClRcl' --time we last cleared this for reclaim, put in as a reudndancy to make it less likely engineers will still be assising while we are reclaiming
 refiTimeOfLastShieldRepairOrder = 'M28EngTimeLastOrd' --For units that are repairing, dont want to reissue the same order multiple times
 
 
@@ -3096,7 +3097,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         --FACTION SPECIFIC LOGIC
                         --special case where prioritise aeon for paragon if dealing with core zone
                         if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and bEnemyHasExperimentalShields and (tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] or tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) and iTeamLandExperimentals >= 2 and not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 600 and M28Map.iMapSize >= 512 then
-                            if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryParagon) == 0 then
+                            if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryParagon) == 0 then
                                 iCategoryWanted = M28UnitInfo.refCategoryParagon
                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting paragon') end
                             elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
@@ -3439,7 +3440,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 then
                                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to get a salvation due to very high mass') end
-                                        elseif not(bDontConsiderGameEnderInMostCases) and iFurthestEnemyBaseDist > iArtiThreshold and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.max(90, 15 + 70 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(250, 30 + 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iFriendlyGameEnderUnderConstruction == 0 then
+                                        elseif not(bDontConsiderGameEnderInMostCases) and not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and iFurthestEnemyBaseDist > iArtiThreshold and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.max(90, 15 + 70 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(250, 30 + 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iFriendlyGameEnderUnderConstruction == 0 then
                                             iCategoryWanted = M28UnitInfo.refCategoryParagon
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get a paragon0 as enemy has a far away base even if it also has a number within range') end
                                         else iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -3447,7 +3448,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy base dist is '..iDistToNearestEnemyBase..' so will get T3 arti') end
                                         end
                                     else
-                                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                        if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get paragon1; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction) end
                                             iCategoryWanted = M28UnitInfo.refCategoryParagon
                                         else
@@ -3456,7 +3457,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         end
                                     end
                                 else
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                    if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to get paragon2; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction) end
                                         iCategoryWanted = M28UnitInfo.refCategoryParagon
                                     else
@@ -3486,7 +3487,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     if ((iTeamLandExperimentals >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 70) or (iTeamLandExperimentals >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(325, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get paragon3 or T3 arti due to lots of friendly land experimentals; gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iTeamLandExperimentals='..iTeamLandExperimentals) end
                                         if M28Map.iMapSize >= 512 and (M28Map.iMapSize >= 1024 or M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFixedT3Arti, iTeam) >= 4) and iFriendlyGameEnderUnderConstruction == 0 then
-                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 9500 then
+                                            if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 9500 then
                                                 iCategoryWanted = M28UnitInfo.refCategoryParagon
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting paragon5') end
                                             else
@@ -3499,7 +3500,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         end
                                     elseif not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and (iDistToNearestEnemyBase <= iArtiThreshold or not(bDontConsiderGameEnderInMostCases)) and (iTeamLandExperimentals >= math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder)) or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) >= 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                                         if M28Map.iMapSize >= 1024 and iDistToNearestEnemyBase >= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 + 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and iFriendlyGameEnderUnderConstruction == 0 then
-                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 9500 then
+                                            if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 9500 then
                                                 iCategoryWanted = M28UnitInfo.refCategoryParagon
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting paragon5') end
                                             else
@@ -3511,7 +3512,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 11 Aeon') end
                                             else
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get paragon or exp arti') end
-                                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 60 + 100 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                                                if not(M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 60 + 100 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                                                     iCategoryWanted = M28UnitInfo.refCategoryParagon
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Getting paragon6') end
                                                 else
@@ -3575,9 +3576,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy has nearby t2 arti so will switch to t3 arti instead of gameender, Fixed T3 arti 12') end
             end
             --Exclude paragon from category wanted if the likely brain already has one
-            if aiBrain[M28Economy.refbBuiltParagon] then
+            if aiBrain[M28Economy.refbBuiltParagon] or M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen]) then
                 local bExcludeParagon = false
                 if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                    bExcludeParagon = true
+                elseif tLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen] then
                     bExcludeParagon = true
                 else
                     local bHaveBrainWithoutParagon = false
@@ -5520,8 +5523,9 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                     local tiEntriesToRemove = {}
                     for iShield, oShield in oUnitToProtect[M28Building.reftoSpecialAssignedShields] do
                         if M28UnitInfo.IsUnitValid(oShield) then
-                            if not(oShield[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
+                            if not(oShield[refbDontIncludeAsPartCompleteBuildingForConstruction]) or GetGameTimeSeconds() - (oShield[refiLastClearedForReclaim] or 0) >= 10 then
                                 oShield[refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+                                oShield[refiLastClearedForReclaim] = GetGameTimeSeconds()
 
                                 --Clear any assisting or building engineers who dont have the special shield action (to avoid a unit that is constructing a shield using this)
                                 local tGuardingEngineers = oShield:GetGuards()
@@ -6088,7 +6092,7 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
     if oFirstEngineer then
         local aiBrain = oFirstEngineer:GetAIBrain()
 
-                                                                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
         local sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstEngineer,      nil,            nil,        nil,            nil,                                nil,                    10)
         if not(sArtiToBuild) then
             --LOUD prevents T3 engis building experimentals
@@ -6109,6 +6113,11 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
                 M28Team.tTeamData[aiBrain.M28Team][M28Team.refbUnableToBuildArtiOrGameEnders] = true
             end
         end
+    end
+
+    --exclude experimental resource generator if we already have one in this template (LOUD doesnt allow them to be built close by each other, and for FAF if we have a paragon then we dont want a second)
+    if M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearbyExperimentalResourceGen]) or (M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.MASSFABRICATION * categories.EXPERIMENTAL, tTableRef[M28Map.subrefGEArtiUnits])) == false) then
+        tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] - categories.MASSFABRICATION * categories.EXPERIMENTAL
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -17303,6 +17312,7 @@ function ConsiderClearingEngineersForUnitJustDamagedOrDestroyed(oUnit, iOptional
         end
     end
     oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+    oUnit[refiLastClearedForReclaim] = GetGameTimeSeconds()
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
     if (iLandZone or 0) > 0 and iPlateau then
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
@@ -17719,13 +17729,16 @@ function ConsiderBuildingMassFabOrGateway(iTeam, iZone, tLZTeamData, HaveActionT
 end
 
 function CheckAndClearEngineersConstructingTargetUnit(oUnitBeingReclaimed, tLZTeamData, iPlateau, iLandZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckAndClearEngineersConstructingTargetUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Intended for if we have given engineers an order to reclaim a unit, although in theory could use for other things
-    if not(oUnitBeingReclaimed[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if there are any engineers building unit '..oUnitBeingReclaimed.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitBeingReclaimed)..'; oUnitBeingReclaimed[refbDontIncludeAsPartCompleteBuildingForConstruction]='..tostring(oUnitBeingReclaimed[refbDontIncludeAsPartCompleteBuildingForConstruction] or false)..'; oUnitBeingReclaimed[refiLastClearedForReclaim]='..(oUnitBeingReclaimed[refiLastClearedForReclaim] or 'nil')) end
+    if not(oUnitBeingReclaimed[refbDontIncludeAsPartCompleteBuildingForConstruction]) or GetGameTimeSeconds() - (oUnitBeingReclaimed[refiLastClearedForReclaim] or 0) >= 10 then
         oUnitBeingReclaimed[refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+        oUnitBeingReclaimed[refiLastClearedForReclaim] = GetGameTimeSeconds()
         local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through every engineer in zone and clear if it is building or repariing the unit we want to reclaim, is table of engis in zone empty='..tostring(M28Utilities.IsTableEmpty(tEngisInZone))) end
         if M28Utilities.IsTableEmpty(tEngisInZone) == false then
             for iEngi, oEngi in tEngisInZone do
                 if M28UnitInfo.IsUnitValid(oEngi) then

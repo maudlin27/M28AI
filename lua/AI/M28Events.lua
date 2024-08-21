@@ -1621,6 +1621,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 --Decide if want to shield this construction and update buildable location, or (in the case of experimentals) if we want to cancel the construction
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
+                    --LOUD specific - cant build resource gens near each other
+                    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
+                        ForkThread(M28Building.RecordExperimentalResourceGen, oConstruction)
+                    end
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) and not(oEngineer[M28Building.reftArtiTemplateRefs]) then
                         local iTeam = oEngineer:GetAIBrain().M28Team
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.6)) then
@@ -2695,6 +2699,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             M28Land.UpdateZoneIntelForRadar(oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
+                        elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then
+                            if M28Utilities.bLoudModActive then
+                                ForkThread(M28Building.RecordExperimentalResourceGen, oUnit)
+                            end
                         end
                     end
 

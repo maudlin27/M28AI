@@ -313,6 +313,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftoEmergencyPDEngineers = 'EmPDEngis' --table of engineers with emergency PD build order
             subrefiTimeLastWantSACUForExp = 'sacuexp' --Gametimeseconds that we last failed to build an experimental in the zone due to trying with an engineer
             subrefiTimeLastWantSACUForSMD = 'sacusmd' --Gametimeseconds that we last failed to build an SMD in the zone due to trying with an engineer
+            refoNearbyExperimentalResourceGen = 'nrexpr' --LOUD experimental resource generator (only LOUD) - since LOUD prevents them being built between each other
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -7705,7 +7706,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
                     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; M28Team='..aiBrain.M28Team..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated]='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 'nil')..'; iTimeLastPlayerDefeat='..M28Overseer.iTimeLastPlayerDefeat..'; Cur time='..GetGameTimeSeconds()..'; Time since team defeated='..GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0)) end
                     --LOUD - even after 10s this can trigger when enemy team is all dead, so only display error after 37s
-                    if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 40) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
+                    if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 80) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
                     for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                         iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget

@@ -4673,3 +4673,41 @@ function QuantumOpticsManager(aiBrain, oUnit)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function RecordExperimentalResourceGen(oUnit)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+        if iPlateau then
+            local iTeam = oUnit:GetAIBrain().M28Team
+            local tStartLZOrWZData, tStartLZOrWZTeamData
+            if iPlateau == 0 then
+                tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iZone]][M28Map.subrefPondWaterZones][iZone]
+                tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+            else
+                tStartLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
+                tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            tStartLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen] = oUnit
+            if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                    if tSubtable[M28Map.subrefiDistance] <= 400 then
+                        local tOtherLZOrWZData, tOtherLZOrWZTeamData
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            tOtherLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                            tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                        else
+                            tOtherLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                            tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                        end
+                        if not(M28UnitInfo.IsUnitValid(tOtherLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen])) then
+                            tOtherLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen] = oUnit
+                        end
+                    else
+                        break
+                    end
+                end
+            end
+        end
+    end
+end
