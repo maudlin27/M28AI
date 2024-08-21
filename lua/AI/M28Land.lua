@@ -7644,7 +7644,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
                             if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
-                            table.insert(tScouts, oUnit)
+                            if not(oUnit[M28UnitInfo.refbLurkerMode]) then
+                                table.insert(tScouts, oUnit)
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': Scout is in lurker mode so ignoring as handled by separate logic')
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
                             table.insert(tMobileShields, oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
@@ -9398,5 +9401,242 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyNetMobileDFCloseToBase='..iEnemyNetMobileDFCloseToBase..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderAssigningScoutToLurkerLogic(oUnit)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAssigningScoutToLurkerLogic'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local aiBrain = oUnit:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        --Only want to use lurker logic early game for now, or occasionally later game
+        local iLifetimeCount = M28UnitInfo.GetUnitLifetimeCount(oUnit)
+        --First selen - want to have normal attack logic
+        if iLifetimeCount > 1 and (iLifetimeCount <= 6 or math.floor(iLifetimeCount / 4) == iLifetimeCount / 4) then
+            --Are we in the same land zone as the closest friendly base?
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
+            if iPlateauOrZero and iPlateauOrZero > 0 then
+                local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                local iIsland = tLZData[M28Map.subrefLZIslandRef]
+                if bDebugMessages == true then LOG(sFunctionRef..': iIsland='..(iIsland or 'nil')..'; is M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland] nil='..tostring(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland] == nil)) end
+                if iIsland then
+                    if not(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland]) then
+                        --Setup potential lurker zones
+                        M28Map.RecordLurkerZonesForIsland(iPlateauOrZero, iIsland, iTeam)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of zones for this island to lurk empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland]))) end
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland]) == false then
+                        local iClosestZoneDist = 10000
+                        local iClosestZoneRef, iCurDist
+                        local iLowestLurkCount = 2 --i.e. wont assign more than 3 selens to the same zone in the course of the game
+                        for iEntry, iZone in M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland] do
+                            local tPotentialZoneData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iZone]
+                            local tPotentialZoneTeamData = tPotentialZoneData[M28Map.subrefLZTeamData][iTeam]
+                            if tPotentialZoneTeamData and not(M28UnitInfo.IsUnitValid(tPotentialZoneTeamData[M28Map.refoAssignedLurkerScout])) and (tPotentialZoneTeamData[M28Map.refiAssignedLurkerCount] or 0) <= iLowestLurkCount then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
+                                if iCurDist < iClosestZoneDist then
+                                    iClosestZoneDist = iCurDist
+                                    iClosestZoneRef = iZone
+                                    if (tPotentialZoneTeamData[M28Map.refiAssignedLurkerCount] or 0) < iLowestLurkCount then
+                                        iLowestLurkCount = (tPotentialZoneTeamData[M28Map.refiAssignedLurkerCount] or 0)
+                                    end
+                                end
+                            end
+                        end
+                        if iClosestZoneRef then
+                            ForkThread(HaveScoutLurkAtZone, oUnit, iPlateauOrZero, iClosestZoneRef, iTeam)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveScoutLurkAtZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    oScout[M28UnitInfo.refbLurkerMode] = true
+    oScout[M28UnitInfo.refbSpecialMicroActive] = true
+    oScout[M28UnitInfo.refbLowerPriorityMicroActive] = true
+    local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
+    local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+    tTargetLZTeamData[M28Map.refiAssignedLurkerCount] = (tTargetLZTeamData[M28Map.refiAssignedLurkerCount] or 0) + 1
+
+    --Manage land scout
+    local bInCloakMode = false
+    local iRadarRange = oScout:GetBlueprint().Intel.RadarRadius or 0
+    local tEnemiesToRunFrom
+    local tEnemiesToAttack
+    local iCurDist, iClosestEnemyDist, oClosestEnemy, bGivenOrder
+    local iAttackThresholdDist = oScout[M28UnitInfo.refiCombatRange] + 5
+    local iMinAttackDist = oScout[M28UnitInfo.refiCombatRange] - 10
+    local aiBrain = oScout:GetAIBrain()
+
+    while M28UnitInfo.IsUnitValid(oScout) do
+        --Decide whether want to move towards zone; stay still; run from enemies; or attack engineer
+        --Choice is either to attack engineer, stay still, run (from ACU), or abort (because we have enough units in this zone that we should move on)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of cycle for oScout='..(oScout.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oScout) or 'nil')..', target P='..(iPlateau or 'nil')..'Z'..(iZone or 'nil')..', scout team='..(iTeam or 'nil')..'; Target LZSValue='..(tTargetLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; Scout assigned plateau and zone='..repru(oScout[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])..'; iRadarRange='..(iRadarRange or 'nil')..'; Is table of enemies empty for target LZ='..tostring(M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]))..'; tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 'nil')..'; bInCloakMode='..tostring(bInCloakMode)..'; oScout fraction complete='..oScout:GetFractionComplete()) end
+        if tTargetLZTeamData[M28Map.subrefLZSValue] >= 250 then --i.e. equiv to 1 t2 mex, also covers having pd or land facs then
+            --Want to free up scout for something else
+            if bDebugMessages == true then LOG(sFunctionRef..': we have enough buildings in here that we want scout to lurk somewhere else') end
+            break
+        else
+            bGivenOrder = false
+            tEnemiesToRunFrom = nil
+            tEnemiesToAttack = nil
+            --If are in a different zone then check if we want to run from enemies
+            if not(oScout[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iZone) or not(oScout[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
+                --Only check for enemies in scout intel range
+                tEnemiesToRunFrom = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oScout:GetPosition(), iRadarRange, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': Scout isnt in zone yet, is tEnemiesToRunFrom empty from getunitsaroundpoint='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))) end
+            end
+            if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then
+                --Does enemy have ACU in zone? if so then run; otherwise if enemy has combat units then stay hidden
+                if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom) then
+                        --Want to run
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU in target zone so want to run') end
+                    else
+                        if tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 100 or tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] > 10 then
+                            --Stay hidden if we are in cloak mode as enemy has combat units; if we arent in cloak mode then run
+                            if bInCloakMode and GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 0) >= 2 then
+                                bGivenOrder = true --i.e. order is to do nothing if in cloak mode
+                            else
+                                tEnemiesToRunFrom = EntityCategoryFilterDown(categories.DIRECTFIRE + categories.INDIRECTFIRE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                                if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then bGivenOrder = true end
+                            end
+                        end
+                        if not(bGivenOrder) and not(M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom)) then
+                            tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryRadar, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemiesToAttack) then
+                                --Does the enemy have mexes for us to attack?
+                                tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesToAttack empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToAttack))) end
+                        end
+                    end
+                else
+                    --Enemy has no units, so do no thing and wait
+                    if bInCloakMode then bGivenOrder = true end --i.e. order is to do nothing if are already cloaked
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has no units in the target zone') end
+                end
+            end
+
+
+            --Process what we have decided to do
+            if not(bGivenOrder) then
+                if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) == false then
+                    --Get the closest and run from here in opposite direction, or towards rally point, unless we are really far away in which case consider just being assigned to a different zone
+                    bInCloakMode = false
+                    iClosestEnemyDist = 1000
+                    oClosestEnemy = nil
+                    for iUnit, oUnit in tEnemiesToRunFrom do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
+                            if iCurDist < iClosestEnemyDist then
+                                oClosestEnemy = oUnit
+                            end
+                        end
+
+                    end
+                    if oClosestEnemy then
+                        RunFromEnemy(oScout, oClosestEnemy, iTeam, iPlateau, 10)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Running from oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist) end
+                        if iClosestEnemyDist > 150 then
+                            ForkThread(ConsiderAssigningScoutToLurkerLogic, oScout)
+                            break
+                        end
+                    end
+                elseif M28Utilities.IsTableEmpty(tEnemiesToAttack) == false then
+                    iClosestEnemyDist = 100 --Dont want to go further away than this when hunting for targets
+                    oClosestEnemy = nil
+                    for iUnit, oUnit in tEnemiesToAttack do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
+                            if iCurDist < iClosestEnemyDist then
+                                oClosestEnemy = oUnit
+                            end
+                        end
+
+                    end
+                    if oClosestEnemy then
+                        bInCloakMode = false
+                        --Attack
+                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist..'; iMinAttackDist='..iMinAttackDist) end
+                        if iClosestEnemyDist <= iAttackThresholdDist then
+                            if iClosestEnemyDist <= iMinAttackDist and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oClosestEnemy.UnitId) then
+                                --Dont want to be reclaimed by the engineer, so move back slightly
+                                local tMovePoint, tPotentialMovePoint
+                                local iAngleFromEngi = GetAngleFromAToB(oClosestEnemy:GetPosition(), oScout:GetPosition())
+
+                                for iAngleAdjust = 0, 90, 45 do
+                                    for iFactor = -1, 1, 2 do
+                                        tPotentialMovePoint = M28Utilities.MoveInDirection(oScout:GetPosition(), iAngleFromEngi + iAngleAdjust * iFactor, 5, true, false, true)
+                                        if M28Utilities.IsTableEmpty(tPotentialMovePoint) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPotentialMovePoint) == tTargetLZData[M28Map.subrefLZIslandRef] then
+                                            tMovePoint = tPotentialMovePoint
+                                            break
+                                        end
+                                    end
+                                end
+                                if tMovePoint then
+                                    M28Orders.IssueTrackedMove(oScout, tMovePoint, 3, false, 'LurkMvEg', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
+                                    bGivenOrder = true
+                                else
+                                    --Attack as backup
+                                    M28Orders.IssueTrackedAttack(oScout, oClosestEnemy, false, 'LurkAtEg', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
+                                    bGivenOrder = true
+                                end
+                            else
+                                --Attack enemy, unless it is an engineer that we are getting too close to
+                                M28Orders.IssueTrackedAttack(oScout, oClosestEnemy, false, 'LurkAtEn', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
+                                bGivenOrder = true
+                            end
+                        else
+                            --Move to enemy
+                            M28Orders.IssueTrackedMove(oScout, oClosestEnemy:GetPosition(), 3, false, 'LurkMvEn', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
+                            bGivenOrder = true
+                        end
+                    end
+                end
+                if not(bGivenOrder) then
+                    if bInCloakMode then
+                        bGivenOrder = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': No actions, as are in cloak mode will remain in cloak mode') end
+                    else
+                        --We dont have enemies to run from or attack; do we want to move to target, or cloak?
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), tTargetLZData[M28Map.subrefMidpoint])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Not given an order, so will either move to target if far away, or clock, iCurDist='..iCurDist) end
+                        if iCurDist <= 5 then
+                            --Want to cloak
+                            bInCloakMode = true
+                            M28UnitInfo.CloakUnit(oScout)
+                            bGivenOrder = true
+                        else
+                            --Want to move to target
+                            M28Orders.IssueTrackedMove(oScout, tTargetLZData[M28Map.subrefMidpoint], 3, false, 'LurkMvMp', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
+                            bGivenOrder = true
+                        end
+                    end
+                end
+                if not(bGivenOrder) then M28Utilities.ErrorHandler('Missing code for an eventuality so selen has no order, bInCloakMode='..tostring(bInCloakMode), true) end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(iTicksPerLandCycle)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    --for if we aborted due to wanting to assign to a dif zone:
+    oScout[M28UnitInfo.refbLurkerMode] = false
+    oScout[M28UnitInfo.refbSpecialMicroActive] = false
+    oScout[M28UnitInfo.refbLowerPriorityMicroActive] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -116,6 +116,7 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
     --Plateaus: Island variables (against tAllPlateaus[iPlateau])
     subrefPlateauIslandLandZones = 'M28PlateauIslands' --[x] is the island, returns a table of land zones in that island for this plateau; the table returned has a key 1....x, and returns the land zone reference number
     subrefPlateauIslandMexCount = 'M28IslandMexCount' --[x] is the island, returns the number of mexes in the island
+    subrefPlateauIslandLurkerZones = 'M28IslLurkZn' --[x] is the island, returns a tabe listing out any zones on the island that we want to consider assigning selens to in lurker mode
 
 --Plateaus - Land zone variables (still against tAllPlateaus[iPlateau]
     subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
@@ -355,6 +356,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
             refoBestSonar = 'BestSon' --Sonar providing the best sonar coverage for the water zone midpoint
             reftoUnitsWantingPriorityScouts = 'PrLndS' --If the land subteam has any units flagged as wanting priority scouts, then they should be assigned against this zone
+            refoAssignedLurkerScout = 'AsLrSc' --combat scout assigned to 'lurk' in this zone
+            refiAssignedLurkerCount = 'AsLrCn' --number of times we have assigned a combat scout to 'lurk' in this zone
             --Note: reftoAllOmniRadar is against LZData and contains all omni for all players
             refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
             refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)
@@ -9182,4 +9185,31 @@ function ReassessPositionsForPlayerDeath(aiBrain)
             M28Team.tTeamData[iTeam][M28Team.refiTimeOfEnemiesDefeated] = GetGameTimeSeconds()
         end
     end
+end
+
+function RecordLurkerZonesForIsland(iPlateau, iIsland, iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordLurkerZonesForIsland'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tPlateauSubtable = tAllPlateaus[iPlateau]
+    if not(tAllPlateaus[iPlateau][subrefPlateauIslandLurkerZones]) then tAllPlateaus[iPlateau][subrefPlateauIslandLurkerZones] = {} end
+    tAllPlateaus[iPlateau][subrefPlateauIslandLurkerZones][iIsland] = {}
+    local tIslandLurkerZones = tAllPlateaus[iPlateau][subrefPlateauIslandLurkerZones][iIsland]
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of island land zones empty='..tostring(M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauIslandLandZones][iIsland]))) end
+    if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauIslandLandZones]) == false then
+        for iEntry, iLandZone in tPlateauSubtable[subrefPlateauIslandLandZones][iIsland] do
+            local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))..'; Mex count='..(tLZData[subrefLZMexCount] or 'nil')) end
+            if (tLZData[subrefLZMexCount] or 0) > 0 then
+                local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add P'..iPlateau..'Z'..iLandZone..' for iIsland '..iIsland..' to lurker zone, mod dist='..tLZTeamData[refiModDistancePercent]) end
+                if tLZTeamData[refiModDistancePercent] >= 0.5 and tLZTeamData[refiModDistancePercent] <= 0.95 then --dont want a core base
+                    table.insert(tIslandLurkerZones, iLandZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added to table of lurker zones') end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

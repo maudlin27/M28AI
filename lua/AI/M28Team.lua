@@ -1891,7 +1891,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
 
                             else
-                                --M28 ally specific
+                                --M28 (non-ally) specific
 
                                 --Air staging - clear any engineers in other zones constructing them if we dont ahve T3 air
                                 if EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oUnit.UnitId) and tTeamData[oUnit:GetAIBrain().M28Team][subrefiHighestFriendlyAirFactoryTech] < 3 then
@@ -1947,6 +1947,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             end
                                         end
                                     end
+                                end
+
+                                --Selen assignment logic
+                                if EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oUnit.UnitId) then
+                                    ForkThread(M28Land.ConsiderAssigningScoutToLurkerLogic, oUnit)
                                 end
                             end
                             --Update intel coverage for units being constructed and/or allied units (in addition when a radar/sonar is constructed it will also trigger the below if it hasnt already run as a redundancy)
@@ -2319,16 +2324,16 @@ function UpdateFactionBlueprintBlacklist(iLandSubteam)
     if bConsiderScoutRestrictions then
         --Land scouts
         if M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
-            --Only want Aeon land scouts
+            --Only want Aeon land scouts (or seraphim for lurker mode)
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
             --If have cybran tech then prioritise this
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, blacklist for subteam '..iLandSubteam..' = '..repru(tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist])) end

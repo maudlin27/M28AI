@@ -93,7 +93,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local tiLowestMassByTech = {100000000, 100000000, 100000000}
     local tiHighestSpeedByTech = {0,0,0}
     local oCurBlueprint
-    local iHighestPriority = 0
+    local iHighestPriority = -100
     local bCanBuildRequiredCategory
     local iCategoriesThatBlueprintCanBuild
     local tsBlueprintsMeetingDesiredCategoriesToBuild
@@ -164,7 +164,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                         if bDebugMessages == true then LOG(sFunctionRef..': '..sBlueprint..': iCurrentTech='..iCurrentTech..'; iHighestTech='..iHighestTech) end
                         if iCurrentTech > iHighestTech then
                             iHighestTech = iCurrentTech
-                            iHighestPriority = 0
+                            iHighestPriority = -100
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))) end
                         if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
@@ -1535,6 +1535,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
+        --Seraphim high priority land scouts at start for 'lurker' mode - decided to remove as after testing M28 did significantly worse on polar depression 1v1 with RNG (with this, it got crushed by 1.1 RNG; wtihout it, it crushed RNG)
+        --[[iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if iFactoryTechLevel == 1 and M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 and EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) then
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority selen builder, total build count='..oFactory[refiTotalBuildCount]..'; Cur land scouts='.. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)) end
+            if oFactory[refiTotalBuildCount] <= 15 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) <= 1 + 1.5 * M28Map.iMapSize / 256 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+            end
+        end--]]
 
         --Enemies nearby and have built fewer tanks of this tech level than engineers; or are on a core expansion and have no combat threat in this LZ
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -1787,7 +1796,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Scouts if we want any, subject to limit based on number of engineers we have
         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering if we want land scouts, does this LZ want scouts=' .. tostring(tLZTeamData[M28Map.refbWantLandScout])) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] <= 30 and iFactoryTechLevel == 1 and oFactory[refiTotalBuildCount] <= 10 and tLZTeamData[M28Map.subrefLZbCoreBase] and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 3)) then
+        if (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] <= 30 and iFactoryTechLevel == 1 and oFactory[refiTotalBuildCount] <= 10 and tLZTeamData[M28Map.subrefLZbCoreBase] and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and ((EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) <= 4) or (M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 3)))) then
             if not (bHaveHighestLZTech) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then
                     return sBPIDToBuild
@@ -1804,7 +1813,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             --If we have t1 radar in this zone we still want land scouts to support units further away
             local iCurLandScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)
             if bDebugMessages == true then LOG(sFunctionRef..': Land scouts for adjacent zone builder, iCurLandScouts='..iCurLandScouts) end
-            if iCurLandScouts <= 2 then
+            if iCurLandScouts <= 2 or (iFactoryTechLevel == 1 and EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) and iCurLandScouts <= 2 + 3 * M28Map.iMapSize / 256 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
             elseif iCurLandScouts <= 6 and iCurLandScouts <= oFactory[refiTotalBuildCount] / 3 then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -2060,7 +2069,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             --Consider land scouts to accompany the early combat
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if want land scout, tLZTeamData[M28Map.refbWantLandScout]='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Does enemy have omni='..tostring((M28Team.tTeamData[iTeam][M28Team.subrefbEnemyHasOmni]))) end
-            if (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] <= 30 and iFactoryTechLevel == 1 and oFactory[refiTotalBuildCount] <= 10 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 3)) and tLZTeamData[M28Map.refiRadarCoverage] <= 20  and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
+            if (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] <= 30 and iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefLZbCoreBase] and (oFactory[refiTotalBuildCount] <= 10 and (EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 2 + 3 * M28Map.iMapSize / 256 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1) or (M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 3)))) and tLZTeamData[M28Map.refiRadarCoverage] <= 20  and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
                 local iLifetimeScout = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout)
                 if iLifetimeScout <= 5 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) < math.min(2, M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat)) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end

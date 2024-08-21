@@ -95,6 +95,7 @@ refbLowerPriorityMicroActive = 'M28UnitLowerPriMicroAct' --true if the specialmi
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
 refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled
+refbLurkerMode = 'M28ULrkMd' --true if unit is adopting selen 'engi lurker' mode logic
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
@@ -2694,5 +2695,16 @@ elseif M28Utilities.bSteamActive then
 else
     IsUnitRestricted = function(sUnitID, iArmyIndex)
         return import('/lua/game.lua').IsRestricted(sUnitID, iArmyIndex)
+    end
+end
+
+function CloakUnit(oUnit)
+    if M28Utilities.bFAFActive and oUnit.HideUnit then
+        LOG('About to hide unit, fraction complete='..oUnit:GetFractionComplete())
+        oUnit:HideUnit()
+    elseif oUnit.InvisState then
+        oUnit:InvisState()
+    else
+        M28Utilities.ErrorHandler('Dont have hide or cloak option for unit '..oUnit.UnitId)
     end
 end
