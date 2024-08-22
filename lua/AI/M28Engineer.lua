@@ -3623,49 +3623,51 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Building our first novax so wont use ge template as enemy doesnt have any arti to defend from yet')
                         end
                     end
-                elseif M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                elseif M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= math.max(4, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 2) or M28Utilities.bLoudModActive then
                     --We dont want a GE template; exclude very high mass cost blueprints if we have multiple options to build from the category wanted for each faction and we have built fewer than 3 experimentals
                     local tsBlueprintsOfCategory = EntityCategoryGetUnitList(iCategoryWanted)
                     if M28Utilities.IsTableEmpty(tsBlueprintsOfCategory) == false then
-                        local tsBlueprintsAndMassCostByFaction = {}
-                        local iCurBlueprintFaction
-                        local oCurBlueprint
-                        local iMassThreshold = math.max(45000 + 15000 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * 100)
-                        if bDebugMessages == true then LOG(sFunctionRef..': iMassThreshold='..iMassThreshold..'; Team gross mass income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-                        for iBlueprint, sBlueprint in tsBlueprintsOfCategory do
-                            oCurBlueprint = __blueprints[sBlueprint]
-                            iCurBlueprintFaction = M28UnitInfo.GetFactionNumberFromBlueprint(sBlueprint)
-                            if not(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction]) then tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction] = {} end
-                            table.insert(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction], { sBlueprint, (oCurBlueprint.Economy.BuildCostMass or 0) })
-                        end
-                        local bHaveLowCostOption, bHaveHighCostOption, bPotentialOption
-                        for iFaction, tSubtable in tsBlueprintsAndMassCostByFaction do
-                            bHaveLowCostOption = false
-                            bHaveHighCostOption = false
-                            for iEntry, tBlueprintAndMassCost in tSubtable do
-                                bPotentialOption = false
-                                --Is this a non-naval unit, or (if in a water zone) is it a naval unit?
-                                if iPlateauOrZero then
-                                    if EntityCategoryContains(categories.NAVAL, tBlueprintAndMassCost[1]) then
-                                        bPotentialOption = true
-                                    end
-                                else
-                                    if not(EntityCategoryContains(categories.NAVAL, tBlueprintAndMassCost[1])) then
-                                        bPotentialOption = true
-                                    end
-                                end
-                                if bPotentialOption then
-                                    if tBlueprintAndMassCost[2] <= iMassThreshold then bHaveLowCostOption = true elseif tBlueprintAndMassCost[2] > iMassThreshold then bHaveHighCostOption = true end
-                                    if bHaveLowCostOption and bHaveHighCostOption then
-                                        break
-                                    end
-                                end
+                        local iMassThreshold = math.max(25000 + 15000 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * 80)
+                        if iMassThreshold < 180000 then
+                            local tsBlueprintsAndMassCostByFaction = {}
+                            local iCurBlueprintFaction
+                            local oCurBlueprint
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMassThreshold='..iMassThreshold..'; Team gross mass income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+                            for iBlueprint, sBlueprint in tsBlueprintsOfCategory do
+                                oCurBlueprint = __blueprints[sBlueprint]
+                                iCurBlueprintFaction = M28UnitInfo.GetFactionNumberFromBlueprint(sBlueprint)
+                                if not(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction]) then tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction] = {} end
+                                table.insert(tsBlueprintsAndMassCostByFaction[iCurBlueprintFaction], { sBlueprint, (oCurBlueprint.Economy.BuildCostMass or 0) })
                             end
-                            if bHaveLowCostOption and bHaveHighCostOption then
+                            local bHaveLowCostOption, bHaveHighCostOption, bPotentialOption
+                            for iFaction, tSubtable in tsBlueprintsAndMassCostByFaction do
+                                bHaveLowCostOption = false
+                                bHaveHighCostOption = false
                                 for iEntry, tBlueprintAndMassCost in tSubtable do
-                                    if tBlueprintAndMassCost[2] > iMassThreshold then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing blueprint '..tBlueprintAndMassCost[1]..' from the categories wanted as it costs '..tBlueprintAndMassCost[2]..'; iFaction='..iFaction) end
-                                        iCategoryWanted = iCategoryWanted - categories[tBlueprintAndMassCost[1]]
+                                    bPotentialOption = false
+                                    --Is this a non-naval unit, or (if in a water zone) is it a naval unit?
+                                    if iPlateauOrZero then
+                                        if EntityCategoryContains(categories.NAVAL, tBlueprintAndMassCost[1]) then
+                                            bPotentialOption = true
+                                        end
+                                    else
+                                        if not(EntityCategoryContains(categories.NAVAL, tBlueprintAndMassCost[1])) then
+                                            bPotentialOption = true
+                                        end
+                                    end
+                                    if bPotentialOption then
+                                        if tBlueprintAndMassCost[2] <= iMassThreshold then bHaveLowCostOption = true elseif tBlueprintAndMassCost[2] > iMassThreshold then bHaveHighCostOption = true end
+                                        if bHaveLowCostOption and bHaveHighCostOption then
+                                            break
+                                        end
+                                    end
+                                end
+                                if bHaveLowCostOption and bHaveHighCostOption then
+                                    for iEntry, tBlueprintAndMassCost in tSubtable do
+                                        if tBlueprintAndMassCost[2] > iMassThreshold then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Removing blueprint '..tBlueprintAndMassCost[1]..' from the categories wanted as it costs '..tBlueprintAndMassCost[2]..'; iFaction='..iFaction) end
+                                            iCategoryWanted = iCategoryWanted - categories[tBlueprintAndMassCost[1]]
+                                        end
                                     end
                                 end
                             end
