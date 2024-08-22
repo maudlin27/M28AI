@@ -4654,9 +4654,9 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
         end
     end
 
-    local bConsiderAttackIfNotFiredRecently
+    local bConsiderAttackIfCloseToTarget
     if oOptionalTarget and M28Utilities.bLoudModActive then
-        bConsiderAttackIfNotFiredRecently = true
+        bConsiderAttackIfCloseToTarget = true
     end
 
     function MoveIndividualGunship(oClosestUnit, tUnitDestination)
@@ -4664,13 +4664,13 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
         if EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination) <= 20 then
             M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSExA', false)
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackIfNotFiredRecently='..tostring(bConsiderAttackIfNotFiredRecently)..'; Time since last f ired='..GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
-            if bConsiderAttackIfNotFiredRecently and (oClosestUnit[refoGunshipAttackOrderTarget] == oOptionalTarget or (GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > math.max(math.min(1, (oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1) * 2), (oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1)) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), oOptionalTarget:GetPosition()) < (oClosestUnit[M28UnitInfo.refiDFRange] or 0))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackIfCloseToTarget='..tostring(bConsiderAttackIfCloseToTarget)..'; Time since last f ired='..GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+            if bConsiderAttackIfCloseToTarget and (oClosestUnit[refoGunshipAttackOrderTarget] == oOptionalTarget or M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), oOptionalTarget:GetPosition()) < (oClosestUnit[M28UnitInfo.refiDFRange] or 0)) then
                 M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSLdAtc', false)
                 oClosestUnit[refoGunshipAttackOrderTarget] = oOptionalTarget
             else
                 M28Orders.IssueTrackedMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSAtc', false)
-                if bConsiderAttackIfNotFiredRecently then oClosestUnit[refoGunshipAttackOrderTarget] = nil end
+                if bConsiderAttackIfCloseToTarget then oClosestUnit[refoGunshipAttackOrderTarget] = nil end
             end
         end
     end
