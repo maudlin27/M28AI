@@ -914,6 +914,7 @@ function DoesAINicknameContainM28(sNickname, bOnlyM28Easy, bOnlyAIx)
             table.insert(suffixes, "%(AIx: M28%)$")
             if not(bOnlyAIx) then
                 table.insert(suffixes, "%(AI: M28%)$")
+                table.insert(suffixes, "%(AI: M28 Easy%)$")
             end
         end
 
