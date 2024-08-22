@@ -691,7 +691,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                         if iFactoryTechLevel == 2 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
                             iAltCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
                             if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
-                        elseif iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,4) == 1) then
+                        elseif iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,3) == 1) then
                             iAltCategoryWanted = categories.ual0204
                             if bDebugMessages == true then LOG(sFunctionRef..': can we build a blueprint with t2 sniperbot blueprint? Is the blueprint nil='..tostring(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) == nil)) end
                             if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
@@ -2258,6 +2258,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Checking threat ratios for if we want more indirect, DF threat=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] .. '; Indirect=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat])
             end
+            local bHaveTooMuchIndirectVsDirect = false
             if not (bSaveMassDueToEnemyFirebaseOrOurExperimental) then
                 local iIndirectRatioWanted = 0
                 if iFactoryTechLevel == 1 then
@@ -2278,6 +2279,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             iIndirectRatioWanted = 9
                         end
                     end
+                    if M28Utilities.bLoudModActive and iIndirectRatioWanted < 10 then iIndirectRatioWanted = math.min(10, iIndirectRatioWanted * 2) end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Indirect threat ratio, bCanPathToEnemyWithLand='..tostring(bCanPathToEnemyWithLand)..', M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; iIndirectRatioWanted='..iIndirectRatioWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Cur T3 DF and skrimisher count='..aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3)) end
                 if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3) >= 50)) then
@@ -2293,6 +2295,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 elseif tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                else
+                    if iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] >= 3000 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] * 3.5 < M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted then
+                        bHaveTooMuchIndirectVsDirect = true
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': If we have more than 2.5 times the indirect fire ratio wanted, and are at T3, will consider getting more direct fire when we consider support zone categories, bHaveTooMuchIndirectVsDirect='..tostring(bHaveTooMuchIndirectVsDirect)) end
                 end
             end
 
@@ -2381,12 +2388,34 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 end
+                local iOldDistToConsider = iDistToEnemyBaseToConsider
+                if bHaveTooMuchIndirectVsDirect and iDistToEnemyBaseToConsider > 150 then
+                    iDistToEnemyBaseToConsider = math.max(150, math.min(M28Map.iMapSize * 0.35, iDistToEnemyBaseToConsider * 0.75, 0.35 * M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reducing search distance for support categories') end
+                end
 
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                     local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
                     for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': About to check alternative LZ ' .. tLZPathing[M28Map.subrefLZNumber] .. '; iDistToEnemyBaseToConsider=' .. iDistToEnemyBaseToConsider .. '; tLZPathing[M28Map.subrefLZTravelDist]=' .. tLZPathing[M28Map.subrefLZTravelDist])
+                        end
+                        if tLZPathing[M28Map.subrefLZTravelDist] > iDistToEnemyBaseToConsider then
+                            if bHaveTooMuchIndirectVsDirect and iDistToEnemyBaseToConsider < iOldDistToConsider then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Didnt find anything with shorter search range, will try and build direct fire, and failing that will increase search range') end
+                                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+
+                                    if iFactoryTechLevel == 2 then
+                                        if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), M28UnitInfo.refCategorySniperBot * categories.TECH2, oFactory) then return sBPIDToBuild end
+                                    elseif iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,3) == 1) then
+                                        if ConsiderBuildingCategory(M28UnitInfo.refCategorySniperBot * categories.TECH2) then return sBPIDToBuild end
+                                    end
+                                end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild end
+                                iOldDistToConsider = iDistToEnemyBaseToConsider
+                            else
+                                break
+                            end
                         end
                         if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefMidpoint])) then
                             --if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
@@ -2410,8 +2439,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                     return sBPIDToBuild
                                 end
                             end
-                        else
-                            break
                         end
                     end
                 end
