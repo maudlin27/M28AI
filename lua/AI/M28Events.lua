@@ -689,6 +689,8 @@ function OnEnhancementComplete(oUnit, sEnhancement)
 
         --Check we haven't just run this
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
+            --Clear micro flag as we set it to true for some units to avoid orders overriding
+            if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
             if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
             if oUnit[M28ACU.refbWantsPriorityUpgrade] then oUnit[M28ACU.refbWantsPriorityUpgrade] = nil end
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
@@ -1915,7 +1917,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
-
+                        --Loud T2 sniperbots - consider enhancement
+                    elseif M28Utilities.bLoudModActive and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
+                        ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
 
                     --Experimental air - no longer record in land/water zone

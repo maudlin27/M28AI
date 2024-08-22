@@ -9117,7 +9117,8 @@ function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign)
             iASFValue = 0.5
         end
         oStrat[refiAssignedSuicideASF] = (oStrat[refiAssignedSuicideASF] or 0) + iASFValue
-        oASF[M28UnitInfo.refbSpecialMicroActive] = true
+        M28Micro.EnableUnitMicroUntilManuallyTurnOff(oASF)
+        --oASF[M28UnitInfo.refbSpecialMicroActive] = true
         local iTeam = oASF:GetAIBrain().M28Team
         if oStrat[refiAssignedSuicideASF] >= 2 and not(bNoLimitOnASFToAssign) then
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do

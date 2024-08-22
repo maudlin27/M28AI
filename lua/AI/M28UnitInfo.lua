@@ -1722,6 +1722,9 @@ function RecordUnitRange(oUnit)
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewMaxRadius)
                 end
             end
+            if oUnit.UnitId == 'ual0204' and oUnit:HasEnhancement('EnhancedWeapon') then
+                oUnit[refiDFRange] = oUnit[refiDFRange] * 1.25
+            end
         end
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
             --Manual overrides

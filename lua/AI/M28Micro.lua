@@ -781,6 +781,16 @@ function AltDodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function EnableUnitMicroUntilManuallyTurnOff(oUnit, bLowerPriorityMicro)
+    oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+    if bLowerPriorityMicro then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = true
+    else
+        if oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil end
+    end
+    oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+    oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = -1
+end
+
 function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
@@ -1473,6 +1483,7 @@ function MoveAwayFromFactory(oUnit, oFactory)
         local sFunctionRef = 'MoveAwayFromFactory'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
         local aiBrain = oFactory:GetAIBrain()
         if aiBrain.M28AI then --redundancy
             local iTeam = aiBrain.M28Team
@@ -1704,7 +1715,8 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
             if bDebugMessages == true then LOG(sFunctionRef..': iOurRange='..iOurRange..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is it an air unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oTarget.UnitId))) end
             if iOurRange > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oTarget.UnitId) then
                 --Want to try and do hover-micro
-                oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                EnableUnitMicroUntilManuallyTurnOff(oUnit)
+                --oUnit[M28UnitInfo.refbSpecialMicroActive] = true
                 local iCurDistToTarget
                 local iCurAngleToTarget
                 local iCurFacingAngle

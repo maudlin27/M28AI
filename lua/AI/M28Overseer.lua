@@ -523,10 +523,18 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificWaterZone(61, 4, 1000)
-    LOG('Midpoint of WZ61='..repru(M28Map.tPondDetails[M28Map.tiPondByWaterZone[61]][M28Map.subrefPondWaterZones][61][M28Map.subrefMidpoint]))
+    local oHumanBrain
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.BrainType == 'Human' then
+            oHumanBrain = oBrain
+            break
+        end
+    end
+    local tBase = M28Map.GetPlayerStartPosition(oHumanBrain)
 
+    local oUnit = CreateUnit('ual0204', oHumanBrain:GetArmyIndex(), tBase[1], tBase[2], tBase[3], 0, 0, 0, 0, 'Air')
 
+    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end

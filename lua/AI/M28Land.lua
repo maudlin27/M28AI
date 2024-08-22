@@ -7215,6 +7215,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         else
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                if bDebugMessages == true then LOG('About to issue tracked moved to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])) end
                                 M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint], 6, false, 'DFMovLZ'..iDFLZToSupport..';'..iLandZone)
                             end
                         end
@@ -9468,8 +9469,9 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     oScout[M28UnitInfo.refbLurkerMode] = true
-    oScout[M28UnitInfo.refbSpecialMicroActive] = true
-    oScout[M28UnitInfo.refbLowerPriorityMicroActive] = true
+    M28Micro.EnableUnitMicroUntilManuallyTurnOff(oScout, true)
+    --oScout[M28UnitInfo.refbSpecialMicroActive] = true
+    --oScout[M28UnitInfo.refbLowerPriorityMicroActive] = true
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
     local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
     tTargetLZTeamData[M28Map.refiAssignedLurkerCount] = (tTargetLZTeamData[M28Map.refiAssignedLurkerCount] or 0) + 1
@@ -9640,7 +9642,47 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
     end
     --for if we aborted due to wanting to assign to a dif zone:
     oScout[M28UnitInfo.refbLurkerMode] = false
-    oScout[M28UnitInfo.refbSpecialMicroActive] = false
-    oScout[M28UnitInfo.refbLowerPriorityMicroActive] = false
+    if oScout[M28UnitInfo.refbLowerPriorityMicroActive] then --we might have overridden this with higher priority micro
+        oScout[M28UnitInfo.refbSpecialMicroActive] = false
+        oScout[M28UnitInfo.refbLowerPriorityMicroActive] = false
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedGetFirstEnhancementOnUnit(oUnit, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    local sFunctionRef = 'DelayedGetFirstEnhancementOnUnit'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local sFirstEnhancement
+        local tEnhancements = oUnit:GetBlueprint().Enhancements
+        if tEnhancements then
+            if bDebugMessages == true then LOG(sFunctionRef..': tEnhancements='..repru(tEnhancements)) end
+            for sEnhancement, tEnhancementData in tEnhancements do
+                sFirstEnhancement = sEnhancement
+                break
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': sFirstEnhancement='..(sFirstEnhancement or 'nil')..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
+        if sFirstEnhancement and not(oUnit:HasEnhancement(sFirstEnhancement)) then
+            while oUnit[M28UnitInfo.refbSpecialMicroActive] and M28UnitInfo.IsUnitValid(oUnit) do
+                WaitSeconds(1)
+            end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                local iTeam = oUnit:GetAIBrain().M28Team
+                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tLZTeamData nil='..tostring(tLZTeamData == nil)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+                if tLZTeamData and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange])) then
+                    M28Orders.IssueTrackedEnhancement(oUnit, sFirstEnhancement, false, 'GetUEnh')
+                    --Flag as micro active so we dont abort
+                    M28Micro.EnableUnitMicroUntilManuallyTurnOff(oUnit)
+                    --oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                    if oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get enhancement for the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                end
+            end
+        end
+    end
 end

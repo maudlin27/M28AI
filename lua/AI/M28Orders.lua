@@ -177,7 +177,7 @@ function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecord
 function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
     --Also acts as a bcakup for special micro not resetting
-    if oUnit[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
+    if oUnit[M28UnitInfo.refbSpecialMicroActive] and (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) > 0 and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
     if not(oUnit[reftiLastOrders]) then
         oUnit[reftiLastOrders] = nil
         oUnit[refiOrderCount] = 0
@@ -747,6 +747,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
@@ -758,27 +759,30 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
     end
     if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
         --Do we have an existing enhancement that needs removing before we can get teh upgrade?
+        local bApplySpecialMicroFlag = false
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeLastIssuedACUEnhancementOrder] = GetGameTimeSeconds() end
         local sEnhancementOverride
         local tEnhancements = oUnit:GetBlueprint().Enhancements
 
-        if M28Utilities.IsTableEmpty(tEnhancements) == false and oUnit.HasEnhancement then
+        if M28Utilities.IsTableEmpty(tEnhancements) == false and (oUnit.HasEnhancement or oUnit.CreateEnhancement) then
             local tsUpgradeSlotUsed = {}
             local tbSlotInUse = {}
             local sSlotWanted
             local sPreReq
-            for sEnhancement, tEnhancementData in tEnhancements do
-                if bDebugMessages == true then LOG(sFunctionRef..': Does unit have sEnhancement='..sEnhancement..'='..tostring(oUnit:HasEnhancement(sEnhancement))) end
-                if oUnit:HasEnhancement(sEnhancement) then
-                    tsUpgradeSlotUsed[sEnhancement] = tEnhancementData.Slot
-                    tbSlotInUse[tEnhancementData.Slot] = true
-                elseif sEnhancement == sUpgradeRef then
-                    sSlotWanted = tEnhancementData.Slot
-                    sPreReq = tEnhancementData.Prerequisite
+            if oUnit.HasEnhancement then
+                for sEnhancement, tEnhancementData in tEnhancements do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Does unit have sEnhancement='..sEnhancement..'='..tostring(oUnit:HasEnhancement(sEnhancement))) end
+                    if oUnit:HasEnhancement(sEnhancement) then
+                        tsUpgradeSlotUsed[sEnhancement] = tEnhancementData.Slot
+                        tbSlotInUse[tEnhancementData.Slot] = true
+                    elseif sEnhancement == sUpgradeRef then
+                        sSlotWanted = tEnhancementData.Slot
+                        sPreReq = tEnhancementData.Prerequisite
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': sSlotWanted='..(sSlotWanted or 'nil')..'; tbSlotInUse='..repru(tbSlotInUse)) end
-            if tbSlotInUse[sSlotWanted] then
+            if sSlotWanted and tbSlotInUse[sSlotWanted] then
                 local bValidRemovalEnhancement
                 for sExistingEnhancement, sSlotUsed in tsUpgradeSlotUsed do
                     if bDebugMessages == true then LOG(sFunctionRef..': sExistingEnhancement='..sExistingEnhancement..'; sSlotUsed='..sSlotUsed) end
@@ -835,7 +839,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] = sUpgradeRef})
             --LOG('About ot tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' to get enhancement upgrade '..sUpgradeRef..'; ACU upgrade count='..(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').refiUpgradeCount] or 'nil'))
             IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sUpgradeRef})
-            if bDebugMessages == true then LOG(sFunctionRef..': WIll ugprade unit with actual upgrade '..sUpgradeRef) end
+            if bDebugMessages == true then LOG(sFunctionRef..': WIll ugprade unit with actual upgrade '..sUpgradeRef..'; just tried running issuescript for the unit') end
             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
             if oUnit[refiTimeOfLastRemovalUpgrade] and GetGameTimeSeconds() - oUnit[refiTimeOfLastRemovalUpgrade] <= 1 then
                 ForkThread(DelayedUpgradeTracking, oUnit, sUpgradeRef)
@@ -855,6 +859,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
 
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
