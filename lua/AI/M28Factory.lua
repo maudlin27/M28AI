@@ -3316,6 +3316,7 @@ function SetPreferredUnitsByCategory(aiBrain)
     --If have multiple units that can build for a particular category, this will specify what to build
     --special cases where want to prioritise one unit over another where multiple of same type satisfy the category
     --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
+    --Set to less than -100 if want to not build at all even if it is the only unit of that category
     aiBrain[reftBlueprintPriorityOverride] = {}
     --T1
 
@@ -3350,7 +3351,7 @@ function SetPreferredUnitsByCategory(aiBrain)
 
         --Engineers
         aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
-        aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1 --fire beetle (so build wagners instead if going for fast units)
+        aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1000 --fire beetle (so build wagners instead if going for fast units)
 
         --Az LOUD unit mod suggestions
         --Seraphim T2:
@@ -3395,13 +3396,13 @@ function SetPreferredUnitsByCategory(aiBrain)
 
         --Aeon T2 sniperbot (very good so will build wherever it's an option)
         aiBrain[reftBlueprintPriorityOverride]['ual0204'] = 2
-        aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1 --experimental reconstruction bot
+        aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1000 --experimental reconstruction bot
         --LOUD - sniperbots at t3+ and T1 are weak
         if M28Utilities.bLoudModActive then
-            aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1
-            aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1
-            aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1
-            aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
+            aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1000
+            aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1000
+            aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
+            aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1000 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
         end
     end
 end

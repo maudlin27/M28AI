@@ -17729,7 +17729,7 @@ function ConsiderBuildingMassFabOrGateway(iTeam, iZone, tLZTeamData, HaveActionT
 end
 
 function CheckAndClearEngineersConstructingTargetUnit(oUnitBeingReclaimed, tLZTeamData, iPlateau, iLandZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckAndClearEngineersConstructingTargetUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Intended for if we have given engineers an order to reclaim a unit, although in theory could use for other things
