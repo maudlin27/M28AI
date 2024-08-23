@@ -482,7 +482,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustDestroyed.UnitId) then
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustDestroyed, true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Factory was destroyed, oUnitJustDestroyed='..oUnitJustDestroyed.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustDestroyed)..'; is this an HQ factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Factory was destroyed, oUnitJustDestroyed='..oUnitJustDestroyed.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustDestroyed)..'; is this an HQ factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId))..'; Time='..GetGameTimeSeconds()) end
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId) then
             local aiBrain = oUnitJustDestroyed:GetAIBrain()
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
@@ -492,6 +492,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                 if M28Utilities.IsTableEmpty(tUnitsOfType) == false then
                     for iUnit, oUnit in tUnitsOfType do
                         if not(oUnit == oUnitJustDestroyed) and M28UnitInfo.IsUnitValid(oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Still have a valid unit for the category, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             return true
                         end
                     end
@@ -500,6 +501,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
             end
             local iCategoryBeingConsidered
             if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustDestroyed.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Land fac destroyed, iUnitTechLevel='..iUnitTechLevel..';  aiBrain[refiOurHighestLandFactoryTech] ='.. aiBrain[refiOurHighestLandFactoryTech]) end
                 if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
                     aiBrain[refiOurHighestLandFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
@@ -507,6 +509,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                         if aiBrain:GetCurrentUnits(iCategoryBeingConsidered) > 0 and UnitsStillValid(iCategoryBeingConsidered) then
                             --Check these units are all still valid
                             aiBrain[refiOurHighestLandFactoryTech] = iTechLevel
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting highets land fac tech to iTechLevel='..iTechLevel) end
                             break
                         end
                     end

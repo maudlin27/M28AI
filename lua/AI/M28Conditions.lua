@@ -2685,114 +2685,118 @@ function ApplyM28ToOtherAI(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyM28ToOtherAI'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; aiBrain nickname='..(aiBrain.Nickname or 'nil')..'; Is civilian='..tostring(IsCivilianBrain(aiBrain))..'; Is scenario type skirmish='..tostring(ScenarioInfo.type == "skirmish")) end
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; aiBrain nickname='..(aiBrain.Nickname or 'nil')..'; Is civilian='..tostring(IsCivilianBrain(aiBrain))..'; Is scenario type skirmish='..tostring(ScenarioInfo.type == "skirmish")..'; DoesAINicknameContainM28='..tostring(M28Utilities.DoesAINicknameContainM28(aiBrain.Nickname))) end
+    if M28Utilities.DoesAINicknameContainM28(aiBrain.Nickname) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have M28 in the name so will apply M28 logic to the brain') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    else
+        local iCampaignAISetting = ScenarioInfo.Options.CampAI
+        local refiNone = 1
+        local refiAllies = 2
+        local refiEnemies = 3
+        local refiAlliesAndEnemies = 4
+        local bIsEnemyOfSomeone = false
+        if not(iCampaignAISetting == refiNone) then
+            --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check if theyve not yet been set as being a M28AI brain
+            if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") then
+                --Do we have any brains that are hostile to this?
 
-    local iCampaignAISetting = ScenarioInfo.Options.CampAI
-    local refiNone = 1
-    local refiAllies = 2
-    local refiEnemies = 3
-    local refiAlliesAndEnemies = 4
-    local bIsEnemyOfSomeone = false
-    if not(iCampaignAISetting == refiNone) then
-        --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check if theyve not yet been set as being a M28AI brain
-        if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") then
-            --Do we have any brains that are hostile to this?
-
-            local bEnemyOfPlayer = false
-            local bAllyOfPlayerWithEnemy = false
-            --FAF requires a humna player to be in the player 1 slot; therefore look for a human player and if cant find one then pick the brain with a braintype (since looks like this can be nil for some campaign missions for the built in AI)
-            local oFirstPlayer
-            for iBrain, oBrain in ArmyBrains do
-                if oBrain.BrainType == 'Human' then oFirstPlayer = oBrain break end
-            end
-            if not(oFirstPlayer) then
+                local bEnemyOfPlayer = false
+                local bAllyOfPlayerWithEnemy = false
+                --FAF requires a humna player to be in the player 1 slot; therefore look for a human player and if cant find one then pick the brain with a braintype (since looks like this can be nil for some campaign missions for the built in AI)
+                local oFirstPlayer
                 for iBrain, oBrain in ArmyBrains do
-                    if aiBrain.BrainType then
-                        oFirstPlayer = oBrain break
-                    end
+                    if oBrain.BrainType == 'Human' then oFirstPlayer = oBrain break end
                 end
-            end
-
-            local bEnemyOfPlayerAlly = false
-            local bEnemyOfPlayerEnemy = false
-
-            if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
-                bEnemyOfPlayer = true
-                bIsEnemyOfSomeone = true
-            elseif IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
-                --Check there is a brain this is an enemy of
-                for iBrain, oBrain in ArmyBrains do
-                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
-                        bIsEnemyOfSomeone = true
-                        bAllyOfPlayerWithEnemy = true
-                        break
-                    end
-                end
-            else
-                --Not ally or enemy of player; if enemy of the same faction the player is enemy of, then still consider an ally
-
-                for iBrain, oBrain in ArmyBrains do
-                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
-                        if IsEnemy(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
-                            bEnemyOfPlayerEnemy = true
-                        elseif IsAlly(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
-                            bEnemyOfPlayerAlly = true
+                if not(oFirstPlayer) then
+                    for iBrain, oBrain in ArmyBrains do
+                        if aiBrain.BrainType then
+                            oFirstPlayer = oBrain break
                         end
-                        bIsEnemyOfSomeone = true
                     end
                 end
-            end
-            if not(bIsEnemyOfSomeone) then
-                for iBrain, oBrain in ArmyBrains do
-                    if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
-                        bIsEnemyOfSomeone = true
-                        break
+
+                local bEnemyOfPlayerAlly = false
+                local bEnemyOfPlayerEnemy = false
+
+                if IsEnemy(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                    bEnemyOfPlayer = true
+                    bIsEnemyOfSomeone = true
+                elseif IsAlly(oFirstPlayer:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                    --Check there is a brain this is an enemy of
+                    for iBrain, oBrain in ArmyBrains do
+                        if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bIsEnemyOfSomeone = true
+                            bAllyOfPlayerWithEnemy = true
+                            break
+                        end
+                    end
+                else
+                    --Not ally or enemy of player; if enemy of the same faction the player is enemy of, then still consider an ally
+
+                    for iBrain, oBrain in ArmyBrains do
+                        if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            if IsEnemy(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                                bEnemyOfPlayerEnemy = true
+                            elseif IsAlly(oFirstPlayer:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                                bEnemyOfPlayerAlly = true
+                            end
+                            bIsEnemyOfSomeone = true
+                        end
                     end
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)..'; bEnemyOfPlayerAlly='..tostring(bEnemyOfPlayerAlly)..'; bEnemyOfPlayerEnemy='..tostring(bEnemyOfPlayerEnemy)) end
-            local bUseM28AI = false
-            if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
-                bUseM28AI = true
-                if aiBrain.CampaignAI then aiBrain.HostileCampaignAI = true end
-            elseif (bAllyOfPlayerWithEnemy or (bIsEnemyOfSomeone and not(bEnemyOfPlayer) and not(bEnemyOfPlayerAlly) and bEnemyOfPlayerEnemy)) and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
-                bUseM28AI = true
-            end
-
-
-            if bUseM28AI then
-                --override for brackman on FA M5 so we dont control the megalith:
-                if aiBrain.Nickname == 'Brackman' and ScenarioInfo.Brackman and ScenarioInfo.Fletcher and ScenarioInfo.Hex5 then
-                    bUseM28AI = false
+                if not(bIsEnemyOfSomeone) then
+                    for iBrain, oBrain in ArmyBrains do
+                        if IsEnemy(aiBrain:GetArmyIndex(), oBrain:GetArmyIndex()) then
+                            bIsEnemyOfSomeone = true
+                            break
+                        end
+                    end
                 end
-                if aiBrain.Nickname == 'Dostya' and ScenarioInfo.Wreckage_Holding and ScenarioInfo.FauxUEF and ScenarioInfo.Symbiont and ScenarioInfo.Aeon then
-                    --override for Dostya on SC Cybran M1 sine she starts with an ACU but isn't hostile to UEF or Aeon:
-                    bUseM28AI = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering brain, bIsEnemyOfSomeone='..tostring(bIsEnemyOfSomeone)..'; bEnemyOfPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)..'; bEnemyOfPlayerAlly='..tostring(bEnemyOfPlayerAlly)..'; bEnemyOfPlayerEnemy='..tostring(bEnemyOfPlayerEnemy)) end
+                local bUseM28AI = false
+                if bEnemyOfPlayer and (iCampaignAISetting == refiEnemies or iCampaignAISetting == refiAlliesAndEnemies) then
+                    bUseM28AI = true
+                    if aiBrain.CampaignAI then aiBrain.HostileCampaignAI = true end
+                elseif (bAllyOfPlayerWithEnemy or (bIsEnemyOfSomeone and not(bEnemyOfPlayer) and not(bEnemyOfPlayerAlly) and bEnemyOfPlayerEnemy)) and (iCampaignAISetting == refiAllies or iCampaignAISetting == refiAlliesAndEnemies) then
+                    bUseM28AI = true
                 end
-            end
 
-            --[[for iBrain, oBrain in ArmyBrains do
-                if not(oBrain == aiBrain) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if oBrain '..oBrain.Nickname..' is an enemy to aiBrain '..aiBrain.Nickname..'; IsEnemy='..tostring(IsEnemy(iBrainIndex, oBrain:GetArmyIndex()))) end
 
-                    if IsEnemy(oBrain:GetArmyIndex(), iBrainIndex) then bHaveEnemy = true end
-                    --if IsAlly(oBrain:GetArmyIndex(), iBrainIndex) then bHaveAlly = true end
+                if bUseM28AI then
+                    --override for brackman on FA M5 so we dont control the megalith:
+                    if aiBrain.Nickname == 'Brackman' and ScenarioInfo.Brackman and ScenarioInfo.Fletcher and ScenarioInfo.Hex5 then
+                        bUseM28AI = false
+                    end
+                    if aiBrain.Nickname == 'Dostya' and ScenarioInfo.Wreckage_Holding and ScenarioInfo.FauxUEF and ScenarioInfo.Symbiont and ScenarioInfo.Aeon then
+                        --override for Dostya on SC Cybran M1 sine she starts with an ACU but isn't hostile to UEF or Aeon:
+                        bUseM28AI = false
+                    end
                 end
-            end--]]
-            --Removedl ogic re IsAlly, since even if it is an ally to one of us if it has no enemies there's nothign to attack
-            if bDebugMessages == true then LOG(sFunctionRef..': oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')..'; bUseM28AI='..tostring(bUseM28AI)..'; bEnemyofPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)) end
-            if bUseM28AI then --or bHaveAlly then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': Brain doesnt meet the ally or enemy settings so wont give M28 logic to it') end
+
+                --[[for iBrain, oBrain in ArmyBrains do
+                    if not(oBrain == aiBrain) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if oBrain '..oBrain.Nickname..' is an enemy to aiBrain '..aiBrain.Nickname..'; IsEnemy='..tostring(IsEnemy(iBrainIndex, oBrain:GetArmyIndex()))) end
+
+                        if IsEnemy(oBrain:GetArmyIndex(), iBrainIndex) then bHaveEnemy = true end
+                        --if IsAlly(oBrain:GetArmyIndex(), iBrainIndex) then bHaveAlly = true end
+                    end
+                end--]]
+                --Removedl ogic re IsAlly, since even if it is an ally to one of us if it has no enemies there's nothign to attack
+                if bDebugMessages == true then LOG(sFunctionRef..': oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')..'; bUseM28AI='..tostring(bUseM28AI)..'; bEnemyofPlayer='..tostring(bEnemyOfPlayer)..'; bAllyOfPlayerWithEnemy='..tostring(bAllyOfPlayerWithEnemy)) end
+                if bUseM28AI then --or bHaveAlly then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain doesnt meet the ally or enemy settings so wont give M28 logic to it') end
+                end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname..'; iCampaignAISetting='..(iCampaignAISetting or 'nil')..'; refiNone='..refiNone) end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname..'; iCampaignAISetting='..(iCampaignAISetting or 'nil')..'; refiNone='..refiNone) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
 end
 
 function HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLocationsToAvoid, iDistanceThreshold)

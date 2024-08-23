@@ -711,33 +711,35 @@ function CreateNewTeam(aiBrain)
                     end
                 end
                 if bHaveSameEnemies then
-                    oBrain.M28Team = iTotalTeamCount
-                    table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
-                    if oBrain.M28AI then
-                        table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
-                        tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                    if not(oBrain.M28Team) or oBrain.M28Team == iTotalTeamCount then --e.g. campaign might change team part-way through, dont want to change team of existing players or breaks their logic
+                        oBrain.M28Team = iTotalTeamCount
+                        table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
+                        if oBrain.M28AI then
+                            table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
+                            tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                        end
+                        if oBrain.CheatEnabled then
+                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                        else
+                            oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
+                        end
+                        bHaveM28BrainInTeam = true
+                        --Check if we have omni vision for the team
+                        if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                            tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
+                        end
+                        --Record brain details in log for ease of reference
+                        local sAIxref = ''
+                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+                        if oBrain.CheatEnabled then
+                            sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
+                        end
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                     end
-                    if oBrain.CheatEnabled then
-                        tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                        tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                    else
-                        oBrain[M28Economy.refiBrainResourceMultiplier] = 1
-                        oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
-                    end
-                    bHaveM28BrainInTeam = true
-                    --Check if we have omni vision for the team
-                    if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
-                        tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
-                    end
-                    --Record brain details in log for ease of reference
-                    local sAIxref = ''
-                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
-                    if oBrain.CheatEnabled then
-                        sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
-                    end
-                    LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
                 end
             end
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
@@ -1891,7 +1893,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
 
                             else
-                                --M28 ally specific
+                                --M28 (non-ally) specific
 
                                 --Air staging - clear any engineers in other zones constructing them if we dont ahve T3 air
                                 if EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oUnit.UnitId) and tTeamData[oUnit:GetAIBrain().M28Team][subrefiHighestFriendlyAirFactoryTech] < 3 then
@@ -1947,6 +1949,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             end
                                         end
                                     end
+                                end
+
+                                --Selen assignment logic
+                                if EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oUnit.UnitId) then
+                                    ForkThread(M28Land.ConsiderAssigningScoutToLurkerLogic, oUnit)
                                 end
                             end
                             --Update intel coverage for units being constructed and/or allied units (in addition when a radar/sonar is constructed it will also trigger the below if it hasnt already run as a redundancy)
@@ -2319,16 +2326,16 @@ function UpdateFactionBlueprintBlacklist(iLandSubteam)
     if bConsiderScoutRestrictions then
         --Land scouts
         if M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
-            --Only want Aeon land scouts
+            --Only want Aeon land scouts (or seraphim for lurker mode)
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
             --If have cybran tech then prioritise this
             tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+            if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, blacklist for subteam '..iLandSubteam..' = '..repru(tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist])) end

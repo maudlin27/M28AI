@@ -606,6 +606,11 @@ function OnUnitDeath(oUnit)
                                 if oUnit[M28Land.refoMobileShieldTarget] then
                                     oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
                                 end
+                            else
+                                --Fraction complete is <1
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                    M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --still want to consider due to issue had where ACU was rebuilding only land fac was part-compelte, it got destroyed, but it thought it had T1 land fac available
+                                end
                             end
                             --Update record of units with disabled weapons
                             if oUnit[M28UnitInfo.refbWeaponDisabled] then
@@ -689,6 +694,8 @@ function OnEnhancementComplete(oUnit, sEnhancement)
 
         --Check we haven't just run this
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
+            --Clear micro flag as we set it to true for some units to avoid orders overriding
+            if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
             if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
             if oUnit[M28ACU.refbWantsPriorityUpgrade] then oUnit[M28ACU.refbWantsPriorityUpgrade] = nil end
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
@@ -1621,6 +1628,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 --Decide if want to shield this construction and update buildable location, or (in the case of experimentals) if we want to cancel the construction
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
+                    --LOUD specific - cant build resource gens near each other
+                    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
+                        ForkThread(M28Building.RecordExperimentalResourceGen, oConstruction)
+                    end
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) and not(oEngineer[M28Building.reftArtiTemplateRefs]) then
                         local iTeam = oEngineer:GetAIBrain().M28Team
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.6)) then
@@ -1911,7 +1922,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
-
+                        --Loud T2 sniperbots - consider enhancement
+                    elseif M28Utilities.bLoudModActive and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
+                        ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
 
                     --Experimental air - no longer record in land/water zone
@@ -2695,6 +2708,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             M28Land.UpdateZoneIntelForRadar(oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
+                        elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then
+                            if M28Utilities.bLoudModActive then
+                                ForkThread(M28Building.RecordExperimentalResourceGen, oUnit)
+                            end
                         end
                     end
 
