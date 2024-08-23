@@ -476,7 +476,7 @@ end
 
 function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     --Dont call via forkthread as causes issues with the unit being removed
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateHighestFactoryTechLevelForDestroyedUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
