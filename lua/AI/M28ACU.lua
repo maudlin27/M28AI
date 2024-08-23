@@ -4504,7 +4504,7 @@ function GetACUOrder(aiBrain, oACU)
                 if bWantAnotherFactory then
                     bProceedWithLogic = false
                     ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
-
+                    oACU[refbDoingInitialBuildOrder] = true --reset flag so we get some mexes and pgens
 
                     if bDebugMessages == true then LOG(sFunctionRef..': WIll try and rebuild base by building a factory') end
                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
