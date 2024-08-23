@@ -606,6 +606,11 @@ function OnUnitDeath(oUnit)
                                 if oUnit[M28Land.refoMobileShieldTarget] then
                                     oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
                                 end
+                            else
+                                --Fraction complete is <1
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                    M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --still want to consider due to issue had where ACU was rebuilding only land fac was part-compelte, it got destroyed, but it thought it had T1 land fac available
+                                end
                             end
                             --Update record of units with disabled weapons
                             if oUnit[M28UnitInfo.refbWeaponDisabled] then

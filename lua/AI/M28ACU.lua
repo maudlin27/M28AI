@@ -4454,7 +4454,7 @@ function GetACUOrder(aiBrain, oACU)
         if bProceedWithLogic then
             --Special case - rebuilding destroyed base (relevant for teamgame) - if ACU at core base, and has no factories, then build a factory
             --Cant just use factory count in case we have plateaus/islands that have factories on them
-            if bDebugMessages == true then LOG(sFunctionRef..': Considerinb brain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()..'; Current factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)..'; In core LZ='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; aiBrain[M28Economy.refiOurHighestAirFactoryTech]='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; brain mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Brain energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considerinb brain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()..'; Current factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)..'; In core LZ='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; aiBrain[M28Economy.refiOurHighestAirFactoryTech]='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; brain mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Brain energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring((tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false))..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..(aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; aiBrain[M28Economy.refiNetMassBaseIncome]='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; Energy % stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; LZ S value='..(tLZOrWZTeamData[M28Map.subrefLZSValue] or 'nil')..'; Time last built at facotry based on refiTimeLastBuiltAtFactory='..GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] or 0)) end
             if (iPlateauOrZero > 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
                 --Consider getting another factory if either have none of a particular type, or we are close to overflowing
                 local bWantAnotherFactory
@@ -4510,6 +4510,7 @@ function GetACUOrder(aiBrain, oACU)
                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                         --Try building land if we failed to build air, and vice versa, provided we have decent power, and we lack any factories of the other type, and we want more factories
                         local bWantMoreFactories = M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                        if bDebugMessages == true then LOG(sFunctionRef..': We dont have a valid order, bWantMoreFactories='..tostring(bWantMoreFactories)..'; Energy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')) end
                         if bWantMoreFactories and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 then
                             if iFactoryEngineerAction == M28Engineer.refActionBuildLandFactory then
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
@@ -4519,6 +4520,7 @@ function GetACUOrder(aiBrain, oACU)
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryLandFactory
                             end
                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, iFactoryCategoryToGet, iFactoryEngineerAction)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just tried another factory type with iFactoryEngineerAction='..iFactoryEngineerAction..'; do we have a valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
                         end
 
                         if bWantMoreFactories and not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
