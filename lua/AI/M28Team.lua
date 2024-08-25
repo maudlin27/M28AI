@@ -2189,7 +2189,7 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveGroundUnitWithNoPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local refsTrackingVariable = 'M28ActiveNoPlateau'..oTrackingBrain:GetArmyIndex()
+    local refsTrackingVariable = 'M28NoPlateauActive'..oTrackingBrain:GetArmyIndex()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4229,8 +4229,8 @@ function CheckIfCampaignTeamHasBuildings(iTeam)
     local sFunctionRef = 'CheckIfCampaignAIHasBuildings'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if not(tTeamData[iTeam]['M28ActiveBuildingChecker']) then
-        tTeamData[iTeam]['M28ActiveBuildingChecker'] = true
+    if not(tTeamData[iTeam]['M28BuildingCheckerActive']) then
+        tTeamData[iTeam]['M28BuildingCheckerActive'] = true
         tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] = false
         --Wait number of ticks based on army index
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

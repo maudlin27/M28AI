@@ -3110,8 +3110,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
 
 
-    if not (oFactory['M28ActiveBuilderCheck']) then
-        oFactory['M28ActiveBuilderCheck'] = true
+    if not (oFactory['M28BuilderCheckActive']) then
+        oFactory['M28BuilderCheckActive'] = true
         local iTicksWaited = 0
         local bDontCheckCutsceneStatus = true
         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
@@ -3310,7 +3310,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             end
         end
     end
-    oFactory['M28ActiveBuilderCheck'] = false
+    oFactory['M28BuilderCheckActive'] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
