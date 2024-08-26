@@ -6,6 +6,29 @@
 
 local defaultOrdersTable = defaultOrdersTable or { }
 
+GetOrderBitmapNames = function(bitmapId)
+    --LOG('GetOrderBitmapNames: Start')
+    if bitmapId == nil then
+        LOG("Error - nil bitmap passed to GetOrderBitmapNames")
+        bitmapId = "basic-empty"    -- TODO do I really want to default it?
+    end
+
+    local button_prefix
+    --LOG('bitmapId='..(bitmapId or 'nil')..'; string.sub(bitmapId, 1, 3)='..string.sub(bitmapId, 1, 3))
+    if string.sub(bitmapId, 1, 3) == 'M28' then
+        button_prefix = "/mods/M28AI/textures/"..bitmapId.."_btn_"
+    else
+        button_prefix = "/game/orders/" .. bitmapId .. "_btn_"
+    end
+    return UIUtil.SkinnableFile(button_prefix .. "up.dds")
+    ,  UIUtil.SkinnableFile(button_prefix .. "up_sel.dds")
+    ,  UIUtil.SkinnableFile(button_prefix .. "over.dds")
+    ,  UIUtil.SkinnableFile(button_prefix .. "over_sel.dds")
+    ,  UIUtil.SkinnableFile(button_prefix .. "dis.dds")
+    ,  UIUtil.SkinnableFile(button_prefix .. "dis_sel.dds")
+    , "UI_Action_MouseDown", "UI_Action_Rollover"   -- sets click and rollover cues
+end
+
 local function M28AIToggle(self, modifiers, subState)
     --This runs when the user clicks on the button to toggle whether M28 is enabled on the unit or not
     local state
@@ -63,7 +86,7 @@ local function M28ScriptButtonInitFunction(control, unitList, subCheck)
 end
 
 --extraInfo == 7 - this is used by blacksun only, so wouldn't expect it to cause issues more generally
-defaultOrdersTable['M28Toggle'] = {                       helpText = "M28Toggle",  bitmapId = 'charge',                 preferredSlot = 10,  behavior = M28AIToggle, initialStateFunc = M28ScriptButtonInitFunction, extraInfo = 7}
+defaultOrdersTable['M28Toggle'] = {                       helpText = "M28Toggle",  bitmapId = 'M28charge',                 preferredSlot = 10,  behavior = M28AIToggle, initialStateFunc = M28ScriptButtonInitFunction, extraInfo = 7}
 
 function CreateAltOrders(availableOrders, availableToggles, units)
     --Following is a copy of the FAF CreateAltOrders as at 2024-08-23 (with modification to add in a button for M28AI), refer to FAF for the copyright relating to this
@@ -77,7 +100,30 @@ function CreateAltOrders(availableOrders, availableToggles, units)
 
     -- TODO? it would indeed be easier if the alt orders slot was in the blueprint, but for now try
     -- to determine where they go by using preferred slots
-    AddAbilityButtons(standardOrdersTable, availableOrders, units)
+    --ADDED FOR LOUD
+    --LOG('About to define M28AddAbilityButtons')
+
+    M28AddAbilityButtons = function(standardOrdersTable, availableOrders, units)
+        -- Look for units in the selection that have special ability buttons
+        -- If any are found, add the ability information to the standard order table
+        if units and categories.ABILITYBUTTON and EntityCategoryFilterDown(categories.ABILITYBUTTON, units) then
+            for index, unit in units do
+                local tempBP = UnitData[unit:GetEntityId()]
+                if tempBP.Abilities then
+                    for abilityIndex, ability in tempBP.Abilities do
+                        if ability.Active ~= false then
+                            table.insert(availableOrders, abilityIndex)
+                            standardOrdersTable[abilityIndex] = table.merged(ability, import("/lua/abilitydefinition.lua").abilities[abilityIndex])
+                            standardOrdersTable[abilityIndex].behavior = AbilityButtonBehavior
+                        end
+                    end
+                end
+            end
+        end
+    end
+    --LOG('Finished defining M28AddAbilityButtons')
+
+    M28AddAbilityButtons(standardOrdersTable, availableOrders, units)
 
     local assistingUnitList = {}
 

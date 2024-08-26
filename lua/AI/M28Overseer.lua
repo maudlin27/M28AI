@@ -524,7 +524,8 @@ end
 
 
 function TestCustom(aiBrain)
-    local oHumanBrain
+    LOG('repr of scenariooptions='..reprs(ScenarioInfo.Options))
+    --[[local oHumanBrain
     for iBrain, oBrain in ArmyBrains do
         if oBrain.BrainType == 'Human' then
             oHumanBrain = oBrain
@@ -535,7 +536,7 @@ function TestCustom(aiBrain)
 
     local oUnit = CreateUnit('ual0204', oHumanBrain:GetArmyIndex(), tBase[1], tBase[2], tBase[3], 0, 0, 0, 0, 'Air')
 
-    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')
+    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')--]]
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
@@ -2566,8 +2567,8 @@ function SetM28ActiveFlag()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if not(M28Orders.bDontConsiderCombinedArmy == false) and tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1 then
-        M28Orders.bDontConsiderCombinedArmy = true
-        M28UnitInfo.bDontConsiderCombinedArmy = true
+        M28Orders.bDontConsiderCombinedArmy = false
+        M28UnitInfo.bDontConsiderCombinedArmy = false
         --Go through every human brain and treat it as an M28AI brain
         for iBrain, oBrain in ArmyBrains do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname) end

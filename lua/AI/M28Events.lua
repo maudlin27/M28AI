@@ -2733,7 +2733,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
                         --M28Active flag (enable for all M28AI units)
-                        if not(M28Orders.bDontConsiderCombinedArmy) and not(oUnit:GetAIBrain().BrainType == 'Human') then oUnit.M28Active = true end
+                        if not(M28Orders.bDontConsiderCombinedArmy) and not(oUnit:GetAIBrain().BrainType == 'Human') then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
+                            oUnit.M28Active = true
+                        end
 
                         --Check for upgrading unit transferred to us
                         if oUnit.IsUpgrade then

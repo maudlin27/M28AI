@@ -972,7 +972,7 @@ end
 end--]]
 
 function ClearAnyRepairingUnits(oUnitBeingRepaired)
-    if bDontConsiderCombinedArmy or oUnit.M28Active then
+    if bDontConsiderCombinedArmy or oUnitBeingRepaired.M28Active then
         --LOG('Is table of units ordered to repair oUnitBeingRepaired='..oUnitBeingRepaired.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitBeingRepaired)..' empty='..tostring(M28Utilities.IsTableEmpty(oUnitBeingRepaired[toUnitsOrderedToRepairThis])))
         if oUnitBeingRepaired[toUnitsOrderedToRepairThis] then
             if M28Utilities.IsTableEmpty(oUnitBeingRepaired[toUnitsOrderedToRepairThis]) == false then

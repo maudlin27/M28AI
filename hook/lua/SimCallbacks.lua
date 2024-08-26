@@ -21,7 +21,7 @@ Callbacks.M28TestCallback = function(data, units)
     else
         for _, oUnit in units or {} do
             if IsEntity(oUnit) then
-                LOG('M28TestCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false))
+                --LOG('M28TestCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false)..'; unit is owned by brain '..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds())
                 oUnit.M28Active = data.Enable
                 local iValue = 0
                 if data.Enable then iValue = 1 end

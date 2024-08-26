@@ -17,7 +17,7 @@ tiThreatRefsCalculated = {} --table of the threat ID references that have done b
 tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] = true, ['11'] = true} --used to translate the result of UnitBlueprint.Physics.BuildOnLayerCaps which doesnt return the table shown in the blueprint but instead returns one of these values (or 'Air' - which is what a czar returns)
 tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
 
-bDontConsiderCombinedArmy = false --shares same desc as M28Orders (for easier referencing)
+bDontConsiderCombinedArmy = true --shares same desc as M28Orders (for easier referencing)
 
 --Factions
 refFactionUEF = 1

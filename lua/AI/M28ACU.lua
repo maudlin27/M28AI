@@ -980,7 +980,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.8 then
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build land factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
-                                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) and (M28Orders.bDontConsiderCombinedArmy or oACU.M28Active) then
                                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build air factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
                                             if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
@@ -4132,7 +4132,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 
@@ -5191,7 +5191,6 @@ function ManageACU(aiBrain, oACUOverride)
     local sFunctionRef = 'ManageACU'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if aiBrain.BrainType == 'Human' then bDebugMessages = true end
     --First get our ACU
     local oACU = oACUOverride
     local iWaitCount = 0

@@ -114,18 +114,25 @@ function UpdateOtherLOUDInformation()
         local LobbyOptions = import('/mods/M28AI/lua/CustomOptions/M28LOUDLobbyOptions.lua')
         local vCurKey
         if bDebugMessages == true then LOG(sFunctionRef..': About to go through lobby options and update scenario info, LobbyOptions.LobbyGlobalOptions='..repru(LobbyOptions.LobbyGlobalOptions)) end
+        local bUseKeyForValue
         for iEntry, tOptionData in LobbyOptions.LobbyGlobalOptions do
             vCurKey = ScenarioInfo.Options[tOptionData.key]
+            bUseKeyForValue = tOptionData.bUseKeyAsValueInScenarioInfo or false
             if bDebugMessages == true then LOG(sFunctionRef..': Considering vCurKey='..(vCurKey or 'nil')..'; tOptionData.key='..(tOptionData.key or 'nil')..'; iEntry='..iEntry) end
             for iValueEntry, tValueData in tOptionData.values do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering tValueData.key='..tValueData.key or 'nil') end
                 if tValueData.key == vCurKey then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Replacing scenario info for option Data key='..tOptionData.key..'; Scenario info value='..ScenarioInfo.Options[tOptionData.key]..'; Will change to tValueData.text='..tValueData.text) end
-                    ScenarioInfo.Options[tOptionData.key] = tValueData.text
+                    if bDebugMessages == true then LOG(sFunctionRef..': Replacing scenario info for option Data key='..tOptionData.key..'; Scenario info value='..ScenarioInfo.Options[tOptionData.key]..'; Will change to tValueData.text='..tValueData.text..'; bUseKeyForValue='..tostring(bUseKeyForValue)..'; tValueData.key='..(tValueData.key or 'nil')) end
+                    if bUseKeyForValue then
+                        ScenarioInfo.Options[tOptionData.key] = tValueData.key
+                    else
+                        ScenarioInfo.Options[tOptionData.key] = tValueData.text
+                    end
                     break
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')) end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
