@@ -6,7 +6,18 @@
 ---
 Callbacks.M28TestCallback = function(data, units)
     if not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then
-        LOG('We havent enabled M28AI combined armies in game settings')
+        local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+        local aiBrain
+        for _, oUnit in units or {} do
+            if oUnit.GetAIBrain and not (oUnit.Dead) then
+                aiBrain = oUnit:GetAIBrain()
+                break
+            end
+        end
+        if aiBrain then
+            M28Chat.SendMessage(aiBrain, 'SharedAI', 'You need to enable combined AI-Human armies in game settings for this option to work', 0, 1, nil, false, nil, nil, aiBrain)
+            LOG('We havent enabled M28AI combined armies in game settings')
+        end
     else
         for _, oUnit in units or {} do
             if IsEntity(oUnit) then
