@@ -230,4 +230,24 @@ AIOpts = {
             },
         },
     },
+    {
+        default = 2,
+        label = "M28: Combined AI-Human armies?",
+        help = 'If enabled, then human players can toggle M28AI logic on individual units',
+        key = 'M28CombinedArmy',
+        value_text = "",
+        value_help = "Allow M28 to take control of certain units?",
+        values = {
+            {
+                text = 'Yes',
+                help = 'Enable combined armies',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Disable combined armies',
+                key = 2,
+            },
+        },
+    },
 }

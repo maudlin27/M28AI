@@ -2631,8 +2631,10 @@ function AllocateTeamEnergyAndMassResources(iTeam)
         local iTotalMassStored = 0
 
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            iTotalEnergyStored = iTotalEnergyStored + oBrain:GetEconomyStored('ENERGY')
-            iTotalMassStored = iTotalMassStored + oBrain:GetEconomyStored('MASS')
+            if M28Orders.bDontConsiderCombinedArmy or oBrain.BrainType == 'AI' then
+                iTotalEnergyStored = iTotalEnergyStored + oBrain:GetEconomyStored('ENERGY')
+                iTotalMassStored = iTotalMassStored + oBrain:GetEconomyStored('MASS')
+            end
         end
         local iAverageEnergyStored = iTotalEnergyStored / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
         local iAverageMassStored = iTotalMassStored / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
@@ -2642,52 +2644,54 @@ function AllocateTeamEnergyAndMassResources(iTeam)
 
         --Sort brains into those that have mass, and those that give mass
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            iCurEnergySpare = oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored
-            --Adjust spare energy if we have significantly different % to average
-            if math.abs(oBrain:GetEconomyStoredRatio('ENERGY') - M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) >= 0.3 then
-                if iCurEnergySpare >= 0 and oBrain:GetEconomyStoredRatio('ENERGY') < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] then
-                    iCurEnergySpare = -GetEnergyStorageMaximum(oBrain) * 0.1
-                elseif iCurEnergySpare <= 0 and oBrain:GetEconomyStoredRatio('ENERGY') > M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] then
-                    if oBrain:GetEconomyStored('ENERGY') >= M28Building.iEnergyStorageExpectedCapacity or oBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
-                        iCurEnergySpare = 0
+            if M28Orders.bDontConsiderCombinedArmy or oBrain.BrainType == 'AI' then
+                iCurEnergySpare = oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored
+                --Adjust spare energy if we have significantly different % to average
+                if math.abs(oBrain:GetEconomyStoredRatio('ENERGY') - M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) >= 0.3 then
+                    if iCurEnergySpare >= 0 and oBrain:GetEconomyStoredRatio('ENERGY') < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] then
+                        iCurEnergySpare = -GetEnergyStorageMaximum(oBrain) * 0.1
+                    elseif iCurEnergySpare <= 0 and oBrain:GetEconomyStoredRatio('ENERGY') > M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] then
+                        if oBrain:GetEconomyStored('ENERGY') >= M28Building.iEnergyStorageExpectedCapacity or oBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
+                            iCurEnergySpare = 0
+                        end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurEnergySpare after limiting based on ratios='..iCurEnergySpare..'; Expected value before limitation='..(oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored)) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurEnergySpare after limiting based on ratios='..iCurEnergySpare..'; Expected value before limitation='..(oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored)) end
-            end
 
-            if iCurEnergySpare < 0 then
-                --Limit Energy to receive to the amount that takes us to 95% storage:
-                iCurEnergySpare = math.max(iCurEnergySpare, math.min(0, oBrain:GetEconomyStored('ENERGY') -  GetEnergyStorageMaximum(oBrain) * 0.95))
                 if iCurEnergySpare < 0 then
-                    table.insert(tDetailsOfBrainsNeedingEnergy, {[subrefoBrain] = oBrain, [subrefiRemainingResourceNeeded] = iCurEnergySpare})
-                end
-            elseif iCurEnergySpare > 0 then
-                table.insert(tDetailsOfBrainsWithEnergy, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurEnergySpare})
-            end
-
-            iCurMassSpare = oBrain:GetEconomyStored('MASS') - iAverageMassStored
-            --Adjust spare mass if we have significantly different % to average
-            if math.abs(oBrain:GetEconomyStoredRatio('MASS') - M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) >= 0.2 or (iCurMassSpare < 0 and oBrain:GetEconomyStoredRatio('MASS') >= 0.95) then
-                if iCurMassSpare >= 0 and oBrain:GetEconomyStoredRatio('MASS') < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
-                    iCurMassSpare = -GetMassStorageMaximum(oBrain) * 0.05
-                elseif iCurMassSpare <= 0 and oBrain:GetEconomyStoredRatio('MASS') > M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
-                    if oBrain:GetEconomyStored('MASS') >= 700 or oBrain:GetEconomyStoredRatio('MASS') >= 0.9 then
-                        iCurMassSpare = 0
+                    --Limit Energy to receive to the amount that takes us to 95% storage:
+                    iCurEnergySpare = math.max(iCurEnergySpare, math.min(0, oBrain:GetEconomyStored('ENERGY') -  GetEnergyStorageMaximum(oBrain) * 0.95))
+                    if iCurEnergySpare < 0 then
+                        table.insert(tDetailsOfBrainsNeedingEnergy, {[subrefoBrain] = oBrain, [subrefiRemainingResourceNeeded] = iCurEnergySpare})
                     end
+                elseif iCurEnergySpare > 0 then
+                    table.insert(tDetailsOfBrainsWithEnergy, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurEnergySpare})
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurMassSpare after limiting based on ratios='..iCurMassSpare..'; Expected value before limitation='..(oBrain:GetEconomyStored('MASS') - iAverageMassStored)) end
-            end
 
-            if iCurMassSpare < 0 then
-                --Limit mass to receive to the amount that takes us to 95% storage:
-                iCurMassSpare = math.max(iCurMassSpare, math.min(0, oBrain:GetEconomyStored('MASS') -  GetMassStorageMaximum(oBrain) * 0.95))
-                if iCurMassSpare < 0 then
-                    table.insert(tDetailsOfBrainsNeedingMass, {[subrefoBrain] = oBrain, [subrefiRemainingResourceNeeded] = iCurMassSpare})
+                iCurMassSpare = oBrain:GetEconomyStored('MASS') - iAverageMassStored
+                --Adjust spare mass if we have significantly different % to average
+                if math.abs(oBrain:GetEconomyStoredRatio('MASS') - M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) >= 0.2 or (iCurMassSpare < 0 and oBrain:GetEconomyStoredRatio('MASS') >= 0.95) then
+                    if iCurMassSpare >= 0 and oBrain:GetEconomyStoredRatio('MASS') < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+                        iCurMassSpare = -GetMassStorageMaximum(oBrain) * 0.05
+                    elseif iCurMassSpare <= 0 and oBrain:GetEconomyStoredRatio('MASS') > M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+                        if oBrain:GetEconomyStored('MASS') >= 700 or oBrain:GetEconomyStoredRatio('MASS') >= 0.9 then
+                            iCurMassSpare = 0
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurMassSpare after limiting based on ratios='..iCurMassSpare..'; Expected value before limitation='..(oBrain:GetEconomyStored('MASS') - iAverageMassStored)) end
                 end
-            elseif iCurMassSpare > 0 then
-                table.insert(tDetailsOfBrainsWithMass, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurMassSpare})
+
+                if iCurMassSpare < 0 then
+                    --Limit mass to receive to the amount that takes us to 95% storage:
+                    iCurMassSpare = math.max(iCurMassSpare, math.min(0, oBrain:GetEconomyStored('MASS') -  GetMassStorageMaximum(oBrain) * 0.95))
+                    if iCurMassSpare < 0 then
+                        table.insert(tDetailsOfBrainsNeedingMass, {[subrefoBrain] = oBrain, [subrefiRemainingResourceNeeded] = iCurMassSpare})
+                    end
+                elseif iCurMassSpare > 0 then
+                    table.insert(tDetailsOfBrainsWithMass, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurMassSpare})
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare..'; Actual mass stored='..oBrain:GetEconomyStored('MASS')..'; Actual energy stored='..oBrain:GetEconomyStored('ENERGY')..'; iAverageMassStored='..iAverageMassStored) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare..'; Actual mass stored='..oBrain:GetEconomyStored('MASS')..'; Actual energy stored='..oBrain:GetEconomyStored('ENERGY')..'; iAverageMassStored='..iAverageMassStored) end
         end
 
         --Allocate resources:

@@ -5,13 +5,17 @@
 ---
 ---
 Callbacks.M28TestCallback = function(data, units)
-    for _, oUnit in units or {} do
-        if IsEntity(oUnit) then
-            LOG('M28TestCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false))
-            oUnit.M28Active = data.Enable
-            local iValue = 0
-            if data.Enable then iValue = 1 end
-            oUnit:UpdateStat('M28Active', iValue)
+    if not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then
+        LOG('We havent enabled M28AI combined armies in game settings')
+    else
+        for _, oUnit in units or {} do
+            if IsEntity(oUnit) then
+                LOG('M28TestCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false))
+                oUnit.M28Active = data.Enable
+                local iValue = 0
+                if data.Enable then iValue = 1 end
+                oUnit:UpdateStat('M28Active', iValue)
+            end
         end
     end
 end

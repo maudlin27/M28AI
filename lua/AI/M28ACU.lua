@@ -5191,7 +5191,7 @@ function ManageACU(aiBrain, oACUOverride)
     local sFunctionRef = 'ManageACU'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if aiBrain.BrainType == 'Human' then bDebugMessages = true end
     --First get our ACU
     local oACU = oACUOverride
     local iWaitCount = 0

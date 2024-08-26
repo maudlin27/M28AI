@@ -2904,7 +2904,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local iCurAirAAThreat = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                    if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                    if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
                         iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
                         if iCurAirAAThreat > iHumanAirAAToInclude then
                             oHumanToInclude = oBrain
@@ -3571,7 +3571,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         local iAllTeamAirAAThreat = 0
                                         local iCurAirAAThreat = 0
                                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                                            if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                                            if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
                                                 iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
                                                 iAllTeamAirAAThreat = iAllTeamAirAAThreat + iCurAirAAThreat
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering human '..oBrain.Nickname..'; iCurAirAAThreat='..iCurAirAAThreat..'; iAllTeamAirAAThreat='..iAllTeamAirAAThreat) end

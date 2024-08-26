@@ -2732,6 +2732,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if oUnit:GetAIBrain().M28AI then
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
+                        --M28Active flag (enable for all M28AI units)
+                        if not(M28Orders.bDontConsiderCombinedArmy) and not(oUnit:GetAIBrain().BrainType == 'Human') then oUnit.M28Active = true end
 
                         --Check for upgrading unit transferred to us
                         if oUnit.IsUpgrade then

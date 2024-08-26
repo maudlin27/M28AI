@@ -358,7 +358,7 @@ function CreateNewAirSubteam(aiBrain)
 
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; tNearestEnemyBase='..repru(tNearestEnemyBase)..'; Our start point='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])) end
-    local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tNearestEnemyBase)
+    local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.GetPlayerStartPosition(aiBrain), tNearestEnemyBase)
     local bSameAirSubteam
     --Low threshold - if within this dist will be grouped regardless of angle difference
     --High threshold - if within certain angle differential then will group if satisfy this distance
@@ -3786,7 +3786,19 @@ function GetCurrentUnitsOfCategory(iM28Team, iCategory)
 end
 
 function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
-    import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+    if M28Orders.bDontConsiderCombinedArmy then
+        import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+    else
+        local tUnitsToTransfer = {}
+        for iUnit, oUnit in tUnits do
+            if oUnit.M28Active then
+                table.insert(tUnitsToTransfer, oUnit)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsToTransfer) == false then
+            import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnitsToTransfer, iArmyIndex, bCaptured)
+        end
+    end
 end
 
 function DelayedUnitTransferToPlayer(tUnits, iReceivingBrainIndex, iSecondsToWait)
