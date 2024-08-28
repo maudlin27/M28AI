@@ -1146,7 +1146,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) and iFactoryTechLevel == 1 then
         if M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandCombat) == 0 then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Core expansion - have no land combat so will try to get some')
+                LOG(sFunctionRef .. ': T1 factory Core expansion - have no land combat so will try to get some')
             end
             --Get LAB if we arent seraphim, and this is the only land fac in this zone
             if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) then
@@ -1181,7 +1181,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
         if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks, will prioritise bots if our factory LC is low for them, attack bot lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false)..'; DF tank lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false)) end
-        if M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
+        if iFactoryTechLevel == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
         elseif M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false) < (1 + M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) * 2.5 and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild
         elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat -M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
         end
@@ -1783,7 +1783,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3 then
             --Get LABs for the first couple of combat units (non-seraphim)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': T1 factory - Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             local iAttackBotLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)
             if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and iAttackBotLifetimeCount <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then
                 return sBPIDToBuild
