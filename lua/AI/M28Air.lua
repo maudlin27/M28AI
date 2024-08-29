@@ -4700,7 +4700,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 90*60 then bDebugMessages = true end
 
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
@@ -5077,7 +5077,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.min(5500, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
                             else
                                 --Shields stack, so allow a 3:1 threat ratio
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(10000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
                             end
                         end
                     end
@@ -5087,6 +5087,17 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     end
                     if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
+                    --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
+                    if iOurGunshipThreat >= 10000 then
+                        if M28Utilities.bLoudModActive then
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
+                            if iOurGunshipThreat >= 20000 then
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
+                            end
+                        elseif iOurGunshipThreat >= 12000 then
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 12000) / (iGunshipThreatFactorWanted * 0.2))
+                        end
+                    end
 
                     --Check if enemy has enough AA nearby
                     local bTooMuchAA
