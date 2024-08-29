@@ -100,6 +100,7 @@ refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted
 refbLurkerMode = 'M28ULrkMd' --true if unit is adopting selen 'engi lurker' mode logic
 
     --Ranges and weapon details
+refiWeaponScanRange = 'M28WpSRn' --I.e. the range the unit will move to for attack-move in LOUD; nil if unit doesnt have one
 refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
 refiDFMinRange = 'M28DFMinRng' --Min range of a unit
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
@@ -1769,6 +1770,8 @@ function RecordUnitRange(oUnit)
     --Record unit best range
     oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+    --Record attackmove range if LOUD is active
+    if oBP.AI.GuardScanRadius then oUnit[refiWeaponScanRange] = oBP.AI.GuardScanRadius end --want to be nil if not present; looks like this is a LOUD specific value from a couple of unit blueprint spot-checks
 
     --Record mass cost
     local iMassCost = (oBP.Economy.BuildCostMass or 0)
