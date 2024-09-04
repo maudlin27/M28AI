@@ -1312,7 +1312,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
 end
 function LongRangeThreatMonitor(iTeam)
     --Call via forkthread
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'LongRangeThreatMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iTableSize
@@ -1351,6 +1351,7 @@ function LongRangeThreatMonitor(iTeam)
                                         if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
                                             for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
                                                 if oUnit == oRecordedUnit then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from iAdjLZ='..iAdjLZ) end
                                                     table.remove(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], iRecordedUnit)
                                                     break
                                                 end
@@ -1363,10 +1364,15 @@ function LongRangeThreatMonitor(iTeam)
 
                         --Add to nearby zones
                         oUnit[sreftiLastPlateauAndZone] = {[1]=iPlateauOrZero,[2]=iLandOrWaterZone}
-                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 120 --tried +40 (meaning 140 range on fatboy) but led to fatboy getting free hits on units with the dist between zones being 195; have therefore increased the dist threshold, and added in a distance check into the zone itself which will go with a slightly lower distance
+                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 140 --tried +40 (meaning 140 range on fatboy) but led to fatboy getting free hits on units with the dist between zones being 195; have therefore increased the dist threshold, and added in a distance check into the zone itself which will go with a slightly lower distance.  With +120 still had cases where e.g. 100 range PD would shoot units in zone + 1 away that weren't being registered (were 20 out)
+                        local bIsBuilding = EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)
+                        if bIsBuilding then iMaxDist = iMaxDist - 8 end --can do more precise dist check with buildings
                         local iMaxTravelDist = iMaxDist * 2
                         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                         local iAdjLZ
+                        local iCurDist
+
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                             for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -1376,8 +1382,9 @@ function LongRangeThreatMonitor(iTeam)
                                 end
                                 iAdjLZ = tSubtable[M28Map.subrefLZNumber]
                                 local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist) end
-                                if M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= iMaxDist then
+                                if bIsBuilding then iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition()) else iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist between midpoints to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist..'; iCurDist='..iCurDist) end
+                                if iCurDist <= iMaxDist then
                                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                                     local bInclude = true
                                     if not(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) then
