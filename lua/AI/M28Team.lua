@@ -1312,7 +1312,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
 end
 function LongRangeThreatMonitor(iTeam)
     --Call via forkthread
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'LongRangeThreatMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iTableSize
