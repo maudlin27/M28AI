@@ -3070,7 +3070,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     bDontWantExperimental = true
                 else
                     --LOUD specific - t3 arti are cheap enough that want to consider if no significant enemy threats
-                    if M28Utilities.bLoudModActive and not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 and M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a T3 arti in LOUD, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]='..(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+                    if M28Utilities.bLoudModActive and not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] <= math.min(8000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.25)))  and M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         local iCurT3Arti = 0
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                             iCurT3Arti = iCurT3Arti + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti)
@@ -3083,13 +3085,14 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     iLandExpIfRelevant = iLandExpIfRelevant + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti)
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': LOUD priority t3 arti builder: iLandExpIfRelevant='..iLandExpIfRelevant..'; bCanPathByLand='..tostring(bCanPathByLand)) end
-                            if not(bCanPathByLand) or iLandExpIfRelevant >= iCurT3Arti + 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': LOUD priority t3 arti builder: iLandExpIfRelevant='..iLandExpIfRelevant..'; bCanPathByLand='..tostring(bCanPathByLand)..'; iCurT3Arti='..iCurT3Arti) end
+                            if not(bCanPathByLand) or iLandExpIfRelevant >= iCurT3Arti + 1 or ((iCurT3Arti == 0 or iLandExpIfRelevant >= 1) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] <= math.min(8000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.25)) then
                                 local tEnemyBuildingsInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tLZOrWZData[M28Map.subrefMidpoint], 825, 'Enemy')
                                 if M28Utilities.IsTableEmpty(tEnemyBuildingsInRange) == false then
                                     local iMassOfNearbyEnemies = M28UnitInfo.GetMassCostOfUnits(tEnemyBuildingsInRange)
                                     if bDebugMessages == true then LOG(sFunctionRef..': LOUD priority t3 arti builder: iMassOfNearbyEnemies='..iMassOfNearbyEnemies) end
                                     if iMassOfNearbyEnemies >= 10000 and (iCurT3Arti == 0 or iMassOfNearbyEnemies >= math.min(25000, 10000 + iCurT3Arti * 7500)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to get t3 arti') end
                                         iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                     end
                                 end
