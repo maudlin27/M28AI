@@ -2248,7 +2248,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel >= 2 and (iIndirectFireOfThisTech <= 6 or iIndirectFireOfThisTech >= 50) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
                     local iDirectFireOfThisTech = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering higher priority DF vs indirect proportion builder since we can path to closest enemy base from here, iDirectFireOfThisTech='..iDirectFireOfThisTech..'; iIndirectFireOfThisTech='..iIndirectFireOfThisTech) end
-                    if iDirectFireOfThisTech > iIndirectFireOfThisTech * 10 and iDirectFireOfThisTech >= 6 then
+                    if iDirectFireOfThisTech > iIndirectFireOfThisTech * 7 and iDirectFireOfThisTech >= 6 and (iFactoryTechLevel < 3 or iDirectFireOfThisTech > iIndirectFireOfThisTech * 10) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
                     elseif iIndirectFireOfThisTech > 4 * iDirectFireOfThisTech and iIndirectFireOfThisTech >= 50 and (iIndirectFireOfThisTech > 6 * iDirectFireOfThisTech or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
@@ -2266,25 +2266,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel == 1 then
                     iIndirectRatioWanted = 6
                 elseif iFactoryTechLevel == 2 then
-                    iIndirectRatioWanted = 9
+                    iIndirectRatioWanted = 6 --MMLs are better now
                 elseif iFactoryTechLevel == 3 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat + iSkirmisherCategory) >= 60 then
-                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
-                            iIndirectRatioWanted = 3.5
-                        else
-                            iIndirectRatioWanted = 4
-                        end
+                    local iCurDFCombat = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat + iSkirmisherCategory)
+
+                    if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                        iIndirectRatioWanted = 7
                     else
+                        iIndirectRatioWanted = 9
+                    end
+                    if iCurDFCombat >= 60 and not(M28Utilities.bLoudModActive) then
+                        --Adjust above gradually so dont end up spamming indirect
+                        iIndirectRatioWanted = math.max(4, iIndirectRatioWanted - 5 * (iCurDFCombat - 59)/60)
                         if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
-                            iIndirectRatioWanted = 7
-                        else
-                            iIndirectRatioWanted = 9
+                            iIndirectRatioWanted = iIndirectRatioWanted - 0.5
                         end
                     end
-                    if M28Utilities.bLoudModActive and iIndirectRatioWanted < 10 then iIndirectRatioWanted = math.min(10, iIndirectRatioWanted * 2) end
+                    if M28Utilities.bLoudModActive and iIndirectRatioWanted < 10 then
+                        if iFactoryTechLevel == 2 then
+                            if iIndirectRatioWanted < 7.5 then
+                                iIndirectRatioWanted = math.min(7.5, iIndirectRatioWanted * 1.3)
+                            end
+                        else
+                            --T3 mobile arti arent great in LOUD
+                            iIndirectRatioWanted = math.min(10, iIndirectRatioWanted * 2)
+                        end
+                    end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Indirect threat ratio, bCanPathToEnemyWithLand='..tostring(bCanPathToEnemyWithLand)..', M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; iIndirectRatioWanted='..iIndirectRatioWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Cur T3 DF and skrimisher count='..aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3)) end
-                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3) >= 50)) then
+                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 30)) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Will try to build more indirect fire units if arent building any of this tech level or higher in this LZ')
                     end
