@@ -4799,6 +4799,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
         end
+        local tNearbyAdjacentEnemies = {}
         function CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat(tAvailableUnitOverride)
             --tAvailableUnitOverride is so we can just send short range units here to calculate threat in scenario 1 to decide if we want to attack with them
             local bUpdateEnemyCombatThreat = false
@@ -4830,7 +4831,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local tbZonesConsidered = {}
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     if iFirebaseThreatAdjust == 0 then
-                        local tNearbyAdjacentEnemies = {}
                         local iAdjacentDistThreshold = 0
                         local iCurDist
                         local iMinDist = 1000
@@ -6120,6 +6120,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     --local bCheckIfNearLocationToAvoid = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftiLocationsToAvoid]))
 
                     bGivenCombatUnitsOrders = true
+                    local bMoveWithDFUnitsForM28Easy = nil
                     for iUnit, oUnit in tAvailableCombatUnits do
                         --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
                         if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
@@ -6129,7 +6130,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             oUnit[refiCurrentAssignmentValue] = 0
                         elseif ProceedWithUnitOrder(oUnit) then
                             if oUnit[M28UnitInfo.refbEasyBrain] then
-                                if bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then
+                                if bMoveWithDFUnitsForM28Easy == nil then
+                                    --Consider if we want to move to attack
+                                    bMoveWithDFUnitsForM28Easy = false
+                                    --Does enemy have signific indirect threat?
+                                    local iEnemyIndirectInThisAndAdjacentZones = tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal]
+                                    local iEnemyDFInThisAndAdjacentZones = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tLZTeamData[M28Map.subrefThreatEnemyDFStructures]
+                                    if M28Utilities.IsTableEmpty(tNearbyAdjacentEnemies) == false then
+                                        local tEnemyIndirect = EntityCategoryFilterDown(M28UnitInfo.refCategoryIndirect, tNearbyAdjacentEnemies)
+                                        if M28Utilities.IsTableEmpty(tEnemyIndirect) == false then
+                                            iEnemyIndirectInThisAndAdjacentZones = iEnemyIndirectInThisAndAdjacentZones + M28UnitInfo.GetCombatThreatRating(tEnemyIndirect, true, false, true, false, false, false, false)
+                                        end
+                                        local tEnemyNonSkirmisherDirect = EntityCategoryFilterDown(categories.DIRECTFIRE - M28UnitInfo.refCategorySkirmisher, tNearbyAdjacentEnemies)
+                                        iEnemyDFInThisAndAdjacentZones = iEnemyDFInThisAndAdjacentZones + M28UnitInfo.GetCombatThreatRating(tEnemyNonSkirmisherDirect, true, false, false)
+                                    end
+                                    if iOurDFAndT1ArtiCombatThreat > iEnemyDFInThisAndAdjacentZones and iEnemyIndirectInThisAndAdjacentZones > 0 and (iOurDFAndT1ArtiCombatThreat > 2.5 * iEnemyDFInThisAndAdjacentZones or (iEnemyIndirectInThisAndAdjacentZones > math.min(iEnemyDFInThisAndAdjacentZones * 0.2, iOurDFAndT1ArtiCombatThreat * 0.15))) then
+                                        bMoveWithDFUnitsForM28Easy = true
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to move instead of attackmove for normal M28Easy units in LZ='..iLandZone..', bMoveWithDFUnitsForM28Easy='..tostring(bMoveWithDFUnitsForM28Easy)..'; iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat..'; iEnemyDFInThisAndAdjacentZones='..iEnemyDFInThisAndAdjacentZones) end
+                                end
+                                if (bMoveWithDFUnitsForM28Easy or (bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)))) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) then
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAesWE'..iLandZone)
                                 else
                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'AWes'..iLandZone)
