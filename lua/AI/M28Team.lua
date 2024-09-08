@@ -4112,14 +4112,26 @@ function MonitorEnemyMobileTMLThreats(iTeam)
     if not(tTeamData[iTeam][refbActiveMobileTMLMonitor]) then
         tTeamData[iTeam][refbActiveMobileTMLMonitor] = true
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mobile TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]))) end
+        local iCurTableSize = 0
+        local bLargeTable
+        local iMinTickDelay = 50
         while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false do
             local iTicksWaitedThisCycle = 0
             if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
+                iCurTableSize = table.getn(tTeamData[iTeam][reftEnemyMobileTML])
+                if iCurTableSize >= 40 then
+                    bLargeTable = true
+                    iMinTickDelay = 100
+                else
+                    bLargeTable = false
+                    iMinTickDelay = 50
+                end
+                --oUnit[refbRecentlyCheckedTMDOrTML]
                 for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
-                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked] then
+                    if (not(bLargeTable) and (not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked]) or (bLargeTable and (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 20 and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 15)))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
-                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit)
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, false)
                         oUnit[M28Building.refbTMDBuiltSinceLastChecked] = false
                         oUnit[M28Building.reftMobileTMLLastLocationChecked] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                         oUnit[M28Building.refiTimeMobileTMLLastChecked] = GetGameTimeSeconds()
@@ -4132,9 +4144,9 @@ function MonitorEnemyMobileTMLThreats(iTeam)
             else
                 break
             end
-            if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
+            if iTicksWaitedThisCycle < iMinTickDelay then --Want to refresh no more quickly than once every 5s
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(50 - iTicksWaitedThisCycle)
+                WaitTicks(iMinTickDelay - iTicksWaitedThisCycle)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
         end

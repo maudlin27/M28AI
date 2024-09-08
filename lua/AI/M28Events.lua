@@ -2693,7 +2693,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Treat location as having buildings on it (if we were treating it as unbuilt previously)
                         ForkThread(M28Building.OnMexConstructionStarted, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
-                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil)
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, true)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                         M28Building.TMDJustBuilt(oUnit)
                     end
