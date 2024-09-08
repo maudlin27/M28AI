@@ -12,7 +12,7 @@ AIOpts = {
         key = 'UnitCap',
         value_text = "<LOC lobui_0719>%s",
         value_help = "<LOC lobui_0171>%s units per player may be in play",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '125','250', '375', '500', '625', '750', '875', '1000', '1250', '1500', '2000', '2500', '3000', '4000', '5000', '7500', '10000'
         },
     },
@@ -23,7 +23,7 @@ AIOpts = {
         key = 'CheatMult',
         value_text = "%s",
         value_help = "<LOC aisettings_0003>Cheat multiplier of %s",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -40,7 +40,7 @@ AIOpts = {
         key = 'BuildMult',
         value_text = "%s",
         value_help = "<LOC aisettings_0056>Build multiplier of %s",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -57,7 +57,7 @@ AIOpts = {
         key = 'M28OvwR',
         value_text = "%s",
         value_help = "Amount to change the cheat modifiers by",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '-0.5', '-0.4', '-0.3', '-0.2', '-0.1',
             '0.0', '0.1', '0.2', '0.3', '0.4', '0.5',
         },
@@ -69,7 +69,7 @@ AIOpts = {
         key = 'M28OvwT',
         value_text = "%s",
         value_help = "Minutes between each change",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '0.5', '1', '2', '3', '4', '5',
             '6', '7', '8', '9', '10',
             '11', '12', '13', '14', '15',
@@ -84,7 +84,7 @@ AIOpts = {
         key = 'M28OvwC',
         value_text = "%s",
         value_help = "Resource and build multiplier limit",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -102,7 +102,7 @@ AIOpts = {
         value_text = "",
         value_help = "Which AI to apply M28 to",
         values = {
-            {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'None (i.e. only M28 players)',
                 help = 'None (i.e. only M28 players)',
                 key = 1,
@@ -131,7 +131,7 @@ AIOpts = {
         key = 'CmpAIDelay', --refer to this with ScenarioInfo.Options.CmpAIDelay, which will return the key value below; relevant for brains where aiBrain.HostileCampaignAI is true
         value_text = "%s",
         value_help = "Delay (if any) in seconds to apply",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '0','30','60','90','120',
             '150', '180', '240', '300', '360', '420', '480', '540', '600',
             '720', '900', '1080', '1200', '1800', '2400', '3000', '3600',
@@ -145,7 +145,7 @@ AIOpts = {
         value_text = "",
         value_help = "Apply AIx Resource and build rate to campaign AI?",
         values = {
-            {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
                 help = 'Apply AIx modifiers',
                 key = 1,
@@ -165,7 +165,7 @@ AIOpts = {
         value_text = "",
         value_help = "Use M28Easy logic, disabling most micro?",
         values = {
-            {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
                 help = 'Apply M28Easy logic',
                 key = 1,
@@ -184,7 +184,7 @@ AIOpts = {
         key = 'M28TimeBetweenOrders',
         value_text = "%s",
         value_help = "Seconds between orders",
-        values = {
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5',
             '2.0', '2.5', '3.0', '3.5', '4.0', '5.0',
             '6.0', '7.0', '8.0', '9.0', '10.0'
@@ -198,7 +198,7 @@ AIOpts = {
         value_text = "",
         value_help = "Apply land unit prioritisation?",
         values = {
-            {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
                 help = 'Apply land unit prioritisation',
                 key = 1,
@@ -218,7 +218,7 @@ AIOpts = {
         value_text = "",
         value_help = "Dodge slow moving shots?",
         values = {
-            {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
                 help = 'Dodge slow moving shots',
                 key = 1,
@@ -226,6 +226,26 @@ AIOpts = {
             {
                 text = 'No',
                 help = 'Dont try dodging shots',
+                key = 2,
+            },
+        },
+    },
+    {
+        default = 2,
+        label = "M28: Combined AI-Human armies?",
+        help = 'If enabled, then human players can toggle M28AI logic on individual units',
+        key = 'M28CombinedArmy',
+        value_text = "",
+        value_help = "Allow M28 to take control of certain units?",
+        values = {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
+                text = 'Yes',
+                help = 'Enable combined armies',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Disable combined armies',
                 key = 2,
             },
         },

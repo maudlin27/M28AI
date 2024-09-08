@@ -82,7 +82,7 @@ function GetNearestEnemyBrain(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Previously nearest enemy brain is still valid='..(aiBrain[refoNearestEnemyBrain].Nickname or 'nil')) end
         return aiBrain[refoNearestEnemyBrain]
     else
-        if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapLandSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapLandSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
         local oNearestBrain
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             --All enemies defeated so will consider civilians as enemy brains
@@ -125,7 +125,7 @@ function GetNearestEnemyBrain(aiBrain)
                             local iX, iZ = M28Map.GetPlayerStartPosition(oBrain, true)
                             LOG(sFunctionRef..': Enemy Start iX='..(iX or 'nil')..'; Start iZ+'..(iZ or 'nil'))
                         end
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), M28Map.GetPlayerStartPosition(oBrain))
                         if iCurDist < iMinDistToEnemy then
                             iMinDistToEnemy = iCurDist
                             oNearestBrain = oBrain
@@ -462,6 +462,7 @@ function M28BrainCreated(aiBrain)
             ForkThread(M28Economy.AdjustAIxOverwhelmRate)
         end
         ForkThread(GlobalOverseer)
+        ForkThread(SetM28ActiveFlag)
     end
     LOG('Calling overseer manager via a fork')
     ForkThread(OverseerManager, aiBrain)
@@ -523,7 +524,8 @@ end
 
 
 function TestCustom(aiBrain)
-    local oHumanBrain
+    LOG('repr of scenariooptions='..reprs(ScenarioInfo.Options))
+    --[[local oHumanBrain
     for iBrain, oBrain in ArmyBrains do
         if oBrain.BrainType == 'Human' then
             oHumanBrain = oBrain
@@ -534,7 +536,7 @@ function TestCustom(aiBrain)
 
     local oUnit = CreateUnit('ual0204', oHumanBrain:GetArmyIndex(), tBase[1], tBase[2], tBase[3], 0, 0, 0, 0, 'Air')
 
-    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')
+    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')--]]
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
@@ -2556,4 +2558,25 @@ function ConsiderSteamMessageIfNoM28()
             M28Chat.SendMessage(oFirstBrain, 'SteamAIIssue', 'M28AI mod is active, but no AI have been selected that use M28AI.  Please use either the AI: Easy or AI: Normal AI to apply M28EasyAI or M28AI respectively', 1, 1000, false, false)
         end
     end
+end
+
+function SetM28ActiveFlag()
+    --Global flag referenced by other orders
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetM28ActiveFlag'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if not(M28Orders.bDontConsiderCombinedArmy == false) and tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1 then
+        M28Orders.bDontConsiderCombinedArmy = false
+        M28UnitInfo.bDontConsiderCombinedArmy = false
+        --Go through every human brain and treat it as an M28AI brain
+        for iBrain, oBrain in ArmyBrains do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname) end
+            if oBrain.BrainType == 'Human' and not(oBrain.M28AI) then
+                LOG('Running M28BrainCreated for brain '..oBrain.Nickname)
+                M28BrainCreated(oBrain)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

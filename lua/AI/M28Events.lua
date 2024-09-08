@@ -2693,7 +2693,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Treat location as having buildings on it (if we were treating it as unbuilt previously)
                         ForkThread(M28Building.OnMexConstructionStarted, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
-                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil)
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, true)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                         M28Building.TMDJustBuilt(oUnit)
                     end
@@ -2732,6 +2732,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if oUnit:GetAIBrain().M28AI then
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
+                        --M28Active flag (enable for all M28AI units)
+                        if not(M28Orders.bDontConsiderCombinedArmy) and not(oUnit:GetAIBrain().BrainType == 'Human') then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
+                            oUnit.M28Active = true
+                        end
 
                         --Check for upgrading unit transferred to us
                         if oUnit.IsUpgrade then

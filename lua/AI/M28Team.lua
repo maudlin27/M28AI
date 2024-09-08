@@ -358,7 +358,7 @@ function CreateNewAirSubteam(aiBrain)
 
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; tNearestEnemyBase='..repru(tNearestEnemyBase)..'; Our start point='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])) end
-    local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tNearestEnemyBase)
+    local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.GetPlayerStartPosition(aiBrain), tNearestEnemyBase)
     local bSameAirSubteam
     --Low threshold - if within this dist will be grouped regardless of angle difference
     --High threshold - if within certain angle differential then will group if satisfy this distance
@@ -1351,6 +1351,7 @@ function LongRangeThreatMonitor(iTeam)
                                         if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
                                             for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
                                                 if oUnit == oRecordedUnit then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from iAdjLZ='..iAdjLZ) end
                                                     table.remove(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], iRecordedUnit)
                                                     break
                                                 end
@@ -1363,10 +1364,15 @@ function LongRangeThreatMonitor(iTeam)
 
                         --Add to nearby zones
                         oUnit[sreftiLastPlateauAndZone] = {[1]=iPlateauOrZero,[2]=iLandOrWaterZone}
-                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 120 --tried +40 (meaning 140 range on fatboy) but led to fatboy getting free hits on units with the dist between zones being 195; have therefore increased the dist threshold, and added in a distance check into the zone itself which will go with a slightly lower distance
+                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 140 --tried +40 (meaning 140 range on fatboy) but led to fatboy getting free hits on units with the dist between zones being 195; have therefore increased the dist threshold, and added in a distance check into the zone itself which will go with a slightly lower distance.  With +120 still had cases where e.g. 100 range PD would shoot units in zone + 1 away that weren't being registered (were 20 out)
+                        local bIsBuilding = EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)
+                        if bIsBuilding then iMaxDist = iMaxDist - 8 end --can do more precise dist check with buildings
                         local iMaxTravelDist = iMaxDist * 2
                         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                         local iAdjLZ
+                        local iCurDist
+
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                             for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -1376,8 +1382,9 @@ function LongRangeThreatMonitor(iTeam)
                                 end
                                 iAdjLZ = tSubtable[M28Map.subrefLZNumber]
                                 local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist) end
-                                if M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= iMaxDist then
+                                if bIsBuilding then iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition()) else iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist between midpoints to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist..'; iCurDist='..iCurDist) end
+                                if iCurDist <= iMaxDist then
                                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                                     local bInclude = true
                                     if not(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) then
@@ -2189,7 +2196,7 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveGroundUnitWithNoPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local refsTrackingVariable = 'M28ActiveNoPlateau'..oTrackingBrain:GetArmyIndex()
+    local refsTrackingVariable = 'M28NoPlateauActive'..oTrackingBrain:GetArmyIndex()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -3786,7 +3793,19 @@ function GetCurrentUnitsOfCategory(iM28Team, iCategory)
 end
 
 function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
-    import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+    if M28Orders.bDontConsiderCombinedArmy then
+        import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+    else
+        local tUnitsToTransfer = {}
+        for iUnit, oUnit in tUnits do
+            if oUnit.M28Active then
+                table.insert(tUnitsToTransfer, oUnit)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsToTransfer) == false then
+            import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnitsToTransfer, iArmyIndex, bCaptured)
+        end
+    end
 end
 
 function DelayedUnitTransferToPlayer(tUnits, iReceivingBrainIndex, iSecondsToWait)
@@ -4093,14 +4112,26 @@ function MonitorEnemyMobileTMLThreats(iTeam)
     if not(tTeamData[iTeam][refbActiveMobileTMLMonitor]) then
         tTeamData[iTeam][refbActiveMobileTMLMonitor] = true
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mobile TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]))) end
+        local iCurTableSize = 0
+        local bLargeTable
+        local iMinTickDelay = 50
         while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false do
             local iTicksWaitedThisCycle = 0
             if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
+                iCurTableSize = table.getn(tTeamData[iTeam][reftEnemyMobileTML])
+                if iCurTableSize >= 40 then
+                    bLargeTable = true
+                    iMinTickDelay = 100
+                else
+                    bLargeTable = false
+                    iMinTickDelay = 50
+                end
+                --oUnit[refbRecentlyCheckedTMDOrTML]
                 for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
-                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked] then
+                    if (not(bLargeTable) and (not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked]) or (bLargeTable and (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 20 and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 15)))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
-                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit)
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, false)
                         oUnit[M28Building.refbTMDBuiltSinceLastChecked] = false
                         oUnit[M28Building.reftMobileTMLLastLocationChecked] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                         oUnit[M28Building.refiTimeMobileTMLLastChecked] = GetGameTimeSeconds()
@@ -4113,9 +4144,9 @@ function MonitorEnemyMobileTMLThreats(iTeam)
             else
                 break
             end
-            if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
+            if iTicksWaitedThisCycle < iMinTickDelay then --Want to refresh no more quickly than once every 5s
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(50 - iTicksWaitedThisCycle)
+                WaitTicks(iMinTickDelay - iTicksWaitedThisCycle)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
         end
@@ -4229,8 +4260,8 @@ function CheckIfCampaignTeamHasBuildings(iTeam)
     local sFunctionRef = 'CheckIfCampaignAIHasBuildings'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if not(tTeamData[iTeam]['M28ActiveBuildingChecker']) then
-        tTeamData[iTeam]['M28ActiveBuildingChecker'] = true
+    if not(tTeamData[iTeam]['M28BuildingCheckerActive']) then
+        tTeamData[iTeam]['M28BuildingCheckerActive'] = true
         tTeamData[iTeam][refbDontHaveBuildingsOrACUInPlayableArea] = false
         --Wait number of ticks based on army index
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

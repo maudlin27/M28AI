@@ -1146,7 +1146,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) and iFactoryTechLevel == 1 then
         if M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandCombat) == 0 then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Core expansion - have no land combat so will try to get some')
+                LOG(sFunctionRef .. ': T1 factory Core expansion - have no land combat so will try to get some')
             end
             --Get LAB if we arent seraphim, and this is the only land fac in this zone
             if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) then
@@ -1181,7 +1181,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
         if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks, will prioritise bots if our factory LC is low for them, attack bot lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false)..'; DF tank lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false)) end
-        if M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
+        if iFactoryTechLevel == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
         elseif M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false) < (1 + M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) * 2.5 and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild
         elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat -M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
         end
@@ -1783,7 +1783,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3 then
             --Get LABs for the first couple of combat units (non-seraphim)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': T1 factory - Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             local iAttackBotLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)
             if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and iAttackBotLifetimeCount <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then
                 return sBPIDToBuild
@@ -2248,7 +2248,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel >= 2 and (iIndirectFireOfThisTech <= 6 or iIndirectFireOfThisTech >= 50) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
                     local iDirectFireOfThisTech = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering higher priority DF vs indirect proportion builder since we can path to closest enemy base from here, iDirectFireOfThisTech='..iDirectFireOfThisTech..'; iIndirectFireOfThisTech='..iIndirectFireOfThisTech) end
-                    if iDirectFireOfThisTech > iIndirectFireOfThisTech * 10 and iDirectFireOfThisTech >= 6 then
+                    if iDirectFireOfThisTech > iIndirectFireOfThisTech * 7 and iDirectFireOfThisTech >= 6 and (iFactoryTechLevel < 3 or iDirectFireOfThisTech > iIndirectFireOfThisTech * 10) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
                     elseif iIndirectFireOfThisTech > 4 * iDirectFireOfThisTech and iIndirectFireOfThisTech >= 50 and (iIndirectFireOfThisTech > 6 * iDirectFireOfThisTech or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
@@ -2266,25 +2266,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel == 1 then
                     iIndirectRatioWanted = 6
                 elseif iFactoryTechLevel == 2 then
-                    iIndirectRatioWanted = 9
+                    iIndirectRatioWanted = 6 --MMLs are better now
                 elseif iFactoryTechLevel == 3 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat + iSkirmisherCategory) >= 60 then
-                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
-                            iIndirectRatioWanted = 3.5
-                        else
-                            iIndirectRatioWanted = 4
-                        end
+                    local iCurDFCombat = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat + iSkirmisherCategory)
+
+                    if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                        iIndirectRatioWanted = 7
                     else
+                        iIndirectRatioWanted = 9
+                    end
+                    if iCurDFCombat >= 60 and not(M28Utilities.bLoudModActive) then
+                        --Adjust above gradually so dont end up spamming indirect
+                        iIndirectRatioWanted = math.max(4, iIndirectRatioWanted - 5 * (iCurDFCombat - 59)/60)
                         if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
-                            iIndirectRatioWanted = 7
-                        else
-                            iIndirectRatioWanted = 9
+                            iIndirectRatioWanted = iIndirectRatioWanted - 0.5
                         end
                     end
-                    if M28Utilities.bLoudModActive and iIndirectRatioWanted < 10 then iIndirectRatioWanted = math.min(10, iIndirectRatioWanted * 2) end
+                    if M28Utilities.bLoudModActive and iIndirectRatioWanted < 10 then
+                        if iFactoryTechLevel == 2 then
+                            if iIndirectRatioWanted < 7.5 then
+                                iIndirectRatioWanted = math.min(7.5, iIndirectRatioWanted * 1.3)
+                            end
+                        else
+                            --T3 mobile arti arent great in LOUD
+                            iIndirectRatioWanted = math.min(10, iIndirectRatioWanted * 2)
+                        end
+                    end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Indirect threat ratio, bCanPathToEnemyWithLand='..tostring(bCanPathToEnemyWithLand)..', M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; iIndirectRatioWanted='..iIndirectRatioWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Cur T3 DF and skrimisher count='..aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3)) end
-                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3) >= 50)) then
+                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 30)) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Will try to build more indirect fire units if arent building any of this tech level or higher in this LZ')
                     end
@@ -2997,42 +3007,43 @@ function SetFactoryRallyPoint(oFactory)
     local sFunctionRef = 'SetFactoryRallyPoint'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local tiAngles = {270, 0, 90, 180}
-    local oFactoryBP = oFactory:GetBlueprint()
-    local tiFactorySize = {oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ, oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ}
-    local tPotentialRally
-    local tPreferredRally
-    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-    local iBestRallyValue = -100
-    local iCurRallyValue
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; tiFactoryRadius='..repru(tiFactorySize)..'; Factory position='..repru(oFactory:GetPosition())) end
-    for iEntry, iCurAngle in tiAngles do
-        for iDistAdjust = 4,2, -2 do
-            tPotentialRally = M28Utilities.MoveInDirection(oFactory:GetPosition(), iCurAngle, tiFactorySize[iEntry] * 0.6 + iDistAdjust, true, false, false)
-            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialRally) then
-                iCurRallyValue = 4 - iEntry --Prefer them in the angle indicated
-                local tNearbyUnits = GetUnitsInRect(tPotentialRally[1] - 1, tPotentialRally[3] - 1, tPotentialRally[1] + 1, tPotentialRally[3] + 1)
-                if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                    iCurRallyValue = iCurRallyValue - 0.25
-                    local tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tNearbyUnits)
-                    if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
-                        iCurRallyValue = iCurRallyValue - 4
+    if M28UnitInfo.bDontConsiderCombinedArmy or oFactory.M28Active then
+        local tiAngles = {270, 0, 90, 180}
+        local oFactoryBP = oFactory:GetBlueprint()
+        local tiFactorySize = {oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ, oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ}
+        local tPotentialRally
+        local tPreferredRally
+        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local iBestRallyValue = -100
+        local iCurRallyValue
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; tiFactoryRadius='..repru(tiFactorySize)..'; Factory position='..repru(oFactory:GetPosition())) end
+        for iEntry, iCurAngle in tiAngles do
+            for iDistAdjust = 4,2, -2 do
+                tPotentialRally = M28Utilities.MoveInDirection(oFactory:GetPosition(), iCurAngle, tiFactorySize[iEntry] * 0.6 + iDistAdjust, true, false, false)
+                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialRally) then
+                    iCurRallyValue = 4 - iEntry --Prefer them in the angle indicated
+                    local tNearbyUnits = GetUnitsInRect(tPotentialRally[1] - 1, tPotentialRally[3] - 1, tPotentialRally[1] + 1, tPotentialRally[3] + 1)
+                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                        iCurRallyValue = iCurRallyValue - 0.25
+                        local tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tNearbyUnits)
+                        if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                            iCurRallyValue = iCurRallyValue - 4
+                        end
                     end
-                end
-                if iDistAdjust > 3 and iDistAdjust <= 7 then iCurRallyValue = iCurRallyValue + 2 end
-                if bDebugMessages == true then LOG(sFunctionRef..': tPotentialRally='..repru(tPotentialRally)..'; iDistAdjust='..iDistAdjust..'; iCurAngle='..iCurAngle..'; iCurRallyValue='..iCurRallyValue..'; iBestRallyValue='..iBestRallyValue) end
-                if iCurRallyValue > iBestRallyValue then
-                    iBestRallyValue = iCurRallyValue
-                    tPreferredRally = tPotentialRally
+                    if iDistAdjust > 3 and iDistAdjust <= 7 then iCurRallyValue = iCurRallyValue + 2 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': tPotentialRally='..repru(tPotentialRally)..'; iDistAdjust='..iDistAdjust..'; iCurAngle='..iCurAngle..'; iCurRallyValue='..iCurRallyValue..'; iBestRallyValue='..iBestRallyValue) end
+                    if iCurRallyValue > iBestRallyValue then
+                        iBestRallyValue = iCurRallyValue
+                        tPreferredRally = tPotentialRally
+                    end
                 end
             end
         end
+        if not(tPreferredRally) then tPreferredRally = oFactory:GetPosition() end
+        oFactory[reftFactoryRallyPoint] = {tPreferredRally[1], tPreferredRally[2], tPreferredRally[3]}
+        if not(oFactory:IsUnitState('Building')) then IssueClearFactoryCommands({oFactory}) end
+        IssueFactoryRallyPoint({oFactory}, oFactory[reftFactoryRallyPoint])
     end
-    if not(tPreferredRally) then tPreferredRally = oFactory:GetPosition() end
-    oFactory[reftFactoryRallyPoint] = {tPreferredRally[1], tPreferredRally[2], tPreferredRally[3]}
-    if not(oFactory:IsUnitState('Building')) then IssueClearFactoryCommands({oFactory}) end
-    IssueFactoryRallyPoint({oFactory}, oFactory[reftFactoryRallyPoint])
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3110,8 +3121,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
 
 
-    if not (oFactory['M28ActiveBuilderCheck']) then
-        oFactory['M28ActiveBuilderCheck'] = true
+    if not (oFactory['M28BuilderCheckActive']) then
+        oFactory['M28BuilderCheckActive'] = true
         local iTicksWaited = 0
         local bDontCheckCutsceneStatus = true
         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then bDontCheckCutsceneStatus = false end
@@ -3310,7 +3321,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             end
         end
     end
-    oFactory['M28ActiveBuilderCheck'] = false
+    oFactory['M28BuilderCheckActive'] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

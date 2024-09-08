@@ -81,7 +81,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
             LoudCompatibility.UpdateOtherLOUDInformation()
             local oBrain = self
             LOG('oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..': ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false)..'; oBrain.CheatValue='..(oBrain.CheatValue or 'nil'))
-            if oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex())) then
+            if (oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex()))) or (oBrain.BrainType == 'Human' and  tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then
                 --If we have no team, or our team is an odd number, then use M28
                 local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
                 LOG('WIll consider applying M28 logic if are an odd team or not specified, iTeam='..iTeam..'; ScenarioInfo.Options.M28Teams='..(ScenarioInfo.Options.M28Teams or 'nil')..'; M28Utilities.DoesAINicknameContainM28(oBrain.Nickname)='..tostring(M28Utilities.DoesAINicknameContainM28(oBrain.Nickname))..'; Is this an AIx brain='..tostring(M28Utilities.DoesAINicknameContainM28(oBrain.Nickname, false, true)))

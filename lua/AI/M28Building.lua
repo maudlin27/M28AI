@@ -18,6 +18,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 
 --Global variables
@@ -77,6 +78,7 @@ reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as 
 refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
 reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTemplateRef}, with tempalteref being the index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
 refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge order, so can check for redundancies
+refbRecentlyCheckedTMDOrTML = 'M28BRChTm' --true if we have recently checked this unit for if it has tml/tmd coverage etc. against land zone
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -376,7 +378,7 @@ function CheckIfWantToBuildAnotherMissile(oUnit)
     ForkThread(ForkedCheckForAnotherMissile, oUnit)
 end
 
-function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsider)
+function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsider, bCalledDueToTMLDetection)
     --tOptionalUnitsToConsider - if nil then will get all nearby units on an opposing team to oTML
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
@@ -501,7 +503,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
             end
             if M28Utilities.IsTableEmpty(tiTeamsWithUnitsThatMightWantTMD) == false then
                 for iTeam, tUnits in tiTeamsWithUnitsThatMightWantTMD do
-                    RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
+                    RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueToTMLDetection)
                 end
             end
         end
@@ -515,6 +517,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
             end
         end--]]
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetUnitRef(oUnit)
@@ -613,7 +616,7 @@ function TMDJustBuilt(oTMD)
 
     --Reevaluate all units in the zone flagged as wanting TMD, due to issue where in some cases the unit would be recorded against the LZ despite loads of TMD covering it
     if M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
-        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTMDTeam, tTMDZoneTeamData[M28Map.reftUnitsWantingTMD])
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTMDTeam, tTMDZoneTeamData[M28Map.reftUnitsWantingTMD], true)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -816,7 +819,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         if not(bAlreadyIncluded) then
             table.insert(oTML[reftUnprotectedUnitTargetsForThisTML], oUnit)
             if oUnit:GetAIBrain().M28AI then
-                RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit })
+                RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, true)
             end
         end
     else
@@ -851,7 +854,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         table.insert(oTML[reftUnitsInRangeOfThisTML], oUnit)
     end
     if bUpdateZoneForUnitsWantingTMD and oUnit:GetAIBrain().M28AI then
-        RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit })
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, not(bAlreadyIncluded))
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -924,7 +927,7 @@ function TMLDied(oTML)
         end
         if M28Utilities.IsTableEmpty(tUnitsToUpdateByTeam) == false then
             for iTeam, tUnitList in tUnitsToUpdateByTeam do
-                RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitList)
+                RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitList, true)
             end
         end
     end
@@ -953,7 +956,7 @@ function TMDDied(oTMD)
         end
         if M28Utilities.IsTableEmpty(tUnitsToCheckIfWantTMDCoverageByTeam) == false then
             for iTeam, tUnitList in tUnitsToCheckIfWantTMDCoverageByTeam do
-                RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitList)
+                RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitList, true)
             end
         end
     end
@@ -1017,12 +1020,12 @@ function UpdateTMDCoverageOfUnits(iTeam, tTMD, tUnitsToUpdate)
                 end
             end
         end
-        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitsToUpdate)
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnitsToUpdate, true)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
+function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueToTMLOrTMDEvent)
     --Cycles through each unit in tUnits and if it has less TMD covering it than TML in range, makes sure it is reecorded in its land zone as one of the units wanting TMD
     --If it has sufficient TMD coverage, then instead makes sure it isnt recorded in its land zone as one of the units wanting TMD
     --Relies on otherfunctions for accurately recording TML in range of it and TMD giving coverage
@@ -1033,73 +1036,78 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
 
     local iTMDInRange, iUnitPlateau, iUnitLandZone
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam) end
+    local iVariableDelayInSeconds = math.max(10, M28Land.iTicksPerLandCycle * 0.25)
     for iUnit, oUnit in tUnits do
-        --Does the unit need TMD coverage?
-        iTMDInRange = 0
-        if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
-            --Treat Aeon as having twice the TMD power as other factions
-            for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
-                if M28UnitInfo.IsUnitValid(oRecordedTMD) then
-                    if EntityCategoryContains(categories.AEON, oRecordedTMD.UnitId) then
-                        iTMDInRange = iTMDInRange + 2
-                    else
-                        iTMDInRange = iTMDInRange + 1
-                    end
-                end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
-        local iTMLValueInRangeOfUnit = 0
-        if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
-            for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
-                if M28UnitInfo.IsUnitValid(oRecordedTML) then
-                    --UEF ACU with billy nuke upgrade - increase value
-                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML.HasEnhancement and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
-                        if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
-                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
-                        --Aeon missile ship
-                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMML * categories.TECH2, oRecordedTML.UnitId) then
-                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.75
-                    else
-                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
-                    end
-                end
-            end
-        end
-
-        if iTMDInRange < iTMLValueInRangeOfUnit and not(oUnit[refbNoNearbyTMDBuildLocations]) then
-            if not(oUnit[refbUnitWantsMoreTMD]) then --redundancy (i.e. will ahve already called below if unit is already flagged as wanting more TMD)
-                iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')) end
-                if iUnitLandZone > 0 then
-                    local tLZTeamData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone][M28Map.subrefLZTeamData][iTeam]
-                    table.insert(tLZTeamData[M28Map.reftUnitsWantingTMD], oUnit)
-                end
-                oUnit[refbUnitWantsMoreTMD] = true
-            end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Have enough TMD covering this unit, unit wants more TMD flag='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
-            if oUnit[refbUnitWantsMoreTMD] then --i.e. unit previously was flagged as needing more TMD (but now it doesnt)
-                --Remove this unit from the land zone list of units wanting TMD
-                iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                if iUnitLandZone > 0 then
-                    local tLZTeamData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone][M28Map.subrefLZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')..'; is table of LZ units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
-                        --Remove htis unit from the list of units wanting TMD
-                        for iRecordedUnit, oRecordedUnit in tLZTeamData[M28Map.reftUnitsWantingTMD] do
-                            if bDebugMessages == true then LOG(sFunctionRef..': oRecordedUnit='..oRecordedUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedUnit)) end
-                            if oRecordedUnit == oUnit then
-                                table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iRecordedUnit)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have removed from units wanting TMD in zone, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
-                                break
-                            end
+        if bCalledDueToTMLOrTMDEvent or not(oUnit[refbRecentlyCheckedTMDOrTML]) then
+            oUnit[refbRecentlyCheckedTMDOrTML] = true
+            M28Utilities.DelayChangeVariable(oUnit, refbRecentlyCheckedTMDOrTML, false, iVariableDelayInSeconds)
+            --Does the unit need TMD coverage?
+            iTMDInRange = 0
+            if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+                --Treat Aeon as having twice the TMD power as other factions
+                for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
+                    if M28UnitInfo.IsUnitValid(oRecordedTMD) then
+                        if EntityCategoryContains(categories.AEON, oRecordedTMD.UnitId) then
+                            iTMDInRange = iTMDInRange + 2
+                        else
+                            iTMDInRange = iTMDInRange + 1
                         end
                     end
                 end
-                oUnit[refbUnitWantsMoreTMD] = false
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
+            local iTMLValueInRangeOfUnit = 0
+            if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
+                for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
+                    if M28UnitInfo.IsUnitValid(oRecordedTML) then
+                        --UEF ACU with billy nuke upgrade - increase value
+                        if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML.HasEnhancement and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
+                            if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
+                            --Aeon missile ship
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMML * categories.TECH2, oRecordedTML.UnitId) then
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.75
+                        else
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
+                        end
+                    end
+                end
+            end
+
+            if iTMDInRange < iTMLValueInRangeOfUnit and not(oUnit[refbNoNearbyTMDBuildLocations]) then
+                if not(oUnit[refbUnitWantsMoreTMD]) then --redundancy (i.e. will ahve already called below if unit is already flagged as wanting more TMD)
+                    iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')) end
+                    if iUnitLandZone > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone][M28Map.subrefLZTeamData][iTeam]
+                        table.insert(tLZTeamData[M28Map.reftUnitsWantingTMD], oUnit)
+                    end
+                    oUnit[refbUnitWantsMoreTMD] = true
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Have enough TMD covering this unit, unit wants more TMD flag='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
+                if oUnit[refbUnitWantsMoreTMD] then --i.e. unit previously was flagged as needing more TMD (but now it doesnt)
+                    --Remove this unit from the land zone list of units wanting TMD
+                    iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                    if iUnitLandZone > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone][M28Map.subrefLZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')..'; is table of LZ units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
+                            --Remove htis unit from the list of units wanting TMD
+                            for iRecordedUnit, oRecordedUnit in tLZTeamData[M28Map.reftUnitsWantingTMD] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': oRecordedUnit='..oRecordedUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedUnit)) end
+                                if oRecordedUnit == oUnit then
+                                    table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iRecordedUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have removed from units wanting TMD in zone, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    oUnit[refbUnitWantsMoreTMD] = false
+                end
             end
         end
     end
@@ -1213,7 +1221,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                     if iCurLaunchers > 1 then
                         iCurTMD = 1
                         for iLauncher, oLauncher in oTMD[toLaunchersIntercepted] do
-                            RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD })
+                            RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD }, false)
                         end
                         if M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]) then iCurTMD = 1
                         else iCurTMD = table.getn(oTMD[reftTMDCoveringThisUnit]) end

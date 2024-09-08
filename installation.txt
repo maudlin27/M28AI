@@ -26,7 +26,7 @@ Steam:
 -Open up the mods archive using software such as 7Zip; the location of this will depend on where forged alliance is saved, e.g.:
 C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\gamedata\mods.scd\
 -Open up the mods folder in this archive
--Add the M28AI folder to this archive/zipped file
+-Add the M28AI folder to this archive/zipped file; if using 7Zip, this means doing click and drag on the M28AI folder into the 7Zip window showing the mods folder, e.g. into C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\gamedata\mods.scd\mods\
 -When creating a game in forged alliance, go to the mod manager and enable the M28AI mod
 -Select AI: Easy for 'M28EasyAI', and AI: Normal for normal M28AI (and similarly the AIx versions of these to apply bonus resources or build rate modifiers to the AI)
 -If the SorianAI mod is also included, then additional game options should show up to configure M28AI further

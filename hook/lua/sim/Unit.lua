@@ -359,6 +359,30 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.ShieldDisabled, self)
             if M28OldUnit.OnShieldDisabled then return M28OldUnit.OnShieldDisabled(self) end
         end,
+
+        UpdateStat = function(self, key, value)
+            if M28OldUnit.UpdateStat then M28OldUnit.UpdateStat(self, key, value)
+            else
+                --Copied from FAF unit.lua as at 2024-08-26; copyright at top of file at that time is reproduced below:
+                -----------------------------------------------------------------
+                -- File      : /lua/unit.lua
+                -- Authors   : John Comes, David Tomandl, Gordon Duclos
+                -- Summary   : The Unit lua module
+                -- Copyright © 2005 Gas Powered Games, Inc.  All rights reserved.
+                -----------------------------------------------------------------
+
+                -- With thanks to 4z0t the `SetStat` function no longer hard-crashes when the value doesn't exist. Instead, it returns 'true'
+                -- when the stat doesn't exist. If it doesn't exist then we can use `GetStat` to initialize it. This makes no sense, therefore
+                -- we have this new function to hide the magic
+                local cUnit = moho.unit_methods
+                local needsSetup = cUnit.SetStat(self, key, value)
+                if needsSetup then
+                    cUnit.GetStat(self, key, value)
+                    cUnit.SetStat(self, key, value)
+                end
+                --LOG('Finished setstat, key='..key..'; value='..value..'; self.UnitId='..(self.UnitId or 'nil'))
+            end
+        end,
     }
 
 end

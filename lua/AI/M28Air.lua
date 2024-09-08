@@ -2904,7 +2904,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 local iCurAirAAThreat = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                    if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                    if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
                         iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
                         if iCurAirAAThreat > iHumanAirAAToInclude then
                             oHumanToInclude = oBrain
@@ -3571,7 +3571,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         local iAllTeamAirAAThreat = 0
                                         local iCurAirAAThreat = 0
                                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                                            if oBrain.Human or (not(oBrain.M28AI) and not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain))) then
+                                            if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
                                                 iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
                                                 iAllTeamAirAAThreat = iAllTeamAirAAThreat + iCurAirAAThreat
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering human '..oBrain.Nickname..'; iCurAirAAThreat='..iCurAirAAThreat..'; iAllTeamAirAAThreat='..iAllTeamAirAAThreat) end
@@ -5077,7 +5077,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.min(5500, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
                             else
                                 --Shields stack, so allow a 3:1 threat ratio
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(10000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
                             end
                         end
                     end
@@ -5087,6 +5087,17 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     end
                     if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
+                    --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
+                    if iOurGunshipThreat >= 10000 then
+                        if M28Utilities.bLoudModActive then
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
+                            if iOurGunshipThreat >= 20000 then
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
+                            end
+                        elseif iOurGunshipThreat >= 12000 then
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 12000) / (iGunshipThreatFactorWanted * 0.2))
+                        end
+                    end
 
                     --Check if enemy has enough AA nearby
                     local bTooMuchAA
