@@ -373,19 +373,19 @@ function CreateNewAirSubteam(aiBrain)
         if not(oBrain.M28AirSubteam) and not(oBrain == aiBrain) then
             bSameAirSubteam = false
             local iBaseDistDif = M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), M28Map.GetPlayerStartPosition(aiBrain))
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain '..oBrain.Nickname..'; iBaseDistDif='..iBaseDistDif..'; iAngleDif='..M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tNearestEnemyBase))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain '..oBrain.Nickname..'; iBaseDistDif='..iBaseDistDif..'; iAngleDif='..M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.GetPlayerStartPosition(oBrain), tNearestEnemyBase))) end
             if iBaseDistDif <= iDistThresholdLow then
                 bSameAirSubteam = true
             else
-                local iAngleDif = M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tNearestEnemyBase))
+                local iAngleDif = M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.GetPlayerStartPosition(oBrain), tNearestEnemyBase))
                 if iAngleDif <= 40 or (iAngleDif <= 60 and iBaseDistDif <= iDistThresholdHigh) then
                     bSameAirSubteam = true
                 else
                     --Are we close to the start position of any of the other brains already recorded in this AirSubteam?
                     for iAirSubteamBrain, oAirSubteamBrain in tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
                         if not(oAirSubteamBrain == aiBrain) and not(oAirSubteamBrain == oBrain) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to alternative AirSubteam member '..oAirSubteamBrain.Nickname..' = '..M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oAirSubteamBrain:GetArmyIndex()])) end
-                            if M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oAirSubteamBrain:GetArmyIndex()]) <= iDistThresholdLow then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to alternative AirSubteam member '..oAirSubteamBrain.Nickname..' = '..M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), M28Map.GetPlayerStartPosition(oAirSubteamBrain))) end
+                            if M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), M28Map.GetPlayerStartPosition(oAirSubteamBrain)) <= iDistThresholdLow then
                                 bSameAirSubteam = true
                             end
                         end
@@ -775,8 +775,8 @@ function CreateNewTeam(aiBrain)
                 local tiPlateauByIslandRefs = {}
                 local iStartPlateau, iStartIsland
                 for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
-                    iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                    iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.GetPlayerStartPosition(oBrain))
+                    iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPlayerStartPosition(oBrain))
                     if (iStartIsland or 0) > 0 then
                         if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
                         table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
@@ -839,7 +839,7 @@ function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam, bDontW
             if not(tbBrainsWithLandSubteam[oBrain:GetArmyIndex()]) and not(oBrain.M28LandSubteam) and oBrain.M28AI then
                 if bDebugMessages == true then LOG(sFunctionRef..': No land subteam recorded yet for brain '..oBrain.Nickname..'; will try and search for one, Index='..oBrain:GetArmyIndex()..'; Start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Time='..GetGameTimeSeconds()) end
                 --Campaign map - find hte closest factory to the player start, if we have one
-                local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+                local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
                 local iStartIsland
                 local tFriendlyFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, false, true)
                 local iStartPlateau
@@ -1909,7 +1909,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
                                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                                            local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], true, iTeam)
+                                            local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oBrain), true, iTeam)
                                             if not(tStartLZTeamData == tLZTeamData) then
                                                 if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                                                     local bHaveAirStagingUnderConstruction = false
@@ -2849,12 +2849,12 @@ function ConsiderPriorityMexUpgrades(iM28Team)
 
                                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                                     bAbort = false
-                                    iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                                    iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPlayerStartPosition(oBrain))
                                     local tLZOrWZTeamData
                                     if (iLandZone or 0) > 0 then
                                         tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team]
                                     else
-                                        local iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                                        local iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.GetPlayerStartPosition(oBrain))
                                         if (iWaterZone or 0) > 0 then
                                             tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iM28Team]
                                         end
