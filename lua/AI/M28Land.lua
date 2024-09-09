@@ -7625,7 +7625,28 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
 
-
+    --Update unit positions and if still valid
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                               iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          M28Map.bIsCampaignMap, false, tLZTeamData,  false,                      true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Just ran updateunitpositions for enemy units in this zone') end
+    end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+        --Update air positions if we have units in the zone or has been a while to approximate a player being able to tell if enemy air force is still there
+        local bAlwaysUpdateEnemyAirUnitPositions = M28Map.bIsCampaignMap --campaign map players are more likely to know when air attacks iwll attack and from where
+        if bAlwaysUpdateEnemyAirUnitPositions or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false or GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastAirUpdate] or -100) >= 12 or (M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftLZEnemyAirUnits][1]) and M28UnitInfo.CanSeeUnit(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits][1])) or (tLZTeamData[M28Map.refiRadarCoverage] or 0) > 0) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Updating air unit positions in the zone') end
+            tLZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
+            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, false, true, tLZTeamData, false,                               true)
+        else
+            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                           iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone,        M28Map.bIsCampaignMap, true, tLZTeamData,   false,                                  true)
+        end
+    end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iPlateau, iLandZone, false, false, tLZTeamData)
+    end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))..'; Time='..GetGameTimeSeconds()) end
     RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
@@ -8419,7 +8440,6 @@ function ManageAllLandZones(aiBrain, iTeam, bIgnoreMinorPlateaus, iCurMinorPlate
     end
 
     --Cycle through land zones
-    local bAlwaysUpdateEnemyAirUnitPositions = M28Map.bIsCampaignMap --campaign map players are more likely to know when air attacks iwll attack and from where
     for iPlateau, tPlateauData in M28Map.tAllPlateaus do
         if bIgnoreMinorPlateaus or not(tPlateauData[M28Map.subrefiMinorCycleRef]) or tPlateauData[M28Map.subrefiMinorCycleRef] == iCurMinorPlateauCycleRef then
             RefreshLandRallyPoints(iTeam, iPlateau)
@@ -8438,25 +8458,13 @@ function ManageAllLandZones(aiBrain, iTeam, bIgnoreMinorPlateaus, iCurMinorPlate
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         iCurCycleRefreshCount = iCurCycleRefreshCount + 1
                         --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                               iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          M28Map.bIsCampaignMap, false, tLZTeamData,  false,                      true)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just ran updateunitpositions for enemy units in this zone') end
                     end
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                         iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                        --Update air positions if we have units in the zone or has been a while to approximate a player being able to tell if enemy air force is still there
-                        if bAlwaysUpdateEnemyAirUnitPositions or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false or GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastAirUpdate] or -100) >= 12 or (M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftLZEnemyAirUnits][1]) and M28UnitInfo.CanSeeUnit(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits][1])) or (tLZTeamData[M28Map.refiRadarCoverage] or 0) > 0) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Updating air unit positions in the zone') end
-                            tLZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
-                            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                            UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, false, true, tLZTeamData, false,                               true)
-                        else
-                            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                           iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                            UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone,        M28Map.bIsCampaignMap, true, tLZTeamData,   false,                                  true)
-                        end
                     end
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iPlateau, iLandZone, false, false, tLZTeamData)
                     end
 
                     ForkThread(ManageSpecificLandZone, aiBrain, iTeam, iPlateau, iLandZone)

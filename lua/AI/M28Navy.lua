@@ -392,25 +392,12 @@ function ManageAllWaterZones(aiBrain, iTeam)
                 --First check all units in here are alive
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    --UpdateUnitPositionsAndWaterZone(aiBrain,              tUnits,                 iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                    UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iWaterZone, true, false, tWZTeamData,        true,                               true)
                 end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false or GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastAirUpdate] or -100) >= 30 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will do a detailed update of enemy air units based on actual position') end
-                        tWZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
-                        --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                          iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                        UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, false, true, tWZTeamData, false,                           true)
-                    else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will do an update of enemy air units based on last known position as we lack friendly units in this zone and have recently done a more detailed update') end
-                        --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                              iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-                        UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, true, true, tWZTeamData,       false                               ,true)
-                    end
                 end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iWaterZone, false, false, tWZTeamData)
                 end
 
                 ForkThread(ManageSpecificWaterZone, aiBrain, iTeam, iPond, iWaterZone)
@@ -1392,6 +1379,29 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gametime='..GetGameTimeSeconds()..'; About to update threat for iPond='..iPond..'; iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Is WZData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))) end
+
+
+    --Update unit positions and if still valid
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        --UpdateUnitPositionsAndWaterZone(aiBrain,              tUnits,                 iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+        UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iWaterZone, true, false, tWZTeamData,        true,                               true)
+    end
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false or GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastAirUpdate] or -100) >= 30 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will do a detailed update of enemy air units based on actual position') end
+            tWZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
+            --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                          iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, false, true, tWZTeamData, false,                           true)
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Will do an update of enemy air units based on last known position as we lack friendly units in this zone and have recently done a more detailed update') end
+            --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                              iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, true, true, tWZTeamData,       false                               ,true)
+        end
+    end
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iWaterZone, false, false, tWZTeamData)
+    end
+
     RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone)
     RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
 
