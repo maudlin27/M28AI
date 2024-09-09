@@ -5033,10 +5033,34 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try and get CombatCategory or (if that fails) a sub') end
                         if bConsiderBuildingMoreCombat then
                             --Consider building subs if T1-T2 factory and enemy has no antinavy threat and lacks T2 air
-                            if (oFactory[refiTotalBuildCount] or 0) <= 15 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 or M28Team.tAirSubteamData[aiBrain.iAirSubteam][M28Team.refbHaveAirControl]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                            if not(tOtherWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and (((oFactory[refiTotalBuildCount] or 0) <= 15 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 or M28Team.tAirSubteamData[aiBrain.iAirSubteam][M28Team.refbHaveAirControl]))
+                                    or (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] == 0 and iEnemyCumulativeAntiNavyThreat < iEnemyCumulativeCombatThreat * 0.1))
+                            then
                                 --Do we want to try building a sub instead?
-                                if iEnemyCumulativeAntiNavyThreat < iEnemyCumulativeCombatThreat * 0.1 or (iEnemyCumulativeAntiNavyThreat <= 200 and iEnemyCumulativeCombatThreat >= 1000) then
+                                if iEnemyCumulativeAntiNavyThreat < iEnemyCumulativeCombatThreat * 0.15 or (iEnemyCumulativeAntiNavyThreat <= 200 and iEnemyCumulativeCombatThreat >= 1000) then
                                     if ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine - categories.NUKE) then return sBPIDToBuild end
+                                end
+                            end
+
+                            --T1 factory - upgrade to t2 navy if enemy has torp launchers, or just abort if we already have an active HQ in this zone and have low mass
+                            if iFactoryTechLevel == 1 and tOtherWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] >= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher, tOtherWZTeamData[M28Map.subrefTEnemyUnits])) == false then
+                                local iActiveFactoryUpgrades = 0
+                                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                                    for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
+                                            iActiveFactoryUpgrades = iActiveFactoryUpgrades + 1
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to upgrade to t2 navy due to enemy torp launcher threat, iActiveFactoryUpgrades='..iActiveFactoryUpgrades) end
+                                if iActiveFactoryUpgrades == 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade') end
+                                    if ConsiderUpgrading() then return sBPIDToBuild end
+                                end
+                                if bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Aborting as would rather not build anything than build t1 navy vs torp launcher (unless are getting relatively high mass)') end
+                                    bConsiderBuildingMoreCombat = false
+                                    break
                                 end
                             end
 

@@ -2628,10 +2628,19 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 + iLifetimeCount or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 + 2 * iLifetimeCount) then
                     bWantMoreMexes = false
                 end
-                if bWantMoreMexes and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
-                    bWantMoreMexes = false
+                if bWantMoreMexes then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
+                        bWantMoreMexes = false
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel) end
+                        if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 * iFactoryTechLevel) then
+                            bWantMoreMexes = false
+                        elseif not(tLZOrWZTeamData[M28Map.subrefWZbCoreBase]) and (oFactory[M28Factory.refiTotalBuildCount] >= 40 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 * iFactoryTechLevel) then
+                            bWantMoreMexes = false
+                        end
+                    end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': LOUD - holding off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': LOUD - considering if want to hold off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; bWantMoreMexes='..tostring(bWantMoreMexes)..'; tLZOrWZData[M28Map.subrefWZMexCount]='..(tLZOrWZData[M28Map.subrefWZMexCount] or 'nil')) end
                 if bWantMoreMexes then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
