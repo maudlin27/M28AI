@@ -372,7 +372,7 @@ function CreateNewAirSubteam(aiBrain)
         M28Map.GetPrimaryEnemyBaseLocation(oBrain)
         if not(oBrain.M28AirSubteam) and not(oBrain == aiBrain) then
             bSameAirSubteam = false
-            local iBaseDistDif = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
+            local iBaseDistDif = M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), M28Map.GetPlayerStartPosition(aiBrain))
             if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain '..oBrain.Nickname..'; iBaseDistDif='..iBaseDistDif..'; iAngleDif='..M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tNearestEnemyBase))) end
             if iBaseDistDif <= iDistThresholdLow then
                 bSameAirSubteam = true

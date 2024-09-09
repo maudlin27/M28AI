@@ -24,7 +24,7 @@ Tooltips = {
         description = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy)',
     },
     pref_M28CombinedArmy = {
-        title = 'M28: Use dodge micro?',
+        title = 'M28: AI assistant?',
         description = 'If enabled, then human players can toggle M28AI logic on individual units',
     }
 }
