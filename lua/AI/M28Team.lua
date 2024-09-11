@@ -815,7 +815,7 @@ function CreateNewTeam(aiBrain)
     ForkThread(CheckForBrainsWithoutLandSubteam, iTotalTeamCount, tbBrainsWithLandSubteam)
 
     --Record if we have a mix of human and AI on team with shared armies
-    if not(M28UnitInfo.bDontConsiderCombinedArmy) or tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1 then
+    if not(M28UnitInfo.bDontConsiderCombinedArmy) or not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2) then
         if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]) == false then
             local iHumanCount = 0
             local iPureAICount = 0
