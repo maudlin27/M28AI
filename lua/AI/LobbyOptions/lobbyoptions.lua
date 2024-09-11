@@ -261,7 +261,7 @@ AIOpts = {
         help = 'If combined armies are enabled, this determines whether units starting control will be based on their parent/constructing unit',
         key = 'M28CAInherit',
         value_text = "",
-        value_help = "Will M28AI control for built units be based on their building units control?",
+        value_help = "M28AI will by default control units built by M28AI controlled shared army units",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
