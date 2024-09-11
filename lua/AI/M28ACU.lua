@@ -2354,7 +2354,14 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             local bUnitInFurtherAwayZoneWeRanFrom
             local iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
             local iACUZoneTravelDistToBase
-            if iStartPlateau > 0 and iStartZone > 0 then iACUZoneTravelDistToBase = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartZone) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')) end
+            if iStartPlateau > 0 and iStartZone > 0 then
+                if iPlateau > 0 then
+                    iACUZoneTravelDistToBase = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartZone)
+                else
+                    iACUZoneTravelDistToBase = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase], M28Map.refPathingTypeAmphibious)
+                end
+            end
             local iUnitInZoneRanFromDistThresholdIfOutrange = oACU[M28UnitInfo.refiDFRange] + 7
             local iUnitInZoneRanFromDistThresholdIfDontOutrange = oACU[M28UnitInfo.refiDFRange] + 2
             local iRanFromDistThreshold
@@ -2377,7 +2384,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing)..'; bUnitInFurtherAwayZoneWeRanFrom='..tostring(bUnitInFurtherAwayZoneWeRanFrom)..'; iUnitZone='..(iUnitZone or 'nil')..'; refiLastPlateauAndZoneToAttackUnitIn='..reprs(oACU[refiLastPlateauAndZoneToAttackUnitIn])..'; refiTimeLastToldToAttackUnitInOtherZone='..reprs(oACU[refiTimeLastToldToAttackUnitInOtherZone])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing) or 'nil')..'; bUnitInFurtherAwayZoneWeRanFrom='..tostring(bUnitInFurtherAwayZoneWeRanFrom or false)..'; iUnitZone='..(iUnitZone or 'nil')..'; refiLastPlateauAndZoneToAttackUnitIn='..reprs(oACU[refiLastPlateauAndZoneToAttackUnitIn])..'; refiTimeLastToldToAttackUnitInOtherZone='..reprs(oACU[refiTimeLastToldToAttackUnitInOtherZone])) end
                     if not(bUnitInFurtherAwayZoneWeRanFrom) then
                         --iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
                         iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing)
@@ -4400,6 +4407,7 @@ function GetACUOrder(aiBrain, oACU)
                                 end
                             end
                             if not(bCompleteCurrentConstruction) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to consider attacking nearest enemy ACU, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
                                 if AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 35) then
                                     bProceedWithLogic = false
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have enemies fairly close in this zone and have land fac so will attack') end
@@ -4932,8 +4940,8 @@ function GetACUOrder(aiBrain, oACU)
 
                                                                 --If have orders for ACU but no land zone then wait until it is in a land zone again
                                                                 if not(iLandOrWaterZone) or (iPlateauOrZero == 0 and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart])) then
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU isnt in a land zone, if has no orders will tell it to retreat to start position, oACU[M28Orders.refiOrderCount]='..oACU[M28Orders.refiOrderCount]..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
-                                                                    if oACU[M28Orders.refiOrderCount] == 0 then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU isnt in a land zone, if has no orders will tell it to retreat to start position, oACU[M28Orders.refiOrderCount]='..(oACU[M28Orders.refiOrderCount] or 'nil')..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; reprs of last order='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
+                                                                    if (oACU[M28Orders.refiOrderCount] or 0) == 0 then
 
                                                                         M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'NLZRun')
                                                                     elseif oACU:IsUnitState('Attacking') and M28UnitInfo.IsUnitUnderwater(oACU) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
