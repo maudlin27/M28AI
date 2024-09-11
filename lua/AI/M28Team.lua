@@ -37,6 +37,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
+    refbContainsPureM28AndSharedM28 = 'M28TShAndCr' --true if the team has both M28AI (non-shared) and human (with shared M28AI) brains on the team
     subrefiOrigM28BrainCount = 'OrigM28Count' --number of M28 brains on the team (ignoring any that have died)
     subreftoFriendlyHumanAndAIBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyHumanAndAIBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
@@ -812,6 +813,25 @@ function CreateNewTeam(aiBrain)
 
     --Check every brain is on a land subteam (even if have a water start)
     ForkThread(CheckForBrainsWithoutLandSubteam, iTotalTeamCount, tbBrainsWithLandSubteam)
+
+    --Record if we have a mix of human and AI on team with shared armies
+    if not(M28UnitInfo.bDontConsiderCombinedArmy) or tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1 then
+        if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]) == false then
+            local iHumanCount = 0
+            local iPureAICount = 0
+            for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
+                if oBrain.BrainType == 'Human' then
+                    iHumanCount = iHumanCount + 1
+                else
+                    iPureAICount = iPureAICount + 1
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Shared army check, iHumanCount='..iHumanCount..'; iPureAICount='..iPureAICount) end
+            if iHumanCount > 0 and iPureAICount > 0 then
+                tTeamData[iTotalTeamCount][refbContainsPureM28AndSharedM28] = true
+            end
+        end
+    end
 
     --List out every M28 brain on this team by subteam
     if bHaveM28BrainInTeam then

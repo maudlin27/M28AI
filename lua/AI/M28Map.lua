@@ -223,6 +223,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
             subrefLZbCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            subrefLZbSharedHumanBase = 'SHmCr' --true if we are playing with shared armies and it looks like this is primarily a human controlled core base
             refbBaseInSafePosition = 'ZSafCr' --true if friendly bases are closer to every enemy than this location (i.e. rear slot on maps like setons)
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)

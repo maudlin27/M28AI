@@ -8716,11 +8716,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                     local tTargetLZ = M28Map.tAllPlateaus[iPlateauToMoveTo][M28Map.subrefPlateauLandZones][iTargetLZ]
 
-
                     sOrderRef = sOrderRef..'TLZ='..iTargetLZ
                     if M28Utilities.IsTableEmpty(tTargetLZ) then
                         M28Utilities.ErrorHandler('Invalid LZ  for moving to, iPlateauOrPOND='..iPlateauOrPond..'; iPlateauToMoveTo='..(iPlateauToMoveTo or 'nil')..'; will do reprs of iTargetLZ in log')
                         LOG(sFunctionRef..': Invalid LZ for moving to, iPlateauOrPond='..(iPlateauOrPond or 'nil')..'; iTargetLZ='..reprs(iTargetLZ)..'; vOptionalVariable='..reprs(vOptionalVariable))
+                    elseif not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tTargetLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbSharedHumanBase] then
+                        iTotalBuildPowerWanted = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want engis to travel here as it is primarily a human base') end
                     else
                         --Check if we have engis moving from the target zone to this zone, in which case abort
                         local toEngisTravelingHereFromTarget = {}
@@ -10116,7 +10118,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local bSaveMassForMML = M28Conditions.SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
     local bPrioritiseProduction = M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction]
 
-
+    if not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tLZTeamData[M28Map.subrefLZSValue] > 30 then
+        local tMexesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tMexesInZone) == false then
+            local iHumanMexCount = 0
+            for iMex, oMex in tMexesInZone do
+                if not(oMex.M28Active) then iHumanMexCount = iHumanMexCount + 1 end
+            end
+            if iHumanMexCount >= tLZData[M28Map.subrefLZMexCount] -1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or iHumanMexCount == tLZData[M28Map.subrefLZMexCount]) then
+                tLZTeamData[M28Map.subrefLZbSharedHumanBase] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering shared army whether teammate has built here, iHumanMexCount='..iHumanMexCount..'; will flag that this zone should be treated as a human zone') end
+            else
+                tLZTeamData[M28Map.subrefLZbSharedHumanBase] = true
+            end
+        end
+    end
 
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -13409,7 +13425,20 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 or ((tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and (tLZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) >= (tLZData[M28Map.subrefLZMexCount] or 0) * 0.5) then
             bTeammateHasBuiltHere = true
             if bDebugMessages == true then LOG(sFunctionRef..': Since teammate has all the mexes or half plus factories will treat them as owning this zone and wont try and build much here') end
+        elseif not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tLZTeamData[M28Map.subrefLZSValue] > 30 then
+            local tMexesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tMexesInZone) == false then
+                local iHumanMexCount = 0
+                for iMex, oMex in tMexesInZone do
+                    if not(oMex.M28Active) then iHumanMexCount = iHumanMexCount + 1 end
+                end
+                if iHumanMexCount >= tLZData[M28Map.subrefLZMexCount] -1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or iHumanMexCount == tLZData[M28Map.subrefLZMexCount]) then
+                    bTeammateHasBuiltHere = true
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering shared army whether teammate has built here, iHumanMexCount='..iHumanMexCount..'; bTeammateHasBuiltHere='..tostring(bTeammateHasBuiltHere)) end
+            end
         end
+
 
     elseif tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] > 0 then
         bTeammateHasBuiltHere = true
