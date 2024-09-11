@@ -16,3 +16,13 @@ function BeginSession()
     M28BeginSession()
     M28Events.OnGameStart()
 end
+
+local M28OldOnCreateArmyBrain = OnCreateArmyBrain
+OnCreateArmyBrain = function(index, brain, name, nickname)
+    M28OldOnCreateArmyBrain(index, brain, name, nickname)
+    if ScenarioInfo.ArmySetup[name].Human then
+        local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+        M28Overseer.iTimeOfLatestBrainToCheckForM28Logic = GetGameTimeSeconds()
+        ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnCreateBrain, brain, name, true)
+    end
+end

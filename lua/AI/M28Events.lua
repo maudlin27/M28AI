@@ -2978,6 +2978,9 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if bIsHuman == nil then
             if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
         end
+        if bIsHuman then
+            M28Overseer.SetM28ActiveFlag()
+        end
         if not(bIsHuman) and (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat') then
             aiBrain.M28AI = true
             M28Utilities.bM28AIInGame = true

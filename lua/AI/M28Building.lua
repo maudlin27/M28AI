@@ -1517,8 +1517,8 @@ function OnMexConstructionStarted(oUnit)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
-        while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
+    if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or not(M28Map.bWaterZoneInitialCreation) then
+        while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or not(M28Map.bWaterZoneInitialCreation)) do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

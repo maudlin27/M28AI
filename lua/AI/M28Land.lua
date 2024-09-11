@@ -8513,7 +8513,7 @@ function LandZoneOverseer(iTeam)
         ForkThread(AssignValuesToLandZones, iTeam)
 
         local iWaitCount = 0
-        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
             iWaitCount = iWaitCount + 1
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
