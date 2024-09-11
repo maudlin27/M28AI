@@ -9119,32 +9119,52 @@ end
 
 function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     --Searches for all nearby land zones to iLandZone and flags that there is an enemy firebase nearby
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordEnemyFirebase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
     if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau] = {} end
-    M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone] = {[M28Team.subrefiNearbyPlateauAndLandZones] = {}, [M28Team.subrefbInRangeOfCoreLZ] = false}
+    M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone] = {[M28Team.subrefiNearbyPlateauAndLandZones] = {}, [M28Team.subrefbInRangeOfCoreLZ] = false, {}}
     --Record any land zones in range of here
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-        for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-            local tAltLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefLZNumber]]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLZ='..tPathingData[M28Map.subrefLZNumber]..'; Dist from that LZ midpoint to the firebase LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZData[M28Map.subrefMidpoint])) end
-            if M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZData[M28Map.subrefMidpoint]) >= 163 then break end
-            --The LZ is potentially within range of this firebase so record against that LZ
-            if not(tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange]) then tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange] = {} end
-            table.insert(tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange], {iPlateau, iLandZone})
 
-            --Also record against the base plateau and LZ all the alt LZs that we have been recorded against
-            table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        for iEntry, tPathingData in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tPathingData[M28Map.subrefiDistance] >= 200 then break end --163 used for land zones, 200 for water zones
+            local tAltLZOrWZData
+            local tAltLZOrWZTeamData
+            if tPathingData[M28Map.subrefbIsWaterZone] then
+                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPathingData[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
+                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+            elseif tPathingData[M28Map.subrefiDistance] >= 163 then
+                tAltLZOrWZData = M28Map.tAllPlateaus[tPathingData[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
+                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+            if tAltLZOrWZData then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLZ='..tPathingData[M28Map.subrefiLandOrWaterZoneRef]..'; Dist from that LZ midpoint to the firebase LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZOrWZData[M28Map.subrefMidpoint])..'; tPathingData[M28Map.subrefiDistance]='..tPathingData[M28Map.subrefiDistance]) end
+                --The LZ is potentially within range of this firebase so record against that LZ
+                if not(tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange]) then tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange] = {} end
+                table.insert(tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange], {iPlateau, iLandZone})
 
-            --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
-            if tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
-                M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                --Also record against the base plateau and LZ all the alt LZs that we have been recorded against
+                if tPathingData[M28Map.subrefbIsWaterZone] then
+                    --Water zone
+                    if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones]) then M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones] = {} end
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones], tPathingData[M28Map.subrefLZNumber])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recorded enemy firebase against teh water zone '..tPathingData[M28Map.subrefiLandOrWaterZoneRef]) end
+                else
+                    --Land zone
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
+
+                    --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
+                    if tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                        M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                    end
+                end
             end
         end
     end
@@ -9168,6 +9188,20 @@ function RemoveEnemyFirebase(iTeam, iPlateau, iLandZone)
                 for iFirebase, tPlateauAndLZ in tAltLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
                     if tPlateauAndLZ[1] == iPlateau and tPlateauAndLZ[2] == iLandZone then
                         table.remove(tAltLZTeamData[M28Map.subreftEnemyFirebasesInRange], iFirebase)
+                        break
+                    end
+                end
+            end
+        end
+    end
+    --Do same for water zones
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones]) == false then
+        for iEntry, iWaterZone in M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones] do
+            local tAltWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+            if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                for iFirebase, tPlateauAndLZ in tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange] do
+                    if tPlateauAndLZ[1] == iPlateau and tPlateauAndLZ[2] == iLandZone then
+                        table.remove(tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange], iFirebase)
                         break
                     end
                 end

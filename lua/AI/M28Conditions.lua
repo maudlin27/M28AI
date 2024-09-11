@@ -2254,6 +2254,11 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
     else
         local iModMod = (iOptionalThreatAbsolutePercentIncrease or 0)
+        if not(bConsideringSubmarinesNotSurface) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+            iModMod = iModMod + 0.75
+            local iRoughSurfaceThreat = iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat
+            if iRoughSurfaceThreat > 6000 then iModMod = iModMod - 0.5 * math.min(1, (iRoughSurfaceThreat / 30000)) end
+        end
         local iEnemyAntiNavyMod = 1.5 + iModMod
         local iEnemyCombatModHigh = 1.3 + iModMod
         local iEnemyCombatModLow = 1.1 + iModMod
@@ -2300,9 +2305,13 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
         end
     end
     if bAreInScenario2 and not(bConsideringSubmarinesNotSurface) then
-        --Adjust if enemy has significant submersible threat and we dont have enough antinavy threat
+        --Adjust if enemy has significant submersible threat and we dont have enough antinavy threat, or if enemy has nearby firebase and we dont have a decent force
         if iEnemyNearbySubmersibleThreat > iAvailableAntiNavyThreat and iEnemyNearbySubmersibleThreat * 5 > iAdjacentAlliedCombatThreat and (iEnemyNearbySubmersibleThreat > 500 or iEnemyNearbySubmersibleThreat * 2 > iAdjacentAlliedCombatThreat) then
             bAreInScenario2 = false
+        elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 6000 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] < 100 then
+                bAreInScenario2 = false
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

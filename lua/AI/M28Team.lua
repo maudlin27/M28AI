@@ -166,6 +166,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyFirebaseByPlateauAndLZ = 'M28TeamEnemyFirebase' --[x] is the plateua, [y] is the LZ, returns the below subrefs
         subrefiNearbyPlateauAndLandZones = 'NrbyPLZ' --ordered 1, 2 etc. in order that added, returning {iPlateau, iLandZone} for any land zone that shoudl consider itself in range of the firebase in question
         subrefbInRangeOfCoreLZ = 'NearCLZ' --true if one of the land zones this firebase is likely in range of is a core land zone
+        subrefiNearbyWaterZones = 'NrbyWZ' --ordered 1, 2, etc., returns iWaterZone
 
     --Land combat related
     subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
