@@ -2311,7 +2311,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             bCheckCurTarget = true
             if bDebugMessages == true then LOG(sFunctionRef..': Will target nearest enemy DF units') end
         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            tUnitsToTarget = tLZTeamData[M28Map.subrefTEnemyUnits]
+            tUnitsToTarget = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryCombatScout, tLZTeamData[M28Map.subrefTEnemyUnits])
             iDistThreshold = iDistThreshold + 10
             bCheckCurTarget = true
             if bDebugMessages == true then LOG(sFunctionRef..': Will target nearest enemy units') end
@@ -2332,7 +2332,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 end
             end
             if M28Utilities.IsTableEmpty(tUnitsToTarget) then
-                tUnitsToTarget = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, oACU:GetPosition(), iDistThreshold, 'Enemy')
+                tUnitsToTarget = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure -M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryCombatScout, oACU:GetPosition(), iDistThreshold, 'Enemy')
             end
         end
         if bCheckCurTarget and M28Utilities.IsTableEmpty(oACU.WeaponInstances) == false then
