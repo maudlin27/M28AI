@@ -361,6 +361,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
 
         UpdateStat = function(self, key, value)
+            LOG('Running UpdateStat, is M28OldUnit.UpdateStat nil='..tostring(M28OldUnit.UpdateStat == nil))
             if M28OldUnit.UpdateStat then M28OldUnit.UpdateStat(self, key, value)
             else
                 --Copied from FAF unit.lua as at 2024-08-26; copyright at top of file at that time is reproduced below:
@@ -375,11 +376,12 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
                 -- when the stat doesn't exist. If it doesn't exist then we can use `GetStat` to initialize it. This makes no sense, therefore
                 -- we have this new function to hide the magic
                 local cUnit = moho.unit_methods
-                local needsSetup = cUnit.SetStat(self, key, value)
-                if needsSetup then
+                --M28 note - will always run GetStat to be safe due to crashes in LOUD presumably as the 4z0t reference above means a change was made elsewhere to what SetStat does
+                --local needsSetup = cUnit.SetStat(self, key, value)
+                --if needsSetup then
                     cUnit.GetStat(self, key, value)
                     cUnit.SetStat(self, key, value)
-                end
+                --end
                 --LOG('Finished setstat, key='..key..'; value='..value..'; self.UnitId='..(self.UnitId or 'nil'))
             end
         end,

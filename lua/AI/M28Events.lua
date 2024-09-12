@@ -1542,8 +1542,9 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
                 --Enable M28Active status if the engineer is active and we have set to inherit
-                if not(M28Orders.bDontConsiderCombinedArmy) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
-                    oConstruction.M28Active = oEngineer.M28Active
+                if oEngineer.M28Active and not(M28Orders.bDontConsiderCombinedArmy) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
+                    oConstruction.M28Active = true
+                    oConstruction:UpdateStat('M28Active', 1)
                 end
 
                 if bDebugMessages == true then
@@ -2741,12 +2742,14 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if not(oUnit:GetAIBrain().BrainType == 'Human') then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
                                 oUnit.M28Active = true
+                                oUnit:UpdateStat('M28Active', 1)
                             elseif tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3 then
                                 --MOBA mode
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if are in MOBA mode or not, and (if in MOBA) then will enable M28AI logic for all non-ACU units') end
                                 if not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
                                     oUnit.M28Active = true
+                                    oUnit:UpdateStat('M28Active', 1)
                                 end
                             end
                         end

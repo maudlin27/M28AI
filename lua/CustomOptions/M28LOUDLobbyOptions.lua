@@ -901,7 +901,7 @@ LobbyGlobalOptions = {
             },
             {
                 text = 'MOBA (all non-ACU units)',
-                help = 'MOBA mode - control only your ACU, AI controls everything else',
+                help = 'MOBA mode - AI controls everything except your ACU',
                 key = 3,
             },
         },
