@@ -30,7 +30,7 @@ NewAIBrain = Class(StandardBrain) {
         ForkThread(M28Events.OnCreateBrain, self, planName, false)
     end,
 
-    OnCreateHuman = function(self, planName)
+    OnCreateHuman = function(self, planName) --This doenst actually trigger; instead need a hook of simInit.lua
         StandardBrain.OnCreateHuman(self, planName)
         ForkThread(M28Events.OnCreateBrain, self, planName, true)
     end,

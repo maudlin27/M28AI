@@ -248,6 +248,31 @@ AIOpts = {
                 help = 'Disable combined armies',
                 key = 2,
             },
+            {
+                text = 'MOBA (all non-ACU units)',
+                help = 'MOBA mode - AI controls everything except your ACU',
+                key = 3,
+            },
+        },
+    },
+    {
+        default = 2,
+        label = "M28: CA Inherit constructing unit status?",
+        help = 'If combined armies are enabled, this determines whether units starting control will be based on their parent/constructing unit',
+        key = 'M28CAInherit',
+        value_text = "",
+        value_help = "M28AI will by default control units built by M28AI controlled shared army units",
+        values = {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
+                text = 'Yes',
+                help = 'Inherit control',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Disable control by default',
+                key = 2,
+            },
         },
     },
 }

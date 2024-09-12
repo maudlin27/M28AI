@@ -1541,7 +1541,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
-
+                --Enable M28Active status if the engineer is active and we have set to inherit
+                if oEngineer.M28Active and not(M28Orders.bDontConsiderCombinedArmy) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
+                    oConstruction.M28Active = true
+                    oConstruction:UpdateStat('M28Active', 1)
+                end
 
                 if bDebugMessages == true then
                     --local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oConstruction:GetPosition()) --decided not to include due to worry this might desync replays
@@ -2733,9 +2737,21 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Set Easy flag
                         if oUnit:GetAIBrain().M28Easy then oUnit[M28UnitInfo.refbEasyBrain] = true end
                         --M28Active flag (enable for all M28AI units)
-                        if not(M28Orders.bDontConsiderCombinedArmy) and not(oUnit:GetAIBrain().BrainType == 'Human') then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
-                            oUnit.M28Active = true
+                        if bDebugMessages == true then LOG('Considering if we want to set M28Active flag, tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)='..tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)..'; Is unit an ACU='..tostring(EntityCategoryContains(categories.COMMAND, oUnit.UnitId))..'; Is brain human='..tostring(oUnit:GetAIBrain().BrainType == 'Human')..'; M28Orders.bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy or false)) end
+                        if not(M28Orders.bDontConsiderCombinedArmy) then
+                            if not(oUnit:GetAIBrain().BrainType == 'Human') then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
+                                oUnit.M28Active = true
+                                oUnit:UpdateStat('M28Active', 1)
+                            elseif tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3 then
+                                --MOBA mode
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if are in MOBA mode or not, and (if in MOBA) then will enable M28AI logic for all non-ACU units') end
+                                if not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
+                                    oUnit.M28Active = true
+                                    oUnit:UpdateStat('M28Active', 1)
+                                end
+                            end
                         end
 
                         --Check for upgrading unit transferred to us
@@ -2977,6 +2993,9 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
         if bIsHuman == nil then
             if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
+        end
+        if bIsHuman then
+            M28Overseer.SetM28ActiveFlag()
         end
         if not(bIsHuman) and (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat') then
             aiBrain.M28AI = true

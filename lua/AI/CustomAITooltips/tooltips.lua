@@ -26,5 +26,9 @@ Tooltips = {
     pref_M28CombinedArmy = {
         title = 'M28: AI assistant?',
         description = 'If enabled, then human players can toggle M28AI logic on individual units',
-    }
+    },
+    pref_M28CAInherit = {
+        title = 'M28: CA Inherit status?',
+        description = 'M28AI will by default control units built by M28AI controlled shared army units',
+    },
 }

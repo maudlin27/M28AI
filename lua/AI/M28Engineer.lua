@@ -8716,12 +8716,31 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                     local tTargetLZ = M28Map.tAllPlateaus[iPlateauToMoveTo][M28Map.subrefPlateauLandZones][iTargetLZ]
 
-
                     sOrderRef = sOrderRef..'TLZ='..iTargetLZ
                     if M28Utilities.IsTableEmpty(tTargetLZ) then
                         M28Utilities.ErrorHandler('Invalid LZ  for moving to, iPlateauOrPOND='..iPlateauOrPond..'; iPlateauToMoveTo='..(iPlateauToMoveTo or 'nil')..'; will do reprs of iTargetLZ in log')
                         LOG(sFunctionRef..': Invalid LZ for moving to, iPlateauOrPond='..(iPlateauOrPond or 'nil')..'; iTargetLZ='..reprs(iTargetLZ)..'; vOptionalVariable='..reprs(vOptionalVariable))
+                    elseif not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tTargetLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbSharedHumanBase] then
+                        iTotalBuildPowerWanted = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want engis to travel here as it is primarily a human base') end
                     else
+                        --Check if we have engis moving from the target zone to this zone, in which case abort
+                        local toEngisTravelingHereFromTarget = {}
+                        local iTravelingPlateau, iTravelingZone
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                            for iTravelingEngi, oTravelingEngi in tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere] do
+                                if not(oTravelingEngi.Dead) and oTravelingEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] == iTargetLZ and not(oTravelingEngi:IsUnitState('Attached')) then
+                                    table.insert(toEngisTravelingHereFromTarget, oTravelingEngi)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(toEngisTravelingHereFromTarget) == false then
+                            iTotalBuildPowerWanted = 0
+                            for iTravelingEngi, oTravelingEngi in toEngisTravelingHereFromTarget do
+                                M28Orders.IssueTrackedClearCommands(oTravelingEngi)
+                            end
+                            tTargetLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefTbWantBP] = false
+                        end
                         local tMoveLocation = tTargetLZ[M28Map.subrefMidpoint]
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then
@@ -8745,6 +8764,23 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         M28Utilities.ErrorHandler('Invalid WZ  for moving to, iPlateauOrPond='..iPlateauOrPond..'; will do reprs of iTargetWZ in log')
                         LOG(sFunctionRef..': iTargetWZ='..reprs(iTargetWZ))
                     else
+                        --Check if we have engis moving from the target zone to this zone, in which case abort
+                        local toEngisTravelingHereFromTarget = {}
+                        local iTravelingPlateau, iTravelingZone
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                            for iTravelingEngi, oTravelingEngi in tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere] do
+                                if not(oTravelingEngi.Dead) and oTravelingEngi[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iTargetWZ and not(oTravelingEngi:IsUnitState('Attached')) then
+                                    table.insert(toEngisTravelingHereFromTarget, oTravelingEngi)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(toEngisTravelingHereFromTarget) == false then
+                            iTotalBuildPowerWanted = 0
+                            for iTravelingEngi, oTravelingEngi in toEngisTravelingHereFromTarget do
+                                M28Orders.IssueTrackedClearCommands(oTravelingEngi)
+                            end
+                            tTargetWZ[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTbWantBP] = false
+                        end
                         local tMoveLocation = tTargetWZ[M28Map.subrefMidpoint]
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then
@@ -10082,7 +10118,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local bSaveMassForMML = M28Conditions.SaveMassForMMLForFirebase(tLZData, tLZTeamData, iTeam, bHaveLowMass)
     local bPrioritiseProduction = M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction]
 
-
+    if not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tLZTeamData[M28Map.subrefLZSValue] > 30 then
+        local tMexesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tMexesInZone) == false then
+            local iHumanMexCount = 0
+            for iMex, oMex in tMexesInZone do
+                if not(oMex.M28Active) then iHumanMexCount = iHumanMexCount + 1 end
+            end
+            if iHumanMexCount >= tLZData[M28Map.subrefLZMexCount] -1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or iHumanMexCount == tLZData[M28Map.subrefLZMexCount]) then
+                tLZTeamData[M28Map.subrefLZbSharedHumanBase] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering shared army whether teammate has built here, iHumanMexCount='..iHumanMexCount..'; will flag that this zone should be treated as a human zone') end
+            else
+                tLZTeamData[M28Map.subrefLZbSharedHumanBase] = true
+            end
+        end
+    end
 
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -13375,7 +13425,20 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 or ((tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and (tLZTeamData[M28Map.refiNonM28TeammateMexCount] or 0) >= (tLZData[M28Map.subrefLZMexCount] or 0) * 0.5) then
             bTeammateHasBuiltHere = true
             if bDebugMessages == true then LOG(sFunctionRef..': Since teammate has all the mexes or half plus factories will treat them as owning this zone and wont try and build much here') end
+        elseif not(M28UnitInfo.bDontConsiderCombinedArmy) and M28Team.tTeamData[iTeam][M28Team.refbContainsPureM28AndSharedM28] and tLZTeamData[M28Map.subrefLZSValue] > 30 then
+            local tMexesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tMexesInZone) == false then
+                local iHumanMexCount = 0
+                for iMex, oMex in tMexesInZone do
+                    if not(oMex.M28Active) then iHumanMexCount = iHumanMexCount + 1 end
+                end
+                if iHumanMexCount >= tLZData[M28Map.subrefLZMexCount] -1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or iHumanMexCount == tLZData[M28Map.subrefLZMexCount]) then
+                    bTeammateHasBuiltHere = true
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering shared army whether teammate has built here, iHumanMexCount='..iHumanMexCount..'; bTeammateHasBuiltHere='..tostring(bTeammateHasBuiltHere)) end
+            end
         end
+
 
     elseif tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] > 0 then
         bTeammateHasBuiltHere = true
@@ -16441,13 +16504,21 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZData, tLZOrWZTeamData,
         elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
             iBPCap = 5
         end
+        if not(iBPCap) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and bIsWaterZone then
+            iBPCap = 5
+        end
         if iBPCap then
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': have iBPCap of ' .. iBPCap .. '; so will limit BP wanted for this LZ')
             end
-            for iTech = 1, 3 do
+            for iTech = 3, 1, -1 do
                 if tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] > iBPCap then
                     tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] = iBPCap
+                    if iTech > 1 then
+                        for iAltTech = iTech, 1, -1 do
+                            tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iAltTech] = 0
+                        end
+                    end
                 end
             end
         end

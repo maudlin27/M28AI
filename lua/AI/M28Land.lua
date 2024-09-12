@@ -1475,7 +1475,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
 
                     for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)) end
-                        if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                        if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
@@ -4215,7 +4215,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oClosestFatboyToEnemy='..oClosestFatboyToEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyToEnemy)) end
             if oClosestFatboyToEnemy then
-                local tAllDangerousCombatNearFatboy = oClosestFatboyToEnemy:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser, oClosestFatboyToEnemy:GetPosition(), (oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0), 'Enemy')
+                local tAllDangerousCombatNearFatboy = oClosestFatboyToEnemy:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser -M28UnitInfo.refCategoryLandScout, oClosestFatboyToEnemy:GetPosition(), (oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0), 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef..': is tAllDangerousCombatNearFatboy empty='..tostring(M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy))..'; Fatboy range='..(oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0)) end
                 if M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy) == false then
                     iVisibleDFMassInFatboyRange = M28UnitInfo.GetMassCostOfUnits(tAllDangerousCombatNearFatboy)
@@ -4363,7 +4363,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 if not(bIgnoreEnemiesInThisZone) then
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
-                    if iCurDist < iClosestDist then
+                    if iCurDist < iClosestDist and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                         iClosestDist = iCurDist
                         oNearestEnemyToFriendlyBase = oUnit
                     end
@@ -4432,8 +4432,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                             table.insert(tEnemyEngineers, oUnit)
                         elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
-                            table.insert(tSkirmisherEnemies, oUnit)
-                            if bDebugMessages == true then LOG(sFunctionRef..': recording in tSkirmisherEnemies the enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            if not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                table.insert(tSkirmisherEnemies, oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': recording in tSkirmisherEnemies the enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            end
                         end --we might be controlling untis in an adjacent zone that have an enemy unit/engeiner near them
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurdist='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iClosestDist='..iClosestDist..'; iClosestStructureDist='..iClosestStructureDist..'; iDistMod='..(iDistMod or 'nil')..'; bOnlyCheckForStructure='..tostring(bOnlyCheckForStructure)) end
                         if bOnlyCheckForStructure then
@@ -4451,8 +4453,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
                             if iDistMod then iCurDist = iCurDist * iDistMod end
                             if iCurDist < iClosestDist then
-                                iClosestDist = iCurDist
-                                oNearestEnemyToFriendlyBase = oUnit
+                                if not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                    iClosestDist = iCurDist
+                                    oNearestEnemyToFriendlyBase = oUnit
+                                end
                             end
                             if iCurDist < iClosestStructureDist and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
                                 iClosestStructureDist = iCurDist
@@ -8513,7 +8517,7 @@ function LandZoneOverseer(iTeam)
         ForkThread(AssignValuesToLandZones, iTeam)
 
         local iWaitCount = 0
-        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
             iWaitCount = iWaitCount + 1
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
@@ -9126,25 +9130,45 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
     if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau] = {} end
-    M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone] = {[M28Team.subrefiNearbyPlateauAndLandZones] = {}, [M28Team.subrefbInRangeOfCoreLZ] = false}
+    M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone] = {[M28Team.subrefiNearbyPlateauAndLandZones] = {}, [M28Team.subrefbInRangeOfCoreLZ] = false, {}}
     --Record any land zones in range of here
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-        for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-            local tAltLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefLZNumber]]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLZ='..tPathingData[M28Map.subrefLZNumber]..'; Dist from that LZ midpoint to the firebase LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZData[M28Map.subrefMidpoint])) end
-            if M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZData[M28Map.subrefMidpoint]) >= 163 then break end
-            --The LZ is potentially within range of this firebase so record against that LZ
-            if not(tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange]) then tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange] = {} end
-            table.insert(tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftEnemyFirebasesInRange], {iPlateau, iLandZone})
 
-            --Also record against the base plateau and LZ all the alt LZs that we have been recorded against
-            table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        for iEntry, tPathingData in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tPathingData[M28Map.subrefiDistance] >= 200 then break end --163 used for land zones, 200 for water zones
+            local tAltLZOrWZData
+            local tAltLZOrWZTeamData
+            if tPathingData[M28Map.subrefbIsWaterZone] then
+                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPathingData[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
+                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+            elseif tPathingData[M28Map.subrefiDistance] >= 163 then
+                tAltLZOrWZData = M28Map.tAllPlateaus[tPathingData[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
+                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+            if tAltLZOrWZData then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLZ='..tPathingData[M28Map.subrefiLandOrWaterZoneRef]..'; Dist from that LZ midpoint to the firebase LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAltLZOrWZData[M28Map.subrefMidpoint])..'; tPathingData[M28Map.subrefiDistance]='..tPathingData[M28Map.subrefiDistance]) end
+                --The LZ is potentially within range of this firebase so record against that LZ
+                if not(tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange]) then tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange] = {} end
+                table.insert(tAltLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange], {iPlateau, iLandZone})
 
-            --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
-            if tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
-                M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                --Also record against the base plateau and LZ all the alt LZs that we have been recorded against
+                if tPathingData[M28Map.subrefbIsWaterZone] then
+                    --Water zone
+                    if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones]) then M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones] = {} end
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones], tPathingData[M28Map.subrefLZNumber])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recorded enemy firebase against teh water zone '..tPathingData[M28Map.subrefiLandOrWaterZoneRef]) end
+                else
+                    --Land zone
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
+
+                    --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
+                    if tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                        M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                    end
+                end
             end
         end
     end
@@ -9168,6 +9192,20 @@ function RemoveEnemyFirebase(iTeam, iPlateau, iLandZone)
                 for iFirebase, tPlateauAndLZ in tAltLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
                     if tPlateauAndLZ[1] == iPlateau and tPlateauAndLZ[2] == iLandZone then
                         table.remove(tAltLZTeamData[M28Map.subreftEnemyFirebasesInRange], iFirebase)
+                        break
+                    end
+                end
+            end
+        end
+    end
+    --Do same for water zones
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones]) == false then
+        for iEntry, iWaterZone in M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones] do
+            local tAltWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+            if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                for iFirebase, tPlateauAndLZ in tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange] do
+                    if tPlateauAndLZ[1] == iPlateau and tPlateauAndLZ[2] == iLandZone then
+                        table.remove(tAltWZTeamData[M28Map.subreftEnemyFirebasesInRange], iFirebase)
                         break
                     end
                 end

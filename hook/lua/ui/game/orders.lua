@@ -52,7 +52,7 @@ local function M28AIToggle(self, modifiers, subState)
     if subState == nil then
         Checkbox.OnClick(self) --alternates between enabled and disabled
     end
-
+    --See SimCallbacks.lua for below
     SimCallback({Func = 'M28TestCallback', Args = {Enable = not(state)} }, true) --Runs function that updates a variable against the unit, as well as updating variable that can be accessed from UI (via GetStat('M28Active, 0)) so we can track in the SIM whether the button is enabled or not
 end
 
