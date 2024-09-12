@@ -9123,7 +9123,7 @@ end
 
 function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     --Searches for all nearby land zones to iLandZone and flags that there is an enemy firebase nearby
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordEnemyFirebase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

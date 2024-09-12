@@ -361,7 +361,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
 
         UpdateStat = function(self, key, value)
-            LOG('Running UpdateStat, is M28OldUnit.UpdateStat nil='..tostring(M28OldUnit.UpdateStat == nil))
+            --LOG('Running UpdateStat, is M28OldUnit.UpdateStat nil='..tostring(M28OldUnit.UpdateStat == nil))
             if M28OldUnit.UpdateStat then M28OldUnit.UpdateStat(self, key, value)
             else
                 --Copied from FAF unit.lua as at 2024-08-26; copyright at top of file at that time is reproduced below:
