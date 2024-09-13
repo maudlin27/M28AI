@@ -345,7 +345,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEArtiBlockedFailureCount = 16 --used to stop constantly searching for blocking buildings for an arti
                 subrefGEDefenceBlockedFailureCount = 17
                 subrefGEAvailableDefenceLocations = 18 --i.e. 'size 4' locations that can be used for PD, SAMs etc.
-                subrefGEAvailableDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
+                subrefGEDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
 
 
 
@@ -8900,7 +8900,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddGameEnderTemplateInfoToTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
+
     local iPreferredSegX, iPreferredSegZ = GetPathingSegmentFromPosition(tMidpoint)
     local tBaseTable = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
 

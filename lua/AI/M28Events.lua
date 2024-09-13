@@ -1619,6 +1619,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oConstruction.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have started SMD unit so will add to table of SMD for this reference') end
                             tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGESMDUnit] = oConstruction
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryPD, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just started on AA/SAM/PD/T2 arti unit so will add to table of defences for this reference') end
+                            if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEDefenceUnits]) then tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEDefenceUnits] = {} end
+                            table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][oEngineer[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEDefenceUnits], oConstruction)
                         else
                             M28Utilities.ErrorHandler('Engineer has just started construction on a unit that isnt one we would expect to be built for gameender template logic, Unit='..(oConstruction.UnitId or 'nil')..'; Engineer action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Engineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil'))
                             oConstruction[M28Building.reftArtiTemplateRefs] = nil
@@ -2792,7 +2796,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --First handle units that are important enough we have logic for while they are part-constructed
                         if oUnit:GetFractionComplete() >= 0.1 and not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
                             --Gameender/t3 arti and fixed shields and SMD - consider shielding/game ender template usage
-                            if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategorySMD - categories.FACTORY - categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
+                            if not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryGroundAA * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryPD - categories.FACTORY - categories.EXTERNALFACTORYUNIT - categories.TECH1, oUnit.UnitId) then
                                 --Work out if we are already in a special game ender template area
                                 if not(oUnit[M28Building.reftArtiTemplateRefs]) then
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
@@ -2855,6 +2859,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                                     tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGESMDUnit] = oUnit
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Recorded SMD as being in arti template location, SMD Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTemplate='..iTemplate..'; Time='..GetGameTimeSeconds()) end
                                                 end
+                                            elseif EntityCategoryContains(M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': will add unit to table of defences for this reference') end
+                                                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                                                oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplate}
+                                                if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEDefenceUnits]) then tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEDefenceUnits] = {} end
+                                                table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplate][M28Map.subrefGEDefenceUnits], oUnit)
                                             else M28Utilities.ErrorHandler('Unrecognised category when checking if constructed unit is in arti template area', true)
                                             end
                                         end
