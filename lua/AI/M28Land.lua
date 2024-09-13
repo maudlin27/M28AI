@@ -2776,6 +2776,11 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 iRunThreshold = 7
             end
         end
+        --Increase run threshold if we dont have a significant combat force in this zone
+        if tLZTeamData[M28Map.subrefbLZWantsDFSupport] and tLZTeamData[M28Map.subrefLZThreatAllyMAA] > (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] + tLZTeamData[M28Map.subrefLZSValue]) * 2 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then
+            iRunThreshold = iRunThreshold * 2
+        end
+
         local bMovingTowardsEnemy, iAngleToRally, iAngleToNearestUnit, bAmphibiousUnit
         local bCampaignMap = M28Map.bIsCampaignMap
         if bDebugMessages == true then
