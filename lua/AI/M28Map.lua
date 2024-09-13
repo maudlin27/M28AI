@@ -153,12 +153,14 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiSmallShieldLocationCount = 6
             subreftSmallArtiLocations = 7
             subreftSmallShieldLocations = 8
+            subreftSmallShieldDefenceLocations = 9
             --Below values for if using large shielding (UEF/Seraphim):
-            subrefiLargeArtiLocationCount = 9
-            subrefiLargeArtiMaxSize = 10
-            subrefiLargeShieldLocationCount = 11
-            subreftLargeArtiLocations = 12
-            subreftLargeShieldLocations = 13
+            subrefiLargeArtiLocationCount = 10
+            subrefiLargeArtiMaxSize = 11
+            subrefiLargeShieldLocationCount = 12
+            subreftLargeArtiLocations = 13
+            subreftLargeShieldLocations = 14
+            subreftLargeShieldDefenceLocations = 15
 
         --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
             --subrefBlacklistLocation = 1
@@ -342,6 +344,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEShieldBlockedFailureCount = 15 --used to stop constantly searching for blocking buildings for a shield
                 subrefGEArtiBlockedFailureCount = 16 --used to stop constantly searching for blocking buildings for an arti
                 subrefGEDefenceBlockedFailureCount = 17
+                subrefGEAvailableDefenceLocations = 18 --i.e. 'size 4' locations that can be used for PD, SAMs etc.
+                subrefGEAvailableDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
 
 
 
@@ -8896,6 +8900,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddGameEnderTemplateInfoToTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    
     local iPreferredSegX, iPreferredSegZ = GetPathingSegmentFromPosition(tMidpoint)
     local tBaseTable = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
 
@@ -8920,6 +8925,21 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
             [5] = { tMidpoint[1] + 6, 0, tMidpoint[3] + 3 }, --RH side
             [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
             [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+        }
+        --[[smalL: from the 2nd row left hand shield:
+        --2 up, 4 left
+        --0 down, 4 left
+        --4 down, 1 left
+        --then right hand side is the same but from the 2nd row RH shield
+        --Up means decreasing z, down means increasing z
+        --]]
+        tBaseTable[subreftSmallShieldDefenceLocations] = {
+            [1] = { tMidpoint[1] - 6 - 4, 0, tMidpoint[3] + 3 - 2 }, --2nd row, LH 1
+            [2] = { tMidpoint[1] - 6 - 4,  0, tMidpoint[3] + 3 }, --2nd row, LH 2
+            [3] = { tMidpoint[1] - 6 - 1, 0, tMidpoint[3] + 3 + 4 }, --2nd row, LH 3
+            [4] = { tMidpoint[1] + 6 + 4, 0, tMidpoint[3] + 3 - 2 }, --RH side
+            [5] = { tMidpoint[1] + 6 + 4, 0, tMidpoint[3] + 3 }, --RH side
+            [6] = { tMidpoint[1] + 6 + 1, 0, tMidpoint[3] + 3 + 4 }, --RH side
         }
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Will start by recording small shield template for tMidpoint='..repru(tMidpoint)..'; iPreferredSize='..(iPreferredSize or 'nil')..' at time='..GetGameTimeSeconds()) end
@@ -8947,6 +8967,21 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
             [7] = { tMidpoint[1] -1,0, tMidpoint[3] + 9 }, --Row 3 mid
             [8] = { tMidpoint[1] +5,0, tMidpoint[3] + 9 }, --Row 3 Right
         }
+        --SMD - this gets built based on the last shield, so shoudln't interfere with things
+        --SAM locations - want to go above the 1st shield in the top row (the only shield in top row) - should be able to fit 6
+        --i.e. Z value - go up 4 or 6 (so -4 or -6)
+        --x value - -2, 0 and +2
+        tBaseTable[subreftLargeShieldDefenceLocations] = {
+            [1] = { tMidpoint[1] +10 - 2, 0, tMidpoint[3] - 3 - 4 },
+            [2] = { tMidpoint[1] +10 - 2, 0, tMidpoint[3] - 3 - 6 },
+            [3] = { tMidpoint[1] +10 - 2, 0, tMidpoint[3] - 3 - 8 },
+            [4] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 - 4 },
+            [5] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 - 6 },
+            [6] = { tMidpoint[1] +10, 0, tMidpoint[3] - 3 - 8 },
+            [7] = { tMidpoint[1] +10 + 2, 0, tMidpoint[3] - 3 - 4 },
+            [8] = { tMidpoint[1] +10 + 2, 0, tMidpoint[3] - 3 - 6 },
+            [9] = { tMidpoint[1] +10 + 2, 0, tMidpoint[3] - 3 - 8 },
+        }
     elseif iPreferredSize == 24 then
         --Can support 2 novax size gameenders and 8 shields
         tBaseTable[subrefiLargeArtiLocationCount] = 2
@@ -8969,6 +9004,21 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
             [7] = { tMidpoint[1], 0, tMidpoint[3] + 9 }, --Row 3 mid
             [8] = { tMidpoint[1]+ 6,0, tMidpoint[3] + 9 }, --Row 3 Right
         }
+        --SMD - this gets built based on the last shield, so shoudln't interfere with things
+        --SAM locations - want to go above the 1st shield in the top row (the only shield in top row) - should be able to fit 9
+        --i.e. Z value - go up 4, 6 or 8 (so -4 or -6 or -8)
+        --x value - -2, 0 and +2
+        tBaseTable[subreftLargeShieldDefenceLocations] = {
+            [1] = { tMidpoint[1] +9 - 2, 0, tMidpoint[3] - 3 - 4 },
+            [2] = { tMidpoint[1] +9 - 2, 0, tMidpoint[3] - 3 - 6 },
+            [3] = { tMidpoint[1] +9 - 2, 0, tMidpoint[3] - 3 - 8 },
+            [4] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 - 4 },
+            [5] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 - 6 },
+            [6] = { tMidpoint[1] +9, 0, tMidpoint[3] - 3 - 8 },
+            [7] = { tMidpoint[1] +9 + 2, 0, tMidpoint[3] - 3 - 4 },
+            [8] = { tMidpoint[1] +9 + 2, 0, tMidpoint[3] - 3 - 6 },
+            [9] = { tMidpoint[1] +9 + 2, 0, tMidpoint[3] - 3 - 8 },
+        }
     elseif iPreferredSize == 22 then
         --Cant support anything other than the small shield
         tBaseTable[subrefiLargeArtiLocationCount] = 1
@@ -8985,6 +9035,24 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
             [5] = { tMidpoint[1] + 6, 0, tMidpoint[3] + 3 }, --RH side
             [6] = { tMidpoint[1] - 3, 0, tMidpoint[3] + 9 }, --3rd row, LH
             [7] = { tMidpoint[1] + 3, 0, tMidpoint[3] + 9 }, --3rd row, RH
+        }
+        --SMD - this gets built based on the last shield, so shoudln't interfere with things
+        --SAM locations: 12 slots, 6 on LH side, 6 on RH side, from the top shield
+        --i.e. Z value - go up 4 or 6 (so -4 or -6)
+        --x value - -2, 0 and +2
+        tBaseTable[subreftLargeShieldDefenceLocations] = {
+            [1] = { tMidpoint[1] -8 - 2, 0, tMidpoint[3] - 3 - 4 },
+            [2] = { tMidpoint[1] -8, 0, tMidpoint[3] - 3 - 4 },
+            [3] = { tMidpoint[1] -8 + 2, 0, tMidpoint[3] - 3 - 4 },
+            [4] = { tMidpoint[1] -8 - 2, 0, tMidpoint[3] - 3 - 6 },
+            [5] = { tMidpoint[1] -8, 0, tMidpoint[3] - 3 - 6 },
+            [6] = { tMidpoint[1] -8 + 2, 0, tMidpoint[3] - 3 - 6 },
+            [7] = { tMidpoint[1] +8 - 2, 0, tMidpoint[3] - 3 - 4 },
+            [8] = { tMidpoint[1] +8, 0, tMidpoint[3] - 3 - 4 },
+            [9] = { tMidpoint[1] +8 + 2, 0, tMidpoint[3] - 3 - 4 },
+            [10] = { tMidpoint[1] +8 - 2, 0, tMidpoint[3] - 3 - 6 },
+            [11] = { tMidpoint[1] +8, 0, tMidpoint[3] - 3 - 6 },
+            [12] = { tMidpoint[1] +8 + 2, 0, tMidpoint[3] - 3 - 6 },
         }
     else M28Utilities.ErrorHandler('Dont have preplanned template for this size, iPreferredSize='..(iPreferredSize or 'nil'))
     end
@@ -9114,6 +9182,12 @@ function RecordBackupGameEnderLocation()
                             if bDebugMessages == true then LOG(sFunctionRef..': Large shield locations='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldLocations])) end
                             for iEntry, tLocation in tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldLocations] do
                                 M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, 3), 1, 400)
+                            end
+                            --Draw in black defence locations
+                            if M28Utilities.IsTableEmpty(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldDefenceLocations]) == false then
+                                for iEntry, tLocation in tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeShieldDefenceLocations] do
+                                    M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, 1), 3, 400)
+                                end
                             end
                         end
 

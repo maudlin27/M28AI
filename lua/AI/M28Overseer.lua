@@ -525,7 +525,19 @@ end
 
 
 function TestCustom(aiBrain)
-    LOG('repr of scenariooptions='..reprs(ScenarioInfo.Options))
+    WaitSeconds(40)
+    local tStartPosition = M28Map.GetPlayerStartPosition(aiBrain)
+    local tLZData = M28Map.GetLandOrWaterZoneData(tStartPosition)
+    LOG('TestCustom: tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]))
+    for iEntry, tPosition in tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subreftSmallShieldLocations] do
+        local rCurRect = M28Utilities.GetRectAroundLocation(tPosition, 3)
+        M28Utilities.DrawRectangle(rCurRect)
+    end
+    for iEntry, tDefence in tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subreftSmallShieldDefenceLocations] do
+        local rCurRect = M28Utilities.GetRectAroundLocation(tDefence, 1)
+        M28Utilities.DrawRectangle(rCurRect, 3)
+    end
+
     --[[local oHumanBrain
     for iBrain, oBrain in ArmyBrains do
         if oBrain.BrainType == 'Human' then
