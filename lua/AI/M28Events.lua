@@ -2867,6 +2867,17 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 end
                             end
                         end
+
+                        --Land scout special logic for M28AI units - consider making a combat land scout
+                        if oUnit[M28UnitInfo.refiCombatRange] >= 32 and EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) and M28UnitInfo.GetUnitLifetimeCount(oUnit) <= oUnit:GetAIBrain()[M28Overseer.refiCombatLandScoutThreshold]  then
+                            local aiBrain = oUnit:GetAIBrain()
+                            if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyGroundTech] >= 2 then
+                                aiBrain[M28Overseer.refiCombatLandScoutThreshold] = 0
+                            else
+                                oUnit[M28UnitInfo.refbScoutCombatOverride] = true
+                            end
+                        end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering special logic for units created via cheat or transfer, fraction complete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then
                             if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryTML, oUnit.UnitId) then

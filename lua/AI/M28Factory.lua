@@ -1567,6 +1567,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         iCategoryToGet = M28UnitInfo.refCategoryEngineer
                     end
                 end
+
+                --Combat land scouts
+                if iFactoryTechLevel == 1 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                    iCategoryToGet = M28UnitInfo.refCategoryLandScout
+                end
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         if iFactoryTechLevel < 3 or not (bDontConsiderBuildingMAA) then
@@ -2052,7 +2057,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         --Larger maps need to be careful we dont underbuild engineers early on
                         --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
                         local iCombatCategoryWanted
-                        if iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
+                        --Aeon - get scouts to use in combat role
+                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                            iCombatCategoryWanted = M28UnitInfo.refCategoryLandScout
+                        elseif iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE
                         else
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat
