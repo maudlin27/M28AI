@@ -3687,12 +3687,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 local bForcedLowCostOption = false
                                 if not(bHaveLowCostOption and bHaveHighCostOption) and iCheapestBlueprint then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Increasing mass threshold as couldnt find anything to build under default threshold, iMassThreshold pre increase='..iMassThreshold..'; iCheapestBlueprint='..iCheapestBlueprint) end
-                                    iCurMassThreshold = iCheapestBlueprint * 1.2
+                                    iCurMassThreshold = math.max(iCheapestBlueprint * 1.2, 28000)
                                     bForcedLowCostOption = true
                                 end
                                 if (bHaveLowCostOption and bHaveHighCostOption) or bForcedLowCostOption then
                                     for iEntry, tBlueprintAndMassCost in tSubtable do
-                                        if tBlueprintAndMassCost[2] > iMassThreshold then
+                                        if tBlueprintAndMassCost[2] > iCurMassThreshold then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Removing blueprint '..tBlueprintAndMassCost[1]..' from the categories wanted as it costs '..tBlueprintAndMassCost[2]..'; iFaction='..iFaction) end
                                             iCategoryWanted = iCategoryWanted - categories[tBlueprintAndMassCost[1]]
                                         end
@@ -10076,7 +10076,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             if bDebugMessages == true then LOG(sFunctionRef..': Are stalling power so wont build T3 navy or experimental and instead will build more power') end
             fnHaveActionToAssign(refActionBuildSecondPower,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental type action') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental type action, iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')) end
             fnHaveActionToAssign((iActionToAssign or refActionBuildExperimental),  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         end
     end
@@ -11331,7 +11331,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
     if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)
-        if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3) then
+        if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(tLZData[M28Map.subrefLZMexCount], 1) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.TECH3) >= 10) then
 
             iBPWanted = 90
             if not(bHaveLowPower) then
@@ -11347,7 +11347,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = 120
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush our first experimental, iBPWanted='..iBPWanted) end
-            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, false, refActionBuildExperimental, 3, iBPWanted)
+            --AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, iLandOrWaterZone, iTeam, tLZOrWZData, bIsWaterZone, iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam,               tLZData, false, refActionBuildExperimental, 3, iBPWanted)
             --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
         end
     end
