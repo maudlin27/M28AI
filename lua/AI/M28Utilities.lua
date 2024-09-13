@@ -232,7 +232,7 @@ function IsTableEmpty(tTable, bEmptyIfNonTableWithValue, iOptionalCycleCount)
     --E.g. if passed oUnit to a function that was expecting a table, then setting bEmptyIfNonTableWithValue = false means it will register the table isn't nil
 
     if (type(tTable) == "table") then
-        if next (tTable) == nil then return true
+        if next (tTable) == nil then return true --(could probably also use table.empty)
         else
             for i1, v1 in pairs(tTable) do
                 if iOptionalCycleCount and iOptionalCycleCount >= 3 then return true
