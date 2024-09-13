@@ -3303,7 +3303,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             else
                                 --Enemy has DF units and they are already in our range so retreat
                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iPond, 'NSKRetr', false, nil, nil, true)
+                                ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iPond, 'NSKRetr', false, nil, nil, true)
                                 --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'NSKRetr'..iWaterZone)
                                 --If enemy is able to shoot us then get DF support
                                 if not(bAttackWithOutrangedSubUnits) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tEnemyNonHoverUnits, 4, iTeam, true) then
@@ -3410,12 +3410,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                             if bConsiderAmphibiousRally and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
                                 if iAmphibiousRallyPlateau then
-                                    M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmphR'..iWaterZone, false, nil, nil, false)
+                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmphR'..iWaterZone, false, nil, nil, false)
                                 else
                                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, sMessage..'_AmphR'..iWaterZone)
                                 end
                             else
-                                M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
+                                ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
                                 --M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, 6, false, sMessage..iWaterZone)
                             end
                         else
@@ -3509,14 +3509,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 local iKitingSegmentX, iKitingSegmentZ = M28Map.GetPathingSegmentFromPosition(tKitingRetreatLocation)
                                 if M28Map.tPondBySegment[iKitingSegmentX][iKitingSegmentZ] == iPond then
                                     bRunFromNearestEnemy = true
-                                    M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tKitingRetreatLocation, iPond, 'NKRetNrE'..iWaterZone, false, nil, nil, true)
+                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tKitingRetreatLocation, iPond, 'NKRetNrE'..iWaterZone, false, nil, nil, true)
                                     --M28Orders.IssueTrackedMove(oUnit, tKitingRetreatLocation, iOrderReissueDistToUse, false, 'NKRetNrE'..iWaterZone)
                                 end
                             end
                         end
                     end
                     if not(bRunFromNearestEnemy) then
-                        M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iPond, 'NKRetr'..iWaterZone, false, nil, nil, true)
+                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iPond, 'NKRetr'..iWaterZone, false, nil, nil, true)
                         --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iOrderReissueDistToUse, false, 'NKRetr'..iWaterZone)
                     end
                 end
@@ -3706,7 +3706,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 if bDebugMessages == true then LOG(sFunctionRef..': bCanSeeEnemy='..tostring(bCanSeeEnemy)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iOurRelevantRange='..(iOurRelevantRange or 'nil')..'; iEnemyRelevantRange='..(iEnemyRelevantRange or 'nil')..'; Dist until out of range='..(iDistUntilEnemyOutOfRange or 'nil')..'; bRetreatFromEnemy='..tostring(bRetreatFromEnemy)) end
                                 if bRetreatFromEnemy then
                                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                    M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tTempRetreatLocation, iPond, 'WSRKitR'..iWaterZone, false, nil, nil, true)
+                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tTempRetreatLocation, iPond, 'WSRKitR'..iWaterZone, false, nil, nil, true)
                                     --M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 1.5, false, 'WSRKitR'..iWaterZone, false)
                                 else
                                     if not(IgnoreOrderDueToStuckUnit(oUnit)) then
@@ -3842,7 +3842,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 local tLocalisedKitingPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()), math.min(5, iDistUntilEnemyOutOfOurRange - 0.25), true, false, bCheckPlayableArea)
                                 if NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tLocalisedKitingPosition) == iPond then
                                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                    M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tLocalisedKitingPosition, iPond, 'WATKR'..iWaterZone, false, nil, nil, true)
+                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tLocalisedKitingPosition, iPond, 'WATKR'..iWaterZone, false, nil, nil, true)
                                     --M28Orders.IssueTrackedMove(oUnit, tLocalisedKitingPosition, 1, false, 'WATKR'..iWaterZone)
                                 else
                                     if not(IgnoreOrderDueToStuckUnit(oUnit)) then
@@ -3994,12 +3994,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                     if bConsiderAmphibiousRally and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect a sub to be amphibious
                                         if iAmphibiousRallyPlateau then
-                                            M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmpR'..iWaterZone, false, nil, nil, false)
+                                            ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iAmphibiousRallyPlateau, sMessage..'_AmpR'..iWaterZone, false, nil, nil, false)
                                         else
                                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, sMessage..'_AmpR'..iWaterZone)
                                         end
                                     else
-                                        M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
+                                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
                                         --M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, iOrderReissueDistToUse, false, sMessage..iWaterZone)
                                     end
                                 else
@@ -4030,7 +4030,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 for iUnit, oUnit in tMissileShips do
                     if oNearestEnemyToFriendlyBase and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= math.max((oUnit[M28UnitInfo.refiCombatRange] or 60) * 0.6, math.min((oUnit[M28UnitInfo.refiCombatRange] or 60) - 10, (oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] or 20) + 10, (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) + 10)) then
                         --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, 'MisRetr', false)
-                        M28Land.BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iPond, 'MisRetr', false, nil, nil, true)
+                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iPond, 'MisRetr', false, nil, nil, true)
                     else
                         table.insert(tMissileShipsToBombard, oUnit)
                     end

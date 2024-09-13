@@ -65,6 +65,7 @@ refiTimeOfLastUnitCapDeath = 'M28OverseerTmLstCpDth' --time we last ctrlkd a uni
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
+refiCombatLandScoutThreshold = 'M28OvsrCLnS' --number of aeon land scouts to use in a combat role
 
 
 --Global other variables
@@ -524,7 +525,19 @@ end
 
 
 function TestCustom(aiBrain)
-    LOG('repr of scenariooptions='..reprs(ScenarioInfo.Options))
+    WaitSeconds(40)
+    local tStartPosition = M28Map.GetPlayerStartPosition(aiBrain)
+    local tLZData = M28Map.GetLandOrWaterZoneData(tStartPosition)
+    LOG('TestCustom: tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment]))
+    for iEntry, tPosition in tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subreftSmallShieldLocations] do
+        local rCurRect = M28Utilities.GetRectAroundLocation(tPosition, 3)
+        M28Utilities.DrawRectangle(rCurRect)
+    end
+    for iEntry, tDefence in tLZData[M28Map.subrefGameEnderTemplateBackupLocationSizeAndSegment][M28Map.subreftSmallShieldDefenceLocations] do
+        local rCurRect = M28Utilities.GetRectAroundLocation(tDefence, 1)
+        M28Utilities.DrawRectangle(rCurRect, 3)
+    end
+
     --[[local oHumanBrain
     for iBrain, oBrain in ArmyBrains do
         if oBrain.BrainType == 'Human' then
@@ -2415,7 +2428,7 @@ function SecondDelayedUnpauseCheckForMobileShields(tUnits, iDelayInSeconds)
 end
 
 function DecideOnGeneralMapStrategy(aiBrain)
-    --Decide if we want to consider ignoring T2 mex upgrading and going all in on T1 spam
+    --Decide if we want to consider ignoring T2 mex upgrading and going all in on T1 spam, along with certain other factors such as combat land scouts
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnGeneralMapStrategy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2463,6 +2476,15 @@ function DecideOnGeneralMapStrategy(aiBrain)
             end
         end
 
+    end
+
+    --Combat land scouts - do if can path to enemy base
+    aiBrain[refiCombatLandScoutThreshold] = 0
+    local tStartPosition = M28Map.GetPlayerStartPosition(aiBrain)
+    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(tStartPosition, true, aiBrain.M28Team)
+    if tLZData[M28Map.subrefLZIslandRef] == M28Utilities.NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
+        --We can path to enemy with land
+        aiBrain[refiCombatLandScoutThreshold] = 15 --spirits only have 1 dps so this only gives a slight long term benefit in t1 land combat
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 

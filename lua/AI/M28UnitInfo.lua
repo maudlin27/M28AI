@@ -88,6 +88,7 @@ reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam 
 refiUnitMassCost = 'M28UMCs' --for profiling testing
 refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against the table of non-M28 experimentals being constructed
 refbHaveSeenUnitByTeam = 'M28UHvSn' --true if we have detected the unit in some way
+refbScoutCombatOverride = 'M28ScCmO' --true if we want the scout to be treated as a normal combat unit
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -289,7 +290,12 @@ refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
 refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
 refCategoryMobileBomb = categories.BOMB * categories.MOBILE
-refCategorySkirmisher = refCategorySniperBot - categories.EXPERIMENTAL
+refCategorySkirmisher = refCategorySniperBot - categories.EXPERIMENTAL * categories.CYBRAN
+if categories.bal0403 then
+    refCategorySniperBot = refCategorySniperBot + categories.bal0403
+    refCategorySkirmisher = refCategorySkirmisher + categories.bal0403
+    refCategoryLandCombat = refCategoryLandCombat + categories.bal0403
+end
 if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
     refCategorySkirmisher = refCategorySkirmisher + categories.del0204 + categories.drl0204 - refCategoryMobileBomb
 else

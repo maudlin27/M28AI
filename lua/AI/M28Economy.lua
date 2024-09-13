@@ -421,7 +421,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                                 local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
                                 iNearbyMexCount = iNearbyMexCount + (tAdjLZData[M28Map.subrefLZMexCount] or 0)
                             end
-                            if iNearbyMexCount >= 5 then
+                            if iNearbyMexCount >= 4 then
                                 bHaveEnoughMexes = true
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMexCount='..iNearbyMexCount..'; bHaveEnoughMexes='..tostring(bHaveEnoughMexes)) end

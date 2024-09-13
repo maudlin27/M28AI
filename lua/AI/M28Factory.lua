@@ -67,7 +67,7 @@ function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
     return sMostExpensiveBlueprint
 end
 
-function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize)
+function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences, iOptionalMaxSkirtSize, bGetMostExpensive)
     --returns nil if cant find any blueprints that can build
     --NOTE: Can use import("/lua/game.lua").IsRestricted(sBlueprint, iArmyIndex) to see if we are able to build a particular blueprint; moved to M28UnitInfo.IsUnitRestricted for LOUD compatibility
     --NOTE: bGetSlowest is forced to be true for t1 land factories
@@ -92,6 +92,8 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local tiLowestSpeedByTech = {1000, 1000, 1000}
     local tiLowestMassByTech = {100000000, 100000000, 100000000}
     local tiHighestSpeedByTech = {0,0,0}
+    local tiHighestMassByTech
+    if bGetMostExpensive then tiHighestMassByTech = {0,0,0} end
     local oCurBlueprint
     local iHighestPriority = -100
     local bCanBuildRequiredCategory
@@ -166,8 +168,8 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                             iHighestTech = iCurrentTech
                             iHighestPriority = -100
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))) end
-                        if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))..'; bGetMostExpensive='..tostring(bGetMostExpensive or false)) end
+                        if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and not(bGetMostExpensive) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have a priority specified='..aiBrain[reftBlueprintPriorityOverride][sBlueprint]..'; iHighestPriority='..iHighestPriority) end
                             iHighestPriority = math.max(aiBrain[reftBlueprintPriorityOverride][sBlueprint], iHighestPriority)
                         end
@@ -180,11 +182,16 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                             elseif bGetFastest == true then
                                 if iCurSpeed > tiHighestSpeedByTech[iCurrentTech] then tiHighestSpeedByTech[iCurrentTech] = iCurSpeed end
                             end
-                        elseif bGetCheapest then
+                        elseif bGetCheapest or bGetMostExpensive then
                             oCurBlueprint = tAllBlueprints[sBlueprint]
                             iCurMass = oCurBlueprint.Economy.BuildCostMass
-                            if iCurMass < tiLowestMassByTech[iCurrentTech] then tiLowestMassByTech[iCurrentTech] = iCurMass end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]) end
+                            if bGetCheapest then
+                                if iCurMass < tiLowestMassByTech[iCurrentTech] then tiLowestMassByTech[iCurrentTech] = iCurMass end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]) end
+                            elseif bGetMostExpensive then
+                                if iCurMass > tiHighestMassByTech[iCurrentTech] then tiHighestMassByTech[iCurrentTech] = iCurMass end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get most expensive; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiHighestMassByTech[iCurrentTech]='..tiHighestMassByTech[iCurrentTech]) end
+                            end
                         end
                         --end
                     end
@@ -212,13 +219,13 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each blueprint in valid blueprints, sBlueprint='..sBlueprint..': Considering whether we have high enough tech to consider, iCurrentTech='..iCurrentTech..'; iMinTechToUse='..iMinTechToUse..'; aiBrain[reftBlueprintPriorityOverride][sBlueprint]='..(aiBrain[reftBlueprintPriorityOverride][sBlueprint] or 'nil')) end
             if iCurrentTech >= iMinTechToUse then
-                if not(bGetFastest) and not(bGetSlowest) and not(bGetCheapest) then iCurrentPriority = aiBrain[reftBlueprintPriorityOverride][sBlueprint] end
+                if not(bGetFastest) and not(bGetSlowest) and not(bGetCheapest) and not(bGetMostExpensive) then iCurrentPriority = aiBrain[reftBlueprintPriorityOverride][sBlueprint] end
                 if iCurrentPriority == nil then iCurrentPriority = 0 end
                 if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..sBlueprint..'; iCurrentTech='..iCurrentTech..'; considering priority, iCurrentPriority='..iCurrentPriority..'; iHighestPriority='..iHighestPriority) end
                 if iCurrentPriority >= iHighestPriority then
                     bIsValid = true
 
-                    if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) then
+                    if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and not(bGetMostExpensive) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Not interested in if slowest or fastest or cheapest so marking BP as valid') end
                         bIsValid = true
                     else
@@ -234,11 +241,16 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have the highest speed for tech levels being considered') end
                                 bIsValid = true
                             end
-                        elseif bGetCheapest then
+                        elseif bGetCheapest or bGetMostExpensive then
                             oCurBlueprint = tAllBlueprints[sBlueprint]
                             iCurMass = oCurBlueprint.Economy.BuildCostMass
-                            if iCurMass <= tiLowestMassByTech[iCurrentTech] then bIsValid = true end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]..'; bIsValid='..tostring(bIsValid)) end
+                            if bGetCheapest then
+                                if iCurMass <= tiLowestMassByTech[iCurrentTech] then bIsValid = true end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]..'; bIsValid='..tostring(bIsValid)) end
+                            elseif bGetMostExpensive then
+                                if iCurMass > tiHighestMassByTech[iCurrentTech] then bIsValid = true end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get most expensive; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiHighestMassByTech[iCurrentTech]='..tiHighestMassByTech[iCurrentTech]..'; bIsValid='..tostring(bIsValid)) end
+                            end
                         else M28Utilities.ErrorHandler('Missing code')
                         end
                     end
@@ -1567,6 +1579,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         iCategoryToGet = M28UnitInfo.refCategoryEngineer
                     end
                 end
+
+                --Combat land scouts
+                if iFactoryTechLevel == 1 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                    iCategoryToGet = M28UnitInfo.refCategoryLandScout
+                end
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         if iFactoryTechLevel < 3 or not (bDontConsiderBuildingMAA) then
@@ -2052,7 +2069,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         --Larger maps need to be careful we dont underbuild engineers early on
                         --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
                         local iCombatCategoryWanted
-                        if iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
+                        --Aeon - get scouts to use in combat role
+                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                            iCombatCategoryWanted = M28UnitInfo.refCategoryLandScout
+                        elseif iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE
                         else
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat

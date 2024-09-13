@@ -3687,12 +3687,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 local bForcedLowCostOption = false
                                 if not(bHaveLowCostOption and bHaveHighCostOption) and iCheapestBlueprint then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Increasing mass threshold as couldnt find anything to build under default threshold, iMassThreshold pre increase='..iMassThreshold..'; iCheapestBlueprint='..iCheapestBlueprint) end
-                                    iCurMassThreshold = iCheapestBlueprint * 1.2
+                                    iCurMassThreshold = math.max(iCheapestBlueprint * 1.2, 28000)
                                     bForcedLowCostOption = true
                                 end
                                 if (bHaveLowCostOption and bHaveHighCostOption) or bForcedLowCostOption then
                                     for iEntry, tBlueprintAndMassCost in tSubtable do
-                                        if tBlueprintAndMassCost[2] > iMassThreshold then
+                                        if tBlueprintAndMassCost[2] > iCurMassThreshold then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Removing blueprint '..tBlueprintAndMassCost[1]..' from the categories wanted as it costs '..tBlueprintAndMassCost[2]..'; iFaction='..iFaction) end
                                             iCategoryWanted = iCategoryWanted - categories[tBlueprintAndMassCost[1]]
                                         end
@@ -3954,7 +3954,24 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                 bReclaimingDangerousEnemy = true
                             end
                         end
-                        if not(bReclaimingDangerousEnemy or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Engineer unit state='..M28UnitInfo.GetUnitState(oEngineer))
+                            local oFocusUnit = oEngineer:GetFocusUnit()
+                            if oFocusUnit then
+                                LOG(sFunctionRef..': Engineer focus unit='..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Focus unit fraction complete='..oEngineer:GetFocusUnit():GetFractionComplete())
+                            end
+                        end
+                        if (oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) then
+                            local oFocusUnit = oEngineer:GetFocusUnit()
+                            if oFocusUnit and oFocusUnit:GetFractionComplete() >= 0.75 and oFocusUnit:GetFractionComplete() < 1 then
+                                if oFocusUnit:GetFractionComplete() >= 0.9 then
+                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oFocusUnit.UnitId) and M28UnitInfo.GetUnitHealthPercent(oEngineer) >= 0.99 then
+                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                end
+                            end
+                        end
+                        if not(bReclaimingDangerousEnemy) and not(bConsiderReclaimableEnemiesInBuildRangeOnly) and not(oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75) then
                             if not(oEngineer[M28UnitInfo.refbEasyBrain]) or (not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer:IsUnitState('Repairing')) and not(oEngineer:IsUnitState('Building'))) then
                                 if aiBrain.GetUnitsAroundPoint then
                                     if oEngineer[M28UnitInfo.refbEasyBrain] then
@@ -3974,7 +3991,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                         for iUnit, oUnit in tNearbyEnemiesByZone do
                                             --It's not possible to reclaim an under construction building
                                             if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt())) then
-                                                if not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
+                                                if (not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) and not(oUnit:IsUnitState('Attached')) then
                                                     if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                                         iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
                                                         if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
@@ -7002,41 +7019,31 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get defences such as SMD, iLandZone='..iLandZone..'; iTemplateRef='..iTemplateRef..'; Do we have active shield monitor='..tostring(tTableRef[M28Map.subrefGEbActiveShieldMonitor])) end
 
-    if tTableRef[M28Map.subrefGEbActiveShieldMonitor] then
-        --Consider getting SMD if we dont have one and enemy has nukes, and we have an SMD location for this table
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want SMD for template '..iTemplateRef..'; in P'..iPlateau..'Z'..iLandZone..'; Is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))..'; Do we have a valid SMD unit in this template already='..tostring(M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit]))..'; Is table of available t3 engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction))..'; Is SMD location for this template empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGESMDLocation]))) end
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false and not(M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit])) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGESMDLocation]) == false and M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML - categories.BATTLESHIP, M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers])) == false then
-            --Enemy has nuke (non sera battleship version) and we lack SMD for this template, so get SMD unless we have another template in this zone that has SMD
-            local bHaveOtherTemplateWithSMD = false
-            for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
-                if M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit]) then
-                    bHaveOtherTemplateWithSMD = true
+    if tTableRef[M28Map.subrefGEbActiveShieldMonitor] or (not(M28Building.bShieldsCanDischarge) and tTableRef[M28Map.subrefGEShieldUnits] and table.getn(tTableRef[M28Map.subrefGEShieldUnits]) >= 5) then
+        function BuildDefensiveUnit(iCategoryWanted, tPotentialBuildLocations, bOptionalRemoveInvalidPotentialBuildLocations)
+            local oEngineerToBuild
+            for iFaction, tEngineers in tAvailableT3EngineersByFaction do
+                for iEngineer, oEngineer in tEngineers do
+                    oEngineerToBuild = oEngineer
+                    break
+                end
+                if oEngineerToBuild then
                     break
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveOtherTemplateWithSMD='..tostring(bHaveOtherTemplateWithSMD)) end
-            if not(bHaveOtherTemplateWithSMD) then
-                --Wnat to build SMD
-                local oEngineerToBuild
-                for iFaction, tEngineers in tAvailableT3EngineersByFaction do
-                    for iEngineer, oEngineer in tEngineers do
-                        oEngineerToBuild = oEngineer
-                        break
-                    end
-                    if oEngineerToBuild then
-                        break
-                    end
-                end
-                if oEngineerToBuild then
-                    local aiBrain = oEngineerToBuild:GetAIBrain()
-                    local sBPToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategorySMD, oEngineerToBuild)
-                    local sLastBlueprint = oEngineerToBuild[M28Orders.reftiLastOrders][oEngineerToBuild[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil'
-                    if sLastBlueprint and not(sLastBlueprint == sBPToBuild) and EntityCategoryContains(M28UnitInfo.refCategorySMD, sLastBlueprint) then
-                        sBPToBuild = sLastBlueprint
-                        if bDebugMessages == true then LOG(sFunctionRef..': engi last blueprint was different, but also met the category, sLastBlueprint='..sLastBlueprint..'; so will change what to build to this') end
-                    end
+            if oEngineerToBuild then
+                local aiBrain = oEngineerToBuild:GetAIBrain()
+                local sBPToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryWanted, oEngineerToBuild)
 
-                    local tBuildLocation = {tTableRef[M28Map.subrefGESMDLocation][1], tTableRef[M28Map.subrefGESMDLocation][2], tTableRef[M28Map.subrefGESMDLocation][3]}
+                local sLastBlueprint = oEngineerToBuild[M28Orders.reftiLastOrders][oEngineerToBuild[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil'
+                if sLastBlueprint and not(sLastBlueprint == sBPToBuild) and EntityCategoryContains(iCategoryWanted, sLastBlueprint) then
+                    sBPToBuild = sLastBlueprint
+                    if bDebugMessages == true then LOG(sFunctionRef..': engi last blueprint was different, but also met the category, sLastBlueprint='..sLastBlueprint..'; so will change what to build to this') end
+                end
+
+                local tBuildLocation
+                for iPotentialLocation, tPotentialLocation in tPotentialBuildLocations do
+                    tBuildLocation = {tPotentialLocation[1], tPotentialLocation[2], tPotentialLocation[3]}
                     if bDebugMessages == true then LOG(sFunctionRef..': can we build SMD at the location='..tostring(aiBrain:CanBuildStructureAt(sBPToBuild, tTableRef[M28Map.subrefGESMDLocation]))..'; Engineer='..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)..'; sBPToBuild='..sBPToBuild..'; tBuildLocation='..repru(tBuildLocation)) end
                     if not(aiBrain:CanBuildStructureAt(sBPToBuild, tBuildLocation)) then
                         tBuildLocation = {tBuildLocation[1] + 0.5, 0, tBuildLocation[3] + 0.5}
@@ -7083,106 +7090,112 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                             --oEngineerToBuild[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef}
                             RecordEngineerAsPartofGameEnderTemplate(oEngineerToBuild, iPlateau, iLandZone, iTemplateRef, nil, false)
                         end --Redundancy
-                    else
-                        if bDebugMessages == true then M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tBuildLocation, 1.5), 2, 200) end
-                        --Look to reclaim buildings that are blocking us with remaining engineers, unless they are very high value buildings
-                        local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
-                        local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
-                        local bHavePotentiallyValidLocation = false
-                        local tUnitsToConsiderReclaiming
-                        local iXDif, iZDif
-                        local iBuildingSize = M28UnitInfo.GetBuildingSize(sBPToBuild)
+                        break
+                    end
+                end
+                if not(bTriedBuildingSomething) then
+                    local iLowestValueBlockingBuildings = 150000 --basic threshold to prevent reclaiming really high value buildings
+                    local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
+                    local bHavePotentiallyValidLocation = false
+                    local tUnitsToConsiderReclaiming
+                    local iXDif, iZDif
+                    local iBuildingSize = M28UnitInfo.GetBuildingSize(sBPToBuild)
 
-                        function ConsiderUnitsToReclaim(tSearchLocation, iEntry)
-                            local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tSearchLocation, iBuildingSize * 0.5 - 0.3))
-                            if not(tBlockingUnits) then
-                                M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it', true)
+                    function ConsiderUnitsToReclaim(tSearchLocation, iEntry)
+                        local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tSearchLocation, iBuildingSize * 0.5 - 0.3))
+                        if not(tBlockingUnits) then
+                            M28Utilities.ErrorHandler('Tempalte location cant be built on but has no units in it', true)
+                            if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
+                                if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
+                                tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
+                            end
+                            tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
+                        else
+                            local tBlockingUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryWall, tBlockingUnits)
+                            if M28Utilities.IsTableEmpty(tBlockingUnits) then
+                                M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it', true)
                                 if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
                                     if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
                                     tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
                                 end
                                 tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
                             else
-                                local tBlockingUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryWall, tBlockingUnits)
-                                if M28Utilities.IsTableEmpty(tBlockingUnits) then
-                                    M28Utilities.ErrorHandler('Template location cant be built on but has no buildings in it', true)
+                                tUnitsToConsiderReclaiming = {}
+                                for iUnit, oUnit in tBlockingUnits do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Location '..repru(tSearchLocation)..' has a blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' with radius='..M28UnitInfo.GetBuildingSize(oUnit.UnitId)*0.5..'; Is unit oUnit[M28Building.reftArtiTemplateRefs] nil='..tostring(oUnit[M28Building.reftArtiTemplateRefs]==nil)) end
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                            --Do nothing
+                                            tUnitsToConsiderReclaiming = nil
+                                            break
+                                        elseif oUnit[M28Building.reftArtiTemplateRefs] then
+                                            --Do nothing
+                                            tUnitsToConsiderReclaiming = nil
+                                            break
+                                        else
+                                            local bUnitToAdd = false
+                                            --e.g. has another engineer unrelated to template logic gone and built in our template, but managed to build in the right place?
+                                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                                                iXDif = math.abs(oUnit:GetPosition()[1] - tSearchLocation[1])
+                                                if iXDif <= 0.5 or (iXDif >= 2.5 and iXDif <= 3.5) then
+                                                    iZDif = math.abs(oUnit:GetPosition()[3] - tSearchLocation[3])
+                                                    if iZDif <= 0.5 or (iZDif >= 2.5 and iZDif <= 3.5) then
+                                                        bUnitToAdd = true
+                                                    end
+                                                end
+                                            end
+                                            if bUnitToAdd then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a fixed hsield that is in the right location to form part of our logic so will add, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; P'..iPlateau..'L'..iLandZone..'T'..iTemplateRef) end
+                                                oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef}
+                                                tUnitsToConsiderReclaiming = nil
+                                                --Check not already in the table (redundancy)
+                                                local bAlreadyRecorded = false
+                                                if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEShieldUnits]) == false then
+                                                    for iRecordedShield, oRecordedShield in tTableRef[M28Map.subrefGEShieldUnits] do
+                                                        if oRecordedShield == oUnit then
+                                                            bAlreadyRecorded = true
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                                if not(bAlreadyRecorded) then
+                                                    table.insert(tTableRef[M28Map.subrefGEShieldUnits], oUnit)
+                                                end
+                                                break
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will add to table of units to reclaim') end
+                                                table.insert(tUnitsToConsiderReclaiming, oUnit)
+                                            end
+                                        end
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
+                                    iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
+                                    if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
+                                        iLowestValueBlockingBuildings = iCurValueBlockingBuildings
+                                        tLowestValueBlockingBuildings = tUnitsToConsiderReclaiming
+                                        bHavePotentiallyValidLocation = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a potentially valid location for shields so will reclaim if it remains the lowest value of blocking units') end
+                                    end
+                                else
                                     if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
                                         if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
                                         tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
                                     end
                                     tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
-                                else
-                                    tUnitsToConsiderReclaiming = {}
-                                    for iUnit, oUnit in tBlockingUnits do
-                                        if M28UnitInfo.IsUnitValid(oUnit) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Location '..repru(tSearchLocation)..' has a blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' with radius='..M28UnitInfo.GetBuildingSize(oUnit.UnitId)*0.5..'; Is unit oUnit[M28Building.reftArtiTemplateRefs] nil='..tostring(oUnit[M28Building.reftArtiTemplateRefs]==nil)) end
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                                --Do nothing
-                                                tUnitsToConsiderReclaiming = nil
-                                                break
-                                            elseif oUnit[M28Building.reftArtiTemplateRefs] then
-                                                --Do nothing
-                                                tUnitsToConsiderReclaiming = nil
-                                                break
-                                            else
-                                                local bUnitToAdd = false
-                                                --e.g. has another engineer unrelated to template logic gone and built in our template, but managed to build in the right place?
-                                                if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
-                                                    iXDif = math.abs(oUnit:GetPosition()[1] - tSearchLocation[1])
-                                                    if iXDif <= 0.5 or (iXDif >= 2.5 and iXDif <= 3.5) then
-                                                        iZDif = math.abs(oUnit:GetPosition()[3] - tSearchLocation[3])
-                                                        if iZDif <= 0.5 or (iZDif >= 2.5 and iZDif <= 3.5) then
-                                                            bUnitToAdd = true
-                                                        end
-                                                    end
-                                                end
-                                                if bUnitToAdd then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a fixed hsield that is in the right location to form part of our logic so will add, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; P'..iPlateau..'L'..iLandZone..'T'..iTemplateRef) end
-                                                    oUnit[M28Building.reftArtiTemplateRefs] = {iPlateau, iLandZone, iTemplateRef}
-                                                    tUnitsToConsiderReclaiming = nil
-                                                    --Check not already in the table (redundancy)
-                                                    local bAlreadyRecorded = false
-                                                    if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEShieldUnits]) == false then
-                                                        for iRecordedShield, oRecordedShield in tTableRef[M28Map.subrefGEShieldUnits] do
-                                                            if oRecordedShield == oUnit then
-                                                                bAlreadyRecorded = true
-                                                                break
-                                                            end
-                                                        end
-                                                    end
-                                                    if not(bAlreadyRecorded) then
-                                                        table.insert(tTableRef[M28Map.subrefGEShieldUnits], oUnit)
-                                                    end
-                                                    break
-                                                else
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will add to table of units to reclaim') end
-                                                    table.insert(tUnitsToConsiderReclaiming, oUnit)
-                                                end
-                                            end
-                                        end
-                                    end
-                                    if M28Utilities.IsTableEmpty(tUnitsToConsiderReclaiming) == false then
-                                        iCurValueBlockingBuildings = M28UnitInfo.GetMassCostOfUnits(tUnitsToConsiderReclaiming)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValueBlockingBuildings='..iCurValueBlockingBuildings..'; iLowestValueBlockingBuildings='..iLowestValueBlockingBuildings) end
-                                        if iCurValueBlockingBuildings < iLowestValueBlockingBuildings then
-                                            iLowestValueBlockingBuildings = iCurValueBlockingBuildings
-                                            tLowestValueBlockingBuildings = tUnitsToConsiderReclaiming
-                                            bHavePotentiallyValidLocation = true
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have a potentially valid location for shields so will reclaim if it remains the lowest value of blocking units') end
-                                        end
-                                    else
-                                        if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry]) then
-                                            if not(tTableRef[M28Map.subrefGEDefenceBlockedFailureCount]) then tTableRef[M28Map.subrefGEDefenceBlockedFailureCount] = {} end
-                                            tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = 0
-                                        end
-                                        tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] = tTableRef[M28Map.subrefGEDefenceBlockedFailureCount][iEntry] + 1
-                                    end
                                 end
                             end
                         end
+                    end
+
+                    for iPotentialLocation, tBuildLocation in tPotentialBuildLocations do
+                        if bDebugMessages == true then M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tBuildLocation, 1.5), 2, 200) end
+                        --Look to reclaim buildings that are blocking us with remaining engineers, unless they are very high value buildings
+
 
                         if (tTableRef[M28Map.subrefGEShieldBlockedFailureCount][1] or 0) < 5 then
-                            ConsiderUnitsToReclaim(tTableRef[M28Map.subrefGESMDLocation], 1)
+                            ConsiderUnitsToReclaim(tBuildLocation, iPotentialLocation)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': bHavePotentiallyValidLocation='..tostring(bHavePotentiallyValidLocation or false)..'; Is tLowestValueBlockingBuildings empty='..tostring(M28Utilities.IsTableEmpty(tLowestValueBlockingBuildings))) end
                         if bHavePotentiallyValidLocation then
@@ -7223,10 +7236,77 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                                     tAvailableEngineers = nil
                                     tAvailableT3EngineersByFaction = nil
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for SMD by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
-                            elseif bDebugMessages == true then LOG(sFunctionRef..': CtrlKdUnitCount='..iCtrlKdUnits)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to create space for SMD or other defensive unit by reclaiming unit '..oUnitToReclaim.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReclaim)) end
+                                break
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': CtrlKdUnitCount='..iCtrlKdUnits) end
+                                if bOptionalRemoveInvalidPotentialBuildLocations then
+                                    table.remove(tPotentialBuildLocations, iPotentialLocation)
+                                    break
+                                end
                             end
+                        elseif bOptionalRemoveInvalidPotentialBuildLocations then
+                            table.remove(tPotentialBuildLocations, iPotentialLocation)
+                            break
                         end
+                    end
+                end
+            end
+        end
+        --Consider getting SMD if we dont have one and enemy has nukes, and we have an SMD location for this table
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want SMD for template '..iTemplateRef..'; in P'..iPlateau..'Z'..iLandZone..'; Is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))..'; Do we have a valid SMD unit in this template already='..tostring(M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit]))..'; Is table of available t3 engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction))..'; Is SMD location for this template empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGESMDLocation]))) end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false and not(M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit])) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGESMDLocation]) == false and M28Utilities.IsTableEmpty(tAvailableT3EngineersByFaction) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML - categories.BATTLESHIP, M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers])) == false then
+            --Enemy has nuke (non sera battleship version) and we lack SMD for this template, so get SMD unless we have another template in this zone that has SMD
+            local bHaveOtherTemplateWithSMD = false
+            for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit]) then
+                    bHaveOtherTemplateWithSMD = true
+                    break
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveOtherTemplateWithSMD='..tostring(bHaveOtherTemplateWithSMD)) end
+            if not(bHaveOtherTemplateWithSMD) then
+                --Wnat to build SMD
+                BuildDefensiveUnit(M28UnitInfo.refCategorySMD, {tTableRef[M28Map.subrefGESMDLocation]})
+            end
+        end
+
+
+        --Consider getting SAMs
+        if not(bTriedBuildingSomething) and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEAvailableDefenceLocations]) == false then
+            local iSAMsWanted = math.max(1, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] / 8000)
+            if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+                if M28Conditions.TeamHasAirControl(iTeam) then iSAMsWanted = math.max(1, iSAMsWanted * 0.5) end
+            else
+                iSAMsWanted = iSAMsWanted + 2
+            end
+            local iCurSAMs = 0
+            local iCurPD = 0
+            local iCurT2Arti = 0
+            if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEDefenceUnits]) == false then
+                for iDefenceUnit, oDefenceUnit in tTableRef[M28Map.subrefGEDefenceUnits] do
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oDefenceUnit.UnitId) then
+                        iCurSAMs = iCurSAMs + 1
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oDefenceUnit.UnitId) then
+                        iCurPD = iCurPD + 1
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oDefenceUnit.UnitId) then
+                        iCurT2Arti = iCurT2Arti + 1
+                    end
+                end
+            end
+
+            if iCurSAMs < iSAMsWanted then
+                BuildDefensiveUnit(M28UnitInfo.refCategoryGroundAA * categories.SIZE4 * categories.TECH3, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
+            end
+            if not(bTriedBuildingSomething) then
+                --T2 arti builder
+                if ((M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) >= 10000) and iCurT2Arti < 4) or (iCurT2Arti < (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) / 1000) or (iCurT2Arti == 0 and tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] > 50) then
+                    BuildDefensiveUnit(M28UnitInfo.refCategoryFixedT2Arti * categories.SIZE4, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
+                end
+                if not(bTriedBuildingSomething) then
+                    --PD builder
+                    if iCurPD < 4 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (iCurPD == 0 or iCurPD < tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] / 500))) then
+                        BuildDefensiveUnit(M28UnitInfo.refCategoryPD * categories.SIZE4, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
                     end
                 end
             end
@@ -7486,6 +7566,14 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             if M28UnitInfo.IsUnitValid(tTableRef[M28Map.subrefGESMDUnit]) then
                                                 if tTableRef[M28Map.subrefGESMDUnit]:GetFractionComplete() < 1 then
                                                     oDefenceToAssist = tTableRef[M28Map.subrefGESMDUnit]
+                                                end
+                                            end
+                                            if not(oDefenceToAssist) and M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEDefenceUnits]) then
+                                                for iDefence, oDefence in tTableRef[M28Map.subrefGEDefenceUnits] do
+                                                    if oDefence:GetFractionComplete() < 1 then
+                                                        oDefenceToAssist = oDefence
+                                                        break
+                                                    end
                                                 end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': oDefenceToAssist='..(oDefenceToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oDefenceToAssist) or 'nil')) end
@@ -7827,13 +7915,15 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 --Work out if we have sera or UEF T3 engis in this zone
                 local tSeraAndUEFT3Engis = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.UEF * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.SERAPHIM * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 local bHaveLargeShields = not(M28Utilities.IsTableEmpty(tSeraAndUEFT3Engis))
-                local tArtiLocations, tShieldLocations
+                local tArtiLocations, tShieldLocations, tDefensiveLocations
                 if bHaveLargeShields then
                     tArtiLocations = tBaseTable[M28Map.subreftLargeArtiLocations]
                     tShieldLocations = tBaseTable[M28Map.subreftLargeShieldLocations]
+                    tDefensiveLocations = tBaseTable[M28Map.subreftLargeShieldDefenceLocations]
                 else
                     tArtiLocations = tBaseTable[M28Map.subreftSmallArtiLocations]
                     tShieldLocations = tBaseTable[M28Map.subreftSmallShieldLocations]
+                    tDefensiveLocations = tBaseTable[M28Map.subreftSmallShieldDefenceLocations]
                 end
 
 
@@ -7865,6 +7955,12 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                     tPotentialSMDLocation[2] = GetSurfaceHeight(tPotentialSMDLocation[1], tPotentialSMDLocation[3])
                     if oEngineer:GetAIBrain():CanBuildStructureAt('ueb4302', tPotentialSMDLocation) then
                         tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGESMDLocation] = {tPotentialSMDLocation[1], tPotentialSMDLocation[2], tPotentialSMDLocation[3]}
+                    end
+                end
+                if tDefensiveLocations then
+                    tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEAvailableDefenceLocations] = {}
+                    for _, tLocation in tDefensiveLocations do
+                        table.insert(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEAvailableDefenceLocations], {tLocation[1], tLocation[2], tLocation[3]})
                     end
                 end
 
@@ -10076,7 +10172,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             if bDebugMessages == true then LOG(sFunctionRef..': Are stalling power so wont build T3 navy or experimental and instead will build more power') end
             fnHaveActionToAssign(refActionBuildSecondPower,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental type action') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental type action, iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')) end
             fnHaveActionToAssign((iActionToAssign or refActionBuildExperimental),  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
         end
     end
@@ -11331,7 +11427,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
     if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)
-        if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3) then
+        if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(tLZData[M28Map.subrefLZMexCount], 1) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.TECH3) >= 10) then
 
             iBPWanted = 90
             if not(bHaveLowPower) then
@@ -11347,7 +11443,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = 120
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush our first experimental, iBPWanted='..iBPWanted) end
-            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, false, refActionBuildExperimental, 3, iBPWanted)
+            --AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, iLandOrWaterZone, iTeam, tLZOrWZData, bIsWaterZone, iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam,               tLZData, false, refActionBuildExperimental, 3, iBPWanted)
             --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
         end
     end
