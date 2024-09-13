@@ -3828,7 +3828,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrPond == 64 and iLandZone == 1 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -3954,7 +3954,24 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                 bReclaimingDangerousEnemy = true
                             end
                         end
-                        if not(bReclaimingDangerousEnemy or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Engineer unit state='..M28UnitInfo.GetUnitState(oEngineer))
+                            local oFocusUnit = oEngineer:GetFocusUnit()
+                            if oFocusUnit then
+                                LOG(sFunctionRef..': Engineer focus unit='..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Focus unit fraction complete='..oEngineer:GetFocusUnit():GetFractionComplete())
+                            end
+                        end
+                        if (oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) then
+                            local oFocusUnit = oEngineer:GetFocusUnit()
+                            if oFocusUnit and oFocusUnit:GetFractionComplete() >= 0.75 and oFocusUnit:GetFractionComplete() < 1 then
+                                if oFocusUnit:GetFractionComplete() >= 0.9 then
+                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oFocusUnit.UnitId) and M28UnitInfo.GetUnitHealthPercent(oEngineer) >= 0.99 then
+                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                end
+                            end
+                        end
+                        if not(bReclaimingDangerousEnemy) and not(bConsiderReclaimableEnemiesInBuildRangeOnly) and not(oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75) then
                             if not(oEngineer[M28UnitInfo.refbEasyBrain]) or (not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer:IsUnitState('Repairing')) and not(oEngineer:IsUnitState('Building'))) then
                                 if aiBrain.GetUnitsAroundPoint then
                                     if oEngineer[M28UnitInfo.refbEasyBrain] then
@@ -3974,7 +3991,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                         for iUnit, oUnit in tNearbyEnemiesByZone do
                                             --It's not possible to reclaim an under construction building
                                             if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt())) then
-                                                if not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
+                                                if (not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) and not(oUnit:IsUnitState('Attached')) then
                                                     if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                                         iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
                                                         if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
