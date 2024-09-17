@@ -6848,13 +6848,19 @@ end
 function UpdateActiveShortlistForCombatDrops(iTeam)
     --assumes reftTransportCombatPlateauLandZoneDropShortlist already set to {} prior to calling this, updates this for any potential combat drop zones
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateTransportLocationShortlist'
+    local sFunctionRef = 'UpdateActiveShortlistForCombatDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate] = GetGameTimeSeconds()
     if bDebugMessages == true then LOG(sFunctionRef..': Considering active combat drop locations, is table of potential combat drop zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]) == false then
         --Get start plateau and zone based on friendly base nearest rally point
+        local iMobileDFThreshold = 60
+        local iGroundAAThreshold = 160
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
+            iMobileDFThreshold = 200
+            iGroundAAThreshold = 400
+        end
         local iCurMexCount
         for iPlateau, tiLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] do
             for iEntry, iLandZone in tiLandZones do
@@ -6862,7 +6868,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 --Check for zones where enemy has mexes, we have no friendly units, enemy lacks significant groundAA or mobile DF threat or T2+ PD, then consider adding to shortlist
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop in P'..iPlateau..'Z'..iLandZone..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy groundAA='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)..'; Enemy mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Best enemy structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Enemy AirAA threat='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= 160 and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= 60 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < 29 and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < 29 and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
                     --Does enemy have most of the mexes here?
                     local toEnemyMexCount = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mexes empty='..tostring( M28Utilities.IsTableEmpty(toEnemyMexCount))) end
@@ -7034,7 +7040,7 @@ function GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]][M28Map.subrefMidpoint])
             if iCurDist < iClosestDist then
                 CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2])
-                if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 150, 0, false, iAirSubteam, true, false, oUnit:GetPosition(), false)) then
+                if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, iGroundAAThreshold, 0, false, iAirSubteam, true, false, oUnit:GetPosition(), false)) then
                     iClosestDist = iCurDist
                     iClosestEntryRef = iEntry
                 end
