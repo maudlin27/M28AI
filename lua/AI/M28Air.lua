@@ -6862,13 +6862,19 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
             iGroundAAThreshold = 400
         end
         local iCurMexCount
+        local bHaveSafeTarget = false
+        local iDangerousGroundAAThreshold = iGroundAAThreshold * 10
+        local iDangerousMobileDFThreshold = iMobileDFThreshold * 10
+        local iLowestGeneralDangerousZoneThreat = 100000
+        local iDangerousPlateau, iCurDangerousZoneThreat
+        local iDangerousZone
         for iPlateau, tiLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] do
             for iEntry, iLandZone in tiLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 --Check for zones where enemy has mexes, we have no friendly units, enemy lacks significant groundAA or mobile DF threat or T2+ PD, then consider adding to shortlist
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop in P'..iPlateau..'Z'..iLandZone..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy groundAA='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)..'; Enemy mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Best enemy structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Enemy AirAA threat='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < 29 and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) < 29 then
                     --Does enemy have most of the mexes here?
                     local toEnemyMexCount = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mexes empty='..tostring( M28Utilities.IsTableEmpty(toEnemyMexCount))) end
@@ -6877,12 +6883,26 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy mex count='..iCurMexCount..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
                         if iCurMexCount >= math.min(4, math.max(2, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
                             --Check whether its safe to travel here for each individual transport
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
-                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
+                            if (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
+                                table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
+                                bHaveSafeTarget = true
+                            elseif not(bHaveSafeTarget) and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) <= iDangerousGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iDangerousMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 200 then
+                                iCurDangerousZoneThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) * 2 + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+                                if iCurDangerousZoneThreat < iLowestGeneralDangerousZoneThreat then
+                                    iLowestGeneralDangerousZoneThreat = iCurDangerousZoneThreat
+                                    iDangerousPlateau = iPlateau
+                                    iDangerousZone = iLandZone
+                                end
+                            end
                         end
                     end
                 end
             end
+        end
+        if not(bHaveSafeTarget) and iDangerousPlateau and iDangerousZone then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will record dangerous zone to drop to instead, iDangerousPlateau='..iDangerousPlateau..'; iDangerousZone='..iDangerousZone..'; iLowestGeneralDangerousZoneThreat='..iLowestGeneralDangerousZoneThreat) end
+            table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iDangerousPlateau, iDangerousZone})
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -7212,9 +7232,67 @@ function ManageTransports(iTeam, iAirSubteam)
             local tCargo = oUnit:GetCargo()
             if M28Utilities.IsTableEmpty(tCargo) == false then
                 local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unavailable transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)) end
                 if bDropNow then
                     --Drop early
                     M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergBDr', false)
+                    --Transports that are about to do a combat drop in range of enemy PD that have just detected - adjust drop location slightly
+                elseif oUnit[refbCombatDrop] then
+                    local tOrderTarget = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                    if M28Utilities.IsTableEmpty(tOrderTarget) == false then
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
+                        if iDistToTarget <= 35 and iDistToTarget >= 5 then --if are right ontop then no point aborting
+                            --T1 PD have range of 26; do 28 since if have multiple units some of them may get hit
+                            local tNearbyT1PD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryPD * categories.TECH1, tOrderTarget, 28, 'Enemy')
+                            if M28Utilities.IsTableEmpty(tNearbyT1PD) == false then
+                                local oClosestConstructedPDToRally, iCurDist
+                                local iClosestConstructedPDDist = 100000
+                                for iPD, oPD in tNearbyT1PD do
+                                    if oPD:GetFractionComplete() >= 0.95 then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oPD:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                                        if iCurDist < iClosestConstructedPDDist then
+                                            oClosestConstructedPDToRally = oPD
+                                            iClosestConstructedPDDist = iCurDist
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestConstructedPDDist to our rally point='..iClosestConstructedPDDist..'; oClosestConstructedPDToRally='..(oClosestConstructedPDToRally.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestConstructedPDToRally) or 'nil')) end
+                                if oClosestConstructedPDToRally then
+                                    local iAngleToMove
+                                    local tNewDropLocation
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist from PD to order target='..M28Utilities.GetDistanceBetweenPositions(tOrderTarget, oClosestConstructedPDToRally:GetPosition())) end
+                                    if M28Utilities.GetDistanceBetweenPositions(tOrderTarget, oClosestConstructedPDToRally:GetPosition()) >= 4 then --far enough away that we presumably aren't already dropping
+                                        --If we move a bit further away are we ok?
+                                        local iAngleToMove = M28Utilities.GetAngleFromAToB(oClosestConstructedPDToRally:GetPosition(), tOrderTarget)
+                                        tNewDropLocation = M28Utilities.MoveInDirection(oClosestConstructedPDToRally:GetPosition(), iAngleToMove, math.max(oClosestConstructedPDToRally[M28UnitInfo.refiCombatRange] or 0) + 5, 35, true, false, true)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Trying to move drop location slightly away from PD, tNewDropLocation='..repru(tNewDropLocation)..'; Island label for this='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tNewDropLocation) or 'nil')..'; Island ref of the orig order target='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tOrderTarget) or 'nil')) end
+                                        if M28Utilities.IsTableEmpty(tNewDropLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tNewDropLocation) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tOrderTarget) then
+                                            local tPDAroundNewPotentialDropLocation = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryPD * categories.TECH1, tNewDropLocation, 28, 'Enemy')
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Are there PD if we move a bit further away from the closest one? Is tPDAroundNewPotentialDropLocation empty='..tostring(M28Utilities.IsTableEmpty(tPDAroundNewPotentialDropLocation))) end
+                                            if M28Utilities.IsTableEmpty(tPDAroundNewPotentialDropLocation) == false then
+                                                tNewDropLocation = nil
+                                            end
+                                        else
+                                            tNewDropLocation = nil
+                                        end
+                                    end
+                                    if not(tNewDropLocation) then
+                                        iAngleToMove = M28Utilities.GetAngleFromAToB(oClosestConstructedPDToRally:GetPosition(),M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                                        tNewDropLocation = M28Utilities.MoveInDirection(oClosestConstructedPDToRally:GetPosition(), iAngleToMove, math.max(oClosestConstructedPDToRally[M28UnitInfo.refiCombatRange] or 0) + 5, 35, true, false, true)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting drop location, tNewDropLocation='..repru(tNewDropLocation)..'; Island label for this='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tNewDropLocation) or 'nil')..'; Island ref of the orig order target='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tOrderTarget) or 'nil')) end
+                                        if not(M28Utilities.IsTableEmpty(tNewDropLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tNewDropLocation) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tOrderTarget)) then
+                                            tNewDropLocation = nil
+                                        end
+                                    end
+
+                                    if M28Utilities.IsTableEmpty(tNewDropLocation) == false then
+                                        --Emergency drop at this new location
+                                        M28Orders.IssueTrackedTransportUnload(oUnit, tNewDropLocation, 2, false, 'EmergPDDr', false)
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end
         end
