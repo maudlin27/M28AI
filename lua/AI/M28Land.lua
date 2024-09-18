@@ -6405,10 +6405,66 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     --Also exceptio nif we have an experimental unit that cant kite, in which case it will attack-move to the rally point
                     local tNearbyEnemyExperimentals
                     local bConsiderAttackingExperimental = false
+                    local iThresholdDistUntilInRangeToAttackExp = 200
+                    local oClosestEnemyExpToBase
                     if oNearestEnemyToFriendlyBase then
                         tNearbyEnemyExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])
                         if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentals) == false then
                             bConsiderAttackingExperimental = true
+                            local iCurDist
+                            local iClosestExpToBaseDist = 100000
+                            local iBestEnemyExpRange = 0
+                            for iExp, oExp in tNearbyEnemyExperimentals do
+                                iBestEnemyExpRange = math.max(iBestEnemyExpRange, (oExp[M28UnitInfo.refiCombatRange] or 0))
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                if iCurDist < iClosestExpToBaseDist then
+                                    iClosestExpToBaseDist = iCurDist
+                                    oClosestEnemyExpToBase = oExp
+                                end
+                            end
+                            --Are we against an enemy fatboy and we have nearby T2 arti? If so then only attack experimental if our unit is already in range of it/near to it depending on if enemy in range of firebase
+                            local bNearbyFriendlyFirebaseVsFatboy = false
+                            if iBestEnemyExpRange >= 80 and oClosestEnemyExpToBase then
+                                local iDistUntilInRangeOfArti = 100000
+                                local oClosestT2ArtiToEnemyExp
+                                local iClosestT2ArtiToEnemyDist = 100000
+                                function ConsiderClosestT2ArtiForZone(tCurLZTeamData)
+                                    if tCurLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] >= 3000 then
+                                        local tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if M28Utilities.IsTableEmpty(tT2Arti) == false then
+                                            for iArti, oArti in tT2Arti do
+                                                if M28UnitInfo.IsUnitValid(oArti) and (oArti[M28UnitInfo.refiCombatRange] or 0) >= iBestEnemyExpRange then
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oClosestEnemyExpToBase:GetPosition())
+                                                    if iCurDist < iClosestT2ArtiToEnemyDist then
+                                                        iClosestT2ArtiToEnemyDist = iCurDist
+                                                        oClosestT2ArtiToEnemyExp = oArti
+                                                        iDistUntilInRangeOfArti = math.min(iDistUntilInRangeOfArti, iCurDist - oArti[M28UnitInfo.refiCombatRange])
+                                                        if iDistUntilInRangeOfArti <= 3 then
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                ConsiderClosestT2ArtiForZone(tLZTeamData)
+                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and iDistUntilInRangeOfArti > 3 then
+                                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                        ConsiderClosestT2ArtiForZone(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                                        if iDistUntilInRangeOfArti <= 3 then break end
+                                    end
+                                end
+                                if oClosestT2ArtiToEnemyExp and iDistUntilInRangeOfArti > 3 then
+                                    bNearbyFriendlyFirebaseVsFatboy = true
+                                end
+                            end
+                            if bNearbyFriendlyFirebaseVsFatboy then
+                                --Wnat to retreat as we have nearby t2 arti that could support us, so only engage if are almost in range
+                                iThresholdDistUntilInRangeToAttackExp = 10 --i.e. attack if withi n10 of being in range
+                            else
+                                iThresholdDistUntilInRangeToAttackExp =  iBestEnemyExpRange + 15
+                            end
                         end
                     end
 
@@ -6494,7 +6550,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
 
                             --Only retreat units from this LZ
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will only retreat with unit if it is from this LZ, iLandZone='..iLandZone..'; Unit assigned zone='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; Is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will only retreat with unit if it is from this LZ, iLandZone='..iLandZone..'; Unit assigned zone='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; Is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; oClosestEnemyExpToBase='..(oClosestEnemyExpToBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyExpToBase) or 'nil')..'; iThresholdDistUntilInRangeToAttackExp='..(iThresholdDistUntilInRangeToAttackExp or 'nil')) end
 
                             if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone and ProceedWithUnitOrder(oUnit) then
 
@@ -6506,7 +6562,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
                                     GetUnitToAttackNearestACU(oUnit)
                                     --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                                elseif bConsiderAttackingExperimental and oUnit[M28UnitInfo.refiDFRange] > 0 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 14, iTeam, true,                    nil,                    oUnit,                              oUnit) then
+                                elseif bConsiderAttackingExperimental and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestEnemyExpToBase.UnitId))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= iThresholdDistUntilInRangeToAttackExp and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 14, iTeam, true,                    nil,                    oUnit,                              oUnit) then
                                     --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
                                     local bMoveTowardsExperimental = false
                                     --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
@@ -6535,7 +6591,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     oNearestEnemyExp = oExperimental
                                                 end
                                             end
-                                            if iClosestEnemyExpDist > oUnit[M28UnitInfo.refiDFRange] - 3 then
+                                            if iClosestEnemyExpDist > (oUnit[M28UnitInfo.refiCombatRange] or 0) - 3 then
                                                 bMoveTowardsExperimental = true
                                             end
                                             tTargetToMoveTowards = oNearestEnemyExp:GetPosition()
