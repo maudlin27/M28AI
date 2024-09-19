@@ -3952,6 +3952,15 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if ConsiderUpgrading() then return sBPIDToBuild end
                 end
             end
+
+            --Get AirAA if we arent at T3 yet and lack air control
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want inties if we have T1 air fac and arent at T3 yet, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or false)) end
+            if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) and not(EntityCategoryContains(categories.AEON, oFactory.UnitId)) then
+                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > 0 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 1000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) * 180 > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat])) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+                end
+            end
         else
             --Adjacent LZs - gunship (enemy ground) or AirAA (enemy air)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4537,6 +4546,23 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if iAirAACountOfSearchCategory < 400 and not (bHaveLowMass) and not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and iFactoryTechLevel >= 3 then
                     if iFactoryTechLevel >= 3 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+                    end
+                end
+
+                --AirAA if we have significant sub threat and enemy has torp bombers, and we lack air control
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                if not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 10000 and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 1000 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0) then
+                    if iFactoryTechLevel >= 3 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have significanlty more sub threat than our AirAA threat, and enemy has torp bombers, in which case will get more airaa') end
+                        local tOurSubs = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySubmarine, false, true)
+                        if M28Utilities.IsTableEmpty(tOurSubs) == false then
+                            local iOurSubThreat = M28UnitInfo.GetMassCostOfUnits(tOurSubs)
+                            local iFactor = math.min(1, 0.25 + 0.25 * math.max(1, table.getn(M28Team.tAirSubbteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains])))
+                            if bDebugMessages == true then LOG(sFunctionRef..': iOurSubThreat='..iOurSubThreat..'; iFactor='..iFactor..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
+                            if iOurSubThreat * iFactor > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
+                                if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
+                            end
+                        end
                     end
                 end
 
