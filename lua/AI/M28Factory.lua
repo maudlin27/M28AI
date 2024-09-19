@@ -5047,6 +5047,18 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iEnemyCumulativeCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
         local bHaveWantedAA = false
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local iAntiNavyCategoryToGet
+        local bConsiderSubsIfNoDestroyersDespiteTorps = false
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] >= 500 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) then
+            iAntiNavyCategoryToGet = M28UnitInfo.refCategoryAntiNavy - categories.SILO - categories.SUBMARINE
+            if iFactoryTechLevel == 1 and bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] >= 1000 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and aiBrain:GetEconomyStoredRatio('MASS') <= 0.05 then
+                bConsiderSubsIfNoDestroyersDespiteTorps = false
+            else
+                bConsiderSubsIfNoDestroyersDespiteTorps = true
+            end
+        else
+            iAntiNavyCategoryToGet = M28UnitInfo.refCategoryAntiNavy - categories.SILO
+        end
 
         for iEntry, tSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
@@ -5064,8 +5076,20 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
                     if tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] * 0.75 then
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Will try and get antinavy') end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy - categories.SILO) then
+                        if ConsiderBuildingCategory(iAntiNavyCategoryToGet) then
                             return sBPIDToBuild
+                        else
+                            if bConsiderSubsIfNoDestroyersDespiteTorps then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy - categories.SILO) then
+                                    return sBPIDToBuild
+                                end
+                            else
+                                --If far away threat then conserve mass
+                                if bHaveLowMass and iFactoryTechLevel < 3 and not(M28Map.bIsCampaignMap) and tSubtable[M28Map.subrefWZAWZDistance] >= 225 and tOtherWZTeamData[M28Map.refiModDistancePercent] > 0.3 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We want antinavy but enemy has torp bombers, and the zone in question is far away, and we have low mass, so will just not build anything for now') end
+                                    break
+                                end
+                            end
                         end
                     end
                     if tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] > tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.75 then

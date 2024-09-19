@@ -15756,42 +15756,44 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             --Dont build another naval fac if are in bombardment mode unless close to overflowing
             if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] or -10) >= 4.1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
                 local iMaxFactories = 1
-                if (not (bHaveLowMass) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
-                    iMaxFactories = 2
-                end
-                if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
-                    iMaxFactories = math.min(8, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / 2))
-                end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100 then
-                    iMaxFactories = 3
-                end
+                if (not(M28Utilities.bLoudModActive) and iExistingWaterFactory <= 1 and tWZTeamData[M28Map.subrefWZbCoreBase]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) >= 60 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 0) >= 30) then
+                    if (not (bHaveLowMass) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+                        iMaxFactories = 2
+                    end
+                    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+                        iMaxFactories = math.min(8, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / 2))
+                    end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100 then
+                        iMaxFactories = 3
+                    end
 
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                    --Consider getting 3 factories if enemy has a naval factory in this pond and doesn't have T2+
-                    local bEnemyHasT1OnlyNavalFacs = false --true if they both have T1 naval facs and dont ahve T2+
-                    local bEnemyHasT2PlusFacs = false
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] == 1 and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
-                        for iEntry, tSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
-                            if tSubtable[M28Map.subrefWZAWZDistance] >= 375 then break end
-                            local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam]
-                            if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                local tEnemyNavalFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
-                                if M28Utilities.IsTableEmpty(tEnemyNavalFactories) == false then
-                                    for iFactory, oFactory in tEnemyNavalFactories do
-                                        if EntityCategoryContains(categories.TECH1, oFactory.UnitId) then
-                                            bEnemyHasT1OnlyNavalFacs = true
-                                        else
-                                            bEnemyHasT1OnlyNavalFacs = false
-                                            bEnemyHasT2PlusFacs = true
-                                            break
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                        --Consider getting 3 factories if enemy has a naval factory in this pond and doesn't have T2+
+                        local bEnemyHasT1OnlyNavalFacs = false --true if they both have T1 naval facs and dont ahve T2+
+                        local bEnemyHasT2PlusFacs = false
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] == 1 and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
+                            for iEntry, tSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
+                                if tSubtable[M28Map.subrefWZAWZDistance] >= 375 then break end
+                                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                    local tEnemyNavalFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
+                                    if M28Utilities.IsTableEmpty(tEnemyNavalFactories) == false then
+                                        for iFactory, oFactory in tEnemyNavalFactories do
+                                            if EntityCategoryContains(categories.TECH1, oFactory.UnitId) then
+                                                bEnemyHasT1OnlyNavalFacs = true
+                                            else
+                                                bEnemyHasT1OnlyNavalFacs = false
+                                                bEnemyHasT2PlusFacs = true
+                                                break
+                                            end
                                         end
                                     end
                                 end
+                                if bEnemyHasT2PlusFacs then break end
                             end
-                            if bEnemyHasT2PlusFacs then break end
-                        end
-                        if bEnemyHasT1OnlyNavalFacs and not(bEnemyHasT2PlusFacs) then
-                            iMaxFactories = math.max(iMaxFactories + 1, 3)
+                            if bEnemyHasT1OnlyNavalFacs and not(bEnemyHasT2PlusFacs) then
+                                iMaxFactories = math.max(iMaxFactories + 1, 3)
+                            end
                         end
                     end
                 end
