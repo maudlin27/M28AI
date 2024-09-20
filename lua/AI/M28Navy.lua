@@ -3498,26 +3498,47 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 else
                     --Check rally point means we will actually be moving away from the closest enemy
                     local bRunFromNearestEnemy
+                    local tRetreatLocation
                     if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
                         local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
                         local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
 
                         if bDebugMessages == true then LOG(sFunctionRef..': iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToRally='..iAngleToRally..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally)..'; Nearest enemy='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) end
                         if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 80 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 9 then
-                            local tKitingRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy + 180, 10, true, false, M28Map.bIsCampaignMap)
-                            if tKitingRetreatLocation then
-                                local iKitingSegmentX, iKitingSegmentZ = M28Map.GetPathingSegmentFromPosition(tKitingRetreatLocation)
+                            tRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy + 180, 10, true, false, M28Map.bIsCampaignMap)
+                            if tRetreatLocation then
+                                local iKitingSegmentX, iKitingSegmentZ = M28Map.GetPathingSegmentFromPosition(tRetreatLocation)
                                 if M28Map.tPondBySegment[iKitingSegmentX][iKitingSegmentZ] == iPond then
                                     bRunFromNearestEnemy = true
-                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tKitingRetreatLocation, iPond, 'NKRetNrE'..iWaterZone, false, nil, nil, true)
                                     --M28Orders.IssueTrackedMove(oUnit, tKitingRetreatLocation, iOrderReissueDistToUse, false, 'NKRetNrE'..iWaterZone)
+                                else
+                                    tRetreatLocation = nil
                                 end
                             end
                         end
                     end
                     if not(bRunFromNearestEnemy) then
-                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tRallyPoint, iPond, 'NKRetr'..iWaterZone, false, nil, nil, true)
-                        --M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iOrderReissueDistToUse, false, 'NKRetr'..iWaterZone)
+                        tRetreatLocation = nil --redundancy
+                    end
+
+                    --Decide if we want to attack move instead of doing kiting retreat - consider for higher cost units (destroyers and better) that haven't fired recently
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to do kiting retreat or attackmove retreat, oUnit[M28UnitInfo.refiUnitMassCost]='..oUnit[M28UnitInfo.refiUnitMassCost]..'; oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; oUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0))
+                        if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] then
+                            LOG(sFunctionRef..': Dist to closest enemy unit='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())..'; Enemy unit combat range='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 'nil'))
+                        end
+                    end
+
+                    if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) and oUnit[M28UnitInfo.refiUnitMassCost] > 1500 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 20 and oUnit[M28UnitInfo.refiTimeBetweenDFShots] and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refiDFRange]*0.5, math.min(oUnit[M28UnitInfo.refiDFRange] * 0.8, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange])) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false) then
+                        oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
+                        M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 40)
+                    end
+                    if oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] then
+                        --Attack move to retreat location
+                        --IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                        M28Orders.IssueTrackedAttackMove(oUnit, (tRetreatLocation or tRallyPoint), 5, false, 'NKRetAM'..iWaterZone, false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Giving attack move as unit hasnt fired recently') end
+                    else
+                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, (tRetreatLocation or tRallyPoint), iPond, 'NKRetr'..iWaterZone, false, nil, nil, true)
                     end
                 end
             end
@@ -4184,7 +4205,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
                 local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
                 iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + ((tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) -  (tAdjWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 3)*0.5
-            end
+                end
         end
 
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
