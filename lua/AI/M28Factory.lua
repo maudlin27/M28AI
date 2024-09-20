@@ -3446,6 +3446,12 @@ function SetPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
             aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1000 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
         end
+
+        --Prioritise ASFs as penetration fighters dont seem to fire consistently in LOUD
+        aiBrain[reftBlueprintPriorityOverride]['uea0303'] = 1
+        aiBrain[reftBlueprintPriorityOverride]['ura0303'] = 1
+        aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = 1
+        aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = 1
     end
 end
 
