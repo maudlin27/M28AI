@@ -9262,8 +9262,20 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
 
     M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        local iLandLZThreshold = 163
+        local iWaterLZThreshold = 200
+        if M28Map.iMapSize >= 1024 then iLandLZThreshold = 190 iWaterLZThreshold = 230 end
+        --Further increase threshold for if this is a large LZ
+        local iBaseLZAverageSize = 0.5*((tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize + (tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize)
+
+        iLandLZThreshold = math.max(iLandLZThreshold, iBaseLZAverageSize + 20, iBaseLZAverageSize * 0.5 + 125)
+        iWaterLZThreshold = math.max(iWaterLZThreshold, iLandLZThreshold + 20)
+        if bDebugMessages == true then LOG(sFunctionRef..': LZ X size='..(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize..'; LZ Z size='..(tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize..'; iWaterLZThreshold='..iWaterLZThreshold..'; iLandLZThreshold='..iLandLZThreshold) end
         for iEntry, tPathingData in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-            if tPathingData[M28Map.subrefiDistance] >= 200 then break end --163 used for land zones, 200 for water zones
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering alt LZ entry='..tPathingData[M28Map.subrefiLandOrWaterZoneRef]..'; tPathingData[M28Map.subrefiDistance]='..tPathingData[M28Map.subrefiDistance]..'; Is water zone='..tostring(tPathingData[M28Map.subrefbIsWaterZone] or false)) end
+            if tPathingData[M28Map.subrefiDistance] > iWaterLZThreshold then
+                break
+            end --163 used for land zones, 200 for water zones
             local tAltLZOrWZData
             local tAltLZOrWZTeamData
             if tPathingData[M28Map.subrefbIsWaterZone] then
@@ -9286,12 +9298,17 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
                     table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyWaterZones], tPathingData[M28Map.subrefLZNumber])
                     if bDebugMessages == true then LOG(sFunctionRef..': Recorded enemy firebase against teh water zone '..tPathingData[M28Map.subrefiLandOrWaterZoneRef]) end
                 else
-                    --Land zone
-                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
+                    --Land zone - shorter dist threhsold
+                    if tPathingData[M28Map.subrefiDistance] > iLandLZThreshold + math.max(0, iBaseLZAverageSize - 0.5*((tAltLZOrWZData[M28Map.subrefLZMaxSegX] - tAltLZOrWZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize + (tAltLZOrWZData[M28Map.subrefLZMaxSegZ] - tAltLZOrWZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': LZ too far away so wont record against here') end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recorded enemy firebase against land zone '..tPathingData[M28Map.subrefiLandOrWaterZoneRef]) end
+                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefiNearbyPlateauAndLandZones], {iPlateau, tPathingData[M28Map.subrefLZNumber]})
 
-                    --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
-                    if tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
-                        M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                        --If it is a core LZ then record that (as will want to adjust our behaviour accordingly)
+                        if tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                            M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone][M28Team.subrefbInRangeOfCoreLZ] = true
+                        end
                     end
                 end
             end
