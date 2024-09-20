@@ -1603,7 +1603,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iCategoryToGet then
                     local iTankLC = M28Conditions.GetLifetimeBuildCount(aiBrain, iCategoryToGet * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Lifetime build count for this tech level=' .. iTankLC .. '; Engi LC for this tech=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
+                        LOG(sFunctionRef .. ': Lifetime build count for this tech level=' .. iTankLC .. '; Engi LC for this tech=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))..'; tLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; oFactory[refiTotalBuildCount]='..oFactory[refiTotalBuildCount]..'; Does our category to get include DF Tank='..tostring(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryDFTank, iCategoryToGet)))
+                    end
+                    --Switch category to get indirect if we have a large tank LC and low ratio for a core expansion
+                    if iFactoryTechLevel < 3 and iTankLC >= 10 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and oFactory[refiTotalBuildCount] >= 5 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryDFTank, iCategoryToGet) then
+                        local iFactoryTankLC = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank)
+                        local iIndirectLC = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to switch to get indirect fire category, iFactoryTankLC='..iFactoryTankLC..' and iIndirectLC='..iIndirectLC) end
+                        if iFactoryTankLC >= 5 and (iIndirectLC == 0 or iIndirectLC * 8 < iFactoryTankLC) then
+                            iCategoryToGet = M28UnitInfo.refCategoryIndirect
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get indirect fire category') end
+                        end
                     end
                     if iTankLC < 3 or
                             ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
