@@ -20,6 +20,18 @@ function OnFirstUpdate()
                     ConExecute('path_maxinstantworkunits = 1250')
                 end
         )
+        --(tried testing with a similar fork thread for adjusting game speed or pausing later on and failed, unsure why - commented out the failed code below - the first log triggers, but not the second)
+        --[[ForkThread(
+                function()
+                    LOG('Will try waiting 10s and then pausing or slowing game')
+                    WaitSeconds(10)
+                    LOG('About to run ConExecute for gamespeed')
+                    ConExecute("WLD_GameSpeed 1")
+                    LOG('About to do sessionrequestpause')
+                    SessionRequestPause()
+
+                end
+        )--]]
     end
     --WaitSeconds(3) --If we try to wait it causes an error
     --Thanks to Sprouto for providing the below - it didnt solve the issue I was having, but have left this in in case it is of use at solving other issues, as Sprouto mentioned the sim can sometimes get overloaded and for the clost of some memory the below can avoid most issues
