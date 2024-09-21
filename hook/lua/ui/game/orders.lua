@@ -151,25 +151,24 @@ function CreateAltOrders(availableOrders, availableToggles, units)
                 return true
             end
         end
-        local bLoudModActive = false
-        if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') then
-            bLoudModActive = true
-            --LOG('LOUD Mod likely active as have an ExtrasAI.lua file')
+        local bFAFActive = false        --Initially did with LOUD as the check, but steam doesnt work using FAF approach (and does using LOUD), so its FAF that has done something different
+        if file_exists('/lua/sim/navutils.lua') then
+            bFAFActive = true
         else
-            --LOG('Couldnt find ExtrasAI.lua file')
+            --LOUD or steam
         end
 
         if not table.empty(assistingUnits) then
             if table.getn(podStagingPlatforms) == 1 and table.empty(pods) then
                 table.insert(availableOrders, 'DroneL')
-                if bLoudModActive then
+                if not(bFAFActive) then
                     assistingUnitList['DroneL'] = assistingUnits[1]
                 else
                     assistingUnitList['DroneL'] = {assistingUnits[1]}
                 end
                 if table.getn(assistingUnits) > 1 then
                     table.insert(availableOrders, 'DroneR')
-                    if bLoudModActive then
+                    if not(bFAFActive) then
                         assistingUnitList['DroneR'] = assistingUnits[2]
                         podUnits['DroneL'] = assistingUnits[1]
                         podUnits['DroneR'] = assistingUnits[2]
