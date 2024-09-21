@@ -143,16 +143,41 @@ function CreateAltOrders(availableOrders, availableToggles, units)
             podUnits['DroneL'] = assistingUnits
         end
 
+        local file_exists = function(name)
+            local file = DiskGetFileInfo(name)
+            if file == false or file == nil then
+                return false
+            else
+                return true
+            end
+        end
+        local bLoudModActive = false
+        if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') then
+            bLoudModActive = true
+            --LOG('LOUD Mod likely active as have an ExtrasAI.lua file')
+        else
+            --LOG('Couldnt find ExtrasAI.lua file')
+        end
 
         if not table.empty(assistingUnits) then
             if table.getn(podStagingPlatforms) == 1 and table.empty(pods) then
                 table.insert(availableOrders, 'DroneL')
-                assistingUnitList['DroneL'] = {assistingUnits[1]}
+                if bLoudModActive then
+                    assistingUnitList['DroneL'] = assistingUnits[1]
+                else
+                    assistingUnitList['DroneL'] = {assistingUnits[1]}
+                end
                 if table.getn(assistingUnits) > 1 then
                     table.insert(availableOrders, 'DroneR')
-                    assistingUnitList['DroneR'] = {assistingUnits[2]}
-                    podUnits['DroneL'] = {assistingUnits[1]}
-                    podUnits['DroneR'] = {assistingUnits[2]}
+                    if bLoudModActive then
+                        assistingUnitList['DroneR'] = assistingUnits[2]
+                        podUnits['DroneL'] = assistingUnits[1]
+                        podUnits['DroneR'] = assistingUnits[2]
+                    else
+                        assistingUnitList['DroneR'] = {assistingUnits[2]}
+                        podUnits['DroneL'] = {assistingUnits[1]}
+                        podUnits['DroneR'] = {assistingUnits[2]}
+                    end
                 end
             else
                 table.insert(availableOrders, 'DroneL')
@@ -188,7 +213,12 @@ function CreateAltOrders(availableOrders, availableToggles, units)
     if not table.empty(M28Units) then
         assistingUnitList['M28Toggle'] = {}
         for _, Unit in M28Units do
-            table.insert(assistingUnitList['M28Toggle'], Unit:GetCreator())
+            --LOUD tempest has a drone button that conflicts with M28's button, so dont try and add in such a case
+            --if Unit:GetBlueprint().General.OrderOverrides.RULEUTC_SpecialToggle then
+                --Dont add to avoid a conflict
+            --else
+                table.insert(assistingUnitList['M28Toggle'], Unit:GetCreator())
+            --end
         end
         table.insert(availableOrders, 'M28Toggle')
     end
