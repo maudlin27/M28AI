@@ -467,7 +467,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = 0
-        tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
+        tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] = 0
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = false
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyShield] = 0
@@ -488,7 +488,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
 
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
-        tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false)
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
@@ -579,7 +579,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
 
             tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + math.max(iMaxShieldRating * 0.1, math.min(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal], iMaxShieldRating))
             tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect], iMaxShieldRating)
-            tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] = tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] + math.min(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA], iMaxShieldRating)
             tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal], iMaxShieldRating * 0.6)
             tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal], iMaxShieldRating * 0.6)
         end
@@ -4558,7 +4558,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
                     local tWZTeamData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ][M28Map.subrefWZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..(iCurWZ or 'nil')..'; iCurPond='..(iCurPond or 'nil')..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
-                    if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or tWZTeamData[M28Map.subrefWZThreatEnemyAA] > 0 then
+                    if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] > 0 then
                         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; to nearest enemy to midpoint; Is it valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is it underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; iClosestDist='..iClosestDist) end
                             if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
@@ -9627,7 +9627,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
     if table.getn(M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains]) > 1 then bHaveTeammates = true end
     local iOurMobileDFThreat = tStartLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
     local iEnemyMobileDFThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
-    local iEnemyGroundAAThreat = tStartLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
+    local iEnemyGroundAAThreat = tStartLZTeamData[M28Map.subrefiThreatEnemyGroundAA]
     local iCurLZ
     local iEnemyNetMobileDFCloseToBase = 0
     if M28Utilities.IsTableEmpty(tStartLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
@@ -9638,7 +9638,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
             if tCurLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDistance then
                 iOurMobileDFThreat = iOurMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
                 iEnemyMobileDFThreat = iEnemyMobileDFThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]
-                iEnemyGroundAAThreat = iEnemyGroundAAThreat + tCurLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]
+                iEnemyGroundAAThreat = iEnemyGroundAAThreat + tCurLZTeamData[M28Map.subrefiThreatEnemyGroundAA]
                 if (tCurLZTeamData[M28Map.refiModDistancePercent] or 1) <= 0.3 then iEnemyNetMobileDFCloseToBase = iEnemyNetMobileDFCloseToBase + math.max(0, (tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) end
             else
                 if not(bHaveTeammates) or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.9 or tPathingData[M28Map.subrefLZTravelDist] >= iMaxTravelDist then

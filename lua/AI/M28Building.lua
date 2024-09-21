@@ -3058,7 +3058,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
                     --Add extra mobile threat if enemy has large mobile MAA
-                    iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
+                    iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)
                     if iCurAAThreat >= 3000 then
                         local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then

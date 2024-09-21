@@ -3147,8 +3147,8 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
             local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
             local iPond = M28Map.tiPondByWaterZone[iAdjWZ]
             local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.subrefWZThreatEnemyAA]='..tWZTeamData[M28Map.subrefWZThreatEnemyAA]) end
-            if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefWZThreatEnemyAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
+            if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
                     if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit undetwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end end
                     ConsiderPotentialUnitTarget(oUnit)

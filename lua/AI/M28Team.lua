@@ -3642,7 +3642,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyGroundAA] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiThreatEnemyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
@@ -3718,7 +3718,7 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAntiNavy] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySubmersible] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySurface] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAA] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefiThreatEnemyGroundAA] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyDFRange] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyAntiNavyRange] = 0
 
