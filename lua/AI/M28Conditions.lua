@@ -3245,3 +3245,15 @@ function HaveEcoToSupportGETemplate(iTeam)
     end
     return false
 end
+
+function GiveAttackMoveAsWeaponStuck(oUnit)
+    --Currently intended for DF units such as ACU (battleships manually added some logic already before did this so at some poitn could look to combine if wanted to be consistent, e.g. in event is an issue with below approach)
+    --For LOUD games due to LOUD changes making it much harder for units to kite
+    if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
+        if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) then
+            oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
+            M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 25)
+        end
+        return true
+    end
+end

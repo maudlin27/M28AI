@@ -2587,7 +2587,11 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                 M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAtcM', false)
                             else
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will move to closest enemy') end
-                                M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAM', false)
+                                if M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) then
+                                    M28Orders.IssueTrackedAttackMove(oACU, oEnemyToTarget:GetPosition(), 3, false, 'ACUAT')
+                                else
+                                    M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAM', false)
+                                end
                             end
                         end
                     end
@@ -3408,8 +3412,11 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
     end
     if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
-
-        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 3, false, 'Runa')
+        if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
+            M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 3, false, 'RunT')
+        else
+            M28Orders.IssueTrackedMove(oACU, tRallyPoint, 3, false, 'Runa')
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Sending ACU to core base') end
     else
         --Consider attacking nearby enemies if no enemy experimental
@@ -4711,7 +4718,11 @@ function GetACUOrder(aiBrain, oACU)
 
 
                                 if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
-                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                    if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                        M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 5, false, 'RunARP')
+                                    else
+                                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                    end
                                 else
                                     M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs') --v82 and earlier - the 'move to rally point' line was commented out in place of this; have switched back to enabling it (v83); if it causes issues then try and think of better solution than just running to base which I suspect was a placeholder
                                 end
