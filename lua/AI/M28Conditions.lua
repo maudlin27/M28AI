@@ -3268,3 +3268,9 @@ function GiveAttackMoveAsWeaponStuck(oUnit)
         return true
     end
 end
+
+function GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn)
+    if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and ((oEnemyToFocusOn:GetFractionComplete() < 1 and EntityCategoryContains(categories.AEON, oEnemyToFocusOn.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryTorpedoLauncher, oEnemyToFocusOn.UnitId)) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] then
+        return true
+    end
+end

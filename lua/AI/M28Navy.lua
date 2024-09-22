@@ -3594,7 +3594,11 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         else
                             if oUnit[M28UnitInfo.refbEasyBrain] and oEnemyToFocusOn then
                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(iOrderReissueDistToUse, (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.5), false, 'NKAesMve'..iWaterZone)
+                                    if M28Conditions.GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn) then
+                                        M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToFocusOn:GetPosition(), 1, false, 'NKAesagMve'..iWaterZone, false, oEnemyToFocusOn)
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(iOrderReissueDistToUse, (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.5), false, 'NKAesMve'..iWaterZone)
+                                    end
                                 end
                                 --Are we in range of any enemy?
                                 --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,               iDistThreshold,             iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
@@ -3867,12 +3871,20 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     --M28Orders.IssueTrackedMove(oUnit, tLocalisedKitingPosition, 1, false, 'WATKR'..iWaterZone)
                                 else
                                     if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WATWE'..iWaterZone)
+                                        if M28Conditions.GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn) then
+                                            M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToFocusOn:GetPosition(), 1, false, 'WATagWE'..iWaterZone, false, oEnemyToFocusOn)
+                                        else
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WATWE'..iWaterZone)
+                                        end
                                     end
                                 end
                             else
                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WAWE'..iWaterZone)
+                                    if M28Conditions.GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn) then
+                                        M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToFocusOn:GetPosition(), 1, false, 'WAWagE'..iWaterZone, false, oEnemyToFocusOn)
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WAWE'..iWaterZone)
+                                    end
                                 end
                             end
                         end
@@ -3899,7 +3911,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                         table.insert(tSRUnits, oUnit)
                                     end
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemySurfaceToFriendlyBase.UnitId) then
+                            elseif not(M28Utilities.bLOUDModActive) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemySurfaceToFriendlyBase.UnitId) then
                                 bUseAOEAttacks = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': The nearest enemy unit has equal range to our best range unit but is a structure, so we will attack it and try to ground fire if possible') end
                                 for iUnit, oUnit in tCombatUnitsOfUse do
