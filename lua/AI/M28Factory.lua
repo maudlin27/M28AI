@@ -3559,7 +3559,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --Unit counts
     local iBrainAirScouts --nil if havent got the value yet
     local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-    if M28Utilities.bLoudModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
     --MAIN BUILDER LOGIC:
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -3612,7 +3612,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
             local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
             if oACUToSnipe then
-                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Low power sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
                     oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
@@ -3911,7 +3911,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
             local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
             if oACUToSnipe then
-                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
                     if bDebugMessages == true then LOG(sFunctionRef..': will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
                     oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
@@ -4595,7 +4595,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end --redundancy
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': High mass so want a strat bomber') end
-                    if M28Utilities.bLoudModActive and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship * categories.TECH3) then return sBPIDToBuild
+                    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship * categories.TECH3) then return sBPIDToBuild
                     elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                 end
 
@@ -5737,7 +5737,7 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
         end
 
         local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-        if M28Utilities.bLoudModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing), or if we have decent air to ground threat and lack air control
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have sufficient eco to build something from a carrier, bHaveLowMass='..tostring(bHaveLowMass)..'; have low energy='..tostring(bHaveLowEnergy)..'; Gross mass income='..(aiBrain[M28Economy.refiGrossMassBaseIncome] or 'nil')..'; Energy gross income='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy when last stalled='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0)) end
@@ -5772,7 +5772,7 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             --Build strat bomber otherwise if have loads of mass
             if aiBrain[M28Economy.refiGrossMassBaseIncome] >= 600 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.97 and aiBrain:GetEconomyStored('MASS') >= 2000) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get strats') end
-                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
             end
             --Czar - for some reason it is categorised as a Tech3 unit
