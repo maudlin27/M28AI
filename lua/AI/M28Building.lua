@@ -727,7 +727,10 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     local sFunctionRef = 'RecordIfUnitIsProtectedFromTMLByTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(oUnit.UnitId) and not(M28Utilities.bFAFActive) and oUnit then --LOUD compatibility
+        if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
+        oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
+    end
 
     local bTMLAlreadyRecordedAgainstUnit = false
     local bUpdateZoneForUnitsWantingTMD = false
@@ -744,7 +747,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         table.insert(oUnit[reftTMLInRangeOfThisUnit], oTML)
     end
     local bIsBlockedByTMD
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
     local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
     if M28Utilities.IsTableEmpty(tTMDInRange) == false then
         --[[local iUnitToTMD
