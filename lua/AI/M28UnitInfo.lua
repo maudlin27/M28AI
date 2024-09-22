@@ -124,7 +124,7 @@ refiTimeBetweenBombs = 'M28BmTime' --Time in seconds based on the bomb weapon's 
 reftoEnemyProjectiles = 'M28UntProj' --table of projectiles targeting the unit
 refbProjectilesMeanShouldRefuel = 'M28UnPrjRf' --true if we wanted the unit to refuel due to expected projectile damage
 refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
-
+refbAttackMoveInsteadOfKiting = 'M28UAMinK' --true if we want to attackmove instead of kiting due to not firing for a while
 
 --Weapon priorities
 refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
@@ -845,6 +845,10 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     if bAntiNavyOnly then iMassMod = iMassMod * 1.1 end
                                 end
                             end
+                        end
+                        --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
+                        if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                            iMassMod = iMassMod * 0.75
                         end
                         local iMassCost = (oBP.Economy.BuildCostMass or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end

@@ -1076,7 +1076,7 @@ function OnBombFired(oWeapon, projectile)
                                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                                 if tLZOrWZTeamData then
                                     tNearestFriendlyBase = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                                    if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
+                                    if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 and tLZOrWZTeamData[M28Map.subrefLZSValue] < 1000 and (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) <= 250 then bCloseToDangerousFriendlyBase = true end --if are close to base then is a risk enemy has overrun it
                                 end
                                 if not(tNearestFriendlyBase) then tNearestFriendlyBase = M28Map.GetPlayerStartPosition(aiBrain) end
 
@@ -2012,8 +2012,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
                                         if iClosestNonM28BrainDistBase <= 200 and iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase then
-                                            ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
-                                            M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            if M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active then
+                                                ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
+                                                M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            end
                                             bGiftingToTeammate = true
                                         end
                                     end
@@ -2429,7 +2431,9 @@ function OnReclaimStarted(oEngineer, oReclaim)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
-            M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)
+            if M28Orders.bDontConsiderCombinedArmy or oReclaim.M28Active then
+                M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)
+            end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end

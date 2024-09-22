@@ -727,7 +727,10 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     local sFunctionRef = 'RecordIfUnitIsProtectedFromTMLByTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(oUnit.UnitId) and not(M28Utilities.bFAFActive) and oUnit then --LOUD compatibility
+        if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
+        oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
+    end
 
     local bTMLAlreadyRecordedAgainstUnit = false
     local bUpdateZoneForUnitsWantingTMD = false
@@ -744,7 +747,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         table.insert(oUnit[reftTMLInRangeOfThisUnit], oTML)
     end
     local bIsBlockedByTMD
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
     local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
     if M28Utilities.IsTableEmpty(tTMDInRange) == false then
         --[[local iUnitToTMD
@@ -2533,8 +2536,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; bHaveBlockingSMD='..tostring(bHaveBlockingSMD)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                                     --Send a voice taunt if havent in last 10m and we expect to do significant damage
                                     if not(bHaveBlockingSMD) and iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
-                                        M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
-                                        ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                        if M28Orders.bDontConsiderCombinedArmy or oLauncher.M28Active then
+                                            M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
+                                            ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                        end
                                     elseif bHaveBlockingSMD then
                                         --Record that our last nuke target had a blocking SMD (so we allow any delay between nuke missiles)
                                         M28Team.tTeamData[iTeam][M28Team.refbSMDBlockingLastNukeTarget] = true
@@ -3058,7 +3063,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
                     --Add extra mobile threat if enemy has large mobile MAA
-                    iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
+                    iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)
                     if iCurAAThreat >= 3000 then
                         local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
@@ -3244,7 +3249,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             --Is this the same as the last target?
                             oArti[refiLastTargetValue] = iBestValue
                             local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
-                            if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
+                            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
                                 oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
                                 M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
                                 IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
@@ -4032,12 +4037,14 @@ function JustBuiltParagon(oParagon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Is oOtherBrain nil='..tostring(oOtherBrain == nil)) end
                     if oOtherBrain then
                         bGiftedParagonToOtherBrain = true
-                        local tUnitsToGift = {oParagon}
-                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
-                        if not(oOtherBrain.M28AI) then
-                            M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use this resource generator more than me', 0, 300, true, true, nil, nil)
+                        if (M28Orders.bDontConsiderCombinedArmy or oParagon.M28Active) then
+                            local tUnitsToGift = {oParagon}
+                            M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+                            if not(oOtherBrain.M28AI) then
+                                M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use this resource generator more than me', 0, 300, true, true, nil, nil)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have gifted paragon to teammate') end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have gifted paragon to teammate') end
                     end
                 end
                 if not(bGiftedParagonToOtherBrain) then

@@ -102,28 +102,31 @@ function CreateAltOrders(availableOrders, availableToggles, units)
     -- to determine where they go by using preferred slots
     --ADDED FOR LOUD
     --LOG('About to define M28AddAbilityButtons')
-
-    M28AddAbilityButtons = function(standardOrdersTable, availableOrders, units)
-        -- Look for units in the selection that have special ability buttons
-        -- If any are found, add the ability information to the standard order table
-        if units and categories.ABILITYBUTTON and EntityCategoryFilterDown(categories.ABILITYBUTTON, units) then
-            for index, unit in units do
-                local tempBP = UnitData[unit:GetEntityId()]
-                if tempBP.Abilities then
-                    for abilityIndex, ability in tempBP.Abilities do
-                        if ability.Active ~= false then
-                            table.insert(availableOrders, abilityIndex)
-                            standardOrdersTable[abilityIndex] = table.merged(ability, import("/lua/abilitydefinition.lua").abilities[abilityIndex])
-                            standardOrdersTable[abilityIndex].behavior = AbilityButtonBehavior
+    if categories.xnl0001 then
+        --NOMADS is present which overwrites the below function
+    else
+        M28AddAbilityButtons = function(standardOrdersTable, availableOrders, units)
+            -- Look for units in the selection that have special ability buttons
+            -- If any are found, add the ability information to the standard order table
+            if units and categories.ABILITYBUTTON and EntityCategoryFilterDown(categories.ABILITYBUTTON, units) then
+                for index, unit in units do
+                    local tempBP = UnitData[unit:GetEntityId()]
+                    if tempBP.Abilities then
+                        for abilityIndex, ability in tempBP.Abilities do
+                            if ability.Active ~= false then
+                                table.insert(availableOrders, abilityIndex)
+                                standardOrdersTable[abilityIndex] = table.merged(ability, import("/lua/abilitydefinition.lua").abilities[abilityIndex])
+                                standardOrdersTable[abilityIndex].behavior = AbilityButtonBehavior
+                            end
                         end
                     end
                 end
             end
         end
-    end
-    --LOG('Finished defining M28AddAbilityButtons')
+        --LOG('Finished defining M28AddAbilityButtons')
 
-    M28AddAbilityButtons(standardOrdersTable, availableOrders, units)
+        M28AddAbilityButtons(standardOrdersTable, availableOrders, units)
+    end
 
     local assistingUnitList = {}
 
@@ -143,16 +146,40 @@ function CreateAltOrders(availableOrders, availableToggles, units)
             podUnits['DroneL'] = assistingUnits
         end
 
+        local file_exists = function(name)
+            local file = DiskGetFileInfo(name)
+            if file == false or file == nil then
+                return false
+            else
+                return true
+            end
+        end
+        local bFAFActive = false        --Initially did with LOUD as the check, but steam doesnt work using FAF approach (and does using LOUD), so its FAF that has done something different
+        if file_exists('/lua/sim/navutils.lua') then
+            bFAFActive = true
+        else
+            --LOUD or steam
+        end
 
         if not table.empty(assistingUnits) then
             if table.getn(podStagingPlatforms) == 1 and table.empty(pods) then
                 table.insert(availableOrders, 'DroneL')
-                assistingUnitList['DroneL'] = {assistingUnits[1]}
+                if not(bFAFActive) then
+                    assistingUnitList['DroneL'] = assistingUnits[1]
+                else
+                    assistingUnitList['DroneL'] = {assistingUnits[1]}
+                end
                 if table.getn(assistingUnits) > 1 then
                     table.insert(availableOrders, 'DroneR')
-                    assistingUnitList['DroneR'] = {assistingUnits[2]}
-                    podUnits['DroneL'] = {assistingUnits[1]}
-                    podUnits['DroneR'] = {assistingUnits[2]}
+                    if not(bFAFActive) then
+                        assistingUnitList['DroneR'] = assistingUnits[2]
+                        podUnits['DroneL'] = assistingUnits[1]
+                        podUnits['DroneR'] = assistingUnits[2]
+                    else
+                        assistingUnitList['DroneR'] = {assistingUnits[2]}
+                        podUnits['DroneL'] = {assistingUnits[1]}
+                        podUnits['DroneR'] = {assistingUnits[2]}
+                    end
                 end
             else
                 table.insert(availableOrders, 'DroneL')
@@ -184,11 +211,20 @@ function CreateAltOrders(availableOrders, availableToggles, units)
     local iCategoriesToSearch = categories.ALLUNITS - categories.UNSELECTABLE
     if categories.ope6006 then iCategoriesToSearch = iCategoriesToSearch - categories.ope6006 end --excludes black sun as it uses the special rule (that we use for toggling M28AI), in case there might be compatibility issues
     if categories.uec1901 then iCategoriesToSearch = iCategoriesToSearch - categories.uec1901 end --(second black sun unit that uses rule 7)
+    --[[if categories.xnl0001 then
+        iCategoriesToSearch = iCategoriesToSearch - categories.xnl0001
+    end --nomads ACU--]]
     local M28Units = EntityCategoryFilterDown(iCategoriesToSearch, units)
     if not table.empty(M28Units) then
         assistingUnitList['M28Toggle'] = {}
         for _, Unit in M28Units do
+
+            --LOUD tempest has a drone button that conflicts with M28's button, so dont try and add in such a case
+            --if Unit:GetBlueprint().General.OrderOverrides.RULEUTC_SpecialToggle then
+            --Dont add to avoid a conflict
+            --else
             table.insert(assistingUnitList['M28Toggle'], Unit:GetCreator())
+            --end
         end
         table.insert(availableOrders, 'M28Toggle')
     end

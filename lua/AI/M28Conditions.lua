@@ -1736,6 +1736,17 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         else
                                             iAirFactoriesForEveryLandFactory = math.min(iAirFactoriesForEveryLandFactory, 2)
                                         end
+                                        if M28Utilities.bLCEActive then
+                                            --If we have seraphim on team will want more air to support bombers
+                                            local bHaveSeraphimOnTeam = false
+                                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                                if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                                                    bHaveSeraphimOnTeam = true
+                                                    break
+                                                end
+                                            end
+                                            if bHaveSeraphimOnTeam then iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 2 end
+                                        end
                                         if not(M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                                             iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 1.5
                                             --[[local iNearbyEnemyGroundAAThreat = 0
@@ -2641,8 +2652,8 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
                         bWantMoreMexes = false
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel)) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel) end
-                        if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 * iFactoryTechLevel) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Team fgrigate+sub build count='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine)) end
+                        if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 * iFactoryTechLevel or (iFactoryTechLevel == 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and oFactory[M28Factory.refiTotalBuildCount] >= 10 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) and GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine) >= 16)) then
                             bWantMoreMexes = false
                         elseif not(tLZOrWZTeamData[M28Map.subrefWZbCoreBase]) and (oFactory[M28Factory.refiTotalBuildCount] >= 40 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 * iFactoryTechLevel) then
                             bWantMoreMexes = false
@@ -3244,4 +3255,16 @@ function HaveEcoToSupportGETemplate(iTeam)
         end
     end
     return false
+end
+
+function GiveAttackMoveAsWeaponStuck(oUnit)
+    --Currently intended for DF units such as ACU (battleships manually added some logic already before did this so at some poitn could look to combine if wanted to be consistent, e.g. in event is an issue with below approach)
+    --For LOUD games due to LOUD changes making it much harder for units to kite
+    if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
+        if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) then
+            oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
+            M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 25)
+        end
+        return true
+    end
 end
