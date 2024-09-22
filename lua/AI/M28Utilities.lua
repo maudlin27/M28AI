@@ -34,6 +34,8 @@
 bFAFActive = false
 bLoudModActive = false
 bSteamActive = false
+bLCEActive = false --LOUD community edition
+
 function ConsiderIfLoudActive()
     LOG('About to consider whether LOUD or Steam is active')
     if not(bFAFActive) and not(bSteamActive) then
@@ -54,7 +56,12 @@ function ConsiderIfLoudActive()
             --Either steam or LOUD is active
             if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
                 bLoudModActive = true
-                LOG('M28AI: Flagging that LOUD mod is active')
+                LOG('M28AI: Flagging that LOUD mod is active, does LCE file exist='..tostring(file_exists('/mods/LOUD-Community-Edition/mod_info.lua')))
+                --Check if LCE is also active
+                if file_exists('/mods/LOUD-Community-Edition/mod_info.lua') then
+                    bLCEActive = true
+                    LOG('M28AI: LOUD community edition is active')
+                end
             else
                 --Assume steam version
                 bSteamActive = true

@@ -3452,6 +3452,12 @@ function SetPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['ura0303'] = 1
         aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = 1
         aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = 1
+
+        --LCE specific
+        if M28Utilities.bLCEActive then
+            aiBrain[reftBlueprintPriorityOverride]['wel0304'] = 1
+            aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
+        end
     end
 end
 

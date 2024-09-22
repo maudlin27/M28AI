@@ -3246,7 +3246,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             --Is this the same as the last target?
                             oArti[refiLastTargetValue] = iBestValue
                             local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
-                            if tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
+                            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
                                 oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
                                 M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
                                 IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
