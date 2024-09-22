@@ -3037,40 +3037,40 @@ function SetFactoryRallyPoint(oFactory)
     local sFunctionRef = 'SetFactoryRallyPoint'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28UnitInfo.bDontConsiderCombinedArmy or oFactory.M28Active then
-        local tiAngles = {270, 0, 90, 180}
-        local oFactoryBP = oFactory:GetBlueprint()
-        local tiFactorySize = {oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ, oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ}
-        local tPotentialRally
-        local tPreferredRally
-        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
-        local iBestRallyValue = -100
-        local iCurRallyValue
-        if bDebugMessages == true then LOG(sFunctionRef..': Near start for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; tiFactoryRadius='..repru(tiFactorySize)..'; Factory position='..repru(oFactory:GetPosition())) end
-        for iEntry, iCurAngle in tiAngles do
-            for iDistAdjust = 4,2, -2 do
-                tPotentialRally = M28Utilities.MoveInDirection(oFactory:GetPosition(), iCurAngle, tiFactorySize[iEntry] * 0.6 + iDistAdjust, true, false, false)
-                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialRally) then
-                    iCurRallyValue = 4 - iEntry --Prefer them in the angle indicated
-                    local tNearbyUnits = GetUnitsInRect(tPotentialRally[1] - 1, tPotentialRally[3] - 1, tPotentialRally[1] + 1, tPotentialRally[3] + 1)
-                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                        iCurRallyValue = iCurRallyValue - 0.25
-                        local tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tNearbyUnits)
-                        if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
-                            iCurRallyValue = iCurRallyValue - 4
-                        end
+    local tiAngles = {270, 0, 90, 180}
+    local oFactoryBP = oFactory:GetBlueprint()
+    local tiFactorySize = {oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ, oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ}
+    local tPotentialRally
+    local tPreferredRally
+    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local iBestRallyValue = -100
+    local iCurRallyValue
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; tiFactoryRadius='..repru(tiFactorySize)..'; Factory position='..repru(oFactory:GetPosition())) end
+    for iEntry, iCurAngle in tiAngles do
+        for iDistAdjust = 4,2, -2 do
+            tPotentialRally = M28Utilities.MoveInDirection(oFactory:GetPosition(), iCurAngle, tiFactorySize[iEntry] * 0.6 + iDistAdjust, true, false, false)
+            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialRally) then
+                iCurRallyValue = 4 - iEntry --Prefer them in the angle indicated
+                local tNearbyUnits = GetUnitsInRect(tPotentialRally[1] - 1, tPotentialRally[3] - 1, tPotentialRally[1] + 1, tPotentialRally[3] + 1)
+                if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                    iCurRallyValue = iCurRallyValue - 0.25
+                    local tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tNearbyUnits)
+                    if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                        iCurRallyValue = iCurRallyValue - 4
                     end
-                    if iDistAdjust > 3 and iDistAdjust <= 7 then iCurRallyValue = iCurRallyValue + 2 end
-                    if bDebugMessages == true then LOG(sFunctionRef..': tPotentialRally='..repru(tPotentialRally)..'; iDistAdjust='..iDistAdjust..'; iCurAngle='..iCurAngle..'; iCurRallyValue='..iCurRallyValue..'; iBestRallyValue='..iBestRallyValue) end
-                    if iCurRallyValue > iBestRallyValue then
-                        iBestRallyValue = iCurRallyValue
-                        tPreferredRally = tPotentialRally
-                    end
+                end
+                if iDistAdjust > 3 and iDistAdjust <= 7 then iCurRallyValue = iCurRallyValue + 2 end
+                if bDebugMessages == true then LOG(sFunctionRef..': tPotentialRally='..repru(tPotentialRally)..'; iDistAdjust='..iDistAdjust..'; iCurAngle='..iCurAngle..'; iCurRallyValue='..iCurRallyValue..'; iBestRallyValue='..iBestRallyValue) end
+                if iCurRallyValue > iBestRallyValue then
+                    iBestRallyValue = iCurRallyValue
+                    tPreferredRally = tPotentialRally
                 end
             end
         end
-        if not(tPreferredRally) then tPreferredRally = oFactory:GetPosition() end
-        oFactory[reftFactoryRallyPoint] = {tPreferredRally[1], tPreferredRally[2], tPreferredRally[3]}
+    end
+    if not(tPreferredRally) then tPreferredRally = oFactory:GetPosition() end
+    oFactory[reftFactoryRallyPoint] = {tPreferredRally[1], tPreferredRally[2], tPreferredRally[3]}
+    if M28UnitInfo.bDontConsiderCombinedArmy or oFactory.M28Active then
         if not(oFactory:IsUnitState('Building')) then IssueClearFactoryCommands({oFactory}) end
         IssueFactoryRallyPoint({oFactory}, oFactory[reftFactoryRallyPoint])
     end
