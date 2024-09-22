@@ -31,6 +31,7 @@
 --Note that the LICENSE covers the copyright more generally for this file (outside of the above functions)
 --******************************************************************************************************
 
+--MOD info:
 bFAFActive = false
 bLoudModActive = false
 bSteamActive = false

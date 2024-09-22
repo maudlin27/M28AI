@@ -31,6 +31,7 @@ iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
 tBrainIndexesRecordedAsEnemies = {} --[x] is the armyindex, returns true if we have recorded as an enemy for a team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
+    refbAssassinationOrSimilar = 'M28TAsACU' --true if losing ACU means we lose the game; i.e. we arent in full share, or we are down to the last player
     --Subteam details
     subrefAirSubteamsInTeam = 'M28AirSubteamInT' --returns table of air subteam numbers in this team
     --Brain details
@@ -1732,7 +1733,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
                                 --Exception if this is only the first sniperbot and we have multiple friendly ACUs
                                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
-                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
@@ -1744,7 +1745,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if not(tTeamData[iTeam][refbDangerousForACUs]) and (not(M28Map.bIsCampaignMap) or tTeamData[aiBrain.M28Team][subrefiHighestFriendlyFactoryTech] >= 3) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
                                     --Dont set flag to true if we have 2+ ACUs, are in full share, and it isn't a gunship
-                                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
+                                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and not(tTeamData[iTeam][refbAssassinationOrSimilar]) and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
@@ -3685,6 +3686,8 @@ function TeamInitialisation(iM28Team)
         tTeamData[iM28Team][subrefiOrigM28BrainCount] = 0
     end
 
+    SetIfLoseGameOnACUDeath(iM28Team)
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code for team '..iM28Team..' at time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3966,6 +3969,9 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
             end
         end
     end
+
+    --Set if down to last ACU
+    SetIfLoseGameOnACUDeath(oDefeatedBrain.M28Team)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4759,4 +4765,33 @@ function EnemyNovaxSatelliteMonitor(oNovax, iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
+function SetIfLoseGameOnACUDeath(iTeam)
+    local bAssassinationOrSimilar = true
+    if ScenarioInfo.Options.Share == 'FullShare' then
+        if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
+            bAssassinationOrSimilar = false
+        else
+            local iFriendlyBrainCount = 0
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then
+                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains] do
+                    if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                        iFriendlyBrainCount = iFriendlyBrainCount + 1
+                    end
+                end
+            end
+            if iFriendlyBrainCount > 1 then
+                bAssassinationOrSimilar = false
+            else
+                bAssassinationOrSimilar = true
+            end
+        end
+    elseif ScenarioInfo.Options.Victory == 'demoralization' or ScenarioInfo.Options.Victory == 'decapitation' then
+        bAssassinationOrSimilar = true
+    else
+        bAssassinationOrSimilar = false
+    end
+    tTeamData[iTeam][refbAssassinationOrSimilar] = bAssassinationOrSimilar
 end

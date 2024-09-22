@@ -3202,7 +3202,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 iAirAAAvoidThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]
             end
             local bAlwaysProtectACU = false
-            if ScenarioInfo.Options.Victory == "demoralization" and ( not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1) then
+            if M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then
                 bAlwaysProtectACU = true
             end
             if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then
@@ -8136,7 +8136,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 return 2
             elseif EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oUnit.UnitId) then
                 return 1.5
-            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and ScenarioInfo.Options.Victory == "demoralization" then
+            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar] then
                 return 3
             elseif EntityCategoryContains(M28UnitInfo.refCategoryVolatile * categories.STRUCTURE + M28UnitInfo.refCategoryVolatile * categories.LAND, oUnit.UnitId) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() == 1 then
                 return 2
