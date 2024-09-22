@@ -1061,7 +1061,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                             bCanShootAir = false
                                             if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
                                                 for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
                                                     if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                        bCanShootAir = true
+                                                        break
+                                                    elseif sTargets == 'Air|Land|Water|Seabed' then
                                                         bCanShootAir = true
                                                         break
                                                     end
@@ -1069,10 +1073,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                             end
                                             if bCanShootAir then
                                                 iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                                iCurDPS = tWeapon.Damage * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                                iCurDPS = math.min(tWeapon.Damage, 6000) * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
                                                 iAADPS = iAADPS + iCurDPS
                                             end
                                         end
+                                        --Cap AA DPS at 200 for ACUs (i.e. for LOUD) as wont have all upgrades initially
+                                        if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
                                     end
 
                                     if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
@@ -1113,7 +1119,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         bCanShootAir = false
                                         if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
                                             for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
                                                 if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                    bCanShootAir = true
+                                                    break
+                                                elseif sTargets == 'Air|Land|Water|Seabed' then
                                                     bCanShootAir = true
                                                     break
                                                 end
@@ -1121,10 +1131,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         end
                                         if bCanShootAir then
                                             iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                            iCurDPS = tWeapon.Damage * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                            iCurDPS = math.min(tWeapon.Damage, 6000) * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
                                             iAADPS = iAADPS + iCurDPS
                                         end
                                     end
+                                    if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
                                 end
 
                                 if EntityCategoryContains(categories.ANTIAIR, sCurUnitBP) == true then
