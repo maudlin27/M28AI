@@ -782,7 +782,7 @@ function CheckUnitCap(aiBrain)
                                         bKilledUnit = true
 
                                         if iCurUnitsDestroyed >= iMaxToDestroy then
-                                            if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) then
+                                            if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) and aiBrain.BrainType == 'AI' then
                                                 M28Chat.SendUnitCapMessage(aiBrain)
                                             end
                                             break
@@ -2510,7 +2510,9 @@ function ConsiderSlowdownForHighUnitCount()
             M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,M28Land.iTicksPerLandCycle - 11)
             M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s
             if M28Land.iTicksPerLandCycle > iOrigTicksPerLandCycle then
-                M28Chat.SendSlowdownModeMessage(oFirstM28Brain)
+                if oFirstM28Brain.BrainType == 'AI' then
+                    M28Chat.SendSlowdownModeMessage(oFirstM28Brain)
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Slowdown mode active, M28Land.iTicksPerLandCycle='..M28Land.iTicksPerLandCycle..'; iOrigTicksPerLandCycle='..iOrigTicksPerLandCycle..'; M28Air.iExtraTicksToWaitBetweenAirCycles='..M28Air.iExtraTicksToWaitBetweenAirCycles) end
         else

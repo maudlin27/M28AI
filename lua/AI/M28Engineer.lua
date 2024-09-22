@@ -9011,11 +9011,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to repair nearby unit '..oUnitToRepair.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRepair)..', iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                         M28Orders.IssueTrackedRepair(tEngineersOfTechWanted[iEngiCount], oUnitToRepair, false, 'Rep', false)
                         TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
-                        UpdateBPTracking()
                         if bFirstEngi and iTotalBuildPowerWanted > 30 and iActionToAssign == refActionRepairAllyUnit then
                             --Send message to teammate that are helping them
-                            M28Chat.SendMessage(aiBrain, 'HelpAllyBuild'..oUnitToRepair:GetAIBrain():GetArmyIndex(), oUnitToRepair:GetAIBrain().Nickname..' I\'m sending some engineers to help you with that '..LOC((oUnitToRepair:GetBlueprint().Description or 'unit')), 3, 3600, true, true)
+                            if M28Orders.bDontConsiderCombinedArmy or tEngineersOfTechWanted[iEngiCount].M28Active then
+                                M28Chat.SendMessage(aiBrain, 'HelpAllyBuild'..oUnitToRepair:GetAIBrain():GetArmyIndex(), oUnitToRepair:GetAIBrain().Nickname..' I\'m sending some engineers to help you with that '..LOC((oUnitToRepair:GetBlueprint().Description or 'unit')), 3, 3600, true, true)
+                            end
                         end
+                        UpdateBPTracking()
                         bFirstEngi = false
                     end
                 elseif iActionToAssign == refActionSpecialShieldDefence then

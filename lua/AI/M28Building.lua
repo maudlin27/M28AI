@@ -2533,8 +2533,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; bHaveBlockingSMD='..tostring(bHaveBlockingSMD)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
                                     --Send a voice taunt if havent in last 10m and we expect to do significant damage
                                     if not(bHaveBlockingSMD) and iBestTargetValue >= (25000 + 5000 * M28Chat.iNukeGloatingMessagesSent) then
-                                        M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
-                                        ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                        if M28Orders.bDontConsiderCombinedArmy or oLauncher.M28Active then
+                                            M28Chat.iNukeGloatingMessagesSent = M28Chat.iNukeGloatingMessagesSent + 1
+                                            ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                                        end
                                     elseif bHaveBlockingSMD then
                                         --Record that our last nuke target had a blocking SMD (so we allow any delay between nuke missiles)
                                         M28Team.tTeamData[iTeam][M28Team.refbSMDBlockingLastNukeTarget] = true
@@ -4032,12 +4034,14 @@ function JustBuiltParagon(oParagon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Is oOtherBrain nil='..tostring(oOtherBrain == nil)) end
                     if oOtherBrain then
                         bGiftedParagonToOtherBrain = true
-                        local tUnitsToGift = {oParagon}
-                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
-                        if not(oOtherBrain.M28AI) then
-                            M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use this resource generator more than me', 0, 300, true, true, nil, nil)
+                        if (M28Orders.bDontConsiderCombinedArmy or oParagon.M28Active) then
+                            local tUnitsToGift = {oParagon}
+                            M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+                            if not(oOtherBrain.M28AI) then
+                                M28Chat.SendMessage(aiBrain, 'ParagGift'..aiBrain:GetArmyIndex(), 'You look like you could use this resource generator more than me', 0, 300, true, true, nil, nil)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have gifted paragon to teammate') end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have gifted paragon to teammate') end
                     end
                 end
                 if not(bGiftedParagonToOtherBrain) then

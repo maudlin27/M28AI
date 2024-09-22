@@ -3607,7 +3607,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                 local toUnitsToConsiderGifting = {}
                                                 local iASFCount = 0
                                                 for iASF, oASF in tOurASFs do
-                                                    if oASF[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(oASF[M28UnitInfo.refbSpecialMicroActive]) then
+                                                    if oASF[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(oASF[M28UnitInfo.refbSpecialMicroActive]) and (M28Orders.bDontConsiderCombinedArmy or oASF.M28Active) then
                                                         iASFCount = iASFCount + 1
                                                         table.insert(toUnitsToConsiderGifting, oASF)
                                                     end

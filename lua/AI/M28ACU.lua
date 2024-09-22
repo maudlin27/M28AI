@@ -5382,7 +5382,9 @@ function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tL
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then M28Utilities.ErrorHandler('ACU in trouble but not recorded against this LZ') end
             --Consider chat message if ACU health <75% and are in the first 20m
             if GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 then
-                ForkThread(M28Chat.ConsiderMessageForACUInTrouble, oACU, oACU:GetAIBrain())
+                if M28Orders.bDontConsiderCombinedArmy or oACU.M28Active then
+                    ForkThread(M28Chat.ConsiderMessageForACUInTrouble, oACU, oACU:GetAIBrain())
+                end
             end
 
         end
