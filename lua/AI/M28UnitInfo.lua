@@ -842,7 +842,10 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = iMassMod * 1.5
                                 else
                                     iMassMod = iMassMod * 2
-                                    if bAntiNavyOnly then iMassMod = iMassMod * 1.1 end
+                                    if bAntiNavyOnly then
+                                        iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                        --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
+                                    end
                                 end
                             end
                         end
