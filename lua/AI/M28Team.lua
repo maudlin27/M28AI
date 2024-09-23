@@ -187,6 +187,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
     refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
     refiTimeLastHadBattleshipBombardmentByPond = 'M28TeamLastTimeBSBomb' --[x] is the pond ref, returns gametimeseconds if had a battleship firing shots, that wasnt blocked, and had nearby structures, when in bombardment mode
+    refoPrimaryPondNavalFactory = 'M28TeamPrimPnNF' --naval factory taht are treatinga s the primary naval fac (meaning we shouldnt pause it when stalling mass)
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -4555,8 +4556,8 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 --Does the target have fixed shield coverage?
                 local bUnderFixedShield = false
                 local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)) end
-                if (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
+                if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
                     local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
                     local iMaxDistanceToShield = 10
                     local iCurDist, iCurShield, iMaxShield

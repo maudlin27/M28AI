@@ -464,6 +464,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))) end
 
+    tWZTeamData[M28Map.subrefThreatEnemyShield] = 0 --will change later on
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) then
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = 0
         tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = 0
@@ -474,7 +475,6 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = 0
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
-
     else
         --function GetCombatThreatRating(tUnits,                                                                                    bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
@@ -485,7 +485,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]))
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = {}
         local iLRThreshold = iLongRangeThreshold
-
+        local iCurShield, iMaxShield, iThreatFactor
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering ranges and underwater mex threat adjustments for WZ'..iWaterZone..', oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
             if oUnit:GetFractionComplete() >= 0.95 and oUnit[M28UnitInfo.refiCombatRange] > 0 then
@@ -510,6 +510,38 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 --Give a token submersible threat for underwater mexes so we build subs to stop
                 tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0) + 10
                 if bDebugMessages == true then LOG(sFunctionRef..': Increasing submersible threat by 10 for underwater mex, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]) end
+            end
+            if oUnit.MyShield and oUnit:GetFractionComplete() >= 0.95 and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
+                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                iThreatFactor = math.max(0.1, iCurShield /  iMaxShield)
+                tWZTeamData[M28Map.subrefThreatEnemyShield] = tWZTeamData[M28Map.subrefThreatEnemyShield] + iThreatFactor * (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+            end
+            if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 50 then
+                local iMaxShieldRating
+                if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
+                    if M28Utilities.bLoudModActive then
+                        if M28Utilities.bLCEActive then
+                            tWZTeamData[M28Map.subrefThreatEnemyShield] = 4000 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.5
+                        else
+                            iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
+                        end
+                    else
+                        iMaxShieldRating = math.min(3200 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
+                    end
+                else
+                    iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
+                end
+                local iShieldMaxFactor = 1
+                if M28Utilities.bLoudModActive then
+                    if M28Utilities.bLCEActive then iShieldMaxFactor = 2
+                    else iShieldMaxFactor = 4
+                    end
+                end
+                tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] + math.min(tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] * iShieldMaxFactor, iMaxShieldRating)
+                tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] + math.min(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iShieldMaxFactor, iMaxShieldRating)
+                tWZTeamData[M28Map.subrefWZThreatEnemySurface] = tWZTeamData[M28Map.subrefWZThreatEnemySurface] + math.min(tWZTeamData[M28Map.subrefWZThreatEnemySurface] * iShieldMaxFactor, iMaxShieldRating)
+                tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] + math.min(tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] * iShieldMaxFactor, iMaxShieldRating)
+                tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = tWZTeamData[M28Map.subrefWZBestEnemyDFRange] + math.min(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] * iShieldMaxFactor, iMaxShieldRating)
             end
         end
     end

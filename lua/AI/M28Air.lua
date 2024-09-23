@@ -3726,8 +3726,8 @@ function ApplyEngiHuntingBomberLogic(oUnit, iAirSubteam, iTeam)
                         if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
                         if bDontCheckForPacifism or not(tOtherLZOrWZData[M28Map.subrefbPacifistArea]) then
                             --Ignore targets with shielding or AA
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemies in iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; Enemy shield threat='..(tOtherLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)..'; GroundAA='.. (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; Enemy AirAA='..(tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
-                            if bDontCheckForEnemyThreats or ((tOtherLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemies in iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; Enemy shield threat='..(tOtherLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0)..'; GroundAA='.. (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; Enemy AirAA='..(tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
+                            if bDontCheckForEnemyThreats or ((tOtherLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Does enemy have AA threat along the path to this zone='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ, true, 1, 400, false, iAirSubteam, true, false, oUnit:GetPosition()))) end
                                 if bDontCheckForEnemyThreats or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ, true, 1, 400, false, iAirSubteam, true, false, oUnit:GetPosition())) then
                                     FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories)
@@ -4029,8 +4029,8 @@ function ManageBombers(iTeam, iAirSubteam)
                                             if bDontCheckForPacifism or not(M28Conditions.AdjacentToPacifistZone(iOtherPlateauOrZero, iOtherLZOrWZ)) then
                                                 --If enemy GroundAA threat is too big then stop looking/dont consider targets that are more than a bit further from here iSearchSize
 
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Enemy shield='..(tOtherLZOrWZData[M28Map.subrefLZThreatEnemyShield] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; SValue='..(tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0)) end
-                                                if iCurGroundAAThreat + math.min(iCurGroundAAThreat * 3, (tOtherLZOrWZData[M28Map.subrefLZThreatEnemyShield] or 0)) > iMaxEnemyGroundAAThreat and (tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0) == 0 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Enemy shield='..(tOtherLZOrWZData[M28Map.subrefThreatEnemyShield] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; SValue='..(tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0)) end
+                                                if iCurGroundAAThreat + math.min(iCurGroundAAThreat * 3, (tOtherLZOrWZData[M28Map.subrefThreatEnemyShield] or 0)) > iMaxEnemyGroundAAThreat and (tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0) == 0 then
                                                     iSearchSize = math.min(iSearchSize, (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) + 25) --i.e. consider a couple more zones in case htey are in another direction
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Zone has too much AA threat so wont target and will stop searching soon') end
                                                 else
@@ -4222,7 +4222,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 end
                 if iMassValueOfEnemyUnits > 0 then
                     if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
-                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 3
+                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 3
+                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 2
                         elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 1.25
                         else iAAThreatThreshold = iTorpBomberThreat
                         end
@@ -4230,7 +4231,12 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
                         --Havnet attacked for a while, so want more threat than enemy
                         iAAThreatThreshold = iTorpBomberThreat / 1.5
-                        if iDistance >= 200 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) then iAAThreatThreshold = iAAThreatThreshold * 0.5 end
+                        if iDistance >= 200 then
+                            if tWZTeamData[M28Map.subrefWZbCoreBase] then iAAThreatThreshold = iAAThreatThreshold * 0.75
+                            else
+                                iAAThreatThreshold = iAAThreatThreshold * 0.5
+                            end
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
                     else
                         --Recently chose to attack here
@@ -4252,6 +4258,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                             iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits * 1.75)
                         end
                     end
+                    if M28Utilities.bLoudModActive then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits) end
                     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -4441,7 +4448,14 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oEnemyUnit:GetPosition()) then
                 iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
                 if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
-                if bEnemyHasTorpDefence and bTorpBombers then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5 end
+                if bTorpBombers then
+                    if bEnemyHasTorpDefence then
+                        if M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.8
+                        else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
+                        end
+                    elseif M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.25
+                    end
+                end
                 local tBasePosition = oEnemyUnit:GetPosition()
                 iCurLoopCount = 0
                 --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
@@ -5089,13 +5103,13 @@ function ManageGunships(iTeam, iAirSubteam)
                     else
                         iMaxEnemyGroundAA = iOurGunshipThreat / iGunshipThreatFactorWanted
                         --Further adjust for enemy shield value
-                        if (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) > 0 then
+                        if (tLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
                             if M28Utilities.bFAFActive then
                                 --Shields dont stack very well so limit the threat from them to 1:1
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.min(5500, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.min(5500, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]))
                             else
                                 --Shields stack, so allow a 3:1 threat ratio
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefLZThreatEnemyShield]))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]))
                             end
                         end
                     end
@@ -8166,7 +8180,7 @@ function GetNovaxTarget(aiBrain, oNovax)
             if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
             if not (oUnit:IsUnitState('Attached') and EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 --Ignore units that are shielded
-                if not (DoShieldsCoverUnit(oUnit, oUnit)) or (EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] or 0) > 0 and (M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyShield] or 0) == 0) then
+                if not (DoShieldsCoverUnit(oUnit, oUnit)) or (EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] or 0) > 0 and (M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyShield] or 0) == 0) then
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
@@ -8416,7 +8430,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                                 --Check no fixed shields in this LZ
                                 local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Fatboy oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to fatboy='.. M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
-                                if (tUnitLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) <= 350 then
+                                if (tUnitLZTeamData[M28Map.subrefThreatEnemyShield] or 0) <= 350 then
                                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
                                     if iCurDist < iClosestTarget then
                                         iClosestTarget = iCurDist

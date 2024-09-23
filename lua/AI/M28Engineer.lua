@@ -17593,7 +17593,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 end
             end
             local iHighestIndividiualLongRangeThreat = math.min(25000, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
-            local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
+            local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0)
 
 
             if tLZTeamData[M28Map.refbBaseInSafePosition] then
@@ -17650,7 +17650,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             end
 
                         end
-                        iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
+                        iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefThreatEnemyShield] or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat..'; Zone dist='..tSubtable[M28Map.subrefLZTravelDist]) end
                     end
                 end

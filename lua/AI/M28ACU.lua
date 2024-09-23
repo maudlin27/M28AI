@@ -3594,7 +3594,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                 if iCurTargetValue > iHighestValueTarget then
                     --Reduce value by shields in the zone
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                    iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.3, (tUnitLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0))
+                    iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.3, (tUnitLZTeamData[M28Map.subrefThreatEnemyShield] or 0))
                     if iCurTargetValue > iHighestValueTarget then
                         iHighestValueTarget = iCurTargetValue
                         oTargetWanted = oUnit
@@ -3810,7 +3810,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             else
                 --avoid aoe on the target itself unless iti s a game ender with heavy shielding, or it doesnt matter if we die
                 if bConsiderVolatileHealth and not(EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId)) then --(dont want to mvoe away from mobile units such as ACUs in case they then move out of our range; exceptino for scathis due to how slow it is and itneeding to pack up)
-                    if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                    if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                         --First move away if targeting a highly volatile unit that could kill us, and we outrange the volatile radius (e.g. paragon and yolona)
                         local iBaseTargetVolatileDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oSnipeTarget)
                         if tDeathWeapon and iBaseTargetVolatileDamage >= 1250 then
