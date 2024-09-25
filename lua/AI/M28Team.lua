@@ -4457,139 +4457,151 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local bAddAsSnipeTarget = false
     --Low health%:
     if not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.IsUnitValid(oUnit) then
-        local iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
+        local iCurHealth = oUnit:GetHealth() oUnit:GetMaxHealth()
+        local iMaxHealth = oUnit:GetMaxHealth()
+        local iHealthPercent = iCurHealth / iMaxHealth
         local iBaseHealthThreshold = 0.6
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
         if iHealthPercent < iBaseHealthThreshold then
-            --Very low health - attack
-            if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
-                bAddAsSnipeTarget = true
-            else
-                --Is there a friendly ACU nearby with more health? Also factor in if that ACU has a better upgrade
-                local tNearbyAvailableACUs = {}
-                if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftM28ACUs]) then
-                    local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
-                    local iMaxDistUntilInRange = 15
-                    local iFriendlyACUHealthThreshold = math.min(iBaseHealthThreshold * 1.3, 0.95)
-                    if iHealthPercent >= 0.5 then iFriendlyACUHealthThreshold = math.min(0.95, iFriendlyACUHealthThreshold * 1.1) end
-                    local iFriendlyACUHealthPercent
-                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iFriendlyACUHealthThreshold = iFriendlyACUHealthThreshold * 0.75 end
-                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistUntilInRange = iMaxDistUntilInRange + 15 end
-                    local iDistAdjustment
-                    for iFriendlyACU, oFriendlyACU in tTeamData[iTeam][reftM28ACUs] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is friendly ACU owend by brain '..oFriendlyACU:GetAIBrain().Nickname..' available to do snipe attakc='..tostring(oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] or false)) end
-                        if oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] then
-                            if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oFriendlyACU:GetPosition()) == iPlateauWanted then
-                                iDistAdjustment = 0
-                                if not(tTeamData[iTeam][refbDangerousForACUs]) and (oFriendlyACU[M28UnitInfo.refiDFRange] > oUnit[M28UnitInfo.refiDFRange] or (oFriendlyACU[M28ACU.refiUpgradeCount] >= 2 and (oFriendlyACU[M28ACU.refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oFriendlyACU.UnitId))) and oFriendlyACU[M28ACU.refiUpgradeCount] > (oUnit[M28ACU.refiUpgradeCount] or 0))) then
-                                    iDistAdjustment = 30
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Dist to friendly ACU='..M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition())..'; DF range='..oFriendlyACU[M28UnitInfo.refiDFRange]..'; iMaxDistUntilInRange='..iMaxDistUntilInRange..'; Friendly ACU health%='.. M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)) end
-                                if M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] + iMaxDistUntilInRange + iDistAdjustment then
-                                    iFriendlyACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)
-                                    if iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold or (iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold * 0.8 and oFriendlyACU[M28UnitInfo.refiDFRange] > (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
-                                        table.insert(tNearbyAvailableACUs, oFriendlyACU)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if M28Utilities.IsTableEmpty(tNearbyAvailableACUs) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We have nearby available ACUs, size of table='..table.getn(tNearbyAvailableACUs)) end
-                        if table.getn(tNearbyAvailableACUs) >= 2 or iHealthPercent < iBaseHealthThreshold - 0.1 then
-                            bAddAsSnipeTarget = true
-                            for iUnit, oUnit in tNearbyAvailableACUs do
-                                oUnit[M28ACU.refbUseACUAggressively] = true
-                                --Note - ACU code has logic to set ACU target priorities if there is a nearby snipe target
-                            end
-                        end
-                    end
-                end
-                if not(bAddAsSnipeTarget) then
-                    --Consider sniping if we could kill it with c. 2 bombers based on our current air tech
-                    local iHealthThreshold
-                    if tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] == 1 then
-                        iHealthThreshold = 1000
-                    elseif tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] == 2 then
-                        iHealthThreshold = 2500
-                    else iHealthThreshold = 4250
-                    end
-                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iHealthThreshold = iHealthThreshold + 500 end
-                    if tTeamData[iTeam][subrefiOurBomberThreat] >= 500 then
-                        iHealthThreshold = iHealthThreshold + math.min(750, tTeamData[iTeam][subrefiOurBomberThreat] * 0.5)
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering sniping if we could probably get enough bombers, iHealthThreshold='..iHealthThreshold..'; Unit health='..oUnit:GetHealth()..'; iHealthPercent='..iHealthPercent..'; Team bomber threat='..tTeamData[iTeam][subrefiOurBomberThreat]) end
-                    if oUnit:GetHealth() <= iHealthThreshold then
-                        local iShield = 0
-                        if oUnit.MyShield.GetHealth then iShield = oUnit.MyShield:GetHealth() end
-                        if iShield == 0 or oUnit:GetHealth() + iShield <= iHealthThreshold then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding as snipe target due to bomber vulnerability') end
-                            bAddAsSnipeTarget = true
-                        end
-                    end
-
-                    if not(bAddAsSnipeTarget) and iHealthPercent <= 0.5 then
-                        --If we have a significant threat in range of the ACU then treat it as a snipe target if we also have more threat than the enemy
-                        local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                        if tACULZTeamData and tACULZTeamData[M28Map.subrefThreatEnemyDFStructures] <= 1200 and tACULZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 then
-                            local aiBrain = GetFirstActiveM28Brain(iTeam)
-                            local iNearbyThreatToACUSearchDist = 35
-                            if oUnit[M28UnitInfo.refbIsSnipeTarget] then iNearbyThreatToACUSearchDist = 45 end
-                            local toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
-                            if M28Utilities.IsTableEmpty(toNearbyDFUnits) == false then
-                                local iNearbyFriendlyDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyDFUnits, false, false)
-                                local iMinThreatWanted
-                                local iACUCombatThreat = M28UnitInfo.GetCombatThreatRating({oUnit}, true, false)
-                                if iHealthPercent <= 0.3 then iMinThreatWanted = math.max(450, iACUCombatThreat + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.4)
-                                else iMinThreatWanted = math.max(600, M28UnitInfo.GetCombatThreatRating({oUnit}, true, false) + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.8)
-                                end
-                                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield.GetHealth() > 0)) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with heavily upgraded ACU') end
-                                    iMinThreatWanted = iMinThreatWanted * 1.75
-                                end
-                                if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMinThreatWanted = iMinThreatWanted * 0.85 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyDFThreat='..iNearbyFriendlyDFThreat..'; iMinThreatWanted='..iMinThreatWanted..'; Enemy iACUCombatThreat='..iACUCombatThreat..'; Enemy mobile DF threat in zone of ACU less ACU value (since ACU included in this)='..((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat)) end
-                                if iNearbyFriendlyDFThreat >= iMinThreatWanted then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding as snipe target due to snigificant nearby ground DF threat') end
-                                    bAddAsSnipeTarget = true
-                                end
-                            end
-                        end
-                    end
-                end
+            --Check for shield
+            local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+            if iMaxShield > 0 then
+                iCurHealth = iCurHealth + iCurShield
+                iMaxHealth = iMaxHealth + iMaxShield
+                iHealthPercent = iCurHealth / iMaxHealth
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent) end
             end
-            if bAddAsSnipeTarget then
-                --Does the target have fixed shield coverage?
-                local bUnderFixedShield = false
-                local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
-                if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
-                    local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
-                    local iMaxDistanceToShield = 10
-                    local iCurDist, iCurShield, iMaxShield
-                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
-                    if M28Utilities.IsTableEmpty(tFixedShields) == false then
-                        for iShield, oShield in tFixedShields do
-                            if M28UnitInfo.IsUnitValid(oShield) then
-                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
-                                if iCurShield >= 4000 then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
-                                    if iCurDist <= iMaxDistanceToShield then
-                                        bAddAsSnipeTarget = false
-                                    else
-                                        local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
-                                        if iCurDist - iShieldRadius <= iMaxDistanceToShield then
-                                            bAddAsSnipeTarget = false
+            if iMaxShield == 0 or iHealthPercent < iBaseHealthThreshold then
+                --Very low health - attack
+                if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
+                    bAddAsSnipeTarget = true
+                else
+                    --Is there a friendly ACU nearby with more health? Also factor in if that ACU has a better upgrade
+                    local tNearbyAvailableACUs = {}
+                    if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftM28ACUs]) then
+                        local iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+                        local iMaxDistUntilInRange = 15
+                        local iFriendlyACUHealthThreshold = math.min(iBaseHealthThreshold * 1.3, 0.95)
+                        if iHealthPercent >= 0.5 then iFriendlyACUHealthThreshold = math.min(0.95, iFriendlyACUHealthThreshold * 1.1) end
+                        local iFriendlyACUHealthPercent
+                        if oUnit[M28UnitInfo.refbIsSnipeTarget] then iFriendlyACUHealthThreshold = iFriendlyACUHealthThreshold * 0.75 end
+                        if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistUntilInRange = iMaxDistUntilInRange + 15 end
+                        local iDistAdjustment
+                        for iFriendlyACU, oFriendlyACU in tTeamData[iTeam][reftM28ACUs] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is friendly ACU owend by brain '..oFriendlyACU:GetAIBrain().Nickname..' available to do snipe attakc='..tostring(oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] or false)) end
+                            if oFriendlyACU[M28ACU.refbACUAvailableToDoSnipeAttack] then
+                                if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oFriendlyACU:GetPosition()) == iPlateauWanted then
+                                    iDistAdjustment = 0
+                                    if not(tTeamData[iTeam][refbDangerousForACUs]) and (oFriendlyACU[M28UnitInfo.refiDFRange] > oUnit[M28UnitInfo.refiDFRange] or (oFriendlyACU[M28ACU.refiUpgradeCount] >= 2 and (oFriendlyACU[M28ACU.refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oFriendlyACU.UnitId))) and oFriendlyACU[M28ACU.refiUpgradeCount] > (oUnit[M28ACU.refiUpgradeCount] or 0))) then
+                                        iDistAdjustment = 30
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to friendly ACU='..M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition())..'; DF range='..oFriendlyACU[M28UnitInfo.refiDFRange]..'; iMaxDistUntilInRange='..iMaxDistUntilInRange..'; Friendly ACU health%='.. M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)) end
+                                    if M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oUnit:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] + iMaxDistUntilInRange + iDistAdjustment then
+                                        iFriendlyACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oFriendlyACU)
+                                        if iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold or (iFriendlyACUHealthPercent >= iFriendlyACUHealthThreshold * 0.8 and oFriendlyACU[M28UnitInfo.refiDFRange] > (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
+                                            table.insert(tNearbyAvailableACUs, oFriendlyACU)
                                         end
                                     end
                                 end
                             end
                         end
+                        if M28Utilities.IsTableEmpty(tNearbyAvailableACUs) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have nearby available ACUs, size of table='..table.getn(tNearbyAvailableACUs)) end
+                            if table.getn(tNearbyAvailableACUs) >= 2 or iHealthPercent < iBaseHealthThreshold - 0.1 then
+                                bAddAsSnipeTarget = true
+                                for iUnit, oUnit in tNearbyAvailableACUs do
+                                    oUnit[M28ACU.refbUseACUAggressively] = true
+                                    --Note - ACU code has logic to set ACU target priorities if there is a nearby snipe target
+                                end
+                            end
+                        end
                     end
+                    if not(bAddAsSnipeTarget) then
+                        --Consider sniping if we could kill it with c. 2 bombers based on our current air tech
+                        local iHealthThreshold
+                        if tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] == 1 then
+                            iHealthThreshold = 1000
+                        elseif tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] == 2 then
+                            iHealthThreshold = 2500
+                        else iHealthThreshold = 4250
+                        end
+                        if oUnit[M28UnitInfo.refbIsSnipeTarget] then iHealthThreshold = iHealthThreshold + 500 end
+                        if tTeamData[iTeam][subrefiOurBomberThreat] >= 500 then
+                            iHealthThreshold = iHealthThreshold + math.min(750, tTeamData[iTeam][subrefiOurBomberThreat] * 0.5)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering sniping if we could probably get enough bombers, iHealthThreshold='..iHealthThreshold..'; Unit health='..oUnit:GetHealth()..'; iHealthPercent='..iHealthPercent..'; Team bomber threat='..tTeamData[iTeam][subrefiOurBomberThreat]) end
+                        if oUnit:GetHealth() <= iHealthThreshold then
+                            local iShield = 0
+                            if oUnit.MyShield.GetHealth then iShield = oUnit.MyShield:GetHealth() end
+                            if iShield == 0 or oUnit:GetHealth() + iShield <= iHealthThreshold then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding as snipe target due to bomber vulnerability') end
+                                bAddAsSnipeTarget = true
+                            end
+                        end
 
+                        if not(bAddAsSnipeTarget) and iHealthPercent <= 0.5 then
+                            --If we have a significant threat in range of the ACU then treat it as a snipe target if we also have more threat than the enemy
+                            local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                            if tACULZTeamData and tACULZTeamData[M28Map.subrefThreatEnemyDFStructures] <= 1200 and tACULZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 then
+                                local aiBrain = GetFirstActiveM28Brain(iTeam)
+                                local iNearbyThreatToACUSearchDist = 35
+                                if oUnit[M28UnitInfo.refbIsSnipeTarget] then iNearbyThreatToACUSearchDist = 45 end
+                                local toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                if M28Utilities.IsTableEmpty(toNearbyDFUnits) == false then
+                                    local iNearbyFriendlyDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyDFUnits, false, false)
+                                    local iMinThreatWanted
+                                    local iACUCombatThreat = M28UnitInfo.GetCombatThreatRating({oUnit}, true, false)
+                                    if iHealthPercent <= 0.3 then iMinThreatWanted = math.max(450, iACUCombatThreat + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.4)
+                                    else iMinThreatWanted = math.max(600, M28UnitInfo.GetCombatThreatRating({oUnit}, true, false) + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.8)
+                                    end
+                                    if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield.GetHealth() > 0)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with heavily upgraded ACU') end
+                                        iMinThreatWanted = iMinThreatWanted * 1.75
+                                    end
+                                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMinThreatWanted = iMinThreatWanted * 0.85 end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyDFThreat='..iNearbyFriendlyDFThreat..'; iMinThreatWanted='..iMinThreatWanted..'; Enemy iACUCombatThreat='..iACUCombatThreat..'; Enemy mobile DF threat in zone of ACU less ACU value (since ACU included in this)='..((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat)) end
+                                    if iNearbyFriendlyDFThreat >= iMinThreatWanted then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding as snipe target due to snigificant nearby ground DF threat') end
+                                        bAddAsSnipeTarget = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if bAddAsSnipeTarget then
+                    --Does the target have fixed shield coverage?
+                    local bUnderFixedShield = false
+                    local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
+                    if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                        local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                        local iMaxDistanceToShield = 10
+                        local iCurDist, iCurShield, iMaxShield
+                        if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
+                        if M28Utilities.IsTableEmpty(tFixedShields) == false then
+                            for iShield, oShield in tFixedShields do
+                                if M28UnitInfo.IsUnitValid(oShield) then
+                                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
+                                    if iCurShield >= 4000 then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
+                                        if iCurDist <= iMaxDistanceToShield then
+                                            bAddAsSnipeTarget = false
+                                        else
+                                            local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
+                                            if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                                                bAddAsSnipeTarget = false
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                    end
                 end
             end
         end
