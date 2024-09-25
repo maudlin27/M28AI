@@ -5082,6 +5082,20 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iAntiNavyCategoryToGet = M28UnitInfo.refCategoryAntiNavy - categories.SILO
         end
 
+        local iMinAARatioWanted = 0.05
+        if iFactoryTechLevel >= 2 then
+            iMinAARatioWanted = 0.1
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 then
+                iMinAARatioWanted = 0.2
+            end
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 then
+                iMinAARatioWanted = math.max(0.2, iMinAARatioWanted + 0.05)
+            end
+            if not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) then
+                iMinAARatioWanted = iMinAARatioWanted * 1.5
+            end
+        end
+
         for iEntry, tSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
                 iOtherWZ = tSubtable[M28Map.subrefWZAWZRef]
@@ -5092,7 +5106,13 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 iEnemyCumulativeAntiNavyThreat = iEnemyCumulativeAntiNavyThreat + (tOtherWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
                 iEnemyCumulativeCombatThreat = iEnemyCumulativeCombatThreat + (tOtherWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]..'; Is table of enenmy units empty='..tostring(M28Utilities.IsTableEmpty(tOtherWZTeamData[M28Map.subrefTEnemyUnits])))
+                    LOG(sFunctionRef .. ': Considering iOtherWZ=' .. (iOtherWZ or 'nil') .. '; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]=' .. tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false) .. '; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. (tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]=' .. (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil') .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false) .. '; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false) .. '; tOtherWZTeamData[M28Map.refbWantLandScout]=' .. tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false) .. '; bUseFrigatesAsScouts=' .. tostring(bUseFrigatesAsScouts or false) .. '; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil') .. '; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]=' .. (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil') .. '; iOurCumulativeAAThreat=' .. iOurCumulativeAAThreat .. '; iOurCumulativeCombatThreat=' .. iOurCumulativeCombatThreat..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]..'; Is table of enenmy units empty='..tostring(M28Utilities.IsTableEmpty(tOtherWZTeamData[M28Map.subrefTEnemyUnits]))..'; iMinAARatioWanted='..iMinAARatioWanted)
+                end
+
+                --AA ratio basic value (note we also have a similar AA type test later on, this one is on global values though
+                if not(bHaveWantedAA) and iOurCumulativeCombatThreat >= 4000 and (tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or iOurCumulativeCombatThreat >= 6000*iFactoryTechLevel) and iOurCumulativeCombatThreat * iMinAARatioWanted > iOurCumulativeAAThreat then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want AA to maintain basic ratio to combat threat, iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat..'; iOurCumulativeAAThreat='..iOurCumulativeAAThreat) end
+                    bHaveWantedAA = true
                 end
 
                 if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
@@ -5172,9 +5192,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     end
                 end
 
-                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * 0.3, 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
+                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.4) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Will try get AA unless t1 with lots, enemy air to ground threat='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; bHaveWantedAA='..tostring(bHaveWantedAA or false)..'; Is location in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]))) end
                     if iFactoryTechLevel > 1 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) < 100 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Trying to get NavalAA category unit') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
                     end
                 end
