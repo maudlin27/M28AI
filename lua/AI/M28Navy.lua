@@ -516,12 +516,12 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 iThreatFactor = math.max(0.1, iCurShield /  iMaxShield)
                 tWZTeamData[M28Map.subrefThreatEnemyShield] = tWZTeamData[M28Map.subrefThreatEnemyShield] + iThreatFactor * (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
             end
-            if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 50 then
+            if (tWZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
                 local iMaxShieldRating
                 if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
                     if M28Utilities.bLoudModActive then
                         if M28Utilities.bLCEActive then
-                            tWZTeamData[M28Map.subrefThreatEnemyShield] = 4000 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.5
+                            iMaxShieldRating = 4000 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.5
                         else
                             iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
                         end
@@ -536,6 +536,10 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                     if M28Utilities.bLCEActive then iShieldMaxFactor = 2
                     else iShieldMaxFactor = 4
                     end
+                end
+                if not(iMaxShieldRating) then
+                    M28Utilities.ErrorHandler('Dont have a max shield rating for Pond '..iPond..'WZ'..iWaterZone..'; tWZTeamData[M28Map.subrefThreatEnemyShield]='..(tWZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')..'; will use gross WZ value')
+                    iMaxShieldRating = (tWZTeamData[M28Map.subrefThreatEnemyShield] or 0)
                 end
                 tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] + math.min(tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] * iShieldMaxFactor, iMaxShieldRating)
                 tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] + math.min(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iShieldMaxFactor, iMaxShieldRating)
