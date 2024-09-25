@@ -113,7 +113,7 @@ function OtherSteamCompatibilityInformation()
 
         local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
         M28Building.bShieldsCanDischarge = false
-
+        if not(ScenarioInfo.Options.Share) then ScenarioInfo.Options.Share = 'None' end
         if bDebugMessages == true then LOG(sFunctionRef..': Finsihed updating for steam compatibility') end
 
         --fix the scenarioinfo values from custom game options if are in LOUD, as it uses keys

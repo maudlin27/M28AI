@@ -132,6 +132,8 @@ function UpdateOtherLOUDInformation()
                 end
             end
         end
+
+        if not(ScenarioInfo.Options.Share) then ScenarioInfo.Options.Share = 'None' end
         if bDebugMessages == true then LOG(sFunctionRef..': M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')) end
     end
 

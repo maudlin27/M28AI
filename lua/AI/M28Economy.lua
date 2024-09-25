@@ -433,14 +433,33 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                                 if M28Utilities.IsTableEmpty(tAllLandFacsInZone) == false then
                                     for iFactory, oFactory in tAllLandFacsInZone do
                                         if not(oFactory == oUnitJustBuilt) then
-                                            oFactory[M28Factory.refbPrimaryHighMexIslandFactory] = false
+                                            oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = false
                                         end
                                     end
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Just set land factory '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' to be the primary factory for P'..iPlateau..'Z'..iLandZone..'at time='..GetGameTimeSeconds()) end
-                            oUnitJustBuilt[M28Factory.refbPrimaryHighMexIslandFactory] = true
+                            oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
                         end
+                    end
+                end
+            end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oUnitJustBuilt.UnitId) then
+            --Is this our highest naval fac HQ, and we lack any others of this tech level in this pond?
+            local iTeam = oUnitJustBuilt:GetAIBrain().M28Team
+            if M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt) >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] then
+                local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnitJustBuilt:GetPosition())
+                local iPond = M28Map.tPondBySegment[iSegmentX][iSegmentZ]
+                if iPond then
+                    if not(M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond])) then
+                        if not(M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond]) then
+                            if not(M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory]) then
+                                M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory] = {}
+                            end
+                            M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond] = {}
+                        end
+                        M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond] = oUnitJustBuilt
+                        oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
                     end
                 end
             end
@@ -1602,12 +1621,12 @@ function ManageMassStalls(iTeam)
                                         --Do we actually want to pause the unit? check any category specific logic
                                         bApplyActionToUnit = true
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading'))..'; refbPrimaryHighMexIslandFactory='..tostring(oUnit[M28Factory.refbPrimaryHighMexIslandFactory] or false))
+                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading'))..'; refbPrimaryFactoryForIslandOrPond='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
                                         end
                                         --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
                                         if oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ)) then
                                             bApplyActionToUnit = false
-                                        elseif oUnit[M28Factory.refbPrimaryHighMexIslandFactory] then bApplyActionToUnit = false
+                                        elseif oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] then bApplyActionToUnit = false
                                             --Air HQ - dont pause first ever unit or transport
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
                                             bApplyActionToUnit = false

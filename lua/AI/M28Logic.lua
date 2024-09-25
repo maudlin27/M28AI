@@ -577,7 +577,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             for iUnit, oUnit in tFriendlyUnits do
                 if oUnit.GetBlueprint and not(oUnit.Dead) then
                     if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                        if ScenarioInfo.Options.Victory == "demoralization" then
+                        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
                             iTotalDamage = iTotalDamage - 100000
                         else
                             iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
@@ -651,7 +651,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
 
         local iACUExtraFactor = 1
-        if M28Map.bIsCampaignMap or ScenarioInfo.Options.Victory == "demoralization" then
+        if M28Map.bIsCampaignMap or ScenarioInfo.Options.Victory == "demoralization" or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
 
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyACUs]) == false and table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyACUs]) > 1 and ScenarioInfo.Options.Share == 'FullShare' then
                 iACUExtraFactor = 2

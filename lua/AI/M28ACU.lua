@@ -1798,7 +1798,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                             end
                             if not(bWantToRun) then
                                 --Run if non-full share or last ACU, are past 15m in-game, mod dist is >=0.4, and we are far from base
-                                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 + 0.04*oACU[refiUpgradeCount] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iPercentageToFriendlyBase >= 0.35 and iDistToFriendlyBase >= (200 + 75 * oACU[refiUpgradeCount]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (GetGameTimeSeconds() >= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] > 1)) and (not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 25)
+                                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 + 0.04*oACU[refiUpgradeCount] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iPercentageToFriendlyBase >= 0.35 and iDistToFriendlyBase >= (200 + 75 * oACU[refiUpgradeCount]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (GetGameTimeSeconds() >= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] > 1)) and (not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 25)
                                     --Exception - if enemy isnt at t3 land yet, and we have a mobile shield assigned to guncom ACU with full health
                                     and (oACU[refiUpgradeCount] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 30 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.6 or not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.97) then
                                     bWantToRun = true
@@ -1812,7 +1812,8 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Significant air to ground threat so want to run, iFriendlyAAThreat='..(iFriendlyAAThreat or 0)) end
                                     bWantToRun = true
                                 else
-                                    if iHealthPercent >= 0.97 and oACU[refiUpgradeCount] >= 1 and (oACU:HasEnhancement('StealthGenerator') or oACU:HasEnhancement('FAF_SelfRepairSystem') or oACU:HasEnhancement('CloakingGenerator') or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileStealth]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedMobileStealth]:GetPosition()) <= oACU[M28Land.refoAssignedMobileStealth]:GetBlueprint().Intel.RadarStealthFieldRadius or 10)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': If high health and stealth will just attack, otherwise will assess nearby enemy threat, tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; M28Map.iMapSize='..M28Map.iMapSize..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; ScenarioInfo.Options.Victory='..ScenarioInfo.Options.Victory..'; ScenarioInfo.Options.Share='..ScenarioInfo.Options.Share) end
+                                    if iHealthPercent >= 0.97 and oACU[refiUpgradeCount] >= 1 and (oACU:HasEnhancement('StealthGenerator') or oACU:HasEnhancement('FAF_SelfRepairSystem') or oACU:HasEnhancement('CloakingGenerator') or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileStealth]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedMobileStealth]:GetPosition()) <= oACU[M28Land.refoAssignedMobileStealth]:GetBlueprint().Intel.RadarStealthFieldRadius or 10)) and ((tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28Map.iMapSize < 1024)) or not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar])) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Are stealthed and on high health so will ignore enemy threat and be aggressive') end
                                     else
 
@@ -1942,7 +1943,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
 
                                             --Decrease ACU factor if we have high mass income and are in assassination and dont have many upgrades
                                             local iAllyNearbyThreatFactor = 1
-                                            if oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 10 and ScenarioInfo.Options.Victory == 'demoralization' and oACU[refiUpgradeCount] < 3 then
+                                            if oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 10 and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and oACU[refiUpgradeCount] < 3 then
                                                 iACUFactor = iACUFactor * 0.6
                                                 iAllyNearbyThreatFactor = 0.8
                                             end
@@ -2163,7 +2164,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
             return true
         else
             --Run if enemy still has some of an air threat and we have better eco than them and our ACU lacks 3+ upgradews and not early-game
-            if (GetGameTimeSeconds() >= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and not(oACU[refbUseACUAggressively]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 400 and ScenarioInfo.Options.Victory == 'demoralization' and tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and oACU[refiUpgradeCount] < 3 then
+            if (GetGameTimeSeconds() >= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and not(oACU[refbUseACUAggressively]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 400 and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and oACU[refiUpgradeCount] < 3 then
                 local iEnemyEco = 0
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
@@ -2463,7 +2464,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         bWantKitingRetreat = true
                         --Exception - we have >= enemy range, and the threat of enemy units within our range + 5 isn't that great, and the mobile threat of enemy units isn't that great
                         local iAdjacentThreatThreshold = 1500 + oACU[refiUpgradeCount] * 750
-                        if not(ScenarioInfo.Options.Victory == "demoralization") or (ScenarioInfo.Options.Share == 'FullShare' and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1) then
+                        if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) then
                             iAdjacentThreatThreshold = iAdjacentThreatThreshold * 3
                         end
                         local iACUInZone = 1
@@ -2804,12 +2805,12 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     local iHighValueDistanceThreshold = 175
     local iLowerPriorityDistanceThreshold = 300
     --Increase distance if ACU has upgrade and is near-full health, and we and enemy lack T3
-    if (oACU[refiUpgradeCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3) or (not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and oACU[refiUpgradeCount] >= 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare')) and not(oACU:HasEnhancement('ResourceAllocation') and not(oACU:HasEnhancement('ResourceAllocationAdvanced')) and (oACU[refiUpgradeCount] >= 3 or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth() >= 4000) or oACU:GetHealth() >= 15000)))) then
+    if (oACU[refiUpgradeCount] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3) or (not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and oACU[refiUpgradeCount] >= 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar])) and not(oACU:HasEnhancement('ResourceAllocation') and not(oACU:HasEnhancement('ResourceAllocationAdvanced')) and (oACU[refiUpgradeCount] >= 3 or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth() >= 4000) or oACU:GetHealth() >= 15000)))) then
         iLowerPriorityDistanceThreshold = iLowerPriorityDistanceThreshold + 100
         --Increase by another 50 if we are less than half map size and all indicators are ok
         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
         if bDebugMessages == true then LOG(sFunctionRef..': Increased lower priority distance threshold, iLowerPriorityDistanceThreshold='..iLowerPriorityDistanceThreshold..'; will consider if want to increase further, upgradecount='..oACU[refiUpgradeCount]..'; In core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Highest enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Highest enemy air tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; Map size='..M28Map.iMapSize) end
-        if tLZTeamData[M28Map.subrefLZbCoreBase] and oACU[refiUpgradeCount] >= 2 and iLowerPriorityDistanceThreshold < math.min(475, M28Map.iMapSize * 0.6) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+        if tLZTeamData[M28Map.subrefLZbCoreBase] and oACU[refiUpgradeCount] >= 2 and iLowerPriorityDistanceThreshold < math.min(475, M28Map.iMapSize * 0.6) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) then
             if bDebugMessages == true then LOG(sFunctionRef..': Increased lower priority dist by a further 50') end
             iLowerPriorityDistanceThreshold = iLowerPriorityDistanceThreshold + 50
         end
@@ -3576,7 +3577,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
             if M28UnitInfo.IsUnitValid(oUnit) then
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     iCurTargetValue = 20000 --will only have an ACU if in assassination mode
-                    if table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == 1 and ScenarioInfo.Options.Victory == "demoralization" and M28UnitInfo.GetCombatThreatRating({M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][1]}, true) <= 4000 then
+                    if table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == 1 and M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar] and M28UnitInfo.GetCombatThreatRating({M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][1]}, true) <= 4000 then
                         iCurTargetValue = 250000 --i.e. if we kill the ACU then it is better than killing a game ender (although will reduce to less than a gameender if it has high health)
                     end
                     local iUnitHealth = oUnit:GetHealth()
@@ -3593,7 +3594,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                 if iCurTargetValue > iHighestValueTarget then
                     --Reduce value by shields in the zone
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                    iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.3, (tUnitLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0))
+                    iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.3, (tUnitLZTeamData[M28Map.subrefThreatEnemyShield] or 0))
                     if iCurTargetValue > iHighestValueTarget then
                         iHighestValueTarget = iCurTargetValue
                         oTargetWanted = oUnit
@@ -3783,7 +3784,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         end
 
         local bConsiderVolatileHealth = false
-        if ScenarioInfo.Options.Victory == "demoralization" and ( not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1) then bConsiderVolatileHealth = true end
+        if M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar] then bConsiderVolatileHealth = true end
         if bDebugMessages == true then LOG(sFunctionRef..': iBaseTargetPDDPS='..iBaseTargetPDDPS) end
         if iBaseTargetPDDPS >= 700 then
             --Want to search for locations with lower PD threat, if there are any
@@ -3809,7 +3810,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             else
                 --avoid aoe on the target itself unless iti s a game ender with heavy shielding, or it doesnt matter if we die
                 if bConsiderVolatileHealth and not(EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId)) then --(dont want to mvoe away from mobile units such as ACUs in case they then move out of our range; exceptino for scathis due to how slow it is and itneeding to pack up)
-                    if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                    if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                         --First move away if targeting a highly volatile unit that could kill us, and we outrange the volatile radius (e.g. paragon and yolona)
                         local iBaseTargetVolatileDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oSnipeTarget)
                         if tDeathWeapon and iBaseTargetVolatileDamage >= 1250 then
@@ -3926,7 +3927,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     local bWeHaveRAS = false
                     if oACU:HasEnhancement('ResourceAllocation') or oACU:HasEnhancement('ResourceAllocationAdvanced') then bWeHaveRAS = true end
 
-                    if not(ScenarioInfo.Options.Victory == "demoralization") and not(bWeHaveRAS) and (iEnemyArtiCount >= 2 or (iEnemyArtiCount >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250)) then
+                    if not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and not(bWeHaveRAS) and (iEnemyArtiCount >= 2 or (iEnemyArtiCount >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
                         bConsiderSniping = true
                     elseif not(bWeHaveRAS) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (iEnemyArtiCount >= 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250 and (iEnemyArtiCount >= 0.8 or M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)))) and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 3 or iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] * 0.8 < M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)) then
@@ -4940,7 +4941,7 @@ function GetACUOrder(aiBrain, oACU)
                                                             if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
                                                                 --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                                                                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-                                                                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
+                                                                    if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Although it is quite dangerous for ACUs we wont flag that it is very dangerous just yet due to full share') end
                                                                     else
                                                                         M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
@@ -5177,7 +5178,7 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
             if oACU[refiUpgradeCount] > 0 and M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.7 and GetGameTimeSeconds() <= 1000 and tLZOrWZTeamData[M28Map.refiModDistancePercent] < 0.6 then
                 --Will remain aggressive
-            elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and (not(ScenarioInfo.Options.Victory == "demoralization") or ScenarioInfo.Options.Share == 'FullShare') then
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) then
                 bStillBeAggressive = true --redundancy
             else
                 --If significant time elapsed then remove this flag
@@ -5395,10 +5396,8 @@ end
 function GetValueIncreaseForACUInTrouble(iTeam)
     local iCurValue = 1000
     --Increase by more if in noshare or assassination
-    if ScenarioInfo.Options.Victory == "demoralization" then
-        if not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
-            iCurValue = iCurValue + 20000
-        end
+    if M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then
+        iCurValue = iCurValue + 20000
     end
     return iCurValue
 end

@@ -641,6 +641,19 @@ function OnUnitDeath(oUnit)
                             if oUnit[M28UnitInfo.refiPausedPriority] then
                                 M28UnitInfo.AddOrRemoveUnitFromListOfPausedUnits(oUnit, false)
                             end
+
+                            --Primary naval fac - remove
+                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
+                                local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+                                local iPond = M28Map.tPondBySegment[iSegmentX][iSegmentZ]
+                                if iPond then
+                                    local iTeam = oUnit:GetAIBrain().M28Team
+
+                                    if not(M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond])) or M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond] == oUnit then
+                                        M28Team.tTeamData[iTeam][M28Team.refoPrimaryPondNavalFactory][iPond] = nil
+                                    end
+                                end
+                            end
                         else
                             --Specific logic to apply only if the unit is not owned by M28
                             if oUnit[M28UnitInfo.reftiTeamsRecordedAsNonM28Ally] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryMex, oUnit.UnitId) then

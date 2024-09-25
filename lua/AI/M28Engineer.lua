@@ -15631,7 +15631,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         --Is this a priority pond for our team to expand to?
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 7 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 4 and M28Map.iMapSize > 512) or (iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefWZbCoreBase]) or M28Team.tTeamData[iTeam][M28Team.refbNoAvailableTorpsForEnemies] or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2))) then
-            if tWZTeamData[M28Map.subrefWZbCoreBase] or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 + 3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            if tWZTeamData[M28Map.subrefWZbCoreBase] or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 + 3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tWZTeamData[M28Map.refiModDistancePercent] <= 0.4 and not(bHaveLowPower) and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeNaval] < M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 3)) then
                 local iFactoriesWanted = 1
                 --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
                 if bDebugMessages == true then
@@ -17593,7 +17593,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 end
             end
             local iHighestIndividiualLongRangeThreat = math.min(25000, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
-            local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
+            local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0)
 
 
             if tLZTeamData[M28Map.refbBaseInSafePosition] then
@@ -17650,7 +17650,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             end
 
                         end
-                        iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0)
+                        iNearbyEnemyFixedShieldThreat = iNearbyEnemyFixedShieldThreat + (tAltLZTeamData[M28Map.subrefThreatEnemyShield] or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; iNearbyEnemyFixedShieldThreat='..iNearbyEnemyFixedShieldThreat..'; Zone dist='..tSubtable[M28Map.subrefLZTravelDist]) end
                     end
                 end
