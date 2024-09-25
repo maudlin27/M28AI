@@ -184,21 +184,6 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                     return
                 end
 
-                -- put some initial threat at all enemy positions
-                for k,brain in ArmyBrains do
-
-                    if not(self.ArmyIndex == brain.ArmyIndex) and not(brain.Nickname == 'civilian') and (not brain:IsDefeated()) and (not IsAlly(self.ArmyIndex, brain.ArmyIndex)) then
-
-                        local place = brain:GetStartVector3f()
-                        local threatlayer = 'AntiAir'
-
-                        --LOG("*AI DEBUG "..brain.Nickname.." "..brain.BrainType.." enemy found at "..repr(place).." posting Economy threat")
-
-                        -- assign 500 ecothreat for 10 minutes
-                        self:AssignThreatAtPosition( place, 5000, 0.005, 'Economy' )
-                    end
-                end
-
                 if ScenarioInfo.Options.AIResourceSharing == 'off' then
 
                     self:SetResourceSharing(false)
@@ -283,13 +268,6 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 -- level AI starting locations
                 --loudUtils.LevelStartBaseArea(self:GetStartVector3f(), RallyPointRadius )
 
-                -- Create the Builder Managers for the MAIN base
-                self:AddBuilderManagers(self:GetStartVector3f(), BuilderRadius, 'MAIN', false, RallyPointRadius, true, 'FRONT')
-
-                -- turn on the PrimaryLandAttackBase flag for MAIN
-                self.BuilderManagers.MAIN.PrimaryLandAttackBase = true
-                self.PrimaryLandAttackBase = 'MAIN'
-
                 -- Create the Strategy Manager (disabled) from the Sorian AI
                 --self.BuilderManagers.MAIN.StrategyManager = StratManager.CreateStrategyManager(self, 'MAIN', self:GetStartVector3f(), 100)
 
@@ -340,19 +318,10 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 -- caps of 1000+ trigger some conditions
                 self.StartingUnitCap = GetArmyUnitCap(self.ArmyIndex)
 
-                if self.CheatingAI then
-                    import('/lua/ai/aiutilities.lua').SetupAICheat( self )
-                end
+                self:ForkThread( self.AddBuilderManagers, self:GetStartVector3f(), BuilderRadius, 'MAIN', false, RallyPointRadius, true, 'FRONT')
 
-                if self.OutnumberedRatio > 1.5 and (self.VeterancyMult < self.OutnumberedRatio) then
-
-                    local AISendChat = import('/lua/ai/sorianutilities.lua').AISendChat
-
-                    ForkThread( AISendChat, 'enemies', self.Nickname, "WOW - Why dont you just beat me with a stick?" )
-                    ForkThread( AISendChat, 'enemies', self.Nickname, "You Outnumber me "..tostring(self.OutnumberedRatio).." to 1 !")
-                    ForkThread( AISendChat, 'enemies', self.Nickname, "And all you give me is a "..tostring(self.VeterancyMult).." bonus?")
-
-                end
+                -- Create the Builder Managers for the MAIN base
+                --self:AddBuilderManagers(self:GetStartVector3f(), BuilderRadius, 'MAIN', false, RallyPointRadius, true, 'FRONT')
             end
         elseif M28Utilities.bSteamActive then
             LOG('About to run steam compatibility code')
