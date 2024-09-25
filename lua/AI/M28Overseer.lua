@@ -1093,6 +1093,12 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare] or false)) end
     if not(M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare]) then
         M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare] = true
+        while ScenarioInfo.OpEnded do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for ScenarioInfo.OpEnded to finish, time='..GetGameTimeSeconds()) end
         local tStartPosition = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
         local tNearbyStructures = {}
         local iWaitCount = 0
@@ -1146,73 +1152,74 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                     local iHumanBrainCount = 0
                     local iM28BrainCount = 0
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                        if oBrain.M28AI and not(oBrain.CampaignAI) then iM28BrainCount = iM28BrainCount + 1
+                        if oBrain.M28AI and not(oBrain.CampaignAI) and not(oBrain.BrainType == 'Human') then iM28BrainCount = iM28BrainCount + 1
                         elseif oBrain.BrainType == 'Human' then
                             iHumanBrainCount = iHumanBrainCount + 1
                         end
                     end
-                    local iUnitsAlreadyOwnedOfBlueprint
-
-                    iNthEntryToGive = math.ceil((iM28BrainCount + iHumanBrainCount) / iM28BrainCount)
-                    local iTotalUnitCount
-                    local iCurCycleCount
-                    local tUnitsToGive = {}
-                    local iCurNthEntryToGive
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all units to potentially share, iNthEntryToGive='..iNthEntryToGive..'; iM28BrainCount='..iM28BrainCount..'; iHumanBrainCount='..iHumanBrainCount) end
-                    for sBlueprint, tUnits in tUnitsToShareByBlueprint do
-                        iCurNthEntryToGive = iNthEntryToGive
-                        iTotalUnitCount = table.getn(tUnits)
-                        if bDebugMessages == true then LOG(sFunctionRef..': sBLueprint='..sBlueprint..'; iTotalUnitCount='..iTotalUnitCount) end
-                        if iTotalUnitCount >= iNthEntryToGive then
-                            iUnitsAlreadyOwnedOfBlueprint = 0
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                iUnitsAlreadyOwnedOfBlueprint = iUnitsAlreadyOwnedOfBlueprint + oBrain:GetCurrentUnits(categories[sBlueprint])
-                                if bDebugMessages == true then LOG(sFunctionRef..': oBrain cur units for sBlueprint='..oBrain:GetCurrentUnits(categories[sBlueprint])) end
+                    if iM28BrainCount >= 1 and iM28BrainCount + iHumanBrainCount > 1 then
+                        local iUnitsAlreadyOwnedOfBlueprint
+                        iNthEntryToGive = math.ceil((iM28BrainCount + iHumanBrainCount) / iM28BrainCount)
+                        local iTotalUnitCount
+                        local iCurCycleCount
+                        local tUnitsToGive = {}
+                        local iCurNthEntryToGive
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all units to potentially share, iNthEntryToGive='..iNthEntryToGive..'; iM28BrainCount='..iM28BrainCount..'; iHumanBrainCount='..iHumanBrainCount) end
+                        for sBlueprint, tUnits in tUnitsToShareByBlueprint do
+                            iCurNthEntryToGive = iNthEntryToGive
+                            iTotalUnitCount = table.getn(tUnits)
+                            if bDebugMessages == true then LOG(sFunctionRef..': sBLueprint='..sBlueprint..'; iTotalUnitCount='..iTotalUnitCount) end
+                            if iTotalUnitCount >= iNthEntryToGive then
+                                iUnitsAlreadyOwnedOfBlueprint = 0
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    iUnitsAlreadyOwnedOfBlueprint = iUnitsAlreadyOwnedOfBlueprint + oBrain:GetCurrentUnits(categories[sBlueprint])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oBrain cur units for sBlueprint='..oBrain:GetCurrentUnits(categories[sBlueprint])) end
+                                end
+                                if iUnitsAlreadyOwnedOfBlueprint > 0 then
+                                    if iUnitsAlreadyOwnedOfBlueprint >= iTotalUnitCount then
+                                        iCurNthEntryToGive = 1000
+                                    else
+                                        iCurNthEntryToGive = iCurNthEntryToGive + (iUnitsAlreadyOwnedOfBlueprint - iTotalUnitCount) * iM28BrainCount
+                                    end
+                                end
+                                iCurCycleCount = 0
+                                for iUnit, oUnit in tUnits do
+                                    iCurCycleCount = iCurCycleCount + 1
+                                    if iCurCycleCount >= iNthEntryToGive then
+                                        table.insert(tUnitsToGive, oUnit)
+                                        iCurCycleCount = 0
+                                    end
+                                end
                             end
-                            if iUnitsAlreadyOwnedOfBlueprint > 0 then
-                                if iUnitsAlreadyOwnedOfBlueprint >= iTotalUnitCount then
-                                    iCurNthEntryToGive = 1000
+                        end
+                        if M28Utilities.IsTableEmpty(tUnitsToGive) == false then
+                            local tiM28Brains = {}
+                            local iM28BrainCount = 0
+                            local oCurBrain
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain.CampaignAI) then
+                                        table.insert(tiM28Brains, oBrain)
+                                        iM28BrainCount = iM28BrainCount + 1
+                                    end
+                                end
+                            elseif aiBrain.M28AI then
+                                table.insert(tiM28Brains, aiBrain)
+                                M28Utilities.ErrorHandler('Dont have any activeM28 brains noted despite dealing with an M28Brain')
+                            end
+                            for iUnit, oUnit in tUnitsToGive do
+                                if iM28BrainCount > 1 then
+                                    oCurBrain = tiM28Brains[math.random(1, iM28BrainCount)]
                                 else
-                                    iCurNthEntryToGive = iCurNthEntryToGive + (iUnitsAlreadyOwnedOfBlueprint - iTotalUnitCount) * iM28BrainCount
+                                    oCurBrain = tiM28Brains[iM28BrainCount]
                                 end
-                            end
-                            iCurCycleCount = 0
-                            for iUnit, oUnit in tUnits do
-                                iCurCycleCount = iCurCycleCount + 1
-                                if iCurCycleCount >= iNthEntryToGive then
-                                    table.insert(tUnitsToGive, oUnit)
-                                    iCurCycleCount = 0
+                                --Gift adjacent mass storage if any
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                    M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain)
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
+                                M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
                             end
-                        end
-                    end
-                    if M28Utilities.IsTableEmpty(tUnitsToGive) == false then
-                        local tiM28Brains = {}
-                        local iM28BrainCount = 0
-                        local oCurBrain
-                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                if not(oBrain.CampaignAI) then
-                                    table.insert(tiM28Brains, oBrain)
-                                    iM28BrainCount = iM28BrainCount + 1
-                                end
-                            end
-                        elseif aiBrain.M28AI then
-                            table.insert(tiM28Brains, aiBrain)
-                            M28Utilities.ErrorHandler('Dont have any activeM28 brains noted despite dealing with an M28Brain')
-                        end
-                        for iUnit, oUnit in tUnitsToGive do
-                            if iM28BrainCount > 1 then
-                                oCurBrain = tiM28Brains[math.random(1, iM28BrainCount)]
-                            else
-                                oCurBrain = tiM28Brains[iM28BrainCount]
-                            end
-                            --Gift adjacent mass storage if any
-                            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain)
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
-                            M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
                         end
                     end
                 end

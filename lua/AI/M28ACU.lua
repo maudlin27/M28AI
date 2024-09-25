@@ -1702,7 +1702,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 4 and GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -4154,7 +4154,7 @@ function GetACUOrder(aiBrain, oACU)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    if aiBrain:GetArmyIndex() == 4 and GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
+
 
     local tLZOrWZData
     local tLZOrWZTeamData

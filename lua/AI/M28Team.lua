@@ -780,12 +780,14 @@ function CreateNewTeam(aiBrain)
                 local iStartPlateau, iStartIsland
                 for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
                     iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.GetPlayerStartPosition(oBrain))
-                    iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPlayerStartPosition(oBrain))
-                    if (iStartIsland or 0) > 0 then
+                    iStartIsland = (NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPlayerStartPosition(oBrain)) or -1)
+                    if (iStartIsland or 0) > 0 or iStartPlateau then
                         if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
                         table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
                         tbBrainsWithLandSubteam[oBrain:GetArmyIndex()] = true
                         tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                    else
+                        M28Utilities.ErrorHandler('Dont have a valid start plateau or island for oBrain='..(oBrain.Nickname or 'Brain index '..oBrain:GetArmyIndex()))
                     end
                 end
                 if M28Utilities.IsTableEmpty(tiIslandBrainsInSubteam) == false then
@@ -2338,7 +2340,13 @@ function UpdateFactionBlueprintBlacklist(iLandSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateFactionBlueprintBlacklist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iLandSubteam and not(tLandSubteamData[iLandSubteam]) then
+        while not(tLandSubteamData[iLandSubteam]) and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 5 do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
     tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist] = {}
     local bConsiderScoutRestrictions = false
     if tLandSubteamData[iLandSubteam][refbConsideredScoutFactionRestrictions] then bConsiderScoutRestrictions = true
