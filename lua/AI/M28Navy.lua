@@ -3945,8 +3945,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
                             else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                             end
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': bOutrangeClosestEnemy (factoring in if we can see the unit)='..tostring(bOutrangeClosestEnemy)..'; iDistUntilEnemyOutOfOurRange'..iDistUntilEnemyOutOfOurRange) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bOutrangeClosestEnemy (factoring in if we can see the unit)='..tostring(bOutrangeClosestEnemy)..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistUntilEnemyOutOfOurRange'..iDistUntilEnemyOutOfOurRange..'; bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Time since last blocked shot='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100))..'; Time of last check='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100)) end
 
                             if bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
                                 M28Orders.IssueTrackedMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WBAWE'..iWaterZone)
