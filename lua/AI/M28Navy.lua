@@ -2876,7 +2876,7 @@ end
 
 function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3527,7 +3527,13 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             local bConsiderUsingAOE = false
 
             if not(M28Utilities.bLoudModActive) and oNearestEnemyNonHoverToFriendlyBase and (EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToFriendlyBase.UnitId) or oNearestEnemyNonHoverToFriendlyBase.UnitId == 'xrb2308' or (M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false)) and not(M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + 1.2 + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false))) then
-                bConsiderUsingAOE = true
+                --Check we have a non-M28Easy on the team
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain.M28Easy) then
+                        bConsiderUsingAOE = true
+                        break
+                    end
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we want to use aoe to ground fire subs, bConsiderUsingAOE='..tostring(bConsiderUsingAOE)..'; oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; oNearestEnemySurfaceToFriendlyBase='..(oNearestEnemySurfaceToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemySurfaceToFriendlyBase) or 'nil'))
                 if oNearestEnemyNonHoverToFriendlyBase then
@@ -3555,7 +3561,18 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
             else
-                if oNearestEnemySurfaceToFriendlyBase then tCombatUnitsOfUse = tAvailableCombatUnits end
+                if oNearestEnemySurfaceToFriendlyBase then tCombatUnitsOfUse = tAvailableCombatUnits
+                else
+                    tCombatUnitsOfUse = {}
+                    tCombatUnitsWithNoTarget = {}
+                    for iUnit, oUnit in tAvailableCombatUnits do
+                        if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                            table.insert(tCombatUnitsOfUse, oUnit)
+                        else
+                            table.insert(tCombatUnitsWithNoTarget, oUnit)
+                        end
+                    end
+                end
             end
 
 
@@ -3865,7 +3882,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 (and have already applied logic)='..tostring(bAreInScenario1)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 (and have already applied logic)='..tostring(bAreInScenario1)..'; Is tCombatUnitsOfUse empty='..tostring(M28Utilities.IsTableEmpty(tCombatUnitsOfUse))) end
             if not(bAreInScenario1) then
                 if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false then
                     --WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
