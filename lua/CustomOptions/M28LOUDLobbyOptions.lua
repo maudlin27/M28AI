@@ -9,7 +9,7 @@
 
 LobbyGlobalOptions = {
     {
-        default = 6,
+        default = 9,
         label = "M28: AIx Overwhelm rate",
         help = "Adjust M28 AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
         key = 'M28OvwR',
@@ -45,34 +45,64 @@ LobbyGlobalOptions = {
                 key = 5,
             },
             {
-                text = '0.0',
+                text = '-0.05',
                 help = 'Amount to change AIx modifier by',
                 key = 6,
             },
             {
-                text = '0.1',
+                text = '-0.02',
                 help = 'Amount to change AIx modifier by',
                 key = 7,
             },
             {
-                text = '0.2',
+                text = '-0.01',
                 help = 'Amount to change AIx modifier by',
                 key = 8,
             },
             {
-                text = '0.3',
+                text = '0.0',
                 help = 'Amount to change AIx modifier by',
                 key = 9,
             },
             {
-                text = '0.4',
+                text = '0.01',
                 help = 'Amount to change AIx modifier by',
                 key = 10,
             },
             {
-                text = '0.5',
+                text = '0.02',
                 help = 'Amount to change AIx modifier by',
                 key = 11,
+            },
+            {
+                text = '0.05',
+                help = 'Amount to change AIx modifier by',
+                key = 12,
+            },
+            {
+                text = '0.1',
+                help = 'Amount to change AIx modifier by',
+                key = 13,
+            },
+            {
+                text = '0.2',
+                help = 'Amount to change AIx modifier by',
+                key = 14,
+            },
+            {
+                text = '0.3',
+                help = 'Amount to change AIx modifier by',
+                key = 15,
+            },
+            {
+                text = '0.4',
+                help = 'Amount to change AIx modifier by',
+                key = 16,
+            },
+            {
+                text = '0.5',
+                help = 'Amount to change AIx modifier by',
+                key = 17,
             },
         },
     },

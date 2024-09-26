@@ -51,15 +51,15 @@ AIOpts = {
         },
     },
     {
-        default = 6,
+        default = 9,
         label = "M28AIx Overwhelm rate",
         help = "Adjust M28AIx build and cheat modifiers by this amount periodically (0.0 to disable)",
         key = 'M28OvwR',
         value_text = "%s",
         value_help = "Amount to change the cheat modifiers by",
         values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
-            '-0.5', '-0.4', '-0.3', '-0.2', '-0.1',
-            '0.0', '0.1', '0.2', '0.3', '0.4', '0.5',
+            '-0.5', '-0.4', '-0.3', '-0.2', '-0.1', '-0.05', '-0.02', '-0.01',
+            '0.0', '0.01', '0.02', '0.05', '0.1', '0.2', '0.3', '0.4', '0.5',
         },
     },
     {
