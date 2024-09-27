@@ -15516,34 +15516,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we need torpedo launcher, iExistingWaterFactory='..iExistingWaterFactory..'; Enemies in adj WZ='..tostring(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Is table of LR units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]))) end
     if iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) then
         --If enemy best DF or IF range is <50 and they dont have hover units, then build torp launcher
-        local bEnemyHasLongRangeOrHover = false
+        local iOurCombatThreat = 0
+        local bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
         if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) end
-        if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 then bEnemyHasLongRangeOrHover = true
-        else
+        if not(bEnemyHasLongRangeOrHover) then
             local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-            local iOurCombatThreat = (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
-            if iEnemyCombatThreat > 15 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tWZTeamData[M28Map.subrefTEnemyUnits])) == false then
-                bEnemyHasLongRangeOrHover = true
-            end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)) end
-            if not(bEnemyHasLongRangeOrHover) and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 15 and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tAdjWZTeamData[M28Map.subrefTEnemyUnits])) == false then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    elseif M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subreftEnemyLongRangeUnits]) == false then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    elseif (tAdjWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    end
+                    bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
                     iEnemyCombatThreat = iEnemyCombatThreat + (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-                    iOurCombatThreat = iOurCombatThreat + (tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
+                    if bEnemyHasLongRangeOrHover then break end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
             if not(bEnemyHasLongRangeOrHover) then
                 --Do we not have significantly more threat than enemy?
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..(tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 'nil')..'; tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')) end

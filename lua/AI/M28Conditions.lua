@@ -3274,3 +3274,31 @@ function GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn)
         return true
     end
 end
+
+function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlliedCumulativeCombatThreatToReturn)
+    if iOptionalAlliedCumulativeCombatThreatToReturn then iOptionalAlliedCumulativeCombatThreatToReturn = iOptionalAlliedCumulativeCombatThreatToReturn + (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) end
+    local bEnemyHasLongRangeOrHover = false
+    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
+        bEnemyHasLongRangeOrHover = true
+    else
+        local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+        if iEnemyCombatThreat > 15 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            local tEnemyHover = EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tWZTeamData[M28Map.subrefTEnemyUnits])
+            if M28Utilities.IsTableEmpty(tEnemyHover) == false then
+                if not(M28Utilities.bLoudModActive) then
+                    bEnemyHasLongRangeOrHover = true
+                elseif tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] == 0 then
+                    --More detailed check due to how much better torp launchers are
+                    bEnemyHasLongRangeOrHover = true
+                else
+                    local iHoverThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyHover)
+                    if iHoverThreat > 500 or iHoverThreat * 2 > tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] then
+                        bEnemyHasLongRangeOrHover = true
+                    end
+
+                end
+            end
+        end
+    end
+    return bEnemyHasLongRangeOrHover, iOptionalAlliedCumulativeCombatThreatToReturn
+end

@@ -57,12 +57,26 @@ function ConsiderIfLoudActive()
             --Either steam or LOUD is active
             if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
                 bLoudModActive = true
-                LOG('M28AI: Flagging that LOUD mod is active, does LCE file exist='..tostring(file_exists('/mods/LOUD-Community-Edition/mod_info.lua')))
                 --Check if LCE is also active
                 if file_exists('/mods/LOUD-Community-Edition/mod_info.lua') then
                     bLCEActive = true
-                    LOG('M28AI: LOUD community edition is active')
+                elseif file_exists('/mods/QUIET-Community-Edition/mod_info.lua') then
+                    bLCEActive = true
                 end
+                if bLCEActive then
+                    --Make sure by checking active SIM mods
+                    bLCEActive = false
+                    local tSimMods = __active_mods or {}
+                    for iMod, tModData in tSimMods do
+                        if tModData.enabled and not (tModData.ui_only) then
+                            if tModData.name == 'LOUD Community Edition' or tModData.name == 'QUIET' then
+                                bLCEActive = true
+                                break
+                            end
+                        end
+                    end
+                end
+                LOG('M28AI: Flagging that LOUD mod is active, does LCE file exist='..tostring(file_exists('/mods/LOUD-Community-Edition/mod_info.lua'))..'; bLCEActive='..tostring(bLCEActive))
             else
                 --Assume steam version
                 bSteamActive = true

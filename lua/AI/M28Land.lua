@@ -583,6 +583,9 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             else
                 iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
             end
+            if M28Utilities.bLoudModActive then
+                iMaxShieldRating = iMaxShieldRating + 0.5 * math.min(5000, tLZTeamData[M28Map.subrefThreatEnemyShield]) --shields are really good in LOUD
+            end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
                 if M28Utilities.bLCEActive then iShieldMaxFactor = 2
@@ -5933,7 +5936,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if oSRUnit[M28UnitInfo.refbCanKite] then
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef..': Want unit to move towards tAmphibiousRallyPoint, position to move to towards this='..repru(M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false, true))..'; cur position='..repru(oSRUnit:GetPosition())..'; Last orders='..reprs(oSRUnit[M28Orders.reftiLastOrders])..'; Angle from cur position to new position='..M28Utilities.GetAngleFromAToB(oSRUnit:GetPosition(), tAmphibiousRallyPoint)..'; IgnoreOrderDueToStuckUnit(oSRUnit)='..tostring(IgnoreOrderDueToStuckUnit(oSRUnit)))
-                                                if oSRUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSRUnit) == 'brmt2medm10' then M28Utilities.DrawLocation(M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true)) end
                                             end
                                             --if not(IgnoreOrderDueToStuckUnit(oSRUnit)) then --(removed in v129 as was having cases of SR units suiciding into enemy due to this, and since we are here we want the SR unit to run from enemy and dont have enough threat to overwhelm enemy
                                                 M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true), 5, false, 'ASRSup'..iLandZone)

@@ -657,7 +657,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
                     local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
                     if bDebugMessages == true then LOG(sFunctionRef..': We want direct fire units, iFactoryTechLevel='..iFactoryTechLevel) end
-                    if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 then
+                    if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and not(M28Utilities.bLCEActive) then
                         --Sniperbots are really bad in LOUD other than Aeon T2 sniperbot so dont want to build skirmishers in case we build them
                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
                         if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
@@ -2985,10 +2985,11 @@ function IsFactoryReadyToBuild(oFactory)
     local sFunctionRef = 'IsFactoryReadyToBuild'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
+    if oFactory.UnitId == 'urb0303' and GetGameTimeSeconds() >= 5500 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Fraction complete='..oFactory:GetFractionComplete()..'; Work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)..'; Is table of factory command queue empty='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Time='..GetGameTimeSeconds()) end
+    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
             (oFactory:IsUnitState('Guarding') or M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) then
-            --Campaign - wait until cutscene over
+        --Campaign - wait until cutscene over
 
         if M28Map.bIsCampaignMap and ScenarioInfo.OpEnded and GetGameTimeSeconds() <= 120 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3028,6 +3029,7 @@ function IsFactoryReadyToBuild(oFactory)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Factory is not ready to build') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
@@ -3112,6 +3114,7 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
     local sFunctionRef = 'DelayedCheckIfFactoryBuildingAndRetry'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oFactory.UnitId == 'urb0303' then bDebugMessages = true end
     if not(oFactory[refbActiveDelayedCheck]) then
         oFactory[refbActiveDelayedCheck] = true
         local iBuildCount = (oFactory[refiTotalBuildCount] or 0)
@@ -3149,7 +3152,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId == 'urb0303' then bDebugMessages = true end
 
     if not (oFactory['M28BuilderCheckActive']) then
         oFactory['M28BuilderCheckActive'] = true
@@ -3395,6 +3398,7 @@ function SetPreferredUnitsByCategory(aiBrain)
         --Engineers
         aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
         aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1000 --fire beetle (so build wagners instead if going for fast units)
+        aiBrain[reftBlueprintPriorityOverride]['srs0219'] = -1 --Engineer ship (can get built and used as naval scouts instead of frigate)
 
         --Az LOUD unit mod suggestions
         --Seraphim T2:
@@ -3441,10 +3445,16 @@ function SetPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1000 --experimental reconstruction bot
         --LOUD - sniperbots at t3+ and T1 are weak
         if M28Utilities.bLoudModActive then
-            aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1000
-            aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1000
-            aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
             aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1000 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
+            if M28Utilities.bLCEActive then
+                --Hoplites and gattling meant to have been fixed/buffed in LCE so they are able to kite
+                aiBrain[reftBlueprintPriorityOverride]['drl0204'] = 1
+                aiBrain[reftBlueprintPriorityOverride]['del0204'] = 1
+            else --Disable T3 sniperbots since not in LCE just LOUD and they are terrible
+                aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1000
+                aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1000
+                aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
+            end
         end
 
         --Prioritise ASFs as penetration fighters dont seem to fire consistently in LOUD
@@ -3453,7 +3463,7 @@ function SetPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = 1
         aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = 1
 
-        --LCE specific
+        --More LCE specific logic
         if M28Utilities.bLCEActive then
             aiBrain[reftBlueprintPriorityOverride]['wel0304'] = 1
             aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
@@ -3473,12 +3483,13 @@ function IdleFactoryMonitor(aiBrain)
         local iTeam
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
             for iFactory, oFactory in tOurFactories do
+                if oFactory.UnitId == 'urb0303' then bDebugMessages = true else bDebugMessages = false end
                 if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())) end
                     if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
-                    --Redundancy for paused factories (in theory shouldnt be needed)
+                        --Redundancy for paused factories (in theory shouldnt be needed)
                     elseif oFactory[M28UnitInfo.refbPaused] or oFactory:IsPaused() then
                         iTeam = oFactory:GetAIBrain().M28Team
                         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)..'; M28Team.tTeamData[M28Team.subrefiTeamNetMass]='..(M28Team.tTeamData[M28Team.subrefiTeamNetMass] or 'nil')..'; M28Team.tTeamData[M28Team.subrefiTeamNetEnergy]='..(M28Team.tTeamData[M28Team.subrefiTeamNetEnergy] or 'nil')) end
@@ -3486,6 +3497,10 @@ function IdleFactoryMonitor(aiBrain)
                             M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Unpause override for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
                         end
+                    elseif oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 15 and oFactory:GetWorkProgress() == 0 and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 and M28UnitInfo.GetUnitState(oFactory) == '' then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a factory that hasnt been given an order to build for some time now, will call DecideAndBuildUnitForFactory for the factory') end
+                        oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
+                        ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4717,7 +4732,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
-
+    if iFactoryTechLevel == 3 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
@@ -5254,8 +5269,24 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Consdering building bombardment category unit, bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Do we have UEF or seraphim factory=' .. tostring(EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId)))
     end
-    if iFactoryTechLevel >= 3 then
+
+    --Add special bombardment ship categories
+    --Seraphim T2 - get bombardment ships
+    if iFactoryTechLevel == 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships, sBPIDToBuild='..sBPIDToBuild) end
+        return sBPIDToBuild
+    elseif iFactoryTechLevel >= 3 then
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
+        if bDebugMessages == true then LOG(sFunctionRef..': Are at T3 and in bombardment mode, is categories.brmst3bom nil='..tostring(categories.brmst3bom == nil)) end
+        if categories.brmst3bom and oFactory:CanBuild('brmst3bom') then
+            local iCurBombardment = aiBrain:GetCurrentUnits(categories.brmst3bom)
+            if iCurBombardment < iCurBattleships * 2.5 and (iCurBombardment == 0 or iCurBattleships > 0) then
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': want to get cybran bombardment ship') end
+                if ConsiderBuildingCategory(categories.brmst3bom) then return sBPIDToBuild end
+            end
+        end
+
         --Aeon specific - build missile ships once have 3+ battleships and are in bombardment mode
         if iCurBattleships >= 3 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
             local iCurMissileShips = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMissileShip * categories.TECH3)
