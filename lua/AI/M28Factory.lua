@@ -265,7 +265,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
 
         local iBPToBuild = math.random(1, iBestBlueprints)
         if bDebugMessages == true then
-            LOG(sFunctionRef..': End of code, iBestBlueprints='..iBestBlueprints..'; Will return random number if this is more than 1, tBestBlueprints[iBPToBuild]='..(tBestBlueprints[iBPToBuild] or 'nil'))
+            LOG(sFunctionRef..': End of code, iBestBlueprints='..iBestBlueprints..'; Will return random number if this is more than 1, iBPToBuild='..iBPToBuild..'; tBestBlueprints[iBPToBuild]='..(tBestBlueprints[iBPToBuild] or 'nil')..'; tBestBlueprints='..repru(tBestBlueprints))
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tBestBlueprints[iBPToBuild]
