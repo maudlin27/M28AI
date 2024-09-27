@@ -5072,7 +5072,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iAntiNavyCategoryToGet
         local bConsiderSubsIfNoDestroyersDespiteTorps = false
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] >= 500 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) then
-            iAntiNavyCategoryToGet = M28UnitInfo.refCategoryAntiNavy - categories.SILO - categories.SUBMARINE
+            iAntiNavyCategoryToGet = M28UnitInfo.refCategoryAntiNavy - categories.SILO
+            if categories.SUBMARINE then iAntiNavyCategoryToGet = iAntiNavyCategoryToGet - categories.SUBMARINE
+            else iAntiNavyCategoryToGet = iAntiNavyCategoryToGet - categories.SUBMERSIBLE + M28UnitInfo.refCategorySeraphimDestroyer
+            end
             if iFactoryTechLevel == 1 and bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] >= 1000 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and aiBrain:GetEconomyStoredRatio('MASS') <= 0.05 then
                 bConsiderSubsIfNoDestroyersDespiteTorps = false
             else
