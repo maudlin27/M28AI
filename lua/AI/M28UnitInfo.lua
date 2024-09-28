@@ -322,7 +322,7 @@ refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
 
 --Naval units
-refCategoryFrigate = categories.NAVAL * categories.FRIGATE
+refCategoryFrigate = categories.NAVAL * categories.FRIGATE - categories.ENGINEER --LOUD mod has an engineering ship which is treated as a frigate
 refCategoryTorpedoLauncher = refCategoryAntiNavy * categories.STRUCTURE
 refCategoryNavalSurface = categories.NAVAL + refCategoryTorpedoLauncher - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
 refCategoryMobileNavalSurface = refCategoryNavalSurface * categories.MOBILE
@@ -745,6 +745,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                         iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                         if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 1
+                                            if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
                                         elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 0.5 --brick, wagner etc
                                             --UEF units (which are either really bad or good at antinavy)
@@ -842,7 +843,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = iMassMod * 1.5
                                 else
                                     iMassMod = iMassMod * 2
-                                    if bAntiNavyOnly or (bAddAntiNavy and M28Utillities.bLoudModActive) then
+                                    if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
 
                                         --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
                                         --however, LOUD also crushed T2 destroyers (3 destroyers which cost c.twice as much individually) with a t2 torp launcher, so want to increase threat further; LOUD also has torp launchers outranging destroyers
