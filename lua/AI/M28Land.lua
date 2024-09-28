@@ -6164,7 +6164,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if iAvailableCombatUnitThreat >= (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] > (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try attacking with everything as we may be able to kill some mexes as weh ave more threat than enemy in this zone specifically') end
                                     bAttackWithEverything = true
-                                else
+                                elseif (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) <= 10000 then --dont want to consider suiciding where we have large armies or experimentals
                                     --Do we have units close enough to mexes that they could probably try and kill it even if enemy has a stronger force overall?
                                     bSuicideUnitsNearAMex = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': when retreating we will consider still attacking with units that are near a mex') end
