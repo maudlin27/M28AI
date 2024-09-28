@@ -1746,6 +1746,20 @@ function RecordUnitRange(oUnit)
                         --Do nothing - LOUD weapon labels where there is no or negligible damage
                     elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
+                    elseif (oCurWeapon.Damage or 0) >= 5 and oCurWeapon.FireTargetLayerCapsTable.Air == 'Air|Land|Water|Seabed' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        if EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+                            oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        elseif EntityCategoryContains(categories.DIRECTFIRE + categories.OVERLAYDIRECTFIRE, oUnit.UnitId) or not(EntityCategoryContains(categories.ARTILLERY + categories.INDIRECTFIRE + categories.OVERLAYINDIRECTFIRE, oUnit.UnitId)) then
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        else
+                            oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        end
+                    elseif oCurWeapon.Label == 'GapingMaw' or oCurWeapon.Label == 'ClawMelee' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'Laser' and FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
