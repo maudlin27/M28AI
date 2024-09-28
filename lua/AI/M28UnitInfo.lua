@@ -322,7 +322,7 @@ refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
 
 --Naval units
-refCategoryFrigate = categories.NAVAL * categories.FRIGATE
+refCategoryFrigate = categories.NAVAL * categories.FRIGATE - categories.ENGINEER --LOUD mod has an engineering ship which is treated as a frigate
 refCategoryTorpedoLauncher = refCategoryAntiNavy * categories.STRUCTURE
 refCategoryNavalSurface = categories.NAVAL + refCategoryTorpedoLauncher - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
 refCategoryMobileNavalSurface = refCategoryNavalSurface * categories.MOBILE
@@ -745,6 +745,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                         iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                         if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 1
+                                            if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
                                         elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                             iMassMod = 0.5 --brick, wagner etc
                                             --UEF units (which are either really bad or good at antinavy)
@@ -842,9 +843,15 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = iMassMod * 1.5
                                 else
                                     iMassMod = iMassMod * 2
-                                    if bAntiNavyOnly then
-                                        iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                    if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
+
                                         --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
+                                        --however, LOUD also crushed T2 destroyers (3 destroyers which cost c.twice as much individually) with a t2 torp launcher, so want to increase threat further; LOUD also has torp launchers outranging destroyers
+                                        if M28Utilities.bLoudModActive then
+                                            iMassMod = iMassMod * 2 --i.e. quadruple mass value
+                                        else
+                                            iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                        end
                                     end
                                 end
                             end
@@ -1739,6 +1746,20 @@ function RecordUnitRange(oUnit)
                         --Do nothing - LOUD weapon labels where there is no or negligible damage
                     elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
+                    elseif (oCurWeapon.Damage or 0) >= 5 and oCurWeapon.FireTargetLayerCapsTable.Air == 'Air|Land|Water|Seabed' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        if EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+                            oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        elseif EntityCategoryContains(categories.DIRECTFIRE + categories.OVERLAYDIRECTFIRE, oUnit.UnitId) or not(EntityCategoryContains(categories.ARTILLERY + categories.INDIRECTFIRE + categories.OVERLAYINDIRECTFIRE, oUnit.UnitId)) then
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        else
+                            oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        end
+                    elseif oCurWeapon.Label == 'GapingMaw' or oCurWeapon.Label == 'ClawMelee' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.Label == 'Laser' and FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)

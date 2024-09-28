@@ -1165,7 +1165,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname..'; sBlueprintOverride='..(sBlueprintOverride or 'nil')) end
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
     --Get the blueprint to build
@@ -2849,7 +2849,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             --Initial land experimental (very high priority subject to map)
             local iTeamLandExperimentals = 0
             for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
-                iTeamLandExperimentals = iTeamLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryMonkeylord)
+                iTeamLandExperimentals = iTeamLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
             end
 
             if iTeamLandExperimentals >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 7000 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) >= 2 then
@@ -2931,7 +2931,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         iFactionRequired = M28UnitInfo.refFactionCybran
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a monkeylord') end
                     else
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                        if categories.url0402 then
+                            iCategoryWanted = iCategoryWanted - categories.url0402
+                        end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a megalith or other land experimental that isnt a monkeylord')
                         end
                     end
@@ -3344,7 +3348,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     else
                                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
                                         --If have Cybran then get megalith in preference to ythotha
-                                        if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then iFactionRequired = M28UnitInfo.refFactionCybran iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                        if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
+                                            iFactionRequired = M28UnitInfo.refFactionCybran
+                                            iCategoryWanted = iCategoryWanted - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                            if categories.url0402 then iCategoryWanted = iCategoryWanted - categories.url0402 end
 
                                             --If have Aeon then get GC in preference to Ythotha
                                         elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then iFactionRequired = M28UnitInfo.refFactionAeon end
@@ -3412,7 +3419,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get monkey') end
                                     else
                                         --Get megalith
-                                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --i.e. megalith (but slightly more helpful to mods doing it this way)
+                                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --i.e. megalith (but slightly more helpful to mods doing it this way)
+                                        if categories.url0402 then iCategoryWanted = iCategoryWanted - categories.url0402 end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get non monkey land exp') end
                                     end
                                 end
@@ -3547,7 +3555,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bDebugMessages == true then LOG(sFunctionRef..': want more land experimentals') end
                                         if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                                             iFactionRequired = M28UnitInfo.refFactionCybran
-                                            iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                            iCategoryWanted = iCategoryWanted - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                            if categories.url0402 then iCategoryWanted = iCategoryWanted - categories.url0402 end
                                         end
                                     end
                                 end
@@ -8533,13 +8542,14 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             for iEntry, tQueuedDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
                                 if EntityCategoryContains(iCategoryWanted, tQueuedDetails[M28Map.subrefBuildingID]) and M28UnitInfo.IsUnitValid(tQueuedDetails[M28Map.subrefPrimaryBuilder]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder]:GetFocusUnit()[refbDontIncludeAsPartCompleteBuildingForConstruction]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder][refiAssignedAction] == refActionSpecialShieldDefence) then
                                     oEngineerToAssist = tQueuedDetails[M28Map.subrefPrimaryBuilder]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': An engineer has already queued to build unit '..tQueuedDetails[M28Map.subrefBuildingID]..' so will set this engineer as the primary builder, oEngineerToAssist='..(oEngineerToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToAssist) or 'nil')) end
                                     break
                                 end
                             end
                         end
                     end
                     if oEngineerToAssist then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign engineers to build, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign engineers to build, we have oEngineerToAssist, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount..'; tLastOrder[M28Orders.subrefsOrderBlueprint] of engineer to assist='..tLastOrder[M28Orders.subrefsOrderBlueprint]) end
                         local tLastOrder = oEngineerToAssist[M28Orders.reftiLastOrders][oEngineerToAssist[M28Orders.refiOrderCount]]
                         local sBlueprintToBuild = tLastOrder[M28Orders.subrefsOrderBlueprint]
                         local tOrderPosition = tLastOrder[M28Orders.subreftOrderPosition]
@@ -15506,34 +15516,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we need torpedo launcher, iExistingWaterFactory='..iExistingWaterFactory..'; Enemies in adj WZ='..tostring(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Is table of LR units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]))) end
     if iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) then
         --If enemy best DF or IF range is <50 and they dont have hover units, then build torp launcher
-        local bEnemyHasLongRangeOrHover = false
+        local iOurCombatThreat = 0
+        local bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
         if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) end
-        if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 then bEnemyHasLongRangeOrHover = true
-        else
+        if not(bEnemyHasLongRangeOrHover) then
             local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-            local iOurCombatThreat = (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
-            if iEnemyCombatThreat > 15 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tWZTeamData[M28Map.subrefTEnemyUnits])) == false then
-                bEnemyHasLongRangeOrHover = true
-            end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)) end
-            if not(bEnemyHasLongRangeOrHover) and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 15 and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tAdjWZTeamData[M28Map.subrefTEnemyUnits])) == false then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    elseif M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subreftEnemyLongRangeUnits]) == false then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    elseif (tAdjWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 then
-                        bEnemyHasLongRangeOrHover = true
-                        break
-                    end
+                    bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
                     iEnemyCombatThreat = iEnemyCombatThreat + (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-                    iOurCombatThreat = iOurCombatThreat + (tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
+                    if bEnemyHasLongRangeOrHover then break end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
             if not(bEnemyHasLongRangeOrHover) then
                 --Do we not have significantly more threat than enemy?
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..(tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 'nil')..'; tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')) end

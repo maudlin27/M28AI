@@ -531,6 +531,9 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 else
                     iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
                 end
+                if M28Utilities.bLoudModActive then
+                    iMaxShieldRating = iMaxShieldRating + 0.5 * math.min(5000, tWZTeamData[M28Map.subrefThreatEnemyShield]) --shields are really good in LOUD
+                end
                 local iShieldMaxFactor = 1
                 if M28Utilities.bLoudModActive then
                     if M28Utilities.bLCEActive then iShieldMaxFactor = 2
@@ -3023,79 +3026,81 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
             local iCurMidpointDist, iCurRangeAdjustedDist
 
-            function ConsiderIfUnitIsClosest(oUnit, bDealingWithAdjZone, bDontIncludeAdjZoneUnitHere)
+            function ConsiderIfUnitIsClosest(oUnit, bDealingWithAdjZone)
                 --bDontIncludeAdjZoneUnitHere - for if we wil lbe including only the closest unit using the variables
 
                 --This records the closest unit for surface; and separately hover; units.  It gets reset for each new (adjacent) zone being considered so we end up including the closest in every adj zone.  The main zone includes slighlty more than this
-                if bDontCheckIfUnitInPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-                    iCurRangeAdjustedDist = iCurDist - (oUnit[M28UnitInfo.refiCombatRange] or 0)
-                    iCurMidpointDist = nil
+                if not(bDealingWithAdjZone) or M28UnitInfo.IsUnitValid(oUnit) then
+                    if bDontCheckIfUnitInPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                        iCurRangeAdjustedDist = iCurDist - (oUnit[M28UnitInfo.refiCombatRange] or 0)
+                        iCurMidpointDist = nil
 
-                    if iCurDist < iClosestDist then
-                        if bDealingWithAdjZone then
-                            iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-                            if iCurMidpointDist <= iClosestToMidpointDist then
+                        if iCurDist < iClosestDist then
+                            if bDealingWithAdjZone then
+                                iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                                if iCurMidpointDist <= iClosestToMidpointDist then
+                                    iClosestDist = iCurDist
+                                    oNearestEnemyToFriendlyBase = oUnit
+                                    iClosestToMidpointDist = iCurMidpointDist
+                                end
+                            else
                                 iClosestDist = iCurDist
                                 oNearestEnemyToFriendlyBase = oUnit
-                                iClosestToMidpointDist = iCurMidpointDist
                             end
-                        else
-                            iClosestDist = iCurDist
-                            oNearestEnemyToFriendlyBase = oUnit
-                        end
-                    end
-
-                    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                        if iCurRangeAdjustedDist < iClosestSurfaceToMidpointByRange then
-                            iClosestSurfaceToMidpointByRange = iCurRangeAdjustedDist
-                            oClosestSurfaceToMidpointByRange = oUnit
                         end
 
-                        if iCurDist < iClosestSurfaceDist then
-                            if bDealingWithAdjZone then
-                                if not(iCurMidpointDist) then iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) end
-                                if iCurMidpointDist <= iClosestSurfaceToMidpointDist then
+                        if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                            if iCurRangeAdjustedDist < iClosestSurfaceToMidpointByRange then
+                                iClosestSurfaceToMidpointByRange = iCurRangeAdjustedDist
+                                oClosestSurfaceToMidpointByRange = oUnit
+                            end
+
+                            if iCurDist < iClosestSurfaceDist then
+                                if bDealingWithAdjZone then
+                                    if not(iCurMidpointDist) then iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) end
+                                    if iCurMidpointDist <= iClosestSurfaceToMidpointDist then
+                                        iClosestSurfaceDist = iCurDist
+                                        oNearestEnemySurfaceToFriendlyBase = oUnit
+                                        iClosestSurfaceToMidpointDist = iCurMidpointDist
+                                        oClosestSurfaceToMidpointByDist = oUnit --means it gets added to tEnemySurfaceUnits later on)
+                                    end
+                                else
                                     iClosestSurfaceDist = iCurDist
                                     oNearestEnemySurfaceToFriendlyBase = oUnit
-                                    iClosestSurfaceToMidpointDist = iCurMidpointDist
-                                    oClosestSurfaceToMidpointByDist = oUnit --means it gets added to tEnemySurfaceUnits later on)
+                                    --Dont bother with updating oClosestSurfaceToMidpointByDist
+                                    table.insert(tEnemySurfaceUnits, oUnit)
                                 end
-                            else
-                                iClosestSurfaceDist = iCurDist
-                                oNearestEnemySurfaceToFriendlyBase = oUnit
-                                --Dont bother with updating oClosestSurfaceToMidpointByDist
-                                table.insert(tEnemySurfaceUnits, oUnit)
-                            end
-                        elseif not(bDealingWithAdjZone) then
-                            if oClosestSurfaceToMidpointByRange == oUnit then
-                                table.insert(tEnemySurfaceUnits, oUnit)
+                            elseif not(bDealingWithAdjZone) then
+                                if oClosestSurfaceToMidpointByRange == oUnit then
+                                    table.insert(tEnemySurfaceUnits, oUnit)
+                                end
                             end
                         end
-                    end
-                    if not(EntityCategoryContains(categories.HOVER, oUnit.UnitId)) then
-                        if iCurRangeAdjustedDist < iClosestNonHoverToMidpointByRange then
-                            iClosestNonHoverToMidpointByRange = iCurRangeAdjustedDist
-                            oClosestNonHoverToMidpointByRange = oUnit
-                        end
+                        if not(EntityCategoryContains(categories.HOVER, oUnit.UnitId)) then
+                            if iCurRangeAdjustedDist < iClosestNonHoverToMidpointByRange then
+                                iClosestNonHoverToMidpointByRange = iCurRangeAdjustedDist
+                                oClosestNonHoverToMidpointByRange = oUnit
+                            end
 
-                        if iCurDist < iClosestNonHoverDist then
-                            if bDealingWithAdjZone then
-                                if not(iCurMidpointDist) then iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) end
-                                if iCurMidpointDist <= iClosestNonHoverToMidpointDist then
+                            if iCurDist < iClosestNonHoverDist then
+                                if bDealingWithAdjZone then
+                                    if not(iCurMidpointDist) then iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) end
+                                    if iCurMidpointDist <= iClosestNonHoverToMidpointDist then
+                                        iClosestNonHoverDist = iCurDist
+                                        oNearestEnemyNonHoverToFriendlyBase = oUnit
+                                        iClosestNonHoverToMidpointDist = iCurMidpointDist
+                                        oClosestNonHoverToMidpointByDist = oUnit --means it gets added to tEnemyNonHover units later on
+                                    end
+                                else
                                     iClosestNonHoverDist = iCurDist
                                     oNearestEnemyNonHoverToFriendlyBase = oUnit
-                                    iClosestNonHoverToMidpointDist = iCurMidpointDist
-                                    oClosestNonHoverToMidpointByDist = oUnit --means it gets added to tEnemyNonHover units later on
+                                    table.insert(tEnemyNonHoverUnits, oUnit)
                                 end
-                            else
-                                iClosestNonHoverDist = iCurDist
-                                oNearestEnemyNonHoverToFriendlyBase = oUnit
-                                table.insert(tEnemyNonHoverUnits, oUnit)
-                            end
-                        elseif not(bDealingWithAdjZone) then
-                            if oClosestNonHoverToMidpointByRange == oUnit then
-                                table.insert(tEnemyNonHoverUnits, oUnit)
+                            elseif not(bDealingWithAdjZone) then
+                                if oClosestNonHoverToMidpointByRange == oUnit then
+                                    table.insert(tEnemyNonHoverUnits, oUnit)
+                                end
                             end
                         end
                     end
@@ -3527,7 +3532,13 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             local bConsiderUsingAOE = false
 
             if not(M28Utilities.bLoudModActive) and oNearestEnemyNonHoverToFriendlyBase and (EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToFriendlyBase.UnitId) or oNearestEnemyNonHoverToFriendlyBase.UnitId == 'xrb2308' or (M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false)) and not(M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + 1.2 + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false))) then
-                bConsiderUsingAOE = true
+                --Check we have a non-M28Easy on the team
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain.M28Easy) then
+                        bConsiderUsingAOE = true
+                        break
+                    end
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we want to use aoe to ground fire subs, bConsiderUsingAOE='..tostring(bConsiderUsingAOE)..'; oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; oNearestEnemySurfaceToFriendlyBase='..(oNearestEnemySurfaceToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemySurfaceToFriendlyBase) or 'nil'))
                 if oNearestEnemyNonHoverToFriendlyBase then
@@ -3555,7 +3566,18 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
             else
-                if oNearestEnemySurfaceToFriendlyBase then tCombatUnitsOfUse = tAvailableCombatUnits end
+                if oNearestEnemySurfaceToFriendlyBase then tCombatUnitsOfUse = tAvailableCombatUnits
+                else
+                    tCombatUnitsOfUse = {}
+                    tCombatUnitsWithNoTarget = {}
+                    for iUnit, oUnit in tAvailableCombatUnits do
+                        if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                            table.insert(tCombatUnitsOfUse, oUnit)
+                        else
+                            table.insert(tCombatUnitsWithNoTarget, oUnit)
+                        end
+                    end
+                end
             end
 
 
@@ -3865,7 +3887,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 (and have already applied logic)='..tostring(bAreInScenario1)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 (and have already applied logic)='..tostring(bAreInScenario1)..'; Is tCombatUnitsOfUse empty='..tostring(M28Utilities.IsTableEmpty(tCombatUnitsOfUse))) end
             if not(bAreInScenario1) then
                 if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false then
                     --WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
@@ -3945,8 +3967,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
                             else iOrderReissueDistToUse = iReissueOrderDistanceStandard
                             end
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': bOutrangeClosestEnemy (factoring in if we can see the unit)='..tostring(bOutrangeClosestEnemy)..'; iDistUntilEnemyOutOfOurRange'..iDistUntilEnemyOutOfOurRange) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bOutrangeClosestEnemy (factoring in if we can see the unit)='..tostring(bOutrangeClosestEnemy)..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistUntilEnemyOutOfOurRange'..iDistUntilEnemyOutOfOurRange..'; bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Time since last blocked shot='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100))..'; Time of last check='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100)) end
 
                             if bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
                                 M28Orders.IssueTrackedMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WBAWE'..iWaterZone)

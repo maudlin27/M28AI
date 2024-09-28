@@ -17,6 +17,7 @@ local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 bPlayableAreaSetup = false
+bUnexploredMap = false --Mapgen map had some sort of 'unexplored' feature which messes up the playable area logic
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
@@ -846,38 +847,63 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)) end
-    if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
-        rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
-    else
-        rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
-    end
-    if bIsCampaignMap then --Want to setup segments etc. based on total map size as the map is likely to expand later on
-        rMapPotentialPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
-    else
-        rMapPotentialPlayableArea = rMapPlayableArea
-    end
-    if rCampaignPlayableAreaOverride and M28Utilities.IsTableEmpty(rCampaignPlayableAreaOverride) == false then
-        local rNewRect = {}
-        if rCampaignPlayableAreaOverride['x0'] then
-            rNewRect = {rCampaignPlayableAreaOverride['x0'], rCampaignPlayableAreaOverride['y0'], rCampaignPlayableAreaOverride['x1'], rCampaignPlayableAreaOverride['y1']}
-        else
-            for iEntry, tPosition in rCampaignPlayableAreaOverride do
-                table.insert(rNewRect, tPosition)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; ScenarioInfo='..reprs(ScenarioInfo)..'; MapData='..repru(ScenarioInfo.MapData)..'; OffMapAreas='..repru(ScenarioInfo.OffMapAreas)..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; ScenarioInfo.type='..(ScenarioInfo.type or 'nil')..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; Does this contain neroxis='..tostring(string.find('neroxis_map_generator', ScenarioInfo.name))..'; string.len='..string.len(ScenarioInfo.name)..'; string.sub='..string.sub(ScenarioInfo.name, 1, 21)..'; is string.sub neroxis='..tostring(string.sub(ScenarioInfo.name, 1, 21) == 'neroxis_map_generator')) end
+    if not(bPlayableAreaSetup) then
+        --Check if this is an unexplored map type
+        if not(bIsCampaignMap) and ScenarioInfo.type == 'skirmish' and string.len(ScenarioInfo.name) > 32 and string.sub(ScenarioInfo.name, 1, 21) == 'neroxis_map_generator' and ScenarioInfo.MapData.PlayableRect then
+            local iMapDataPlayableX = ScenarioInfo.MapData.PlayableRect[2] - ScenarioInfo.MapData.PlayableRect[1]
+            local iMapDataPlayableZ = ScenarioInfo.MapData.PlayableRect[4] - ScenarioInfo.MapData.PlayableRect[3]
+            local iMapDataFullX = ScenarioInfo.size[1]
+            local iMapDataFullZ = ScenarioInfo.size[2]
+            if iMapDataPlayableX + iMapDataPlayableZ < (iMapDataFullX + iMapDataFullZ) * 0.1 then --when tested on an uynexplored map playable area was tiny, so if it's less than 40% of map will assume we are in that scenario (as some maps like moon and dual gap might still have parts of map that arent in playable area)
+                bUnexploredMap = true
+                M28Utilities.ErrorHandler('The map playable area is inconsistent, and is not currently supported by M28')
+                for iBrain, oBrain in ArmyBrains do
+                    if oBrain.M28AI then
+                        M28Chat.SendMessage(oBrain, 'PlayableArea', 'M28 does not currently support this map as changes are required to either mapgen or FAF.  It is hoped that the map will be supported in the future', 0, 0, false, false)
+                        break
+                    end
+                end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we are in an unexplored map scenario, bUnexploredMap='..tostring(bUnexploredMap)..'; iMapDataPlayableX='..iMapDataPlayableX..'; iMapDataPlayableZ='..iMapDataPlayableZ..'; iMapDataFullX='..iMapDataFullX..'; iMapDataFullZ='..iMapDataFullZ) end
         end
-        if ScenarioInfo.MapData.PlayableRect then --limit playable area to scenarioinfo playable area
-            local rScenarioPlayableRect = ScenarioInfo.MapData.PlayableRect
-            rNewRect[1] = math.max(rNewRect[1], rScenarioPlayableRect[1])
-            rNewRect[2] = math.max(rNewRect[2], rScenarioPlayableRect[2])
-            rNewRect[3] = math.min(rNewRect[3], rScenarioPlayableRect[3])
-            rNewRect[4] = math.min(rNewRect[4], rScenarioPlayableRect[4])
+    end
+    if bUnexploredMap then
+        rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
+        rMapPotentialPlayableArea = rMapPlayableArea
+    else
+        if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
+            rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
+        else
+            rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
         end
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Updating playable rect for override, rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; rNewRect='..repru(rNewRect))
-            M28Utilities.DrawRectangle(rCampaignPlayableAreaOverride, 2, 1000, 0)
+        if bIsCampaignMap then --Want to setup segments etc. based on total map size as the map is likely to expand later on
+            rMapPotentialPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
+        else
+            rMapPotentialPlayableArea = rMapPlayableArea
         end
-        rMapPlayableArea = rNewRect
+        if rCampaignPlayableAreaOverride and M28Utilities.IsTableEmpty(rCampaignPlayableAreaOverride) == false then
+            local rNewRect = {}
+            if rCampaignPlayableAreaOverride['x0'] then
+                rNewRect = {rCampaignPlayableAreaOverride['x0'], rCampaignPlayableAreaOverride['y0'], rCampaignPlayableAreaOverride['x1'], rCampaignPlayableAreaOverride['y1']}
+            else
+                for iEntry, tPosition in rCampaignPlayableAreaOverride do
+                    table.insert(rNewRect, tPosition)
+                end
+            end
+            if ScenarioInfo.MapData.PlayableRect then --limit playable area to scenarioinfo playable area
+                local rScenarioPlayableRect = ScenarioInfo.MapData.PlayableRect
+                rNewRect[1] = math.max(rNewRect[1], rScenarioPlayableRect[1])
+                rNewRect[2] = math.max(rNewRect[2], rScenarioPlayableRect[2])
+                rNewRect[3] = math.min(rNewRect[3], rScenarioPlayableRect[3])
+                rNewRect[4] = math.min(rNewRect[4], rScenarioPlayableRect[4])
+            end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Updating playable rect for override, rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; rNewRect='..repru(rNewRect))
+                M28Utilities.DrawRectangle(rCampaignPlayableAreaOverride, 2, 1000, 0)
+            end
+            rMapPlayableArea = rNewRect
+        end
     end
 
     iMapSize = (rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1] + rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2]) * 0.5
@@ -903,6 +929,7 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
         iReclaimSegmentSizeX = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
         iReclaimSegmentSizeZ = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
     end
+    bPlayableAreaSetup = true
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; actual playable area='..repru(rMapPlayableArea)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

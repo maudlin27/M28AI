@@ -163,7 +163,7 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryMercy = M28UnitInfo.refCategoryMercy + categories.daa0206
 
         --Naval based:
-        M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE
+        M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE --LOUD has submarine category
         M28UnitInfo.refCategorySubmarine = M28UnitInfo.refCategorySubmarine + categories.SUBMARINE
         M28UnitInfo.refCategoryGroundAA = M28UnitInfo.refCategoryGroundAA + categories.NAVALCARRIER
         M28UnitInfo.refCategoryBattlecruiser = M28UnitInfo.refCategoryBattlecruiser + categories.CRUISER * categories.UEF * categories.TECH3 * categories.DIRECTFIRE + categories.xes0307
