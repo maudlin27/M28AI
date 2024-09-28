@@ -2985,7 +2985,6 @@ function IsFactoryReadyToBuild(oFactory)
     local sFunctionRef = 'IsFactoryReadyToBuild'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oFactory.UnitId == 'urb0303' and GetGameTimeSeconds() >= 5500 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Fraction complete='..oFactory:GetFractionComplete()..'; Work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)..'; Is table of factory command queue empty='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Time='..GetGameTimeSeconds()) end
     if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
             (oFactory:IsUnitState('Guarding') or M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) then
@@ -3114,7 +3113,6 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
     local sFunctionRef = 'DelayedCheckIfFactoryBuildingAndRetry'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oFactory.UnitId == 'urb0303' then bDebugMessages = true end
     if not(oFactory[refbActiveDelayedCheck]) then
         oFactory[refbActiveDelayedCheck] = true
         local iBuildCount = (oFactory[refiTotalBuildCount] or 0)
@@ -3152,7 +3150,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oFactory.UnitId == 'urb0303' then bDebugMessages = true end
+
 
     if not (oFactory['M28BuilderCheckActive']) then
         oFactory['M28BuilderCheckActive'] = true
@@ -3483,7 +3481,6 @@ function IdleFactoryMonitor(aiBrain)
         local iTeam
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
             for iFactory, oFactory in tOurFactories do
-                if oFactory.UnitId == 'urb0303' then bDebugMessages = true else bDebugMessages = false end
                 if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())) end
                     if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
@@ -4732,7 +4729,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
-    if iFactoryTechLevel == 3 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
@@ -5281,7 +5278,6 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if categories.brmst3bom and oFactory:CanBuild('brmst3bom') then
             local iCurBombardment = aiBrain:GetCurrentUnits(categories.brmst3bom)
             if iCurBombardment < iCurBattleships * 2.5 and (iCurBombardment == 0 or iCurBattleships > 0) then
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': want to get cybran bombardment ship') end
                 if ConsiderBuildingCategory(categories.brmst3bom) then return sBPIDToBuild end
             end
