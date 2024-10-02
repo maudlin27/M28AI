@@ -4022,7 +4022,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                         table.insert(tSRUnits, oUnit)
                                     end
                                 end
-                            elseif not(M28Utilities.bLOUDModActive) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemySurfaceToFriendlyBase.UnitId) then
+                            elseif not(M28Utilities.bLoudModActive) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemySurfaceToFriendlyBase.UnitId) then
                                 bUseAOEAttacks = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': The nearest enemy unit has equal range to our best range unit but is a structure, so we will attack it and try to ground fire if possible') end
                                 for iUnit, oUnit in tCombatUnitsOfUse do
