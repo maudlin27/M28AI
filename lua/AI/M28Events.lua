@@ -1927,15 +1927,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     local iTeam = aiBrain.M28Team
                     --experimental level construction count, and paragon and yolona specific logic
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
-                        --If this is a cheap experimental then only count as partial experimental
-                        local iExpMassCost = M28UnitInfo.GetUnitMassCost(oJustBuilt)
-                        if iExpMassCost <= 50000 and EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oJustBuilt.UnitId) then
-                            M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 0.2
-                        elseif iExpMassCost < 20000 then
-                            M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 0.75 * iExpMassCost / 20000
-                        else
-                            M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 1
-                        end
+                        M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 1
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                         tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] = (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then

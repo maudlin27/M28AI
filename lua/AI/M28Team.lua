@@ -229,7 +229,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap; -1 means have started on things like T3 engineers and T3 land combat units
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
-    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed; for experimentals costing <20k they should only count as a fraction; similarly for experimental PD
+    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
     refiFriendlyGameEnderCount = 'GameEndCn' --number of active gameenders we think we have (based on constructed/100% created - death)
     reftoPotentialTeleSnipeTargets = 'M28TeamTeleSnipe' --Table of locations we think woudl be good to teleport to
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
