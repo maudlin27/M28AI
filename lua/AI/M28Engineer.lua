@@ -9244,8 +9244,10 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             end
             if iEnemyBattleshipNukes > 0 and iEnemyNormalNukes == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Map.bIsCampaignMap) then
                 iEnemyNukes = 0
-            else
+            elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                 iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
+            else
+                iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2)
             end
             if oUnshieldedSMD and iHighestCompletionUnshieldedSMD < 1 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
                 --dont want to shield SMD as a priority if we arent worried about arti/novax
@@ -9272,9 +9274,15 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             else iSMDWanted = math.min(4, iSMDWanted)
             end
 
-            --Dont get SMD if enemy has no nukes but has nearby T2 arti
-            if iEnemyNukes == 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-                iSMDWanted = 0
+            if iEnemyNukes == 0 then
+                --Dont get SMD if enemy has no nukes but has nearby T2 arti
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                    iSMDWanted = 0
+                    --Dont get pre-emptive SMD if in LOUD (where they cost a lot more) unless we have built a lot of high level units first
+                elseif M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 1.5 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (bHaveLowMass or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) < 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    iSMDWanted = 0
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to be slower to get preemptive SMD in LOUD due to how much nukes cost') end
+                end
             end
 
             if iSMDWanted <= 0 and tLZTeamData[M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end

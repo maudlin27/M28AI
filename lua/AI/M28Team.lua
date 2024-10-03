@@ -1351,7 +1351,6 @@ function LongRangeThreatMonitor(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Size of table at time '..GetGameTimeSeconds()..'='..iTableSize) end
         for iCurEntry = iTableSize, 1, -1 do
             local oUnit = tTeamData[iTeam][reftLongRangeEnemyDFUnits][iCurEntry]
-            if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'brot3shpd1' then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) then
                 table.remove(tTeamData[iTeam][reftLongRangeEnemyDFUnits], iCurEntry)
@@ -1505,7 +1504,6 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyInTable='..tostring(bAlreadyInTable)) end
                 if not(bAlreadyInTable) then
-                    if oUnit.UnitId == 'brot3shpd' then bDebugMessages = true end
                     if bDebugMessages == true then LOG(sFunctionRef..': About to add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to reference table. Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; T3 resource generation units held by owner='..oUnit:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryRASSACU + M28UnitInfo.refCategoryParagon)) end
                     if not(tTeamData[iTeam][sReferenceTable]) then tTeamData[iTeam][sReferenceTable] = {} end
                     table.insert(tTeamData[iTeam][sReferenceTable], oUnit)
@@ -1811,7 +1809,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
 
                             --Track enemy big threats
-                            if oUnit.UnitId == 'brot3shpd' then bDebugMessages = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD)..'; Unit build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
