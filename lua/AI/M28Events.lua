@@ -1553,16 +1553,15 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
             if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0 end
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
-
                 --Enable M28Active status if the engineer is active and we have set to inherit
-                if oEngineer.M28Active and not(M28Orders.bDontConsiderCombinedArmy) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
+                if not(M28Orders.bDontConsiderCombinedArmy) and (oEngineer.M28Active or (oEngineer.Parent and oEngineer.Parent.M28Active and EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId))) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
                     oConstruction.M28Active = true
                     oConstruction:UpdateStat('M28Active', 1)
                 end
 
                 if bDebugMessages == true then
                     --local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oConstruction:GetPosition()) --decided not to include due to worry this might desync replays
-                    LOG(sFunctionRef..': Construction just started by M28 engineer belonging to '..oEngineer:GetAIBrain().Nickname..' on oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; postiion='..repru(oConstruction:GetPosition())..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])..'; Engi action (if any)='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..' at time '..GetGameTimeSeconds())
+                    LOG(sFunctionRef..': Construction just started by M28 engineer belonging to '..oEngineer:GetAIBrain().Nickname..' on oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; postiion='..repru(oConstruction:GetPosition())..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Building.reftArtiTemplateRefs]='..repru(oEngineer[M28Building.reftArtiTemplateRefs])..'; Engi action (if any)='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Parent='..(oEngineer.Parent.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer.Parent) or 'nil')..'; time='..GetGameTimeSeconds())
                 end
                 --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
@@ -2644,9 +2643,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; UnitID='..(oUnit.UnitId or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; UnitID='..(oUnit.UnitId or 'nil')..'; Parent='..(oUnit.Parent.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit.Parent) or 'nil')) end
             if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
                 while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2780,6 +2777,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                     oUnit.M28Active = true
                                     oUnit:UpdateStat('M28Active', 1)
                                 end
+                            elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
+                                oUnit.M28Active = true
+                                oUnit:UpdateStat('M28Active', 1)
                             end
                         end
 
