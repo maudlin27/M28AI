@@ -1773,7 +1773,7 @@ function RecordUnitRange(oUnit)
             elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef..': just Considered weapon '..oCurWeapon.Label..'; oUnit[refiDFRange]='..(oUnit[refiDFRange] or 'nil')..'; Indirect='..(oUnit[refiIndirectRange] or 'nil')..'; Manual='..(oUnit[refiManualRange] or 'nil')..'; oCurWeapon.EnabledByEnhancement='..(oCurWeapon.EnabledByEnhancement or 'nil'))
+                LOG(sFunctionRef..': just Considered weapon '..oCurWeapon.Label..'; oUnit[refiDFRange]='..(oUnit[refiDFRange] or 'nil')..'; Indirect='..(oUnit[refiIndirectRange] or 'nil')..'; Manual='..(oUnit[refiManualRange] or 'nil')..'; oCurWeapon.EnabledByEnhancement='..(oCurWeapon.EnabledByEnhancement or 'nil')..'; Weapon max radius='..(oCurWeapon.MaxRadius or 'nil'))
                 if oCurWeapon.EnabledByEnhancement then
                     LOG('Have enhancement='..tostring(oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)))
                 end
