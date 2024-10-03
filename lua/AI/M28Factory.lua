@@ -2445,7 +2445,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         if tLZPathing[M28Map.subrefLZTravelDist] > iDistToEnemyBaseToConsider then
                             if bHaveTooMuchIndirectVsDirect and iDistToEnemyBaseToConsider < iOldDistToConsider then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Didnt find anything with shorter search range, will try and build direct fire, and failing that will increase search range') end
-                                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                                if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and (not(M28Utilities.bLCEActive) or oFactory[refiTotalBuildCount] <= 5) and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
 
                                     if iFactoryTechLevel == 2 then
                                         if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), M28UnitInfo.refCategorySniperBot * categories.TECH2, oFactory) then return sBPIDToBuild end
