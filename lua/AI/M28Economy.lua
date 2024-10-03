@@ -62,6 +62,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
+    bDebugMessages = false
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
 
@@ -2648,9 +2649,10 @@ function AllocateTeamEnergyAndMassResources(iTeam)
 
         local iTotalEnergyStored = 0
         local iTotalMassStored = 0
+        local bMobaOrNoCombinedArmies = M28Orders.bDontConsiderCombinedArmy or tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3 --if in MOBA mode then want to have human players share resources
 
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if M28Orders.bDontConsiderCombinedArmy or oBrain.BrainType == 'AI' then
+            if bMobaOrNoCombinedArmies or oBrain.BrainType == 'AI' then
                 iTotalEnergyStored = iTotalEnergyStored + oBrain:GetEconomyStored('ENERGY')
                 iTotalMassStored = iTotalMassStored + oBrain:GetEconomyStored('MASS')
             end
@@ -2663,7 +2665,7 @@ function AllocateTeamEnergyAndMassResources(iTeam)
 
         --Sort brains into those that have mass, and those that give mass
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if M28Orders.bDontConsiderCombinedArmy or oBrain.BrainType == 'AI' then
+            if bMobaOrNoCombinedArmies or oBrain.BrainType == 'AI' then
                 iCurEnergySpare = oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored
                 --Adjust spare energy if we have significantly different % to average
                 if math.abs(oBrain:GetEconomyStoredRatio('ENERGY') - M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) >= 0.3 then
