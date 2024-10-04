@@ -9201,7 +9201,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                                 local iClosestShieldCompletion = 0
                                 iHighestCompletionUnshieldedSMD = oSMD:GetFractionComplete()
                                 for iShield, oShield in oSMD[M28Building.reftoShieldsProvidingCoverage] do
-                                    if oShield:GetFractionComplete() > iClosestShieldCompletion then
+                                    if oShield:GetFractionComplete() > iClosestShieldCompletion and not(oShield[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                                         iClosestShieldCompletion = oShield:GetFractionComplete()
                                         oUnderConstructionShield = oShield
                                     end
@@ -13218,8 +13218,18 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
-            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            if oUnitToTarget[refbDontIncludeAsPartCompleteBuildingForConstruction] then
+                --Remove unit from UnitsToRepair
+                for iUnit, oUnit in tLZData[M28Map.subreftoUnitsToRepair] do
+                    if oUnit == oUnitToTarget then
+                        table.remove(tLZData[M28Map.subreftoUnitsToRepair], iUnit)
+                        break
+                    end
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+                HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            end
         end
 
     end
@@ -14550,8 +14560,18 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
         if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)..'; will flag we want some BP for this') end
-            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            if oUnitToTarget[refbDontIncludeAsPartCompleteBuildingForConstruction] then
+                --Remove unit from UnitsToRepair
+                for iUnit, oUnit in tLZData[M28Map.subreftoUnitsToRepair] do
+                    if oUnit == oUnitToTarget then
+                        table.remove(tLZData[M28Map.subreftoUnitsToRepair], iUnit)
+                        break
+                    end
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)..'; will flag we want some BP for this') end
+                HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            end
         end
     end
 
@@ -15260,7 +15280,7 @@ end--]]
                 local oUnitToAssist
                 local iClosestToCompletion = 0
                 for iUnit, oUnit in tFriendlyBuildings do
-                    if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iClosestToCompletion then
+                    if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iClosestToCompletion and not(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                         iClosestToCompletion = oUnit:GetFractionComplete()
                         oUnitToAssist = oUnit
                     end
@@ -16267,10 +16287,20 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for water zone '..iWaterZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]))) end
-        if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
+        if M28Conditions.IsTableOfUnitsStillValid(tWZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToRepair], tWZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
-            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            if oUnitToTarget[refbDontIncludeAsPartCompleteBuildingForConstruction] then
+                --Remove unit from UnitsToRepair
+                for iUnit, oUnit in tWZData[M28Map.subreftoUnitsToRepair] do
+                    if oUnit == oUnitToTarget then
+                        table.remove(tWZData[M28Map.subreftoUnitsToRepair], iUnit)
+                        break
+                    end
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+                HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            end
         end
     end
 
@@ -16282,7 +16312,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             local tBuildingsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tBuildingsInZone) == false then
                 for iUnit, oUnit in tBuildingsInZone do
-                    if oUnit:GetFractionComplete() < 1 then
+                    if oUnit:GetFractionComplete() < 1 and not(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                         HaveActionToAssign(refActionRepairUnit, 1, 5, oUnit)
                         break
                     end
