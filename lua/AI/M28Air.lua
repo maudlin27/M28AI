@@ -2858,7 +2858,7 @@ function AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWater
                     if M28Utilities.bLoudModActive and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then bIncludeEvenIfOnGround = false end
                     for iUnit, oUnit in tLZTeamData[M28Map.reftLZEnemyAirUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and (bIncludeEvenIfOnGround or oUnit:IsUnitState('Moving') or oUnit:IsUnitState('Attacking') or oUnit:GetPosition()[2] - GetSurfaceHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, dist to LZMidpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, dist to LZMidpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) end
                             if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
                                 table.insert(tEnemyAirTargets, oUnit)
                             end
@@ -2884,7 +2884,7 @@ function AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWater
                     if M28Utilities.bLoudModActive and (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then bIncludeEvenIfOnGround = false end
                     for iUnit, oUnit in tWZTeamData[M28Map.reftLZEnemyAirUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and (bIncludeEvenIfOnGround or oUnit:IsUnitState('Moving') or oUnit:IsUnitState('Attacking') or oUnit:GetPosition()[2] - GetSurfaceHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])) end
                             if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
                                 table.insert(tEnemyAirTargets, oUnit)
                             end
@@ -3016,16 +3016,29 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))) end
                     if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                         --Add units from here unless there is too much AA
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))) end
                         local bUseDetailedCheck = false
                         if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone
+                        --If it has been a while since we last updated enemy unit positions then refresh to reduce the risk we try and target untis that are far away; for performance reasons only do this if doing a detailed check
+                        local iTimeSinceUpdated = GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastAirUpdate] or 0)
+                        if iTimeSinceUpdated > 1 and (bUseDetailedCheck or iTimeSinceUpdated >= 1.1 + iExtraTicksToWaitBetweenAirCycles * 0.1) then
+                            tLZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
+                            M28Land.UpdateUnitPositionsAndLandZone(M28Team.GetFirstActiveM28Brain(iTeam), tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, false, true, tLZTeamData, false,                               true)
+                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': No air units after doing a refresh') end
+                                return
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck))) end
                         local iMinDistToEnemyBase
                         if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
                         if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will add all enemy air as potential targets') end
                             for iUnit, oUnit in (toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, enemy air unit position='..repru(oUnit:GetPosition())..'; Dist to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; will chekc min dist as well, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')) end
+                                    if bDebugMessages == true then
+                                        local iTargetEnemyPlateau, iTargetEnemyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                        LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, enemy air unit position='..repru(oUnit:GetPosition())..'; Dist to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; will chekc min dist as well, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTargetEnemyPlateau='..(iTargetEnemyPlateau or 'nil')..'; iTargetEnemyZone='..(iTargetEnemyZone or 'nil'))
+                                    end
                                     if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
                                         table.insert(tEnemyAirTargets, oUnit)
                                     end
@@ -3101,12 +3114,24 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             LOG(sFunctionRef..': About to check for air units in a zone, iTeam='..iTeam..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
                             LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil')..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')..'; Mod dist='..(tWZTeamData[M28Map.refiModDistancePercent] or 0)..'; bUseDetailedCheck='..tostring(bUseDetailedCheck or false))
                         end
+
+                        --If it has been a while since we last updated enemy unit positions then refresh to reduce the risk we try and target untis that are far away; for performance reasons only do this if doing a detailed check
+                        local iTimeSinceUpdated = GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastAirUpdate] or 0)
+                        if iTimeSinceUpdated > 1 and (bUseDetailedCheck or iTimeSinceUpdated >= 1.1 + iExtraTicksToWaitBetweenAirCycles * 0.1) then
+                            tWZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
+                            M28Navy.UpdateUnitPositionsAndWaterZone(M28Team.GetFirstActiveM28Brain(iTeam), tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, false, true, tWZTeamData, false,                           true)
+                            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftLZEnemyAirUnits]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': No air units after doing a WZ refresh') end
+                                return
+                            end
+                        end
+
                         local iMinDistToEnemyBase
                         if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
                         if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
                             for iUnit, oUnit in (toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tEnemyAirTargets unless it is too far away, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tEnemyAirTargets unless it is too far away, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])) end
                                     if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
                                         table.insert(tEnemyAirTargets, oUnit)
                                     end
