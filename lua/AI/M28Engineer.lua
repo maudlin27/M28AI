@@ -3675,6 +3675,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             local iCheapestBlueprint = 10000000
                             local iMostExpensiveBlueprint = 0
                             for iFaction, tSubtable in tsBlueprintsAndMassCostByFaction do
+                                iCheapestBlueprint = 10000000
+                                iMostExpensiveBlueprint = 0
+
                                 iCurMassThreshold = iMaxMassCostThreshold
                                 iCurMinMassThreshold = iMinMassCostThreshold
                                 bHaveLowCostOption = false
