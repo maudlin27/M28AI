@@ -229,7 +229,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap; -1 means have started on things like T3 engineers and T3 land combat units
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
-    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
+    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed; for experimentals costing <20k they should only count as a fraction; similarly for experimental PD
     refiFriendlyGameEnderCount = 'GameEndCn' --number of active gameenders we think we have (based on constructed/100% created - death)
     reftoPotentialTeleSnipeTargets = 'M28TeamTeleSnipe' --Table of locations we think woudl be good to teleport to
     refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
@@ -1504,14 +1504,13 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyInTable='..tostring(bAlreadyInTable)) end
                 if not(bAlreadyInTable) then
-
                     if bDebugMessages == true then LOG(sFunctionRef..': About to add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to reference table. Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; T3 resource generation units held by owner='..oUnit:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryRASSACU + M28UnitInfo.refCategoryParagon)) end
                     if not(tTeamData[iTeam][sReferenceTable]) then tTeamData[iTeam][sReferenceTable] = {} end
                     table.insert(tTeamData[iTeam][sReferenceTable], oUnit)
                     if not(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) then oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable] = {} end
                     oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] = true
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId)))
+                        LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId))..'; oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil'))
                     end
 
                     --Flag if SMD built so can update nuke targeting; refiTimeOfLastCheck is used to hold the estimated time that the smd was built (which then informs whether the smd is assumed to be able to block a nuke)
@@ -1539,7 +1538,9 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                                 end
                             end
                         end
-                    elseif (oUnit[M28UnitInfo.refiDFRange] or 0) >= 80 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke launcher, have finished checking if want to unpause our SMD') end
+                    elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit so adding to long range threat table as well') end
                         AddUnitToLongRangeThreatTable(oUnit, iTeam)
                     end
 
@@ -1812,7 +1813,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
-                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
+                            elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
                                 AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
 

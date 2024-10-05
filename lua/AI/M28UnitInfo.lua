@@ -56,6 +56,7 @@ refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override 
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refbShieldDown = 'M28UShDw' --LOUD specific (as FAF has .enabled against the shield itself) - true if shield starts recharging, changed to false once at 100%
+refbWaitForShieldToBeRestored = 'M28ShRsW' --true if a mobile shield should wait for its shield to almost fully recover before being assigned
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refiTimeOfLastHoverLandCombatOrder = 'M28UnitTimeLstHCO' --hover units will only be given new orders every 6s to try and reduce cases where they end up not moving
 refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
@@ -225,7 +226,7 @@ refCategoryAntiNavy = categories.ANTINAVY
 --Land units
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
 refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS - categories.SHIELD * categories.STRUCTURE
-refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND + categories.BUILTBYTIER3ENGINEER * categories.TECH3 * categories.MOBILE * categories.LAND * categories.DIRECTFIRE - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMonkeylord = refCategoryLandExperimental * categories.CYBRAN * categories.DIRECTFIRE - categories.SNIPER
 refCategoryMegalith = refCategoryLandExperimental * categories.CYBRAN * categories.DIRECTFIRE * categories.SNIPER
 refCategoryYthotha = refCategoryLandExperimental * categories.SERAPHIM * categories.DIRECTFIRE
@@ -1625,7 +1626,7 @@ function RecordUnitRange(oUnit)
     local bReplaceValues, bIgnoreValues
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
-            if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
+            if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
@@ -1760,6 +1761,24 @@ function RecordUnitRange(oUnit)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'Laser' and FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        --Manual unit BP based where above arent working:
+                    elseif oUnit.UnitId == 'bel0307' then --Testing it doesnt fire at air units or underwater
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oUnit.UnitId == 'wel0305' then
+                        if oCurWeapon.Label == 'GatlingCannon' then --fires at air and ground, but not underwater
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                            oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        else --redundancy
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        end
+                    elseif oUnit.UnitId == 'brb2306' then
+                        --E.g. cna trigger for its stun weapon; is PD that cant hit air units
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oUnit.UnitId == 'lab2320' then --barrarge artillery (not all of its weapons have indirect range cat)
+                        oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oUnit.UnitId == 'brnt3shbm' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --unit itself can targeta ir units; based on blueprint looks likely this is the riotgun
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
@@ -1773,7 +1792,7 @@ function RecordUnitRange(oUnit)
             elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef..': just Considered weapon '..oCurWeapon.Label..'; oUnit[refiDFRange]='..(oUnit[refiDFRange] or 'nil')..'; Indirect='..(oUnit[refiIndirectRange] or 'nil')..'; Manual='..(oUnit[refiManualRange] or 'nil')..'; oCurWeapon.EnabledByEnhancement='..(oCurWeapon.EnabledByEnhancement or 'nil'))
+                LOG(sFunctionRef..': just Considered weapon '..oCurWeapon.Label..'; oUnit[refiDFRange]='..(oUnit[refiDFRange] or 'nil')..'; Indirect='..(oUnit[refiIndirectRange] or 'nil')..'; Manual='..(oUnit[refiManualRange] or 'nil')..'; oCurWeapon.EnabledByEnhancement='..(oCurWeapon.EnabledByEnhancement or 'nil')..'; Weapon max radius='..(oCurWeapon.MaxRadius or 'nil'))
                 if oCurWeapon.EnabledByEnhancement then
                     LOG('Have enhancement='..tostring(oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)))
                 end

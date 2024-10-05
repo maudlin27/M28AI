@@ -373,7 +373,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefiScoutingLowPriority = 3
             refiRecentlyFailedScoutAttempts = 'SctFail' --if a scout dies trying to reach here, this should increase the failure count
             --Enemy air
-            reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone (LZ and WZ use the same definition)
+            reftLZEnemyAirUnits = 'EnAir' --(same ref as for WZ) - All enemy air units that are currently in the land zone (LZ and WZ use the same definition); see also refiTimeOfLastAirUpdate which refreshes this
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
             refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
             refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
@@ -483,7 +483,7 @@ tPondDetails = {}
             --subreftoLZOrWZAlliedUnits = 'Allies' --USEs SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
-            reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
+            reftWZEnemyAirUnits = 'EnAir' --(same ref as for LZ) - All enemy air units that are currently in the water zone; see also refiTimeOfLastAirUpdate which refreshes this
             --Threat values
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ; for land zones this will return true if any adjacent WZ has enemies
 

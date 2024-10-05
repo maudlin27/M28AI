@@ -513,7 +513,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 --Is it a unit with a shield?
                 if EntityCategoryContains(categories.SHIELD, oWeaponTarget.UnitId) then
                     local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oWeaponTarget, true)
-                    if (iCurShield or 0) <= (iMaxShield or 0) * 0.2 then
+                    if (iCurShield or 0) <= (iMaxShield or 0) * 0.05 then --was 0.2 pre-v130
                         ConsiderAddingUnitToTable(oWeaponTarget, bIncludeBusyUnits)
                     end
                 else

@@ -2352,18 +2352,30 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
 
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.5 then
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; SHield%='..iCurShield/iMaxShield..'; oUnit[M28UnitInfo.refbWaitForShieldToBeRestored]='..tostring(oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] or false))
+            if M28UnitInfo.IsUnitValid(oUnit[refoMobileShieldTarget]) then
+                LOG(sFunctionRef..': Cur shield target='..oUnit[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoMobileShieldTarget])..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(oUnit[refoMobileShieldTarget]:GetPosition(), oUnit:GetPosition())..'; Is shield close to enemy units in this LZ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, nil, nil, false)))
+            end
+        end
+        if not(oUnit[M28UnitInfo.refbEasyBrain]) and (iCurShield < iMaxShield * 0.5 or (oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] and iCurShield < iMaxShield * 0.9)) then
             --Retreat
             table.insert(tShieldsToRetreat, oUnit)
         elseif oUnit[refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileShieldTarget]) then
-            table.insert(tOriginallyAssignedMobileShields, oUnit)
+            if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.9 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoMobileShieldTarget]:GetPosition()) >= 30 and not(EntityCategoryContains(categories.COMMAND,oUnit[refoMobileShieldTarget].UnitId)) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, nil, nil, false) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to retreat shield due to risk enemy has units inbetween us and the target') end
+                table.insert(tShieldsToRetreat, oUnit)
+                oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] = true
+            else
+                table.insert(tOriginallyAssignedMobileShields, oUnit)
+            end
             --[[
             --make sure we are behind the target
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move behind the shield target '..oUnit[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoMobileShieldTarget])..'; Unit position='..repru(oUnit:GetPosition())..'; Target last order position='..repru(oUnit[refoMobileShieldTarget][M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])) end
             MoveToShieldTarget(oUnit, tEnemyBase, tLZTeamData, tEnemyDFUnits, tRallyPoint)--]]
         else
             table.insert(tShieldsToAssign, oUnit)
+            if oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] then oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] = nil end
         end
     end
     if M28Utilities.IsTableEmpty(tShieldsToRetreat) == false then
@@ -9072,6 +9084,7 @@ function UpdateZoneIntelForRadar(oRadar)
             if bDebugMessages == true then LOG(sFunctionRef..': Radar intel range='..iIntelRange) end
             if iIntelRange > 0 or iOmniRange > 0 then
                 --Update land zones:
+                local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oRadar:GetPosition())
                 local bImprovedIntelCoverageOfZone = false
                 local tPotentiallyObsoleteRadar = {}
                 for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
@@ -9207,6 +9220,14 @@ function UpdateZoneIntelForRadar(oRadar)
                             end
                         end
                     end
+                end
+                local tBaseLZTeamData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseZone][M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': iBasePlateau='..iBasePlateau..'; iBaseZone='..iBaseZone..'; tBaseLZTeamData radar coverage='..tBaseLZTeamData[M28Map.refiRadarCoverage]) end
+                --Backup - have the zone the radar is in have a minimum level of coverage so we dont massively overbuild
+                local iRadarThreshold = math.max(iIntelRange * 0.6, iIntelRange - 80)
+                if tBaseLZTeamData[M28Map.refiRadarCoverage] < iRadarThreshold then
+                    tBaseLZTeamData[M28Map.refiRadarCoverage] = iRadarThreshold
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting radar range equal to 60% of the units, iRadarThreshold='..iRadarThreshold) end
                 end
             end
             UpdateRecordedAllPlayerOmni(oRadar, false)
