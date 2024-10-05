@@ -9072,6 +9072,7 @@ function UpdateZoneIntelForRadar(oRadar)
             if bDebugMessages == true then LOG(sFunctionRef..': Radar intel range='..iIntelRange) end
             if iIntelRange > 0 or iOmniRange > 0 then
                 --Update land zones:
+                local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oRadar:GetPosition())
                 local bImprovedIntelCoverageOfZone = false
                 local tPotentiallyObsoleteRadar = {}
                 for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
@@ -9207,6 +9208,14 @@ function UpdateZoneIntelForRadar(oRadar)
                             end
                         end
                     end
+                end
+                local tBaseLZTeamData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseZone][M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': iBasePlateau='..iBasePlateau..'; iBaseZone='..iBaseZone..'; tBaseLZTeamData radar coverage='..tBaseLZTeamData[M28Map.refiRadarCoverage]) end
+                --Backup - have the zone the radar is in have a minimum level of coverage so we dont massively overbuild
+                local iRadarThreshold = math.max(iIntelRange * 0.6, iIntelRange - 80)
+                if tBaseLZTeamData[M28Map.refiRadarCoverage] < iRadarThreshold then
+                    tBaseLZTeamData[M28Map.refiRadarCoverage] = iRadarThreshold
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting radar range equal to 60% of the units, iRadarThreshold='..iRadarThreshold) end
                 end
             end
             UpdateRecordedAllPlayerOmni(oRadar, false)
