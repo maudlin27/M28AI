@@ -3683,7 +3683,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --Unit counts
     local iBrainAirScouts --nil if havent got the value yet
     local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+    --if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
     --MAIN BUILDER LOGIC:
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4721,6 +4721,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if bDebugMessages == true then LOG(sFunctionRef..': High mass so want a strat bomber') end
                     if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship * categories.TECH3) then return sBPIDToBuild
                     elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                end
+
+                --T3 bombers if enemy has mobile AA or Experimentals
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
+                if iEnemyNearbyAA >= 12500 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has mobile AA or Experimentals, want T3 bombers') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                 end
 
                 --Bombers if have enemies in adjacent water zone and no enemy air units in cur zone, or AirAA if enemy air units are there, up to a distance of 250
@@ -5900,7 +5908,7 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
         end
 
         local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+        --if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing), or if we have decent air to ground threat and lack air control
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have sufficient eco to build something from a carrier, bHaveLowMass='..tostring(bHaveLowMass)..'; have low energy='..tostring(bHaveLowEnergy)..'; Gross mass income='..(aiBrain[M28Economy.refiGrossMassBaseIncome] or 'nil')..'; Energy gross income='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy when last stalled='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0)) end
