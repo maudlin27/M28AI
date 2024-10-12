@@ -2472,6 +2472,23 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
             end
         end
 
+        --Backup - If we have enemy mobile land units in 400 of us and we have no friendly land units in 100 of us then we'll build a firebase/fortify
+        local rTargetRect = {tTargetLocation[1] - 400, tTargetLocation[2] - 400, tTargetLocation[1] + 400, tTargetLocation[2] + 400}
+        local rSmallTargetRect = {tTargetLocation[1] - 100, tTargetLocation[2] - 100, tTargetLocation[1] + 100, tTargetLocation[2] + 100}
+        local tUnitsInTargetRect = aiBrain:GetUnitsInRect(rTargetRect, M28UnitInfo.refCategoryMobileLand * categories.MOBILE)
+        local iFriendlyLandUnitsInTargetRect = 0
+        for _,oUnit in tUnitsInTargetRect do
+            if oUnit:GetAIBrain() == aiBrain then
+                iFriendlyLandUnitsInTargetRect = iFriendlyLandUnitsInTargetRect + 1
+            end
+        end
+        if tUnitsInTargetRect > 0 and iFriendlyLandUnitsInTargetRect == 0 then
+            local tUnitsInSmallTargetRect = aiBrain:GetUnitsInRect(rSmallTargetRect, M28UnitInfo.refCategoryMobileLand * categories.MOBILE)
+            if tUnitsInSmallTargetRect == 0 then
+                iOptionalEngiActionRef = refActionFortifyFirebase
+            end
+        end
+
         if bFindRandomLocation and (bMexHydroOrStorage or EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) and not(bAbortConstruction) and not(iOptionalEngiActionRef == refActionFortifyFirebase) then
             --Backup - Trying to build a mex or hydro so no point getting random location
             if not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
