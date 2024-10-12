@@ -2482,7 +2482,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                 iFriendlyLandUnitsInTargetRect = iFriendlyLandUnitsInTargetRect + 1
             end
         end
-        if tUnitsInTargetRect > 0 and iFriendlyLandUnitsInTargetRect == 0 then
+        if tUnitsInTargetRect > 15 and iFriendlyLandUnitsInTargetRect <= 20 then
             local tUnitsInSmallTargetRect = aiBrain:GetUnitsInRect(rSmallTargetRect, M28UnitInfo.refCategoryMobileLand * categories.MOBILE)
             if tUnitsInSmallTargetRect == 0 then
                 iOptionalEngiActionRef = refActionFortifyFirebase
