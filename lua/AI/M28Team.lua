@@ -161,7 +161,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
     subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
     subrefiAlliedMAAThreat = 'M28TeamMAAThreat' --Total MAA threat only (excludes structure)
-    refbEnemyHasPerciesOrBricks = 'M28TeamEnemyHasBrickOrPercy' --true if enemy has percy or brick unit at any time in the game
+    refbEnemyHasHeavyLandT3 = 'M28TeamEnemyHasHeavyLandT3' --true if enemy has percy or brick unit at any time in the game
     refiEnemyHighestMobileLandHealth = 'M28TeamEnemyHighestMobileLandHealth' --Used to calculate storage wanted
     refiHighestEnemyDFRangeByPlateau = 'M28TeamHighestDFRgbp' --[x] is plareau, returns highest detected df range, eg so we stop building mml when enemy has ravager
     refbDangerousForACUs = 'M28TeamDangerousForACUs' --True if are big threats that mean we should keep ACU at base
@@ -3810,8 +3810,8 @@ function UpdateEnemyTechTracking(iM28Team, oUnit)
     local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
     if EntityCategoryContains(categories.LAND, oUnit.UnitId) then
         tTeamData[iM28Team][subrefiHighestEnemyGroundTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyGroundTech], iUnitTechLevel)
-        if not(tTeamData[iM28Team][refbEnemyHasPerciesOrBricks]) then
-            if oUnit.UnitId == 'xel0305' or oUnit.UnitId == 'xrl0305' then tTeamData[iM28Team][refbEnemyHasPerciesOrBricks] = true end
+        if not(tTeamData[iM28Team][refbEnemyHasHeavyLandT3]) then
+            if oUnit.UnitId == 'xel0305' or oUnit.UnitId == 'xrl0305' or oUnit.UnitId == 'sal0311' or oUnit.UnitId == 'bsl0310' then tTeamData[iM28Team][refbEnemyHasHeavyLandT3] = true end
         end
     elseif EntityCategoryContains(categories.AIR, oUnit.UnitId) then tTeamData[iM28Team][subrefiHighestEnemyAirTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyAirTech], iUnitTechLevel)
     elseif EntityCategoryContains(categories.NAVAL, oUnit.UnitId) then tTeamData[iM28Team][subrefiHighestEnemyNavyTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyNavyTech], iUnitTechLevel)
