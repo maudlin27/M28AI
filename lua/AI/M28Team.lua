@@ -161,7 +161,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
     subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
     subrefiAlliedMAAThreat = 'M28TeamMAAThreat' --Total MAA threat only (excludes structure)
-    refbEnemyHasHeavyLandT3 = 'M28TeamEnemyHasHeavyLandT3' --true if enemy has percy or brick unit at any time in the game
+    refbEnemyHasHeavyLandT1 = 'M28TeamEnemyHasHeavyLandT1' --true if enemy has heavy t1 land unit at any time in the game
+    refbEnemyHasHeavyLandT2 = 'M28TeamEnemyHasHeavyLandT2' --true if enemy has heavy t2 land unit at any time in the game
+    refbEnemyHasHeavyLandT3 = 'M28TeamEnemyHasHeavyLandT3' --true if enemy has heavy t3 land unit at any time in the game
     refiEnemyHighestMobileLandHealth = 'M28TeamEnemyHighestMobileLandHealth' --Used to calculate storage wanted
     refiHighestEnemyDFRangeByPlateau = 'M28TeamHighestDFRgbp' --[x] is plareau, returns highest detected df range, eg so we stop building mml when enemy has ravager
     refbDangerousForACUs = 'M28TeamDangerousForACUs' --True if are big threats that mean we should keep ACU at base
@@ -3810,6 +3812,12 @@ function UpdateEnemyTechTracking(iM28Team, oUnit)
     local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
     if EntityCategoryContains(categories.LAND, oUnit.UnitId) then
         tTeamData[iM28Team][subrefiHighestEnemyGroundTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyGroundTech], iUnitTechLevel)
+        if not(tTeamData[iM28Team][refbEnemyHasHeavyLandT1]) then
+            if oUnit.UnitId == 'uel0108' or oUnit.UnitId == 'brmt1exm1' or oUnit.UnitId == 'brot1exm1' or oUnit.UnitId == 'brpt1exm1' then tTeamData[iM28Team][refbEnemyHasHeavyLandT1] = true end
+        end
+        if not(tTeamData[iM28Team][refbEnemyHasHeavyLandT2]) then
+            if oUnit.UnitId == 'wel0304' or oUnit.UnitId == 'brmt2medm' or oUnit.UnitId == 'brot2asb' or oUnit.UnitId == 'brpt2btbot' then tTeamData[iM28Team][refbEnemyHasHeavyLandT2] = true end
+        end
         if not(tTeamData[iM28Team][refbEnemyHasHeavyLandT3]) then
             if oUnit.UnitId == 'xel0305' or oUnit.UnitId == 'xrl0305' or oUnit.UnitId == 'sal0311' or oUnit.UnitId == 'bsl0310' then tTeamData[iM28Team][refbEnemyHasHeavyLandT3] = true end
         end

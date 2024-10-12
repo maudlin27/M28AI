@@ -286,11 +286,88 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
     else
-        -- Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
-        -- For LCE/LOUD, Loyalist & Titans are always good to mix in [Az Comment]
+        -- Special cases -- LCE Edition we want lighter units produced before heavier .5 or even more expensive t3/t2/t1
         -- In the future we should also check if our economy is good enough to switch over to HeavyLandT3 to counter Human HeavyLandT3
         -- We should also check if we have a large number of factories to switch over to HeavyLandT3 to counter Human HeavyLandT3
-        if sBPIDToBuild == 'url0303' or sBPIDToBuild == 'brmt3bt' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --CybranLightT3DF
+        if sBPIDToBuild == 'url0107' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --CybranLightT1DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT1] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.url0107) >= 50 then
+                if oFactory:CanBuild('brmt1exm1') then
+                    aiBrain[reftBlueprintPriorityOverride]['url0107'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
+                    sBPIDToBuild = 'brmt1exm1'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build proton instead of mantis') end
+                end
+            end
+        elseif sBPIDToBuild == 'uel0201' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --UEFLightT1DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT1] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.uel0201) >= 50 then
+                if oFactory:CanBuild('uel0108') then
+                    aiBrain[reftBlueprintPriorityOverride]['uel0201'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
+                    sBPIDToBuild = 'uel0108'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build crusher instead of striker') end
+                end
+            end
+        elseif sBPIDToBuild == 'ual0201' or sBPIDToBuild == 'ual0108' or sBPIDToBuild == 'brot1bt' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --AeonLightT1DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT1] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.ual0201 + categories.ual0108 + categories.brot1bt)) >= 50 then
+                if oFactory:CanBuild('brot1exm1') then
+                    aiBrain[reftBlueprintPriorityOverride]['ual0201'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['ual0108'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brot1bt'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brot1exm1'] = 1
+                    sBPIDToBuild = 'brot1exm1'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build bugbear instead of aurora') end
+                end
+            end
+        elseif sBPIDToBuild == 'xsl0201' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --SeraphimLightT1DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT1] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.xsl0201) >= 50 then
+                if oFactory:CanBuild('brpt1exm1') then
+                    aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
+                    sBPIDToBuild = 'brpt1exm1'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build othazyne instead of thaam') end
+                end
+            end
+        elseif sBPIDToBuild == 'url0202' or sBPIDToBuild == 'brmt2ht' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --CybranLightT2DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT2] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0202 + categories.brmt2ht)) >= 40 then
+                if oFactory:CanBuild('brmt2medm') then
+                    aiBrain[reftBlueprintPriorityOverride]['url0202'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brmt2ht'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brmt2medm'] = 1
+                    sBPIDToBuild = 'brmt2medm'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build immortals instead of rhinos') end
+                end
+            end
+        elseif sBPIDToBuild == 'uel0202' or sBPIDToBuild == 'brnt2mt' or sBPIDToBuild == 'bel0211' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --UEFLightT2DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT2] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0202 + categories.brnt2mt + categories.bel0211)) >= 40 then
+                if oFactory:CanBuild('wel0304') then
+                    aiBrain[reftBlueprintPriorityOverride]['uel0202'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brnt2mt'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['bel0211'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['wel0304'] = 1
+                    sBPIDToBuild = 'wel0304'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build rommels instead of pillar') end
+                end
+            end
+        elseif sBPIDToBuild == 'ual0202' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --AeonLightT2DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT2] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0202) >= 40 then
+                if oFactory:CanBuild('brot2asb') then
+                    aiBrain[reftBlueprintPriorityOverride]['ual0202'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
+                    sBPIDToBuild = 'brot2asb'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build amphorak instead of obsidian') end
+                end
+            end
+        elseif sBPIDToBuild == 'xsl0202' or sBPIDToBuild == 'wsl0202' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --SeraphimLightT2DF
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT2] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 40 then
+                if oFactory:CanBuild('brpt2btbot') then
+                    aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = nil
+                    aiBrain[reftBlueprintPriorityOverride]['brpt2btbot'] = 1
+                    sBPIDToBuild = 'brpt2btbot'
+                    if bDebugMessages == true then LOG(sFunctionRef..': want to build iltha instead of Ilshavoh') end
+                end
+            end
+        elseif sBPIDToBuild == 'url0303' or sBPIDToBuild == 'brmt3bt' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --CybranLightT3DF
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasHeavyLandT3] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0303 + categories.brmt3bt)) >= 30 then
                 if oFactory:CanBuild('xrl0305') or oFactory:CanBuild('brl0307') or oFactory:CanBuild('srl0310') or oFactory:CanBuild('brmt3bm2') then
                     aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
@@ -336,7 +413,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                     sBPIDToBuild = 'xsl0303'
                 end
             end
-            --Aeon - build blazes instead of obsidians initially if dont have much power
+            --Aeon - build zealot instead of obsidians initially if dont have much power
         elseif sBPIDToBuild == 'ual0202' and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 95 or aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 or (oFactory[refiBuildCountByBlueprint]['bal0206'] or 0) < 2 ) then
             if oFactory:CanBuild('bal0206') then
                 if bDebugMessages == true then LOG(sFunctionRef..': Switching to build Zealot instead of obsidian') end
@@ -3428,23 +3505,30 @@ function SetPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['srs0219'] = -1 --Engineer ship (can get built and used as naval scouts instead of frigate)
 
         --Az LOUD unit mod suggestions
+        --Seraphim T1:
+        aiBrain[reftBlueprintPriorityOverride]['bsl0106'] = 1
+        --Aeon T1: 
+        aiBrain[reftBlueprintPriorityOverride]['ual0108'] = 1
+        aiBrain[reftBlueprintPriorityOverride]['brot1bt'] = 1
         --Seraphim T2:
         aiBrain[reftBlueprintPriorityOverride]['bsl0206'] = 1
         aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = 1
-        aiBrain[reftBlueprintPriorityOverride]['brpt2btbot'] = 1
+        --aiBrain[reftBlueprintPriorityOverride]['brpt2btbot'] = 1
         --UEF T2
         aiBrain[reftBlueprintPriorityOverride]['bel0211'] = 1
+        aiBrain[reftBlueprintPriorityOverride]['brnt2mt'] = 1
+        --aiBrain[reftBlueprintPriorityOverride]['wel0304'] = 1
         --Cybran T2:
-        aiBrain[reftBlueprintPriorityOverride]['brmt2medm'] = 1
         aiBrain[reftBlueprintPriorityOverride]['brmt2ht'] = 1
+        --aiBrain[reftBlueprintPriorityOverride]['brmt2medm'] = 1
         --Aeon T2:
-        aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
+        --aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
 
         --Seraphim T3:
+        aiBrain[reftBlueprintPriorityOverride]['bsl0306'] = 1
         aiBrain[reftBlueprintPriorityOverride]['wsl0308'] = 1
         aiBrain[reftBlueprintPriorityOverride]['ssl0311'] = 1
         -- aiBrain[reftBlueprintPriorityOverride]['brpt3bot'] = 1
-        -- aiBrain[reftBlueprintPriorityOverride]['bsl0306'] = 1
         -- aiBrain[reftBlueprintPriorityOverride]['bsl0310'] = 1
         -- UEF T3:
         aiBrain[reftBlueprintPriorityOverride]['brnt3bt'] = 1
@@ -3462,10 +3546,10 @@ function SetPreferredUnitsByCategory(aiBrain)
         -- aiBrain[reftBlueprintPriorityOverride]['brot3hm'] = 1
 
         --T1 skirmisher bots
-        aiBrain[reftBlueprintPriorityOverride]['brot1exm1'] = 1
-        aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
-        aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
-        aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
+        -- aiBrain[reftBlueprintPriorityOverride]['brot1exm1'] = 1
+        -- aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
+        -- aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
+        -- aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
 
         aiBrain[reftBlueprintPriorityOverride]['ual0204'] = 1 --Aeon T2 sniperbot
         aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1000 --experimental reconstruction bot
@@ -3492,7 +3576,6 @@ function SetPreferredUnitsByCategory(aiBrain)
 
         --More LCE specific logic
         if M28Utilities.bLCEActive then
-            aiBrain[reftBlueprintPriorityOverride]['wel0304'] = 1
             aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
         end
     end
