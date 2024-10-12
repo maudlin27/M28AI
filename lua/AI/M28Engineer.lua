@@ -4362,14 +4362,15 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             else
                 if iMinTechLevel == 1 then
                     iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
-                elseif iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
+                elseif iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
                     --Want to build either T2 or T2+ PD
                     local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
-                    if iT2PD <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have 5 or fewer t2 pd so will get more t2 pd') end
+                    -- QCE Specific -- T3 PD IS REALLY GOOD
+                    if iT2PD <= 0 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD * 5 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have 0 or fewer t2 pd so will get more t2 pd') end
                         iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
                     else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have at least 5 T2 PD so will get T2PlusPD') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have at least 0 T2 PD so will get T2PlusPD') end
                         iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
                     end
                 else
