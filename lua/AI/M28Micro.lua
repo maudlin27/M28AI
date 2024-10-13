@@ -653,9 +653,17 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Megalith or fatboy in size so wont dodge shot') end
                                         else
                                             local tLastOrder = oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                                            if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeaponBP.Damage <= 4000) then
+                                            if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeaponBP.Damage <= 4000) and (oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount] - 1] == nil or oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount] - 1][M28Orders.subrefiOrderType] ~= M28Orders.refiOrderIssueAttack) then
                                                 bCancelDodge = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' was trying to attack an enemy exp or ACU, targets target='..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; so will cancel dodge') end
+                                            end
+                                            local tUnitsAroundPoint = oTarget:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTargetBP.MaxRadius * 1.2, 'Enemy')
+                                            for _, oUnitAround in tUnitsAroundPoint do
+                                                if M28UnitInfo.IsUnitValid(oUnitAround) and oUnitAround:IsUnitState('Moving') and M28Utilities.GetDistanceBetweenPositions(oUnitAround:GetPosition(), oTarget:GetPosition()) <= oTargetBP.MaxRadius * 1.2 + oUnitAround:GetBlueprint().SizeX then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' has an enemy unit '..oUnitAround.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitAround)..' moving towards it, will cancel dodge') end
+                                                    bCancelDodge = true
+                                                    break
+                                                end
                                             end
                                         end
                                     end
