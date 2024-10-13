@@ -2861,7 +2861,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
             --Do we think we can handle enemy threat with air?
             local bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats = false
-            local iEnemyLandExperimentals = 0
             local iEnemyClosestLandExperimentalOnSamePlateau = 10000
             local iEnemyExpOnSamePlateau = 0
             local bHaveAirControl = M28Conditions.TeamHasAirControl(iTeam)
@@ -3025,7 +3024,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
                 local bDontConsiderGameEnderInMostCases = false
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateauOrZero, iLandOrWaterZone, false, nil, M28UnitInfo.refCategoryGameEnder)
-                if iOtherLandZonesWithExperimental > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and iMassToComplete <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or iMassToComplete >= 100000 or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 5) then
+                if iOtherLandZonesWithExperimental > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and iMassToComplete <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or iMassToComplete >= 90000 or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < math.max(5, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 2.25)) then
                     bDontConsiderGameEnderInMostCases = true
                 elseif not(M28Conditions.HaveEcoToSupportGETemplate(iTeam)) then
                     bDontConsiderGameEnderInMostCases = true
@@ -3041,8 +3040,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 end
                 --Furhter cases where want to avoid GE template
                 if not(bDontConsiderGameEnderInMostCases) and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Not defending against arti so decide if we want to have more land exp than enemy, iEnemyClosestLandExperimentalOnSamePlateau='..iEnemyClosestLandExperimentalOnSamePlateau..'; iEnemyExpOnSamePlateau='..iEnemyExpOnSamePlateau..'; iTeamLandExperimentals='..iTeamLandExperimentals..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount) end
                     if iEnemyClosestLandExperimentalOnSamePlateau <= 400 or (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) <= 750) then
                         if bDebugMessages == true then LOG(sFunctionRef..': enemy has exp that we are unlikely to handle so dont want to build gameender') end
+                        bDontConsiderGameEnderInMostCases = true
+                    elseif (iEnemyClosestLandExperimentalOnSamePlateau <= 650 or (M28Utilities.bLoudModActive and iEnemyExpOnSamePlateau >= 3)) and iEnemyExpOnSamePlateau >= 1 and iTeamLandExperimentals < math.min(iEnemyLandExperimentalCount + 2, iEnemyLandExperimentalCount * 2) and bCanPathByLand then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We dont have a larger experimental force than the enemy, so hold off on getting gameender for now') end
                         bDontConsiderGameEnderInMostCases = true
                     end
                 end
@@ -3792,7 +3795,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
         if iCategoryWanted then
             if not(iCategoryWanted == refActionManageGameEnderTemplate)  then
                 local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
-                LOG('Blueprints='..repru(tBlueprints))
+                local tsBlueprintsAndName = {}
+                for _, sBlueprint in tBlueprints do
+                    table.insert(tsBlueprintsAndName, sBlueprint..': '..(__blueprints[sBlueprint].General.UnitName or 'nil')..', Faction='..(__blueprints[sBlueprint].General.FactionName or 'Unknown'))
+                end
+                LOG(sFunctionRef..': Blueprints='..repru(tsBlueprintsAndName))
             else
                 LOG(' Are applying GE tempalte logic')
             end
