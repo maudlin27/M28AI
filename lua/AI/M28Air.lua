@@ -3964,9 +3964,9 @@ function ManageBombers(iTeam, iAirSubteam)
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
 
         local iSearchSize = 300
-        if M28Map.iMapSize > 512 then iSearchSize = 450 end
+        if M28Map.iMapSize > 512 then iSearchSize = 365 end
         local iAvailableBombers = table.getn(tAvailableBombers)
-        if iAvailableBombers >= 10 then iSearchSize = iSearchSize * 1.5 end
+        if iAvailableBombers >= 15 then iSearchSize = iSearchSize * 1.5 end
         if M28Map.bIsCampaignMap then
             iSearchSize = math.max(M28Map.iMapSize, iSearchSize * 1.5)
         end
@@ -3988,7 +3988,7 @@ function ManageBombers(iTeam, iAirSubteam)
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)) end
             if bConsiderHigherTechUnitsFirst then
                 --Consider high priority targets:
-                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy'))
+                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy'))
                 if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
                 end
