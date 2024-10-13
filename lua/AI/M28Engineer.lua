@@ -2472,23 +2472,6 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
             end
         end
 
-        --Backup - If we have enemy mobile land units in 400 of us and we have no friendly land units in 100 of us then we'll build a firebase/fortify
-        local rTargetRect = {tTargetLocation[1] - 400, tTargetLocation[2] - 400, tTargetLocation[1] + 400, tTargetLocation[2] + 400}
-        local rSmallTargetRect = {tTargetLocation[1] - 100, tTargetLocation[2] - 100, tTargetLocation[1] + 100, tTargetLocation[2] + 100}
-        local tUnitsInTargetRect = aiBrain:GetUnitsInRect(rTargetRect, M28UnitInfo.refCategoryMobileLand * categories.MOBILE)
-        local iFriendlyLandUnitsInTargetRect = 0
-        for _,oUnit in tUnitsInTargetRect do
-            if oUnit:GetAIBrain() == aiBrain then
-                iFriendlyLandUnitsInTargetRect = iFriendlyLandUnitsInTargetRect + 1
-            end
-        end
-        if tUnitsInTargetRect > 15 and iFriendlyLandUnitsInTargetRect <= 20 then
-            local tUnitsInSmallTargetRect = aiBrain:GetUnitsInRect(rSmallTargetRect, M28UnitInfo.refCategoryMobileLand * categories.MOBILE)
-            if tUnitsInSmallTargetRect == 0 then
-                iOptionalEngiActionRef = refActionFortifyFirebase
-            end
-        end
-
         if bFindRandomLocation and (bMexHydroOrStorage or EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) and not(bAbortConstruction) and not(iOptionalEngiActionRef == refActionFortifyFirebase) then
             --Backup - Trying to build a mex or hydro so no point getting random location
             if not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
@@ -13578,7 +13561,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local bAdjacentToCoreZone
-    --local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+    local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
     local bPrioritiseProduction = M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refbPrioritiseProduction]
 
     local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
@@ -13897,12 +13880,16 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if bDebugMessages == true then LOG(sFunctionRef..': Considering emergency PD for zone '..iLandZone..', iExistingFactory='..iExistingFactory..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Ally AA threat='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; SValue='..(tLZTeamData[M28Map.subrefLZSValue] or 0)) end
     if not(bTeammateHasBuiltHere) and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (iExistingFactory >= 1 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][1] * 0.35) >= 2) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) <= math.min(350, 0.5*(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0))) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
         --Does enemy have any units that can outrange a PD? If so then dont bother building
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
+        local tNearbyEnemyT2Arti = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti, tLZData[M28Map.subrefMidpoint], 175, 'Enemy')
+        local tNearbyEnemyT2MLArti = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus, tLZData[M28Map.subrefMidpoint], 175, 'Enemy')
+        if tNearbyEnemyT2Arti >= 3 or tNearbyEnemyT2MLArti >= 20 then
             local iHighestNearbyEnemyRange = math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
             local bConsiderT2PD = false
+            local bConsiderT3PD = false
             if bDebugMessages == true then LOG(sFunctionRef..': iHighestNearbyEnemyRange='..iHighestNearbyEnemyRange..'; Highest friendly land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Mex count by tehc='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; LZ s value='..tLZTeamData[M28Map.subrefLZSValue]..'; Mex count='..tLZData[M28Map.subrefLZMexCount]) end
             if iHighestNearbyEnemyRange < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 1 or (tLZData[M28Map.subrefLZMexCount] >= 4 and tLZTeamData[M28Map.subrefLZSValue] >= 500)) and (tLZData[M28Map.subrefLZMexCount] >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1) then bConsiderT2PD = true end
-            if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
+            if iHighestNearbyEnemyRange < 100 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then bConsiderT3PD = true end
+            if (iHighestNearbyEnemyRange <= 25 and bConsiderT2PD) or (iHighestNearbyEnemyRange <= 50 and bConsiderT3PD) then
                 local iEnemyCombatThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -13930,7 +13917,25 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         end
 
                     end
-                    if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
+                    if bConsiderT3PD then
+                        if iHighestNearbyEnemyRange >= 100 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bConsiderT3PD = false
+                        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
+                            --Do we have T3 factories or engineers of any kind in this zone?
+                            local tT3Units = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory - categories.TECH1 + categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            local bHaveT3FactoriesOrEngineers = false
+                            if M28Utilities.IsTableEmpty(tT3Units) == false then
+                                for iUnit, oUnit in tT3Units do
+                                    if oUnit:GetFractionComplete() == 1 then
+                                        bHaveT3FactoriesOrEngineers = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bHaveT3FactoriesOrEngineers) then bConsiderT3PD = false end
+                        end
+
+                    end
+                    if (iHighestNearbyEnemyRange <= 25 and bConsiderT2PD) or (iHighestNearbyEnemyRange <= 50 and bConsiderT3PD) then
                         local iExistingStructureThreat = 0
                         local bHaveLRPDThreat = false
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
@@ -13939,28 +13944,31 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                                 if iThreat > 0 and iRange >= 50 then bHaveLRPDThreat = true end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iExistingStructureThreat of existing PD='..iExistingStructureThreat..'; will get emergency PD if below threshold, iEnemyCombatThreat='..iEnemyCombatThreat..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iExistingStructureThreat of existing PD='..iExistingStructureThreat..'; will get emergency PD if below threshold, iEnemyCombatThreat='..iEnemyCombatThreat..'; bConsiderT2PD='..tostring(bConsiderT2PD or bConsiderT3PD or false)) end
                         local iMinTechLevelWanted = 1
                         iBPWanted = 40
                         if bConsiderT2PD and iExistingStructureThreat >= 400 then
                             iMinTechLevelWanted = 2
                             iBPWanted = 60
                         end
-
-                        if iExistingStructureThreat < 400 or (bConsiderT2PD and iExistingStructureThreat < math.max(800, math.max(iEnemyCombatThreat, math.min(iEnemyCombatThreat * 2, 2880)))) or (not(bConsiderT2PD) and iExistingStructureThreat < math.min(800, iEnemyCombatThreat * 3)) then
-                            --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
-                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to get t1 radar instead of t2 pd, bHaveLRPDThreat='..tostring(bHaveLRPDThreat)..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Want land scout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; iExistingStructureThreat='..iExistingStructureThreat..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) end
+                        if bConsiderT3PD and iExistingStructureThreat >= 1200 then
+                            iMinTechLevelWanted = 3
+                            iBPWanted = 80
+                        end
+                        if iExistingStructureThreat < 1200 or (bConsiderT2PD or bConsiderT3PD and iExistingStructureThreat < math.max(800, math.max(iEnemyCombatThreat, math.min(iEnemyCombatThreat * 2, 5760)))) or (not(bConsiderT2PD or bConsiderT3PD) and iExistingStructureThreat < math.min(1200, iEnemyCombatThreat * 3)) then
+                            --Get T1 radar in priority to T2 PD or T3 PD if we already have T2 PD or T3 PD but no radar
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to get t1 radar instead of t2 pd or t3 pd, bHaveLRPDThreat='..tostring(bHaveLRPDThreat)..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Want land scout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; iExistingStructureThreat='..iExistingStructureThreat..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) end
                             if bHaveLRPDThreat and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= 40 and (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] == 0 and iExistingStructureThreat >= 1000 and iExistingStructureThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) and iExistingStructureThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
                                 HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
                             else
                                 local tPDStartPoint
-                                if iExistingStructureThreat <= 800 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                                if iExistingStructureThreat <= 1200 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                                 else
                                     tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
                                     if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)..'; iExistingStructureThreat='..(iExistingStructureThreat or 'nil')..'; tPDStartPoint='..repru(tPDStartPoint)) end
-                                HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
+                                HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, iBPWanted, tPDStartPoint)
                             end
                         end
                     end
@@ -14023,6 +14031,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
         end
+
         --Islands we have dropped on that have 4+ mexes and no start position
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have dropped here recently and it is an island with lots of mexes, island mex count='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 'nil')..'; Time last dropped='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastDroppedEngi] or 0))) end
         if not(tLZTeamData[M28Map.subrefLZExpansionOverride]) and ((tLZTeamData[M28Map.refiTimeLastDroppedEngi] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeLastDroppedEngi] <= 180 and tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 4) or (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 5 and tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])))) then
