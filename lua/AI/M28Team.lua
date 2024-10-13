@@ -2870,7 +2870,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                         --Are we on a very light mass map then let's become an economics major
                         if iMexesOnMap <= 60 then iTechLevelToUpgrade = math.max(1, iTechLevelToUpgrade) end
                         --Always be upgrading a mex at higher mass levels
-                        if iTechLevelToUpgrade <= 1 then
+                        if iTechLevelToUpgrade <= 1 and iMexesOnMap > 60 then
                             if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 6 then
                                 iTechLevelToUpgrade = 2
                             elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 2.5 then
@@ -2879,9 +2879,9 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                         end
                         --Always be upgrading a mex on LOUD Low Mass Style Maps
                         if iTechLevelToUpgrade <= 1 and iMexesOnMap <= 60 then
-                            if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 1.5 then
+                            if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 2 then
                                 iTechLevelToUpgrade = 2
-                            elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 0 then
+                            elseif iTechLevelToUpgrade == 0 and not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) then
                                 iTechLevelToUpgrade = 1
                             end
                         end
