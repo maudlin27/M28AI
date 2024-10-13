@@ -2920,6 +2920,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                         end
                                     end
                                     --Dont do priority upgrade if this location already has an upgrade, unless we have high mass income for this brain and T1 mexes
+                                    --HIGH MEX MAPS
                                     if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))) end
                                     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) and iMexesOnMap > 60 then
                                         for iMexTech = 1, iTechLevelToUpgrade do
@@ -2942,6 +2943,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                             end
                                             if bAbort then break end
                                         end
+                                    --LOW MEX MAPS
                                     elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) and iMexesOnMap <= 60 then
                                         for iMexTech = 1, iTechLevelToUpgrade do
                                             if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
