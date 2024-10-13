@@ -2879,9 +2879,9 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                         end
                         --Always be upgrading a mex on LOUD Low Mass Style Maps
                         if iTechLevelToUpgrade <= 1 and iMexesOnMap <= 60 then
-                            if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 0 then
+                            if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 1.5 then
                                 iTechLevelToUpgrade = 2
-                            elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 1.5 then
+                            elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 0 then
                                 iTechLevelToUpgrade = 1
                             end
                         end
@@ -2904,8 +2904,6 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                         iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[M28UnitInfo.GetUnitTechLevel(oUnit)]
                                     end
                                 end
-
-
 
                                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                                     bAbort = false
