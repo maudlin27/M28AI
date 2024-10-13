@@ -2869,7 +2869,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                 local bAbort = false
 
                                 --Want to be upgrading at least 1 mex on our team, or more if we have positive mass income, subject to gross income
-                                local tiExtraMassStoredPerUpgrade = {[1] = 300, [2] = 1000}
+                                local tiExtraMassStoredPerUpgrade = {[1] = 300, [2] = 1000, [3] = 300} --T3 - if in LOUD then makes sense to upgrade a T3 mex to advanced T3 mex immediately; will usually happen via separate code ,but put in here for niche cases where this logic would try and upgrade
                                 local iMassStoredToKeepUpgrading = 0
                                 if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
                                     for iUnit, oUnit in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
