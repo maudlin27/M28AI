@@ -3281,8 +3281,11 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                         oFactory[refbPausedToStopDefaultAI] = true
                     end
 
+                    local iTicksToWait = math.max(10, M28Land.iTicksPerLandCycle - 1)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then iTicksToWait = iTicksToWait * 5 end
+
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitTicks(10)
+                    WaitTicks(iTicksToWait)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     if M28UnitInfo.IsUnitValid(oFactory) then
                         local bSelfDestructIfLowMass = false
@@ -5475,8 +5478,19 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
-    --LOUD specific - build SACUs if needed to build experimentals
+    --LOUD specific - build SACUs if needed to build experimentals, but dont build anything if low on mass and have built a few
     local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to abort for LOUD if we have several SACUs already, iCurSACUs='..iCurSACUs..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Fac total build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; Team exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]) end
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2 and M28Utilities.bLoudModActive and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') < 0.3) and oFactory[refiTotalBuildCount] >= 2 then
+        if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 4 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 1 then
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to hold off building more SACUs for now, Time='..GetGameTimeSeconds()) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+    end
+
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Time since tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0)) end
     if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 10 then
