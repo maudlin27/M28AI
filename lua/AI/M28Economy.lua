@@ -2854,6 +2854,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oMex:GetPosition())
     local iTeam = oMex:GetAIBrain().M28Team
     local tLZOrWZData, tLZOrWZTeamData
+    local iMexesOnMap = table.getn(M28Map.tMassPoints)
     if iPlateauOrZero == 0 then
         tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
@@ -2865,7 +2866,10 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     if not(iTimeToWait) then
         if iMexTechLevel == 1 then
             if M28Map.iMapSize >= 1024 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
-                if M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 then iTimeToWait = 5 * 60
+                if M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 and iMexesOnMap > 60 then 
+                    iTimeToWait = 5 * 60
+                elseif M28Utilities.bLoudModActive or M28Map.iMapSize > 1024 and iMexesOnMap <= 60 then 
+                    iTimeToWait = 2 * 60
                 else
                     iTimeToWait = 6 * 60
                 end
@@ -2878,26 +2882,40 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                 iTimeToWait = 7 * 60
             end
         elseif iMexTechLevel == 2 then
-            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 10 then
+            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 10 and iMexesOnMap > 60 then
                 iTimeToWait = 8 * 60 + 4 * 60 * (10-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
+            elseif oMex:GetAIBrain()[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 then
+                iTimeToWait = 2 * 60 + 4 * 60 * (10-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 8 * 60
             end
-            if M28Utilities.bLoudModActive then iTimeToWait = iTimeToWait - 40 end
+            if M28Utilities.bLoudModActive and iMexesOnMap > 60 then 
+                iTimeToWait = iTimeToWait - 40 
+            elseif M28Utilities.bLoudModActive and iMexesOnMap <= 60 then 
+                iTimeToWait = iTimeToWait - 20 
+            end
         elseif bT3MexCanBeUpgraded and M28Utilities.bLoudModActive and iMexTechLevel == 3 then
             iTimeToWait = 0
         else --redundancy
             local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
             local iMexesInZone = (tLZData[M28Map.subrefLZMexCount] or 0)
-            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 25 then
+            if oMex:GetAIBrain()[refiGrossMassBaseIncome] < 25 and iMexesOnMap > 60 then
                 iTimeToWait = 4 * 60 + 5 * 60 * (25-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
+            elseif oMex:GetAIBrain()[refiGrossMassBaseIncome] < 12 and iMexesOnMap <= 60 then
+                iTimeToWait = 2 * 60 + 2 * 60 * (25-oMex:GetAIBrain()[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 4 * 60
             end
-            if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 then iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) end
+            if iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 40 and iMexesOnMap > 60 then 
+                iTimeToWait = iTimeToWait + 2 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) 
+            elseif iMexesInZone < 4 and oMex:GetAIBrain()[refiGrossMassBaseIncome] <= 20 and iMexesOnMap <= 60 then 
+                iTimeToWait = iTimeToWait + 1 * 60 * (4 - (tLZData[M28Map.subrefLZMexCount] or 0)) 
+            end
         end
-        if M28Utilities.bLoudModActive and M28UnitInfo.GetUnitLifetimeCount(oMex) == 1 and iMexTechLevel == 1 then
+        if M28Utilities.bLoudModActive and M28UnitInfo.GetUnitLifetimeCount(oMex) == 1 and iMexTechLevel == 1 and iMexesOnMap > 60 then
             iTimeToWait = math.min(iTimeToWait, 180)
+        elseif M28Utilities.bLoudModActive and M28UnitInfo.GetUnitLifetimeCount(oMex) == 1 and iMexTechLevel == 1 and iMexesOnMap <= 60 then
+            iTimeToWait = math.min(iTimeToWait, 60)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait before considering upgrading this mex again='..iTimeToWait..' for mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' owned by '..oMex:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oMex))) end
@@ -2994,6 +3012,20 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we want to prioritise production at the moment') end
                     ForkThread(M28Utilities.DelayedFunction, 60, ConsiderUpgradingMexDueToCompletion, {oJustBuilt})
                 else
+                    local iMexesOnMap = table.getn(M28Map.tMassPoints)
+                    if iMexesOnMap <= 60 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+                        local tMexOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryT1Mex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tMexOfCategory) == false then
+                            for iMex, oMex in tMexOfCategory do
+                                if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex == oJustBuilt) and not(oMex == oOptionalEngineer) and not((oMex:GetBlueprint().General.UpgradesTo or '') == '') then
+                                    UpgradeUnit(oMex, true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade the mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as we have less than 60 mexes and aint stalling mass') end
+                                    break
+                                end
+                            end
+                        end
+                    end
                     local bTryingToUpgradeMex = false
                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 'nil')..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]..'; tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]) end
