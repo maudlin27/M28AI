@@ -3804,7 +3804,7 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
 
-    iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+    local iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
     if iCurPlateau then
         if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
     end

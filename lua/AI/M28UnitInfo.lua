@@ -1849,6 +1849,14 @@ function ConvertFactionToCategory(iFaction)
     else return categories.ALLUNITS -categories.UEF -categories.CYBRAN -categories.AEON -categories.SERAPHIM
     end
 end
+function ConvertFactionIDToName(iFaction)
+    if iFaction == refFactionUEF then return 'UEF'
+    elseif iFaction == refFactionCybran then return 'Cybran'
+    elseif iFaction == refFactionAeon then return 'Aeon'
+    elseif iFaction == refFactionSeraphim then return 'Seraphim'
+    else return 'Unrecognised'
+    end
+end
 
 function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     --Returns support factory ID if it can be built, otherwise returns normal upgrade unit (works for any unit, not just factory)
