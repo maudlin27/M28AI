@@ -135,16 +135,9 @@ function CreateAltOrders(availableOrders, availableToggles, units)
     local podStagingPlatforms = EntityCategoryFilterDown(categories.PODSTAGINGPLATFORM, units)
     local pods = EntityCategoryFilterDown(categories.POD, units)
     if not table.empty(units) and (not table.empty(podStagingPlatforms) or not table.empty(pods)) then
+        local PodStagingPlatforms = EntityCategoryFilterDown(categories.PODSTAGINGPLATFORM, units)
+        local Pods = EntityCategoryFilterDown(categories.POD, units)
         local assistingUnits = {}
-        if not table.empty(pods) then
-            for _, pod in pods do
-                table.insert(assistingUnits, pod:GetCreator())
-            end
-            podUnits['DroneL'] = pods
-        elseif not table.empty(podStagingPlatforms) then
-            assistingUnits = GetAssistingUnitsList(podStagingPlatforms)
-            podUnits['DroneL'] = assistingUnits
-        end
 
         local file_exists = function(name)
             local file = DiskGetFileInfo(name)
@@ -161,29 +154,50 @@ function CreateAltOrders(availableOrders, availableToggles, units)
             --LOUD or steam
         end
 
-        if not table.empty(assistingUnits) then
-            if table.getn(podStagingPlatforms) == 1 and table.empty(pods) then
-                table.insert(availableOrders, 'DroneL')
-                if not(bFAFActive) then
-                    assistingUnitList['DroneL'] = assistingUnits[1]
-                else
+        if not table.empty(pods) then
+            for _, pod in pods do
+                table.insert(assistingUnits, pod:GetCreator())
+            end
+            podUnits['DroneL'] = pods
+        elseif not table.empty(podStagingPlatforms) then
+            assistingUnits = GetAssistingUnitsList(podStagingPlatforms)
+            podUnits['DroneL'] = assistingUnits
+        end
+
+        if bFAFActive then
+            if not table.empty(assistingUnits) then
+                if table.getn(podStagingPlatforms) == 1 and table.empty(pods) then
+                    table.insert(availableOrders, 'DroneL')
                     assistingUnitList['DroneL'] = {assistingUnits[1]}
-                end
-                if table.getn(assistingUnits) > 1 then
-                    table.insert(availableOrders, 'DroneR')
-                    if not(bFAFActive) then
-                        assistingUnitList['DroneR'] = assistingUnits[2]
-                        podUnits['DroneL'] = assistingUnits[1]
-                        podUnits['DroneR'] = assistingUnits[2]
-                    else
+                    if table.getn(assistingUnits) > 1 then
+                        table.insert(availableOrders, 'DroneR')
                         assistingUnitList['DroneR'] = {assistingUnits[2]}
                         podUnits['DroneL'] = {assistingUnits[1]}
                         podUnits['DroneR'] = {assistingUnits[2]}
                     end
+                else
+                    table.insert(availableOrders, 'DroneL')
+                    assistingUnitList['DroneL'] = assistingUnits
                 end
-            else
+            end
+        else
+            --Steam code (copy from steam orders.lua) - also the same as LOUD code
+            if table.getn(PodStagingPlatforms) == 0 and table.getn(Pods) == 1 then
+                assistingUnits[1] = Pods[1]:GetCreator()
+                podUnits['DroneL'] = Pods[1]
+                podUnits['DroneR'] = Pods[2]
+            elseif table.getn(PodStagingPlatforms) == 1 then
+                assistingUnits = GetAssistingUnitsList(PodStagingPlatforms)
+                podUnits['DroneL'] = assistingUnits[1]
+                podUnits['DroneR'] = assistingUnits[2]
+            end
+            if assistingUnits[1] then
                 table.insert(availableOrders, 'DroneL')
-                assistingUnitList['DroneL'] = assistingUnits
+                assistingUnitList['DroneL'] = assistingUnits[1]
+            end
+            if assistingUnits[2] then
+                table.insert(availableOrders, 'DroneR')
+                assistingUnitList['DroneR'] = assistingUnits[2]
             end
         end
     end
