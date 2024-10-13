@@ -3175,8 +3175,9 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     --Gameender duty - have RAS SACUs assist with building a gameender/t3 arti/novax in the zone and associated shielding, if we have an active template
     local bProceed = true
     if bDebugMessages == true then LOG(sFunctionRef..': Start of RAS code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; Time since last wanted SACU for exp='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0))) end
-    function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction)
+    function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction, iOptionalEngineerActionForTracking)
         --toSACUByFaction - only needed if iOptionalFactionWanted is specified
+        --iOptionalEngineerActionForTracking - if specified, then will call trackengineer function
         local oPrimaryEngineer
         if iOptionalFactionWanted then
             oPrimaryEngineer = toSACUByFaction[iOptionalFactionWanted][1]
@@ -3216,6 +3217,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to build '..sBlueprint..' at build location '..repru(tBuildLocation)) end
                             M28Orders.IssueTrackedBuild(oSACU, tBuildLocation, sBlueprint, false, 'SACUExpBld')
                         end
+                        if iOptionalEngineerActionForTracking and not(oSACU[M28Engineer.refiAssignedAction] == iOptionalEngineerActionForTracking) then M28Engineer.TrackEngineerAction(oSACU, iOptionalEngineerActionForTracking, iSACU == 1, 1, nil, nil, false) end
                         --M28Engineer.TrackEngineerAction(oSACU, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
                     end
                 end
@@ -3348,7 +3350,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to use RAS SACUs to build SMD, iSMDBPWanted='..iSMDBPWanted..'; bAssistSMD='..tostring(bAssistSMD)..'; oSMDToShield='..(oSMDToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSMDToShield) or 'nil')..'; oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
             if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 and not(bAssistSMD) and not(oSMDToShield) and not(oShieldToAssist) then
                 bBuildingSMD = true
-                BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD)
+                BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD, nil, nil, M28Engineer.refActionBuildSMD)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bBuildingSMD='..tostring(bBuildingSMD)..'; Time since last wanted SMD='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0)) end
@@ -3377,7 +3379,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
                         end
                     else
-                        BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction)
+                        BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
                     end
                 end
             end
@@ -3851,8 +3853,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())
