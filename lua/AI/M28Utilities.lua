@@ -38,7 +38,9 @@ bSteamActive = false
 bLCEActive = false --LOUD community edition
 
 function ConsiderIfLoudActive()
-    LOG('About to consider whether LOUD or Steam is active')
+    local bDebugMessages = false --simplified setup/no profiling as dont want to call profiler at this stage since hardly anything will have loaded and might cause compatibility headaches
+    local sFunctionRef = 'ConsiderIfLoudActive'
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether LOUD or Steam is active') end
     if not(bFAFActive) and not(bSteamActive) then
         --Further check for if FAF active
         local file_exists = function(name)
@@ -68,7 +70,8 @@ function ConsiderIfLoudActive()
                     bLCEActive = false
                     local tSimMods = __active_mods or {}
                     for iMod, tModData in tSimMods do
-                        if tModData.enabled and not (tModData.ui_only) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iMod='..iMod..'; Mod name='..(tModData.name or 'nil')..'; tModData.enabled='..tostring(tModData.enabled or false)..'; tModData.ui_only='..tostring(tModData.ui_only or false)) end
+                        if tModData.enabled and not (tModData.ui_only) then --Note: pre-v1.52 of QUIET there was a bug where the mod wouldn't have .enabled set to true, Azraeel mentioned this should be fixed as of v1.52
                             if tModData.name == 'LOUD Community Edition' or tModData.name == 'QUIET' then
                                 bLCEActive = true
                                 break
