@@ -3539,7 +3539,6 @@ function SetPreferredUnitsByCategory(aiBrain)
         -- aiBrain[reftBlueprintPriorityOverride]['bsl0310'] = 1
         -- UEF T3:
         aiBrain[reftBlueprintPriorityOverride]['brnt3bt'] = 1
-        -- aiBrain[reftBlueprintPriorityOverride]['xel0307'] = 1
         -- aiBrain[reftBlueprintPriorityOverride]['bel0307'] = 1
         -- aiBrain[reftBlueprintPriorityOverride]['wel0305'] = 1
         --Cybran T3:
@@ -3559,6 +3558,7 @@ function SetPreferredUnitsByCategory(aiBrain)
         -- aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
 
         aiBrain[reftBlueprintPriorityOverride]['ual0204'] = 1 --Aeon T2 sniperbot
+        aiBrain[reftBlueprintPriorityOverride]['xel0307'] = -1000 --UEF T3 Juggernant
         aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1000 --experimental reconstruction bot
         aiBrain[reftBlueprintPriorityOverride]['ualx401'] = -1000 --experimental mobile smd
         --LOUD - sniperbots at t3+ and T1 are weak
