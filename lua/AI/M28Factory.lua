@@ -3479,6 +3479,10 @@ function SetPreferredUnitsByCategory(aiBrain)
     --aiBrain[reftBlueprintPriorityOverride]['uel0201'] = 1 --Striker (instead of mechmarine)
     --aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaam (instead of combat scout)
 
+    --Units to disable regardless of prioriotisation settings
+    aiBrain[reftBlueprintPriorityOverride]['ssl0403'] = -1000 --experimental reconstruction bot
+    aiBrain[reftBlueprintPriorityOverride]['seb2404'] = -1000 --experimental drop pod artillery
+
     if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then
         --v89 - moved the LAB logic to when a unit is built so we can build a couple of LABs first before always building tanks
         if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
@@ -3688,7 +3692,16 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
     --if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
+
     --MAIN BUILDER LOGIC:
+    --Extreme unit cap scenario - avoid building more air and just abort altogether - if we dont have low mass and are at -1 or worse unit cap, then suggests we may not be able to build any more units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel >= 3 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -1 and aiBrain[M28Overseer.refiExpectedRemainingCap] < 20 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap with high mass stored so wont build anything from air fac') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
+    end
+
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     --Special priority flag to build engineer
     if oFactory[refbWantNextUnitToBeEngineer] then

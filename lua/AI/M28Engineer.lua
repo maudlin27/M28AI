@@ -4376,6 +4376,9 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             else
                 if iMinTechLevel == 1 then
                     iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
+                elseif aiBrain[M28Overseer.refbCloseToUnitCap] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap so will build T2+ PD') end
+                    iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
                 elseif iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
                     --Want to build either T2 or T2+ PD
                     local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
@@ -4410,7 +4413,8 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             --NOTE: Separately this gets changed to tech3 if need increased range
             if bDebugMessages == true then LOG(sFunctionRef..': Considering building shield, iMinTechLevel='..iMinTechLevel..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]..'; Novax count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount]..'; Enemy air to ground='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat]..'; SValue='..tLZOrWZTeamData[M28Map.subrefLZSValue]..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
 
-            if M28Map.bIsCampaignMap then iCategoryToBuild = M28UnitInfo.refCategoryFixedShield
+            if M28Map.bIsCampaignMap or (aiBrain[M28Overseer.refbCloseToUnitCap] and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= 0) then
+                iCategoryToBuild = M28UnitInfo.refCategoryFixedShield
             elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and (not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti]) or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount] == 0 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount] <= 2)) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
                 if bDebugMessages == true then LOG(sFunctionRef..': Will build T2 shield') end
@@ -5558,15 +5562,17 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
         else
             if iOptionalFactionRequired == M28UnitInfo.refFactionSeraphim then
                 --Does enemy have mavor? if so then want T3 shields not T2
-                local bEnemyHasMavor = false
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                local bEnemyHasMavorOrCloseToUnitCap = false
+                if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= 0 then
+                    bEnemyHasMavorOrCloseToUnitCap = true
+                elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
                     for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
                         if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti * categories.UEF, oArti.UnitId) then
-                            bEnemyHasMavor = true
+                            bEnemyHasMavorOrCloseToUnitCap = true
                         end
                     end
                 end
-                if bEnemyHasMavor then
+                if bEnemyHasMavorOrCloseToUnitCap then
                     iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.SERAPHIM
                 else
                     --If go for T2 shielding then will be quicker to build and cheaper, and still cover the unit provided the shield can absorb a single shot
