@@ -5083,7 +5083,7 @@ function GetOppositeLocation(tLocation)
     return tOpposite
 end
 
-function UpdateNewPrimaryBaseLocation(aiBrain)
+function UpdateNewPrimaryBaseLocation(aiBrain, bIgnoreIfDefeated)
     --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
@@ -5092,10 +5092,10 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
 
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
     if bDebugMessages == true then
-        LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated')
-        LOG(sFunctionRef..': IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false)))
+        LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated, aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; time='..GetGameTimeSeconds())
+        LOG(sFunctionRef..': IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false))..'; aiBrain:IsDefeated()='..tostring(aiBrain:IsDefeated()))
     end
-    if not(M28Conditions.IsCivilianBrain(aiBrain)) and not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()) then
+    if not(M28Conditions.IsCivilianBrain(aiBrain)) and (bIgnoreIfDefeated or (not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()))) then
         local tPrevPosition
         if aiBrain[reftPrimaryEnemyBaseLocation] then tPrevPosition = {aiBrain[reftPrimaryEnemyBaseLocation][1], aiBrain[reftPrimaryEnemyBaseLocation][2], aiBrain[reftPrimaryEnemyBaseLocation][3]} end
         if bDebugMessages == true then LOG(sFunctionRef..': Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defated for this team='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)) end
@@ -5293,7 +5293,7 @@ function GetPrimaryEnemyBaseLocation(aiBrain)
     --Used as the main location for the AI to evaluate things such as threats and make decisions; by default will be the nearest enemy start position
 
     --Done as a function so easier to adjust in the future if decide we want to
-    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain) end
+    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain, true) end
     return aiBrain[reftPrimaryEnemyBaseLocation]
 end
 
@@ -5564,13 +5564,14 @@ function RecordPondToExpandTo(aiBrain)
         if iWaitCount >= 20 then break end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..'; Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
+    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain, true) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         local bStartLocationIsUnderwater = false
         local tStartPos = GetPlayerStartPosition(aiBrain)
         if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
         if bDebugMessages == true then
             local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
-            LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; Brain index='..aiBrain:GetArmyIndex()..'; reprs of start poitns='..reprs(PlayerStartPoints)..'; refbInitialised='..tostring(aiBrain[M28Overseer.refbInitialised] or false)..'; GameTime='..GetGameTimeSeconds())
+            LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; Brain index='..aiBrain:GetArmyIndex()..'; reprs of start poitns='..reprs(PlayerStartPoints)..'; refbInitialised='..tostring(aiBrain[M28Overseer.refbInitialised] or false)..'; iMapSize='..(iMapSize or 'nil')..'; GameTime='..GetGameTimeSeconds())
         end
         local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
         aiBrain[M28Navy.reftiPondThreatToUs] = {}

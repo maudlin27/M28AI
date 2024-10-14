@@ -655,7 +655,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     end
 
     --If we have no friendly combat units and enemy has combat threat, then request less MAA, or none if we have no non-MAA/scout units
-    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iWaterZone='..iWaterZone..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iWaterZone='..iWaterZone..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..(tWZTeamData[M28Map.refiEnemyAirOtherThreat] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
     if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= math.min(1500, tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.9) or tWZTeamData[M28Map.subrefWZbCoreBase] then
         tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 1.25 + (tWZTeamData[M28Map.refiEnemyAirOtherThreat] + tWZTeamData[M28Map.refiEnemyAirAAThreat]) * 0.2, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1)
 
@@ -698,6 +698,8 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     --If have significant MAA wanted and a significant allied combat threat, then record as a high value WZ wanting MAA
     local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
     if iPlateau then
+        if bDebugMessages == true then LOG('About to decide whether to record as high value WZ wanting MAA, running for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iWaterZone='..iWaterZone) end
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefiWaterZonesWantingSignificantMAAByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.subrefiWaterZonesWantingSignificantMAAByPlateau][iPlateau] = {} end
         if tWZTeamData[M28Map.subrefWZMAAThreatWanted] - tWZTeamData[M28Map.subrefWZThreatAlliedAA] >= 1000 and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 1000 then
             if bDebugMessages == true then LOG(sFunctionRef..': Recording water zone wanting MAA for iWaterZone='..iWaterZone..'; iPlateau='..iPlateau..'; iPond='..iPond..'; Midpoint of waterzone='..repru(tWZData[M28Map.subrefMidpoint])) end
             M28Team.tTeamData[iTeam][M28Team.subrefiWaterZonesWantingSignificantMAAByPlateau][iPlateau][iWaterZone] = true
@@ -1450,8 +1452,8 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iWaterZone, false, false, tWZTeamData)
     end
 
+    RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone) --need to call first since ground threat references air threat for certain values when determining subrefWZMAAThreatWanted
     RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone)
-    RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
 
     tWZTeamData[M28Map.subrefWZTAlliedCombatUnits] = {}
     tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield] = {}
