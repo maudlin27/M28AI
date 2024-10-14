@@ -38,7 +38,9 @@ bSteamActive = false
 bLCEActive = false --LOUD community edition
 
 function ConsiderIfLoudActive()
-    LOG('About to consider whether LOUD or Steam is active')
+    local bDebugMessages = false --simplified setup/no profiling as dont want to call profiler at this stage since hardly anything will have loaded and might cause compatibility headaches
+    local sFunctionRef = 'ConsiderIfLoudActive'
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether LOUD or Steam is active') end
     if not(bFAFActive) and not(bSteamActive) then
         --Further check for if FAF active
         local file_exists = function(name)
