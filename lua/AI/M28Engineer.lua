@@ -13924,8 +13924,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                             if not(bHaveT2FactoriesOrEngineers) then bConsiderT2PD = false end
                         end
 
-                    end
-                    if bConsiderT3PD then
+                    elseif bConsiderT3PD then
                         if iHighestNearbyEnemyRange >= 100 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bConsiderT3PD = false
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
                             --Do we have T3 factories or engineers of any kind in this zone?
