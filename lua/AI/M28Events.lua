@@ -166,7 +166,16 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                         --T2 arti firebase tracking if they get lots of kills:
                         if oUnitKilled:GetAIBrain().M28AI then
-                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(oUnitKilled:GetAIBrain().M28Team, oKillerUnit) end
+                            local iTeam = oUnitKilled:GetAIBrain().M28Team
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(iTeam, oKillerUnit) end
+                            --Track non-experimental air units
+                            if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oUnitKilled.UnitId) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitKilled.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                else
+                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                end
+                            end
                         end
 
                         --M28 specific killer logic
@@ -202,6 +211,14 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         end
                                     end
 
+                                end
+                                --Gunship and strat bomber tracking (non-experimental)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
+                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                else
+                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 end
                             end
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then

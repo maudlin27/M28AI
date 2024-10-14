@@ -254,7 +254,7 @@ refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAN
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
 refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
-refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY + categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.INDIRECTFIRE - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
 
 refCategoryAmphibious = categories.AMPHIBIOUS
