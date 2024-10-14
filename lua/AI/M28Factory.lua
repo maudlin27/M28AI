@@ -4751,7 +4751,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
 
-    if iFactoryTechLevel == 3 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
@@ -5522,7 +5522,6 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2 and M28Utilities.bLoudModActive and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') < 0.3) and oFactory[refiTotalBuildCount] >= 2 then
         if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 4 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 1 then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Want to hold off building more SACUs for now, Time='..GetGameTimeSeconds()) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return nil

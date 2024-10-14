@@ -3136,10 +3136,19 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             local iCurNovaxCount = 0
                             local iCurT3ArtiCount = 0 --mavor treated as 3 t3 arti
                             local iLandExpCount = 0
+                            local iUEFLandExpCategory
+                            if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.min(1.5, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryFatboy) >= 2) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get a fatboy rather than just any land experimental') end
+                                iUEFLandExpCategory = M28UnitInfo.refCategoryFatboy - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to get any UEF land exp instead of just a fatboy') end
+                                iUEFLandExpCategory = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                            end
+
                             local bCanBuildNovax = M28Building.bNovaxInGame and not(M28UnitInfo.IsUnitRestricted('xeb2402', aiBrain:GetArmyIndex()))
                             --How many fatboys do we have on the subteam already?
                             for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
-                                iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy)
+                                iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(iUEFLandExpCategory)
                                 iLandExpCount = iLandExpCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
                                 iCurNovaxCount = iCurNovaxCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryNovaxCentre)
                                 iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
@@ -3154,7 +3163,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax1') end
                                 elseif iCurFatboyCount == 0 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    iCategoryWanted = iUEFLandExpCategory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy1') end
                                     --Game-ender for late game scenarios where enemy has their own arti and as a team we have already tried building a number of experimentals
                                 elseif not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 170 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 and iCurT3ArtiCount <= M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] and iTeamLandExperimentals >= 2 and (not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 12000) and M28Map.iMapSize >= 512 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryGameEnder) == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) >= 2 * (1.5 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -3168,17 +3177,17 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax3') end
                                 elseif (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or iCurFatboyCount < 2) and iCurFatboyCount < math.min(5, math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3))) and (not(bEnemyHasExperimentalShields) or bEnemyHasFatboys or iCurFatboyCount < iEnemyLandExperimentalCount *0.75) then
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    iCategoryWanted = iUEFLandExpCategory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy2') end
                                 elseif bDontConsiderGameEnderInMostCases and not(bCanBuildNovax) and iCurFatboyCount < 3 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    iCategoryWanted = iUEFLandExpCategory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Getting more fatboys since cant get novax') end
                                     --If we have a strong t3 arti/mavor threat then get more land experimentals; similarly get more land exp if we have some t3 arti and enemy doesnt
                                 elseif (iCurT3ArtiCount >= 5 and (iLandExpCount < math.min(6, iCurT3ArtiCount) or iCurFatboyCount < 3) and (iCurT3ArtiCount >= 8 or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < iCurT3ArtiCount * 3))
                                         or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and iCurFatboyCount < math.min(3, iCurT3ArtiCount + 1)
                                         or iCurT3ArtiCount >= 3 and iLandExpCount < math.min(3, iCurT3ArtiCount - 1) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < iCurT3ArtiCount * 3.5
                                 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    iCategoryWanted = iUEFLandExpCategory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Getting more fatboys as we already have lots of t3 arti or equivalent') end
                                 else
                                     --High mass - be more likely to consider mavor
@@ -3228,7 +3237,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             else
                                 --Cant path with land - prioritise novax more
                                 if iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    iCategoryWanted = iUEFLandExpCategory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy3') end
                                 else
                                     --High mass - be more likely to consider mavor
