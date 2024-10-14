@@ -3982,14 +3982,14 @@ function ManageBombers(iTeam, iAirSubteam)
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
             local bConsiderHigherTechUnitsFirst = false
-            if iOurBomberThreat >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableBombers)) == false then
+            if iOurBomberThreat >= 2000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableBombers)) == false then
                 bConsiderHigherTechUnitsFirst = true
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)) end
             if bConsiderHigherTechUnitsFirst then
                 --Consider high priority targets:
-                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy'))
+                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * (categories.EXPERIMENTAL + categories.TECH3) + M28UnitInfo.refCategoryStructure * (categories.EXPERIMENTAL + categories.TECH3), tRallyPoint, 300, 'Enemy'))
                 if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
                 end
