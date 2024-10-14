@@ -2331,7 +2331,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
                             aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
                         end
-                    elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
+                    elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) or (oJustBuilt:GetBlueprint().Intel.RadarStealth and oJustBuilt:GetBlueprint().General.OrderOverrides.RULEUTC_StealthToggle) then
                         --Make sure stealth is enabled
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
@@ -2924,6 +2924,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                             M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                             M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
+                            if EntityCategoryContains(categories.STEALTH, oUnit.UnitId) or (oUnit:GetBlueprint().Intel.RadarStealth and oUnit:GetBlueprint().General.OrderOverrides.RULEUTC_StealthToggle) then
+                                --Make sure stealth is enabled
+                                M28UnitInfo.EnableUnitStealth(oUnit)
+                            end
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': we have just built a mex so will call logic relating to that') end
                                 ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
