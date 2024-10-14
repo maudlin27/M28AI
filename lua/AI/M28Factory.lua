@@ -3576,9 +3576,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
     --Unit counts
     local iBrainAirScouts --nil if havent got the value yet
-    local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
 
+    local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
 
     --MAIN BUILDER LOGIC:
     --Extreme unit cap scenario - avoid building more air and just abort altogether - if we dont have low mass and are at -1 or worse unit cap, then suggests we may not be able to build any more units
@@ -3832,8 +3831,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         if iClosestLandExp <= 200 then
                             --Get gunships/bombers even though it's underwater at the moment
                             if bDebugMessages == true then LOG(sFunctionRef..': enemy has nearby exp so will go and get gunship or bomber') end
-                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                         else
                             --Get torp bombers unless we have lots already
                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 4500 then
@@ -3844,8 +3844,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 else
                     if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': enemy has approaching exp so will go and get gunship or bomber') end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                     end
                 end
             end
@@ -3986,9 +3987,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
         if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': Nearby enemy threat so will try and build gunship') end
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
-                return sBPIDToBuild
-            end
+            if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+            if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
         end
 
         --Near unit cap - dont build anything at air fac if low mass and not highest tech level
@@ -4027,9 +4027,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                     if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 or not(tLZTeamData[M28Map.refbBaseInSafePosition])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has enemy threat so will try and build gunship') end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
-                            return sBPIDToBuild
-                        end
+                        if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                     end
                 end
             end
@@ -4245,8 +4244,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             end
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
-                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                             end
                         end
                     end
@@ -4328,8 +4327,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             if not(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
                                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                             end
-                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                            if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                         end
                     end
                 end
@@ -4482,8 +4481,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         --Get bomber or gunship of any kind (torp bombers in preference to normal bombers)
                         if bDebugMessages == true then LOG(sFunctionRef..': Nearby naval threat, will get torps (or gunships or bombers if torps not an option') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                        if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                     end
                 end
 
@@ -4516,7 +4515,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Gunships subject to mass and existing number
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and
+                if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and not(bAirToGroundIsIneffective) and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and iGunshipCategoryUnlessBombersBetter == M28UnitInfo.refCategoryGunship and
                         (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20) or ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and M28Map.bIsCampaignMap)) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 or M28Map.bIsCampaignMap)))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have a large number of gunships so will get more') end
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
@@ -4545,8 +4544,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                                 if iClosestLandExp <= 200 then
                                     --Get gunships/bombers even though it's underwater at the moment
                                     if bDebugMessages == true then LOG(sFunctionRef..': Nearby land exp so will get gunships or bombers') end
-                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                                    if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                                    if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                                 else
                                     --Get torp bombers unless we have lots already
                                     if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 4500 then
@@ -4557,8 +4557,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Approaching land exp so will get gunships or bombers') end
-                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber - categories.TECH3) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                             end
                         end
                     end
@@ -4648,9 +4649,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then
                                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Are enemy units in the PlateauOrPond '..tSubtable[M28Map.subrefiPlateauOrPond]..' Zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' so will get gusnhip or bomber') end
-                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                                if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are enemy units in the PlateauOrPond '..tSubtable[M28Map.subrefiPlateauOrPond]..' Zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' so will get gusnhip or bomber, bAirToGroundIsIneffective='..tostring(bAirToGroundIsIneffective or false)) end
+                                if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                             elseif tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] + tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] + tLZOrWZTeamData[M28Map.refiEnemyAirOtherThreat] > 0 then
                                 if iAirAACountOfSearchCategory < 400 and (iAirAACountOfSearchCategory < 150 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= iAirAACountOfSearchCategory * 200 and (iAirAACountOfSearchCategory <= M28Air.iMinimumASFCountPostGifting or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs])))) then
                                     if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
@@ -4673,10 +4674,15 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Gunship if we dont have low mass (or are in a campaign with at least 500 mass stored and no active upgrades) and have air control
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Low priority gunship builder, iFactoryTechLevel='..iFactoryTechLevel..'; Lowest air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech]..'; have air control='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; Have low mass='..tostring(bHaveLowMass)..'; CampaignMap='..tostring(M28Map.bIsCampaignMap)..'; team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) end
-                if iCurGunships <= 200 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] and (not(bHaveLowMass) or (M28Map.bIsCampaignMap and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 500 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) then
+                if (not(bAirToGroundIsIneffective) or M28Map.bIsCampaignMap) and iCurGunships <= 200 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] and (not(bHaveLowMass) or (M28Map.bIsCampaignMap and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 500 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) then
                     --Either build gunships or AirAA dpeending on which we have less of
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to build a gunship as have air control') end
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                    if iGunshipCategoryUnlessBombersBetter == M28UnitInfo.refCategoryGunship then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try to build a gunship as have air control') end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                    elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]) * 0.5 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try to build our preferred unti category (gunship or bomber) as have air control and dont have low mass') end
+                        if ConsiderBuildingCategory(M28UnitInfo.iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                    end
                 end
 
                 --Campaign specific - bombers if we lack gunship and bomber threat
@@ -4687,12 +4693,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                 end
 
-                --Bomber if high mass and fewer than 100
+                --Build air to ground force if high mass and fewer than 100
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to get bombers, bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Current bombers='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)) end
-                if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) <= 100 then
+                if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and aiBrain:GetCurrentUnits(iGunshipCategoryUnlessBombersBetter) <= 100 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get more bombers due to high mass') end
-                    if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                    if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                    if aiBrain:GetCurrentUnits(iBackupAirToGroundCategory) <= 100 and ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                 end
             end
         end
@@ -5522,9 +5529,9 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
-    --General - if close to unit cap and have lots of SACUs then dont get more
+    --General - if close to unit cap and have lots of SACUs then dont get more (except for LOUD where apparently they give you bonus unit cap?)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 20 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1 then
+    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 20 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1 then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want more SACUs due to unit cap') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
@@ -5840,8 +5847,8 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             end
         end
 
-        local iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+        local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
+
 
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing), or if we have decent air to ground threat and lack air control
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have sufficient eco to build something from a carrier, bHaveLowMass='..tostring(bHaveLowMass)..'; have low energy='..tostring(bHaveLowEnergy)..'; Gross mass income='..(aiBrain[M28Economy.refiGrossMassBaseIncome] or 'nil')..'; Energy gross income='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy when last stalled='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0)) end
@@ -5868,15 +5875,15 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             end
 
             --Build gunship if we lack gunship threat
-            if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] < 50000 then
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] < 50000 and (not(bAirToGroundIsIneffective) or M28Map.bIsCampaignMap) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get more gunships') end
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) or ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
             end
 
             --Build strat bomber otherwise if have loads of mass
-            if aiBrain[M28Economy.refiGrossMassBaseIncome] >= 600 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.97 and aiBrain:GetEconomyStored('MASS') >= 2000) then
+            if (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 600 and (M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.25)) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.97 and aiBrain:GetEconomyStored('MASS') >= 2000) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get strats') end
-                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
             end
             --Czar - for some reason it is categorised as a Tech3 unit
@@ -5888,8 +5895,8 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
                 if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                 end
-                if not(bHaveLowMass) then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship - categories.TECH1 - categories.TECH2) then return sBPIDToBuild end
+                if not(bHaveLowMass) and (not(bAirToGroundIsIneffective) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.5) then
+                    if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter - categories.TECH1 - categories.TECH2) then return sBPIDToBuild end
                 end
             end
         end
@@ -5958,4 +5965,35 @@ function GetBlueprintToBuildForTempest(aiBrain, oFactory)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
+    local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective
+    iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
+    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+
+    if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] <= 75000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 10000 then --i.e. c.50 broadswords in losses before consider switching to bombers; also want minimum level of gunships to deal with raids
+        iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
+    elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > 10000 or M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 20000) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
+        --Pick whichever of gunships nd bombers has the better kill:loss ratio; we know that losses are > 0 so can divide by this
+        local iGunshipKillLossRatio = M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]
+        local iBomberKillLossRatio = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]
+        if iGunshipKillLossRatio >= iBomberKillLossRatio then
+            iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
+        else
+            iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
+        end
+        if iGunshipKillLossRatio < 0.35 and iBomberKillLossRatio < 0.35 and (M28Utilities.bLoudModActive or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) then
+            bAirToGroundIsIneffective = true
+        end
+    else
+        --We have built lots of gunships, and not lost lots of bombers (or killed lots with them), so get bombers
+        iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
+    end
+
+    if iFactoryTechLevel >= 3 then iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber
+    else
+        iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber * categories.TECH2 --i.e. dont want to risk building t1 bombers from a gunship builder just because we aren't at t3 yet
+    end
+    return iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective
 end

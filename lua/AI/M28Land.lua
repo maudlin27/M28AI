@@ -3511,17 +3511,20 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
 
             --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
-            local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            --(dont do this in LOUD unless near unit cap since wont be getting RAS SACUs)
             local oGateway
             local bNotAssistingGateway = true
             local bHaveRASGateway = false
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
-            if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
-                for iUnit, oUnit in tQuantumGateways do
-                    oGateway = oUnit
-                    if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
-                        bHaveRASGateway = true
-                        break
+            if not(M28Utilities.bLoudModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
+                local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
+                if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+                    for iUnit, oUnit in tQuantumGateways do
+                        oGateway = oUnit
+                        if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
+                            bHaveRASGateway = true
+                            break
+                        end
                     end
                 end
             end
@@ -3549,9 +3552,13 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                                     for iUnit, oUnit in tNearbyFriendlyGateway do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
                                         if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
-                                            oGateway = oUnit
-                                            break
+                                            --Check factory is building something
+                                            if oUnit:GetWorkProgress() > 0 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
+                                                oGateway = oUnit
+                                                break
+                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Gateway appears idle so will keep searching')
+                                            end
                                         end
                                     end
                                 end

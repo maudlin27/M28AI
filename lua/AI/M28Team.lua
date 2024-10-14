@@ -203,6 +203,12 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
     reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     toBomberSuicideTargets = 'M28TeamStratSuic' --Table of enemy strat bombers that we want to suicide ASFs into
+
+    refiGunshipLosses = 'M28TGShLoss' --mass value of non-experimental gunships our M28 team has lost
+    refiBomberLosses = 'M28TBmbLoss' --mass value of non-experimental bombers oure M28 team has lost
+    refiGunshipKills = 'M28TGShKill' --mass value of units our M28 team's non-experimental gunships have killed
+    refiBomberKills = 'M28BmbKill' --mass value of units our M28 team's non-experimental bombers have killed
+
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
     --subrefiOurAirAAThreat - uses same ref as air subteam
@@ -656,6 +662,10 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subreftoPausedUnitsByPriority] = {}
     tTeamData[iTotalTeamCount][refiLastMassStallCategoryAndEngineerTables] = {}
     tTeamData[iTotalTeamCount][refiLastEnergyStallCategoryAndEngineerTables] = {}
+    tTeamData[iTotalTeamCount][refiGunshipLosses] = 0
+    tTeamData[iTotalTeamCount][refiBomberLosses] = 0
+    tTeamData[iTotalTeamCount][refiGunshipKills] = 0
+    tTeamData[iTotalTeamCount][refiBomberKills] = 0
 
 
     local bHaveCampaignM28AI = false
