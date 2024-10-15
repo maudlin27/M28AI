@@ -5505,7 +5505,12 @@ function ManageGunships(iTeam, iAirSubteam)
                     iGunshipThreatFactorForSameZone = 1.6
                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorForSameZone = 0.01 end
                 elseif M28Utilities.bLoudModActive then
-                    iGunshipThreatFactorForSameZone = 2.5 --gunships are much weaker in LOUD
+                    iGunshipThreatFactorForSameZone = 3 --gunships are much weaker in LOUD; we will also increase the % threshold later as well by a further %
+                end
+                --If we have suffered significant gunship losses vs kills the nfurther increase the base factor
+                if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] then
+                    iGunshipThreatFactorForSameZone = iGunshipThreatFactorForSameZone * (1 + math.min(1.5, 1 * (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] - 10000) / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adjusted gunship threat base factor for high gunship losses, M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]..'; M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]..'; iGunshipThreatFactorForSameZone post update='..iGunshipThreatFactorForSameZone) end
                 end
 
                 local bCheckForAirAA = true
@@ -5649,7 +5654,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
                                                 elseif M28Utilities.bLoudModActive then --make gunships less likely to attack
-                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 2
+                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
                                                 end
                                             else
                                                 if tSubtable[M28Map.subrefiDistance] <= 200 then
@@ -5657,7 +5662,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 else
                                                     iGunshipThreatFactorWanted = 4.5
                                                 end
-                                                if M28Utilities.bLoudModActive then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 2 end
+                                                if M28Utilities.bLoudModActive then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 end --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
                                             end
                                             --Reduce threat factor if we have air control
                                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iGunshipThreatFactorWanted = math.max(math.min(2.7, iGunshipThreatFactorWanted), iGunshipThreatFactorWanted * 0.8) end
