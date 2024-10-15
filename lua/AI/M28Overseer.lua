@@ -654,6 +654,7 @@ function CheckUnitCap(aiBrain)
             end
             local tUnitsToDestroy
             local tiCategoryToDestroy = {
+                [-2] = M28UnitInfo.refCategoryAllAir * categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH1 + M28UnitInfo.refCategoryStructure * categories.TECH2 - M28UnitInfo.refCategoryMex - categories.EXPERIMENTAL - categories.COMMAND,
                 [-1] = M28UnitInfo.refCategoryMobileLand + categories.NAVAL * categories.MOBILE - categories.EXPERIMENTAL - categories.COMMAND - categories.SUBCOMMANDER,
                 [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories + categories.TECH2 * M28UnitInfo.refCategoryMobileLandShield - categories.INSIGNIFICANTUNIT,
                 [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1 - categories.INSIGNIFICANTUNIT,
@@ -735,7 +736,7 @@ function CheckUnitCap(aiBrain)
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > math.max(30, iUnitCap * 0.35) then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
             local iCumulativeCategory = tiCategoryToDestroy[4]
             local bKilledUnit = false
-            for iAdjustmentLevel = 4, -1, -1 do
+            for iAdjustmentLevel = 4, -2, -1 do
                 if iAdjustmentLevel < 4 then
                     iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
                 end
@@ -745,6 +746,7 @@ function CheckUnitCap(aiBrain)
                         tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
                         if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+                            if iAdjustmentLevel <= 1 then M28Engineer.tiActionCategory.refActionBuildAA = M28UnitInfo.refCategoryStructureAA end --allow experimental AA when close to unit cap
                             local bKillUnit
                             for iUnit, oUnit in tUnitsToDestroy do
                                 if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
