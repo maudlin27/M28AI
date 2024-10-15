@@ -3988,7 +3988,7 @@ function ManageBombers(iTeam, iAirSubteam)
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)) end
             if bConsiderHigherTechUnitsFirst then
                 --Consider high priority targets:
-                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * (categories.EXPERIMENTAL + categories.TECH3) + M28UnitInfo.refCategoryStructure * (categories.EXPERIMENTAL + categories.TECH3), tRallyPoint, 300, 'Enemy'))
+                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * (categories.EXPERIMENTAL + categories.TECH3) + M28UnitInfo.refCategoryStructure * (categories.EXPERIMENTAL + categories.TECH3) - (categories.STRUCTURE * categories.ANTIAIR), tRallyPoint, 300, 'Enemy'))
                 if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
                 end
