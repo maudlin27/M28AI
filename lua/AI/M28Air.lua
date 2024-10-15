@@ -188,11 +188,12 @@ function UpdateEnemyAirThreats(iTeam)
             end
         end
     end
-                                                                        --GetAirThreatLevel(tUnits,                                             bEnemyUnits,    bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], true,            true,               false,              false,                  false,              false)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround], true, false,              false,              true,                   false, false)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers], true, false,              false,              false,                  false, true)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirOther], true,       true,               false,              true,                   true,                   true)
+    --Base air threats on the highest enemy team threat, not all enemy teams combined (e.g. relevant where 3+ teams)
+                                                                        --GetAirThreatLevel(tUnits,                                             bEnemyUnits,    bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat, bRecordByTeam)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], true,            true,               false,              false,                  false,              false,              nil,                true)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround], true, false,              false,              true,                   false,              false,              nil,                true)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers], true, false,              false,              false,                  false,              true,              nil,                true)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirOther], true,       true,               false,              true,                   true,               true,              nil,                true)
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; Air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Torp bomber threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; Other threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

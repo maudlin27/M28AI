@@ -880,7 +880,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat, bRecordByTeam)
     --Threat value depends on inputs:
     --bIncludeAntiAir - will include anti-air on ground units
     --bIncludeNonCombatAir - adds threat value for transports and scouts
@@ -915,6 +915,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
 
         local iCurThreat = 0
         local iTotalThreat = 0
+        local iTotalByTeamThreat, iCurTeam
+        if bRecordByTeam then iTotalByTeamThreat = {} end
         local iBaseThreat = 0
         local iHealthPercentage
         local iHealthThreatFactor
@@ -1210,14 +1212,36 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                 iCurThreat = iBaseThreat
             end
 
-            iTotalThreat = iTotalThreat + iCurThreat
+            if iCurThreat > 0 then
+                if bRecordByTeam then
+                    iCurTeam = (oUnit:GetAIBrain().M28Team or 0)
+                    iTotalByTeamThreat[iCurTeam] = (iTotalByTeamThreat[iCurTeam] or 0) + iCurThreat
+
+                else
+                    iTotalThreat = iTotalThreat + iCurThreat
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; iTotalThreat='..iTotalThreat) end
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTotalThreat='..iTotalThreat) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return iTotalThreat
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTotalThreat='..iTotalThreat..'; iTotalByTeamThreat='..repru(iTotalByTeamThreat)..'; bRecordByTeam='..tostring(bRecordByTeam or false)) end
+        if bRecordByTeam then
+            if M28Utilities.IsTableEmpty(iTotalByTeamThreat) == false then
+                local iMaxThreat = 0
+                for iTeam, iThreat in iTotalByTeamThreat do
+                    iMaxThreat = math.max(iThreat, iMaxThreat)
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return iMaxThreat
+            else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return 0
+            end
+        else
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iTotalThreat
+        end
     end
     M28Profiler.ErrorHandler('Code shouldve returend before now, will return 0')
     return 0
