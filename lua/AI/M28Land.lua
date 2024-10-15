@@ -9433,10 +9433,11 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
         local bHaveFirebase = false
         local tArtiLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
         local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
+        local tAllT2PD = EntityCategoryFilterDown(M28UnitInfo.refCategoryT2PlusPD, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
-        if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
+        if M28Utilities.IsTableEmpty(tAllT2Arti) == false and M28Utilities.IsTableEmpty(tAllT2PD) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
-            if table.getn(tAllT2Arti) >= 3 then bHaveFirebase = true
+            if table.getn(tAllT2Arti) >= 3 and table.getn(tAllT2PD) >= 4 then bHaveFirebase = true
             else
                 local iConstructedT2Arti = 0
                 local iShieldedT2Arti = 0
@@ -9449,7 +9450,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iConstructedT2Arti='..iConstructedT2Arti..'; iShieldedT2Arti='..iShieldedT2Arti) end
-                if iConstructedT2Arti >= 1 and (M28Utilities.bLoudModActive or (iConstructedT2Arti >= 2 and iShieldedT2Arti >= 1)) then
+                if iConstructedT2Arti >= 2 and (M28Utilities.bLoudModActive or (iConstructedT2Arti >= 3 and iShieldedT2Arti >= 2)) then
                     local iModDistThreshold = 0.5
                     if M28Map.iMapSize >= 1024 then iModDistThreshold = 0.45
                     elseif M28Map.iMapSize >= 512 then iModDistThreshold = 0.55

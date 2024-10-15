@@ -820,7 +820,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             if EntityCategoryContains(refCategoryStructure, oUnit.UnitId) then
                                 --T2 arti - reduce its value because it sucks
                                 if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
-                                    iMassMod = iMassMod * 0.6
+                                    iMassMod = iMassMod * 0.3 -- Don't respect T2 Artillery as much
                                 elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
                                     iMassMod = iMassMod * 1.5
                                 else
