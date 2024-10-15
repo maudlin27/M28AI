@@ -1251,7 +1251,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     --Lots of facs and are stalling
                 elseif iAverageCurAirAndLandFactories >= 4 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 50 and not(bIgnoreMainEcoConditions)) or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and (not(bIgnoreMainEcoConditions) or iAverageCurAirAndLandFactories * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / 4))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have too little mass stored and atl east 4 factories per player so wont build more even if we lack air') end
-
+                    --Reached experimental stage of game and have <20% mass stored
+                elseif iAverageCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 or TeamHasLowMass(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 4 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 30) and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont get more factories than already have as have built several experimentals') end
                     --Teamgame with high number of factories
                 elseif iTeamCount > 1 and iAverageCurAirAndLandFactories >= 3 and iAverageCurAirAndLandFactories * iTeamCount >= 10 and iAverageCurAirAndLandFactories >= (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0) and TeamHasLowMass(iTeam) then
                     --Dont want more factories

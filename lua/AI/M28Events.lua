@@ -166,7 +166,16 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                         --T2 arti firebase tracking if they get lots of kills:
                         if oUnitKilled:GetAIBrain().M28AI then
-                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(oUnitKilled:GetAIBrain().M28Team, oKillerUnit) end
+                            local iTeam = oUnitKilled:GetAIBrain().M28Team
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(iTeam, oKillerUnit) end
+                            --Track non-experimental air units
+                            if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oUnitKilled.UnitId) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitKilled.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                else
+                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                end
+                            end
                         end
 
                         --M28 specific killer logic
@@ -202,6 +211,14 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         end
                                     end
 
+                                end
+                                --Gunship and strat bomber tracking (non-experimental)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
+                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                else
+                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 end
                             end
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
@@ -2331,7 +2348,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
                             aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
                         end
-                    elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
+                    elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) or (oJustBuilt:GetBlueprint().Intel.RadarStealth and oJustBuilt:GetBlueprint().General.OrderOverrides.RULEUTC_StealthToggle) then
                         --Make sure stealth is enabled
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
@@ -2924,6 +2941,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
                             M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                             M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
+                            if EntityCategoryContains(categories.STEALTH, oUnit.UnitId) or (oUnit:GetBlueprint().Intel.RadarStealth and oUnit:GetBlueprint().General.OrderOverrides.RULEUTC_StealthToggle) then
+                                --Make sure stealth is enabled
+                                M28UnitInfo.EnableUnitStealth(oUnit)
+                            end
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': we have just built a mex so will call logic relating to that') end
                                 ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
