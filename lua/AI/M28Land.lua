@@ -3175,8 +3175,9 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     --Gameender duty - have RAS SACUs assist with building a gameender/t3 arti/novax in the zone and associated shielding, if we have an active template
     local bProceed = true
     if bDebugMessages == true then LOG(sFunctionRef..': Start of RAS code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; Time since last wanted SACU for exp='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0))) end
-    function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction)
+    function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction, iOptionalEngineerActionForTracking)
         --toSACUByFaction - only needed if iOptionalFactionWanted is specified
+        --iOptionalEngineerActionForTracking - if specified, then will call trackengineer function
         local oPrimaryEngineer
         if iOptionalFactionWanted then
             oPrimaryEngineer = toSACUByFaction[iOptionalFactionWanted][1]
@@ -3216,6 +3217,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to build '..sBlueprint..' at build location '..repru(tBuildLocation)) end
                             M28Orders.IssueTrackedBuild(oSACU, tBuildLocation, sBlueprint, false, 'SACUExpBld')
                         end
+                        if iOptionalEngineerActionForTracking and not(oSACU[M28Engineer.refiAssignedAction] == iOptionalEngineerActionForTracking) then M28Engineer.TrackEngineerAction(oSACU, iOptionalEngineerActionForTracking, iSACU == 1, 1, nil, nil, false) end
                         --M28Engineer.TrackEngineerAction(oSACU, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
                     end
                 end
@@ -3348,7 +3350,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to use RAS SACUs to build SMD, iSMDBPWanted='..iSMDBPWanted..'; bAssistSMD='..tostring(bAssistSMD)..'; oSMDToShield='..(oSMDToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSMDToShield) or 'nil')..'; oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
             if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 and not(bAssistSMD) and not(oSMDToShield) and not(oShieldToAssist) then
                 bBuildingSMD = true
-                BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD)
+                BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD, nil, nil, M28Engineer.refActionBuildSMD)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bBuildingSMD='..tostring(bBuildingSMD)..'; Time since last wanted SMD='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0)) end
@@ -3377,7 +3379,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
                         end
                     else
-                        BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction)
+                        BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
                     end
                 end
             end
@@ -3509,17 +3511,20 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
 
             --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
-            local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            --(dont do this in LOUD unless near unit cap since wont be getting RAS SACUs)
             local oGateway
             local bNotAssistingGateway = true
             local bHaveRASGateway = false
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
-            if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
-                for iUnit, oUnit in tQuantumGateways do
-                    oGateway = oUnit
-                    if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
-                        bHaveRASGateway = true
-                        break
+            if not(M28Utilities.bLoudModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
+                local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
+                if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+                    for iUnit, oUnit in tQuantumGateways do
+                        oGateway = oUnit
+                        if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
+                            bHaveRASGateway = true
+                            break
+                        end
                     end
                 end
             end
@@ -3547,9 +3552,13 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                                     for iUnit, oUnit in tNearbyFriendlyGateway do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
                                         if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
-                                            oGateway = oUnit
-                                            break
+                                            --Check factory is building something
+                                            if oUnit:GetWorkProgress() > 0 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
+                                                oGateway = oUnit
+                                                break
+                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Gateway appears idle so will keep searching')
+                                            end
                                         end
                                     end
                                 end
@@ -5537,10 +5546,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     --If the angle towards the rally point is similar to the angle towards the enemy then instead run from the nearest enemy
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will either backup to rally point, or away from nearest enemy, is M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])))
                                                         if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
-                                                            LOG(sFunctionRef..': Angle dif for closest enemy and rally='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)))
+                                                            LOG(sFunctionRef..': Angle from closest enemy to unit='..M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())..'; Angle to rally from unit='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)..'; dif for closest enemy to unit; vs unit to rally='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)))
                                                         end
                                                     end
-                                                    if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)) <= 70 then
+                                                    --If retreating in opposite direction to nearest enemy would take us a significantly different angle to the rally point then retreat in opposite direction; however if there woudl't be much dif (i.e. within 45 degrees, so 90 degrees overall) then just go to the rally point instead of the opposite direction
+                                                    if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)) > 45 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and go to temporary retreat location by moving in opposite direction to nearest enemy unit, since going to the rally would take us a signif dif angle') end
                                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                         local iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
                                                         local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), (iBackupDist or 9) - 1, true, false, M28Map.bIsCampaignMap)
@@ -5549,11 +5560,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tTemporaryRetreatLocation, iPlateau, 'AKRetNE'..iLandZone, true, math.min(iBackupDist, 9))
                                                             --M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 6, false, 'AKRetNE'..iLandZone)
                                                         else
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': If we moved ino pposite direction to enemy unit it wouldnt be that different to going to rally point so will go to rally point') end
                                                             ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tAmphibiousRallyPoint, iPlateau, 'AKRetFA', true, math.min(iBackupDist, 9))
                                                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                             --M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AKRetFA'..iLandZone)
                                                         end
                                                     else
+                                                        --Not much dif in angle so will just go to the rally point
                                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will try and backup to amphibious rally point, tAmphibiousRallyPoint='..repru(tAmphibiousRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())) end
                                                         ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tAmphibiousRallyPoint, tLZData[M28Map.subrefLZIslandRef], 'AKRetr'..iLandZone)
@@ -5950,22 +5963,22 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 LOG(sFunctionRef..': Want unit to move towards tAmphibiousRallyPoint, position to move to towards this='..repru(M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false, true))..'; cur position='..repru(oSRUnit:GetPosition())..'; Last orders='..reprs(oSRUnit[M28Orders.reftiLastOrders])..'; Angle from cur position to new position='..M28Utilities.GetAngleFromAToB(oSRUnit:GetPosition(), tAmphibiousRallyPoint)..'; IgnoreOrderDueToStuckUnit(oSRUnit)='..tostring(IgnoreOrderDueToStuckUnit(oSRUnit)))
                                             end
                                             --if not(IgnoreOrderDueToStuckUnit(oSRUnit)) then --(removed in v129 as was having cases of SR units suiciding into enemy due to this, and since we are here we want the SR unit to run from enemy and dont have enough threat to overwhelm enemy
-                                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true), 5, false, 'ASRSup'..iLandZone)
+                                            M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true), 5, false, 'ASRSup'..iLandZone)
                                             --end
                                         else
                                             --if not(IgnoreOrderDueToStuckUnit(oSRUnit)) then
-                                                M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true), 5, false, 'AASRSup'..iLandZone)
+                                            M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), iDistToRetreat, true, false, true), 5, false, 'AASRSup'..iLandZone)
                                             --end
                                         end
 
                                     else
                                         if oSRUnit[M28UnitInfo.refbCanKite] then
                                             --if not(IgnoreOrderDueToStuckUnit(oSRUnit)) then --(removed in v129 as was having cases of SR units suiciding into enemy due to this, and since we are here we want the SR unit to run from enemy and dont have enough threat to overwhelm enemy
-                                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), iDistToRetreat, true, false, true), 4, false, 'SRSup'..iLandZone)
+                                            M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), iDistToRetreat, true, false, true), 4, false, 'SRSup'..iLandZone)
                                             --end
                                         else
                                             --if not(IgnoreOrderDueToStuckUnit(oSRUnit)) then
-                                                M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), iDistToRetreat, true, false, true), 4, false, 'SRASup'..iLandZone)
+                                            M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), iDistToRetreat, true, false, true), 4, false, 'SRASup'..iLandZone)
                                             --end
                                         end
                                     end

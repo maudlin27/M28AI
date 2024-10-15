@@ -604,8 +604,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     for iTarget, oTarget in tUnitsToConsiderDodgeFor do
                         bCancelDodge = false
                         if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()) end
-                        --Does the shot do enough damage that we want to try and doge it?
-                        if oWeaponBP.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and ((oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.0035)) or (oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.006)))) then
+                        --Does the shot do enough damage that we want to try and dodge it? (experimentals - consider high damage shots like ythotha ball)
+                        if ((oTarget[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oTarget)) < 12500 or oWeaponBP.Damage >= 3000) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and ((oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.0035)) or (oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.006))))) then
                             --Do we think we can dodge the shot?
                             --If we are a large unit then only dodge if will be a while for the shot to hit
                             local oBP = oTarget:GetBlueprint()
