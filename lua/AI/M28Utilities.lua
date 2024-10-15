@@ -38,7 +38,9 @@ bSteamActive = false
 bLCEActive = false --LOUD community edition
 
 function ConsiderIfLoudActive()
-    LOG('About to consider whether LOUD or Steam is active')
+    local bDebugMessages = false --simplified setup/no profiling as dont want to call profiler at this stage since hardly anything will have loaded and might cause compatibility headaches
+    local sFunctionRef = 'ConsiderIfLoudActive'
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether LOUD or Steam is active') end
     if not(bFAFActive) and not(bSteamActive) then
         --Further check for if FAF active
         local file_exists = function(name)
@@ -60,19 +62,23 @@ function ConsiderIfLoudActive()
                 --Check if LCE is also active
                 if file_exists('/mods/QUIET-Community-Edition/mod_info.lua') then
                     bLCEActive = true
+                elseif file_exists('/mods/QUIET-Community-Edition/mod_info.lua') then
+                    bLCEActive = true
                 end
-                --if bLCEActive then
-                    --This doesn't work, commenting out:
-                    --Check if LCE is active as a mod (in case the file isn't there)
-                    --local tSimMods = __active_mods or {}
-                    --bLCEActive = false
-                    --for iMod, tModData in tSimMods do
-                    --    if tModData.enabled and not (tModData.ui_only) and tModData.name == 'QUIET' then
-                    --        bLCEActive = true
-                    --        break
-                    --    end
-                    --end
-                --end
+                if bLCEActive then
+                    --Make sure by checking active SIM mods
+                    bLCEActive = false
+                    local tSimMods = __active_mods or {}
+                    for iMod, tModData in tSimMods do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iMod='..iMod..'; Mod name='..(tModData.name or 'nil')..'; tModData.enabled='..tostring(tModData.enabled or false)..'; tModData.ui_only='..tostring(tModData.ui_only or false)) end
+                        if tModData.enabled and not (tModData.ui_only) then --Note: pre-v1.52 of QUIET there was a bug where the mod wouldn't have .enabled set to true, Azraeel mentioned this should be fixed as of v1.52
+                            if tModData.name == 'LOUD Community Edition' or tModData.name == 'QUIET' then
+                                bLCEActive = true
+                                break
+                            end
+                        end
+                    end
+                end
                 LOG('M28AI: Flagging that LOUD mod is active, does LCE file exist='..tostring(file_exists('/mods/QUIET-Community-Edition/mod_info.lua'))..'; bLCEActive='..tostring(bLCEActive))
             else
                 --Assume steam version
