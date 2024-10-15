@@ -5509,8 +5509,13 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
                 --If we have suffered significant gunship losses vs kills the nfurther increase the base factor
                 if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] then
-                    iGunshipThreatFactorForSameZone = iGunshipThreatFactorForSameZone * (1 + math.min(1.5, 1 * (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] - 10000) / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Adjusted gunship threat base factor for high gunship losses, M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]..'; M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]..'; iGunshipThreatFactorForSameZone post update='..iGunshipThreatFactorForSameZone) end
+                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] then
+                        --i.e. want to try and reduce the risk we decide to engage pre-10k losses; suffer a couple of losses when attacking, and that causes us to retreat from a fight we could've won
+                        iGunshipThreatFactorForSameZone = iGunshipThreatFactorForSameZone * (1 + math.min(1.35, 0.9 * (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] - 10000) / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))
+                    else
+                        iGunshipThreatFactorForSameZone = iGunshipThreatFactorForSameZone * (1 + math.min(1.5, 1 * (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] - 10000) / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adjusted gunship threat base factor for high gunship losses, M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]..'; M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]='..M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]..'; iGunshipThreatFactorForSameZone post update='..iGunshipThreatFactorForSameZone..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle])) end
                 end
 
                 local bCheckForAirAA = true
