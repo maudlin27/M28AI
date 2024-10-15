@@ -524,24 +524,20 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         if (tWZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
             if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
-                if M28Utilities.bLoudModActive then
-                    if M28Utilities.bLCEActive then
-                        iMaxShieldRating = 4000 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.5
-                    else
-                        iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
-                    end
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+                    iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
                 else
                     iMaxShieldRating = math.min(3200 + (tWZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
                 end
             else
                 iMaxShieldRating = tWZTeamData[M28Map.subrefThreatEnemyShield]
             end
-            if M28Utilities.bLoudModActive then
+            if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
                 iMaxShieldRating = iMaxShieldRating + 0.5 * math.min(5000, tWZTeamData[M28Map.subrefThreatEnemyShield]) --shields are really good in LOUD
             end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
-                if M28Utilities.bLCEActive then iShieldMaxFactor = 2
+                if M28Utilities.bLCEActive then iShieldMaxFactor = 1
                 else iShieldMaxFactor = 4
                 end
             end
