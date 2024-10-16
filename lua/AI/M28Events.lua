@@ -2602,6 +2602,7 @@ function OnTransportUnload(oUnit, oTransport, bone)
     if M28Utilities.bM28AIInGame then
         if M28UnitInfo.IsUnitValid(oTransport) and oTransport:GetAIBrain().M28AI then
             oTransport[M28Air.refiTransportTimeSpentWaiting] = 0
+            oTransport[M28Air.refbEmergencyDropActive] = nil
             if oTransport[M28Air.refiTargetIslandForDrop] then
                 oUnit[M28Air.refiLastIslandDrop] = oTransport[M28Air.refiTargetIslandForDrop]
                 oUnit[M28Air.refiTimeLastDropped] = GetGameTimeSeconds()
