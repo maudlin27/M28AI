@@ -4627,6 +4627,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                 end
 
+                --T3 bombers if enemy has mobile AA or Experimentals
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
+                if iEnemyNearbyAA >= 12500 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has mobile AA or Experimentals, want T3 bombers') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
+                end
+
                 --Bombers if have enemies in adjacent water zone and no enemy air units in cur zone, or AirAA if enemy air units are there, up to a distance of 250
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
