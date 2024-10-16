@@ -4943,8 +4943,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
-        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(3500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
+        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(250, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
         else
@@ -5310,7 +5310,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --Add special bombardment ship categories
     --Seraphim T2 - get bombardment ships
-    if iFactoryTechLevel == 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
+    if iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
         if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships, sBPIDToBuild='..sBPIDToBuild) end
         return sBPIDToBuild
     elseif iFactoryTechLevel >= 3 then
