@@ -10081,10 +10081,12 @@ function DelayedGetFirstEnhancementOnUnitForT3Factory(oUnit, iDelayInSeconds)
                         for sPrerequiste in tEnhancementData.Prerequisite:gfind("%S+") do
                             table.insert(tPrerequisites, sPrerequiste)
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': tPrerequisites for '..sEnhancement..'='..repru(tPrerequisites)) end
                         --Loop through all prerequisites and try to get them
                         for _, sPrerequiste in tPrerequisites do
                             if not(oUnit:HasEnhancement(sPrerequiste)) then
                                 M28Orders.IssueTrackedEnhancement(oUnit, sPrerequiste, true, 'GetUEnh')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just tried to get '..sPrerequiste..' as a prerequisite for '..sEnhancement) end
                             end
                         end
                     end
@@ -10098,6 +10100,7 @@ function DelayedGetFirstEnhancementOnUnitForT3Factory(oUnit, iDelayInSeconds)
                         if bDebugMessages == true then LOG(sFunctionRef..': Is tLZTeamData nil='..tostring(tLZTeamData == nil)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
                         if tLZTeamData and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange])) then
                             M28Orders.IssueTrackedEnhancement(oUnit, sEnhancement, true, 'GetUEnh')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just tried to get '..sEnhancement) end
                             --Flag as micro active so we dont abort
                             M28Micro.EnableUnitMicroUntilManuallyTurnOff(oUnit)
                             --oUnit[M28UnitInfo.refbSpecialMicroActive] = true
