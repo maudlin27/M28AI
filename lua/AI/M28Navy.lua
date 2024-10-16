@@ -537,7 +537,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
             end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
-                if M28Utilities.bLCEActive then iShieldMaxFactor = 1
+                if M28Utilities.bLCEActive then iShieldMaxFactor = 1.75 --mobile shields likely to have better recharge rates than FAF, and wouldn't expect shield structures in water
                 else iShieldMaxFactor = 4
                 end
             end
