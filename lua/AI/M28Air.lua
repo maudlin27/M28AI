@@ -4533,7 +4533,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                 if bTorpBombers then
                     if bEnemyHasTorpDefence then
                         if M28Utilities.bLoudModActive then
-                            if M28Utilities.bLoudModActive and M28Utilities.bLCEActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.625
+                            if M28Utilities.bLCEActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.625
                             else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.8
                             end
                         else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
