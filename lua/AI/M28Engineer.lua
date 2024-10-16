@@ -13942,8 +13942,25 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                             if not(bHaveT2FactoriesOrEngineers) then bConsiderT2PD = false end
                         end
 
+                    elseif bConsiderT3PD then
+                        if iHighestNearbyEnemyRange >= 100 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then bConsiderT3PD = false
+                        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
+                            --Do we have T3 factories or engineers of any kind in this zone?
+                            local tT3Units = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory - categories.TECH1 + categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            local bHaveT3FactoriesOrEngineers = false
+                            if M28Utilities.IsTableEmpty(tT3Units) == false then
+                                for iUnit, oUnit in tT3Units do
+                                    if oUnit:GetFractionComplete() == 1 then
+                                        bHaveT3FactoriesOrEngineers = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not(bHaveT3FactoriesOrEngineers) then bConsiderT3PD = false end
+                        end
+
                     end
-                    if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
+                    if (iHighestNearbyEnemyRange <= 25 and bConsiderT2PD) or (iHighestNearbyEnemyRange <= 50 and bConsiderT3PD) then
                         local iExistingStructureThreat = 0
                         local bHaveLRPDThreat = false
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then

@@ -2876,9 +2876,8 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                             elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 2.5 then
                                 iTechLevelToUpgrade = 1
                             end
-                        end
                         --Always be upgrading a mex on LOUD Low Mass Style Maps
-                        if iTechLevelToUpgrade <= 1 and iMexesOnMap <= 60 then
+                        elseif iTechLevelToUpgrade <= 1 and iMexesOnMap <= 60 then
                             if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 2 then
                                 iTechLevelToUpgrade = 2
                             elseif iTechLevelToUpgrade == 0 and not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) then
