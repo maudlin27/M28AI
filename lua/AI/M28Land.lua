@@ -10031,3 +10031,82 @@ function DelayedGetFirstEnhancementOnUnit(oUnit, iDelayInSeconds)
         end
     end
 end
+
+--[[
+    This function is used to put enhancements on a factory after it has been built. When called, it will wait for iDelayInSeconds seconds, then try to get the first enhancement on the factory. If the unit is a T3 factory, it will only get enhancements that are not FactoryShield or Sonar.
+
+    The reason for this function is because sometimes when a unit is built, it is not ready to accept enhancements yet. This function waits until the unit is ready, then tries to get the enhancements.
+
+    If the unit is in a safe situation, then it will try to get the enhancement. If the enhancement has prerequisites, then it will first try to get the prerequisites.
+
+    This function is used by the OnBuilt to get enhancements on factories after they have been built and upgraded to Tech 3.
+
+    Bugs:
+    Currently there is a bug with M28Orders Logic where it is conflicting and removing enhancements. This needs to be fixed will leave this to Maudlin as I think I've did a lot of leg work to get this implemented!
+    
+    Notes
+    We probably need to include a few economic considerations here for the Improvement Production Upgrades as these add a total of 60 Additional Buildpower 
+    but I think this will be fine later game as I think he should start upgrading them only after 45+ Minutes in-game and if the game state is favorable towards him and he's got excess mass
+    --
+    For the AdvancedMaterials Upgrades these should basically always be gotten after 50+ Minutes as the resource saving is massive. 20% Resources are saved if both upgrades are gotten (Massive for expensive T3.5 Units especially)
+    -- 
+    I excluded Sonar & Shield upgrades as M28 doesnt need them maybe the Shield Upgrade in super specific situations but nonetheless excluded.
+--]]
+
+function DelayedGetFirstEnhancementOnUnitForT3Factory(oUnit, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    local sFunctionRef = 'DelayedGetFirstEnhancementOnUnitForT3Factory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(categories.FACTORY * categories.TECH3, oUnit) then
+        local tEnhancements = oUnit:GetBlueprint().Enhancements
+        if tEnhancements then
+            if bDebugMessages == true then LOG(sFunctionRef..': tEnhancements='..repru(tEnhancements)) end
+            --Loop through all enhancements and try to get the first one that is not FactoryShield or Sonar
+            for sEnhancement, tEnhancementData in tEnhancements do
+                if not(sEnhancement == 'InstallFactoryShieldRemove'
+                or sEnhancement == 'InstallT3SonarRemove'
+                or sEnhancement == 'InstallT3Sonar'
+                or sEnhancement == 'InstallFactoryShield'
+                or sEnhancement == 'ExperimentalMaterielsRemove'
+                or sEnhancement == 'AdvancedMaterielsRemove'
+                or sEnhancement == 'ImprovedMaterielsRemove'
+                or sEnhancement == 'AdvancedProductionRemove'
+                or sEnhancement == 'ImprovedProductionRemove') and not(oUnit:HasEnhancement(sEnhancement)) then
+                    --Check if the enhancement has prerequisites
+                    if tEnhancementData.Prerequisite then
+                        local tPrerequisites = {}
+                        --Split the prerequisites into a table of enhancements
+                        for sPrerequiste in tEnhancementData.Prerequisite:gfind("%S+") do
+                            table.insert(tPrerequisites, sPrerequiste)
+                        end
+                        --Loop through all prerequisites and try to get them
+                        for _, sPrerequiste in tPrerequisites do
+                            if not(oUnit:HasEnhancement(sPrerequiste)) then
+                                M28Orders.IssueTrackedEnhancement(oUnit, sPrerequiste, true, 'GetUEnh')
+                            end
+                        end
+                    end
+                    --Check if the unit is in a safe situation
+                    while oUnit[M28UnitInfo.refbSpecialMicroActive] and M28UnitInfo.IsUnitValid(oUnit) do
+                        WaitSeconds(1)
+                    end
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        local iTeam = oUnit:GetAIBrain().M28Team
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tLZTeamData nil='..tostring(tLZTeamData == nil)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+                        if tLZTeamData and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange])) then
+                            M28Orders.IssueTrackedEnhancement(oUnit, sEnhancement, true, 'GetUEnh')
+                            --Flag as micro active so we dont abort
+                            M28Micro.EnableUnitMicroUntilManuallyTurnOff(oUnit)
+                            --oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                            if oUnit[M28UnitInfo.refbLowerPriorityMicroActive] then oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get enhancement for the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end

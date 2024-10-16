@@ -1971,6 +1971,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif M28Utilities.bLoudModActive and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
+                    
+                    -- I didn't know where else to put this logic but it's here
+                    -- probably can be moved into a different place and forked when the factory is upgraded to tech 3 (why didn't I just do this....)
+                    -- but for now it's here for the Pull Request
+                    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.FACTORY * (categories.TECH1 + categories.TECH2 + categories.TECH3), oEngineer.UnitId) then
+                        ForkThread(M28Land.DelayedGetFirstEnhancementOnUnitForT3Factory, oJustBuilt, 6) 
+                    end 
 
                     --Experimental air - no longer record in land/water zone
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oJustBuilt.UnitId) then
