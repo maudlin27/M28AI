@@ -571,7 +571,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
             if tLZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
-                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then --QCE now has logic for overlapping shields to take damage and has increased recharge times
                     iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
                 else
                     iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
@@ -584,7 +584,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
-                if M28Utilities.bLCEActive then iShieldMaxFactor = 1
+                if M28Utilities.bLCEActive then iShieldMaxFactor = 1.25 --Az: Static shields nerfed to FAF values in QCE; mobile shields not; since shield threat includes both will do 1.25 as a rough approximation/allowance for there potentially being mobile shields that are good for their mass cost
                 else iShieldMaxFactor = 4
                 end
             end
