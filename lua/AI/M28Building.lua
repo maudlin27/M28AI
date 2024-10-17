@@ -30,6 +30,7 @@ bNovaxInGame = false
 iLowestAirStagingTechAvailable = 3
 iLowestMassStorageTechAvailable = 3
 iLowestEnergyStorageTechAvailable = 3
+tiWorstPDRangeByTech = {[1]=200,[2]=200,[3]=200,[4]=200}
 
 --Variables against a unit:
     --TML and TMD
