@@ -3459,6 +3459,9 @@ function SetPreferredUnitsByCategory(aiBrain)
                 aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1000
                 aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
             end
+            aiBrain[reftBlueprintPriorityOverride]['urs0303'] = -1
+            aiBrain[reftBlueprintPriorityOverride]['uas0303'] = -1
+            aiBrain[reftBlueprintPriorityOverride]['xss0303'] = -1
         end
 
         --Prioritise ASFs as penetration fighters dont seem to fire consistently in LOUD
@@ -4943,15 +4946,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(3500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
-        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(250, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
+        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
-        else
-            --Frigates should be a faster way of getting basic AA
-            if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA via frigate') end
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
         end
+        --Frigates should be a faster way of getting basic AA
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA via frigate') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -5239,7 +5241,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     end
                 end
 
-                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.5) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
+                if (M28Utilities.bLoudModActive and M28Utilities.bLCEActive and iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.5) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))))
+                or ((not(M28Utilities.bLoudModActive) or not(M28Utilities.bLCEActive)) and (iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.4) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))))) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Will try get AA unless t1 with lots or we are close to base and havent come across any enemy air threats yet, enemy air to ground threat='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; bHaveWantedAA='..tostring(bHaveWantedAA or false)..'; Is location in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]))..'; iDistThatDeferredAA='..(iDistThatDeferredAA or 'nil')..'; bEncounteredEnemyAirThreat='..tostring(bEncounteredEnemyAirThreat or false)) end
                     --Had issue where would overbuild carriers for AA due to
                     if bEncounteredEnemyAirThreat or tSubtable[M28Map.subrefWZAWZDistance] >= 450 or tOtherWZTeamData[M28Map.refiModDistancePercent] >= 0.5 or iOurCumulativeCombatThreat >= 60000 or (iDistThatDeferredAA and iDistThatDeferredAA + 200 < tSubtable[M28Map.subrefWZAWZDistance]) then
