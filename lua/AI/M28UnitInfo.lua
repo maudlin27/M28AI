@@ -859,7 +859,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                         end
                         --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
                         if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                            iMassMod = iMassMod * 0.85 -- Let's build them slightly earlier
+                            iMassMod = iMassMod * 0.75
                         end
                         local iMassCost = (oBP.Economy.BuildCostMass or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end

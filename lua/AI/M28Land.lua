@@ -9431,11 +9431,10 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
         local bHaveFirebase = false
         local tArtiLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
         local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
-        --local tAllT2PD = EntityCategoryFilterDown(M28UnitInfo.refCategoryT2PlusPD, tArtiLZTeamData[M28Map.subrefTEnemyUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
-        if M28Utilities.IsTableEmpty(tAllT2Arti) == false then --[[and M28Utilities.IsTableEmpty(tAllT2PD) == false]]
+        if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
-            if table.getn(tAllT2Arti) >= 4 then --[[and table.getn(tAllT2PD) >= 4]]
+            if (M28Utilities.bLCEActive and table.getn(tAllT2Arti) >= 4) or (not(M28Utilities.bLCEActive) and table.getn(tAllT2Arti) >= 3) then
                 bHaveFirebase = true
             else
                 local iConstructedT2Arti = 0
