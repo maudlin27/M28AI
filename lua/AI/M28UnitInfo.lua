@@ -244,26 +244,7 @@ refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTF
 refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
 if categories.uel0106 and categories.url0106 and categories.ual0106 then
     refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
-else
-    --Exclude certain modded units from attackbot designation, but include in T1 indirect fire
-    if categories.brot1exm1 then
-        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brot1exm1
-    end
-    if categories.brmt1exm1 then
-        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brmt1exm1
-    end
-    if categories.uel0108 then
-        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.uel0108
-    end
-    if categories.brpt1exm1 then
-        refCategoryLightAttackBot = refCategoryLightAttackBot - categories.brpt1exm1
-    end
 end
-if categories.brot1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brot1exm1 end --has indirect fire attack as well
---if categories.brmt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brmt1exm1 end --doesnt have indirect attack
---if categories.uel0108 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end --doesnt have indirect attack
---if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brpt1exm1 end --doesnt have indirect attack
-
 
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
