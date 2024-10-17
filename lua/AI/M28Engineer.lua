@@ -4392,13 +4392,19 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                     iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
                 elseif iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
                     --Want to build either T2 or T2+ PD
-                    local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
-                    if iT2PD <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have 5 or fewer t2 pd so will get more t2 pd') end
+                    if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 5 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 then
                         iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
+                        --Just consider T2 PD, dont have good enough tech to try for t3 anyway
                     else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have at least 5 T2 PD so will get T2PlusPD') end
-                        iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
+                        local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
+                        if (M28Utilities.bLoudModActive and iT2PD <= 1 and (iT2PD == 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] <= 7)) or (not(M28Utilities.bLoudModActive) and (iT2PD <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dont have many t2 pd so will get more t2 pd (not T3)') end
+                            iCategoryToBuild = M28UnitInfo.refCategoryPD - categories.TECH3 - categories.EXPERIMENTAL
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have some T2 PD so will consider getting T3 PD if theyre buildable') end
+                            iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
+                            if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 12 then iCategoryToBuild = iCategoryToBuild - categories.EXPERIMENTAL end
+                        end
                     end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Have no T1 PD so will get T1 PD') end
@@ -13998,7 +14004,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                                     if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted..'; bConsiderT2PD='..tostring(bConsiderT2PD or false)..'; iExistingStructureThreat='..(iExistingStructureThreat or 'nil')..'; tPDStartPoint='..repru(tPDStartPoint)) end
-                                HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
+                                HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, iBPWanted, tPDStartPoint)
                             end
                         end
                     end
