@@ -4943,8 +4943,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
-        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(3500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
+        if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(250, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
         else
@@ -5239,7 +5239,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     end
                 end
 
-                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.4) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
+                if iOurCumulativeAAThreat < math.max(20000, iOurCumulativeCombatThreat * math.max(iMinAARatioWanted, 0.3), 20 * tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat], 4 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iOurCumulativeAAThreat * 0.5) and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > math.max(tiMAAThresholdByTech[iFactoryTechLevel], (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3))) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Will try get AA unless t1 with lots or we are close to base and havent come across any enemy air threats yet, enemy air to ground threat='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; bHaveWantedAA='..tostring(bHaveWantedAA or false)..'; Is location in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]))..'; iDistThatDeferredAA='..(iDistThatDeferredAA or 'nil')..'; bEncounteredEnemyAirThreat='..tostring(bEncounteredEnemyAirThreat or false)) end
                     --Had issue where would overbuild carriers for AA due to
                     if bEncounteredEnemyAirThreat or tSubtable[M28Map.subrefWZAWZDistance] >= 450 or tOtherWZTeamData[M28Map.refiModDistancePercent] >= 0.5 or iOurCumulativeCombatThreat >= 60000 or (iDistThatDeferredAA and iDistThatDeferredAA + 200 < tSubtable[M28Map.subrefWZAWZDistance]) then
@@ -5310,7 +5310,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --Add special bombardment ship categories
     --Seraphim T2 - get bombardment ships
-    if iFactoryTechLevel == 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
+    if iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
         if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships, sBPIDToBuild='..sBPIDToBuild) end
         return sBPIDToBuild
     elseif iFactoryTechLevel >= 3 then
