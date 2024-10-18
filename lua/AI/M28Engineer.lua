@@ -4403,7 +4403,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Have some T2 PD so will consider getting T3 PD if theyre buildable') end
                             iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
-                            if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 12 then iCategoryToBuild = iCategoryToBuild - categories.EXPERIMENTAL end
+                            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 12 then iCategoryToBuild = iCategoryToBuild - categories.EXPERIMENTAL end
                         end
                     end
                 else
