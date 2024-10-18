@@ -571,24 +571,20 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
             if tLZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
-                if M28Utilities.bLoudModActive then
-                    if M28Utilities.bLCEActive then
-                        iMaxShieldRating = 4000 + (tLZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.5
-                    else
-                        iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
-                    end
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then --QCE now has logic for overlapping shields to take damage and has increased recharge times
+                    iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
                 else
                     iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
                 end
             else
                 iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
             end
-            if M28Utilities.bLoudModActive then
+            if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
                 iMaxShieldRating = iMaxShieldRating + 0.5 * math.min(5000, tLZTeamData[M28Map.subrefThreatEnemyShield]) --shields are really good in LOUD
             end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
-                if M28Utilities.bLCEActive then iShieldMaxFactor = 2
+                if M28Utilities.bLCEActive then iShieldMaxFactor = 1.25 --Az: Static shields nerfed to FAF values in QCE; mobile shields not; since shield threat includes both will do 1.25 as a rough approximation/allowance for there potentially being mobile shields that are good for their mass cost
                 else iShieldMaxFactor = 4
                 end
             end
@@ -5585,7 +5581,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                                     --LOUD specific - some units (e.g. hoplites) can't kite as well as they can in FAF
                                                     local bAttackMove = false
-                                                    if M28Utilities.bLoudModActive and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 100) + 2 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
+                                                    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 100) + 2 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
                                                         bAttackMove = true
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will use attack move for skirmisher '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
                                                     end
@@ -9438,7 +9434,8 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
         if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
-            if table.getn(tAllT2Arti) >= 3 then bHaveFirebase = true
+            if (M28Utilities.bLCEActive and table.getn(tAllT2Arti) >= 4) or (not(M28Utilities.bLCEActive) and table.getn(tAllT2Arti) >= 3) then
+                bHaveFirebase = true
             else
                 local iConstructedT2Arti = 0
                 local iShieldedT2Arti = 0

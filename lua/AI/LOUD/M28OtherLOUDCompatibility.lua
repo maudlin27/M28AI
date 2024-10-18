@@ -168,7 +168,18 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryGroundAA = M28UnitInfo.refCategoryGroundAA + categories.NAVALCARRIER
         M28UnitInfo.refCategoryBattlecruiser = M28UnitInfo.refCategoryBattlecruiser + categories.CRUISER * categories.UEF * categories.TECH3 * categories.DIRECTFIRE + categories.xes0307
         M28UnitInfo.refCategoryMissileShip = M28UnitInfo.refCategoryMissileShip + categories.NAVAL * categories.MOBILE * categories.INDIRECTFIRE * categories.BOMBARDMENT - categories.SUBMERSIBLE
-        M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE * categories.TECH2 + categories.NAVALCARRIER * categories.MOBILE * categories.TECH3 + categories.NAVALCARRIER * categories.EXPERIMENTAL * categories.MOBILE
+        M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE + categories.NAVALCARRIER * categories.MOBILE
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
+
+        --Az further changes for LCE
+        local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+        if M28Utilities.bLCEActive then
+            --(LCE removes the base exclusion of certain unit categories from lAB/addition to indirect fire, due to these being considered T0.5 units)
+            M28UnitInfo.refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
+            M28UnitInfo.refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
+            if categories.uel0106 and categories.url0106 and categories.ual0106 then
+                refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
+            end
+        end
     end
 end
