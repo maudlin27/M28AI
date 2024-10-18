@@ -170,5 +170,14 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryMissileShip = M28UnitInfo.refCategoryMissileShip + categories.NAVAL * categories.MOBILE * categories.INDIRECTFIRE * categories.BOMBARDMENT - categories.SUBMERSIBLE
         M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE + categories.NAVALCARRIER * categories.MOBILE
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
+
+        --Az further changes for LCE
+        if M28Utilities.bLCEActive then
+            M28UnitInfo.refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
+            M28UnitInfo.refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
+            if categories.uel0106 and categories.url0106 and categories.ual0106 then
+                refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
+            end
+        end
     end
 end
