@@ -172,6 +172,7 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
 
         --Az further changes for LCE
+        local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
         if M28Utilities.bLCEActive then
             M28UnitInfo.refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
             M28UnitInfo.refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
