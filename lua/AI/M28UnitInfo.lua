@@ -241,7 +241,7 @@ refCategoryEngineerStation = refCategoryRover + refCategoryHive + refCategoryKen
 refCategoryAntiAir = categories.ANTIAIR --used so we can identify units with decent AA threat
 refCategoryMAA = categories.LAND * categories.MOBILE * categories.ANTIAIR - categories.EXPERIMENTAL
 refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
+refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE --Adjusted further in LCE (see M28OtherLOUDCompatibility)
 if categories.uel0106 and categories.url0106 and categories.ual0106 then
     refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
 else
@@ -263,7 +263,6 @@ if categories.brot1exm1 then refCategoryIndirect = refCategoryIndirect + categor
 --if categories.brmt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brmt1exm1 end --doesnt have indirect attack
 --if categories.uel0108 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end --doesnt have indirect attack
 --if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brpt1exm1 end --doesnt have indirect attack
-
 
 refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
@@ -1384,6 +1383,17 @@ function CalculateBlueprintThreatsByType()
                     if EntityCategoryContains(refCategoryMassStorage, sUnitId) then M28Building.iLowestMassStorageTechAvailable = math.min(M28Building.iLowestMassStorageTechAvailable, iCurTechLevel) end
                     if EntityCategoryContains(refCategoryEnergyStorage, sUnitId) then M28Building.iLowestEnergyStorageTechAvailable = math.min(M28Building.iLowestEnergyStorageTechAvailable, iCurTechLevel) end
                     if bDebugMessages == true then LOG(sFunctionRef..': Just updated details of lowest storage tech available, sUnitId='..sUnitId..'; iCurTechLevel='..iCurTechLevel..'; Is mass storage='..tostring(EntityCategoryContains(refCategoryMassStorage, sUnitId))..'; Is energy storage='..tostring(EntityCategoryContains(refCategoryEnergyStorage, sUnitId))..'; Lowest mass s torage tech='..M28Building.iLowestMassStorageTechAvailable..'; Lowest energy storage tech='..M28Building.iLowestEnergyStorageTechAvailable..'; GetBlueprintTechLevel(sUnitId)='..GetBlueprintTechLevel(sUnitId)..'; GetTechLevelOfEngineerToBuildBlueprint(sUnitId)='..(GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 'nil')) end
+                elseif EntityCategoryContains(refCategoryPD, sUnitId) then
+                    local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
+                    local tUnitRef = {['UnitId']=sUnitId}
+                    RecordUnitRange(tUnitRef, true)
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..sUnitId..' with DF range='..(tUnitRef[refiDFRange] or 0)..'; iCurTechLevel='..iCurTechLevel) end
+                    if (tUnitRef[refiDFRange] or 0) > 0 then
+                        M28Building.tiWorstPDRangeByTech[iCurTechLevel] = math.min((M28Building.tiWorstPDRangeByTech[iCurTechLevel] or 200), tUnitRef[refiDFRange])
+                        if bDebugMessages == true then LOG(sFunctionRef..': tiWorstPDRangeByTech after update='..repru(M28Building.tiWorstPDRangeByTech)) end
+                    end
+                    bDebugMessages = false
                 end
 
                 if bCheckForVolatileUnits then
@@ -1599,11 +1609,15 @@ function GetBomberAOEAndStrikeDamage(oUnit)
     return iAOE, iStrikeDamage, iFiringRandomness
 end
 
-function GetUnitStrikeDamage(oUnit)
+function GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
     --Gets strike damage of the first weapon in oUnit (longer term might want to make better so it considers other weapons)
     --For bombers will be subject to a minimum value as some bombers will have
-    local oBP = oUnit:GetBlueprint()
+    local oBP
     local sBP = oUnit.UnitId
+    if bReferenceIsATableWithUnitId then
+        oBP = __blueprints[sBP]
+    else oBP = oUnit:GetBlueprint()
+    end
     local iStrikeDamage = 0
 
 
@@ -1631,10 +1645,10 @@ function GetUnitStrikeDamage(oUnit)
     elseif oBP.Weapon and oBP.Weapon[1] then
         iStrikeDamage = oBP.Weapon[1].Damage
     end
-        return iStrikeDamage
+    return iStrikeDamage
 end
 
-function RecordUnitRange(oUnit)
+function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     --Also updates if unit can kite
     --Also records unit strike damage for certain air units
@@ -1644,7 +1658,12 @@ function RecordUnitRange(oUnit)
 
 
 
-    local oBP = oUnit:GetBlueprint()
+    local oBP
+    if bReferenceIsATableWithUnitId then
+        oBP = __blueprints[oUnit.UnitId]
+    else
+        oBP = oUnit:GetBlueprint()
+    end
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
     local bReplaceValues, bIgnoreValues
@@ -1719,7 +1738,7 @@ function RecordUnitRange(oUnit)
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
-                    elseif oCurWeapon.WeaponCategory == 'Death' then
+                    elseif oCurWeapon.WeaponCategory == 'Death' or oCurWeapon.Label == 'DeathWeapon' then
                         --Do nothing - e.g. units like energy storage
                     elseif oCurWeapon.WeaponCategory == 'Bomb' then
                         --experimental wars - experimental spaceships have a 'bomb' weapon category
@@ -1800,7 +1819,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oUnit.UnitId == 'lab2320' then --barrarge artillery (not all of its weapons have indirect range cat)
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oUnit.UnitId == 'brnt3shbm' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --unit itself can targeta ir units; based on blueprint looks likely this is the riotgun
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --Confirmed for brnt3shbm and brnt3shpd - unit itself can target air units; based on blueprint looks likely this is the riotgun for brnt3shbm, while for the pd it looks like it's all 8 of the main guns
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     else
@@ -1857,7 +1876,7 @@ function RecordUnitRange(oUnit)
     end
     --Record unit best range
     oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))
-    oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+    oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
     --Record attackmove range if LOUD is active
     if oBP.AI.GuardScanRadius then oUnit[refiWeaponScanRange] = oBP.AI.GuardScanRadius end --want to be nil if not present; looks like this is a LOUD specific value from a couple of unit blueprint spot-checks
 

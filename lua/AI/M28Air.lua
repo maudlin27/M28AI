@@ -3972,15 +3972,24 @@ function ManageBombers(iTeam, iAirSubteam)
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
 
         local iSearchSize = 300
-        if M28Map.iMapSize > 512 then iSearchSize = 450 end
+        if M28Map.iMapSize > 512 then
+            if M28Utilities.bLoudModActive and M28Utilities.bLCEActive then
+                iSearchSize = 365 --Az preference
+            else
+                iSearchSize = 450
+            end
+        end
         local iAvailableBombers = table.getn(tAvailableBombers)
-        if iAvailableBombers >= 10 then iSearchSize = iSearchSize * 1.5 end
+        if iAvailableBombers >= 15 then iSearchSize = iSearchSize * 1.5 end
         if M28Map.bIsCampaignMap then
             iSearchSize = math.max(M28Map.iMapSize, iSearchSize * 1.5)
         end
         if iAvailableBombers >= 100 and (iAvailableBombers >= 300 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3))) then
             iSearchSize = iSearchSize * 2
         elseif M28Map.bIsCampaignMap and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchSize = iSearchSize * 1.5
+        end
+        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
+            iSearchSize = math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
         end
 
         --Consider snipe targets
@@ -3989,14 +3998,18 @@ function ManageBombers(iTeam, iAirSubteam)
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
             local bConsiderHigherTechUnitsFirst = false
-            if iOurBomberThreat >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableBombers)) == false then
+            if (iOurBomberThreat >= 2000 or (not(M28Utilities.bLCEActive) and iOurBomberThreat >= 1500)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableBombers)) == false then
                 bConsiderHigherTechUnitsFirst = true
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)) end
             if bConsiderHigherTechUnitsFirst then
-                --Consider high priority targets:
-                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy'))
+                --Consider higher priority relatively nearby targets:
+                local iHighPriorityCategories
+                if M28Utilities.bLoudModActive and M28Utilities.bLCEActive then iHighPriorityCategories = M28UnitInfo.refCategoryMobileLand * (categories.EXPERIMENTAL + categories.TECH3) + M28UnitInfo.refCategoryStructure * (categories.EXPERIMENTAL + categories.TECH3) - (categories.STRUCTURE * categories.ANTIAIR)
+                else iHighPriorityCategories = M28UnitInfo.refCategoryMobileLand * (categories.TECH3 + categories.EXPERIMENTAL) + M28UnitInfo.refCategoryStructure * (categories.TECH3 + categories.TECH2) + M28UnitInfo.refCategoryNavalSurface - categories.TECH1
+                end
+                FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * (categories.EXPERIMENTAL + categories.TECH3) + M28UnitInfo.refCategoryStructure * (categories.EXPERIMENTAL + categories.TECH3) - (categories.STRUCTURE * categories.ANTIAIR), tRallyPoint, 300, 'Enemy'))
                 if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
                 end
@@ -4039,6 +4052,22 @@ function ManageBombers(iTeam, iAirSubteam)
                     --Consider adjacent zones if are on a land zone, and the rally point is closer to our base than the enemy
                     local tbZonesConsideredByPlateau = {}
                     tbZonesConsideredByPlateau[iRallyPlateauOrZero] = {}
+                    local iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]
+                    if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
+                        iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 0.2
+                    else
+                        iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 0.15
+                    end
+                    if (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 and (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) >= 1000 then
+                        iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 1.2
+                    elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 then
+                        --No change
+
+                    elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) > (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) then
+                        iMaxEnemyGroundAAThreat = math.min(1.2, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) - 1)*0.35 + 1)
+                    else
+                        iMaxEnemyGroundAAThreat = math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
+                    end
                     if iRallyPlateauOrZero > 0 then
                         if (tRallyLZOrWZData[M28Map.refiModDistancePercent] or 0) <= 0.4 then
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -4047,7 +4076,9 @@ function ManageBombers(iTeam, iAirSubteam)
                                     local tAdjLZTeamData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                     FilterToAvailableTargets(tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                                     if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
-                                        AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLZOrWZ, iRallyPlateauOrZero, iAdjLZ, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iMaxEnemyGroundAAThreat * 1.5, nil, false, iAirSubteam, true, false, nil, false)) then
+                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                        end
                                         tEnemyTargets = {}
                                         if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
                                     end
@@ -4058,13 +4089,16 @@ function ManageBombers(iTeam, iAirSubteam)
                             --Consider adjacent water zones
                             if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                                 if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false then
+
                                     for iEntry, tSubtable in tRallyLZOrWZData[M28Map.subrefAdjacentWaterZones] do
                                         local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                                         local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; is table of enemy units empty for this zone='..tostring(M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]))) end
                                         FilterToAvailableTargets(tAdjWZTeamData[M28Map.subrefTEnemyUnits])
                                         if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
-                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                            if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLZOrWZ, 0, iAdjWZ, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iMaxEnemyGroundAAThreat * 1.5, nil, false, iAirSubteam, true, false, nil, false)) then
+                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                            end
                                             tEnemyTargets = {}
                                             if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
                                         end
@@ -4080,12 +4114,6 @@ function ManageBombers(iTeam, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                     local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
                                     local iCurGroundAAThreat
-                                    local iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]
-                                    if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
-                                        iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 0.2
-                                    else
-                                        iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 0.15
-                                    end
 
                                     for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                         local iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
@@ -4532,10 +4560,14 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                 if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
                 if bTorpBombers then
                     if bEnemyHasTorpDefence then
-                        if M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.8
+                        if M28Utilities.bLoudModActive then
+                            if M28Utilities.bLCEActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.625
+                            else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.8
+                            end
                         else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
                         end
-                    elseif M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.25
+                    else
+                        if M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.25 end
                     end
                 end
                 local tBasePosition = oEnemyUnit:GetPosition()
@@ -4813,8 +4845,6 @@ function ManageGunships(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
 
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
@@ -5203,7 +5233,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
                     --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
                     if iOurGunshipThreat >= 10000 then
-                        if M28Utilities.bLoudModActive then
+                        if M28Utilities.bLoudModActive and (not(M28Utilities.bLCEActive) or M28Utilities.refiGunshipLosses >= 10000) then
                             iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
                             if iOurGunshipThreat >= 20000 then
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
@@ -5513,7 +5543,11 @@ function ManageGunships(iTeam, iAirSubteam)
                     iGunshipThreatFactorForSameZone = 1.6
                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorForSameZone = 0.01 end
                 elseif M28Utilities.bLoudModActive then
-                    iGunshipThreatFactorForSameZone = 3 --gunships are much weaker in LOUD; we will also increase the % threshold later as well by a further %
+                    if M28Utilities.bLCEActive then --Gunships no longer get slowed down/lose fuel when taking damage, so won't be quite as bad in QCE; Az also mentioned their damage should be similar to FAF levels, although concern from replays seen so far is effective DPS is significantly lower due to targeting
+                        iGunshipThreatFactorForSameZone = 2.2
+                    else
+                        iGunshipThreatFactorForSameZone = 3 --gunships are much weaker in LOUD; we will also increase the % threshold later as well by a further %
+                    end
                 end
                 --If we have suffered significant gunship losses vs kills the nfurther increase the base factor
                 if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] then
@@ -5666,8 +5700,12 @@ function ManageGunships(iTeam, iAirSubteam)
                                                         iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
-                                                elseif M28Utilities.bLoudModActive then --make gunships less likely to attack
-                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
+                                                elseif M28Utilities.bLoudModActive then
+                                                    if M28Utilities.bLCEActive then --make gunships less likely to attack
+                                                        iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1
+                                                    else
+                                                        iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
+                                                    end
                                                 end
                                             else
                                                 if tSubtable[M28Map.subrefiDistance] <= 200 then
@@ -5675,12 +5713,16 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 else
                                                     iGunshipThreatFactorWanted = 4.5
                                                 end
-                                                if M28Utilities.bLoudModActive then iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 end --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
+                                                if M28Utilities.bLCEActive then --make gunships less likely to attack
+                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1
+                                                else
+                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
+                                                end
                                             end
                                             --Reduce threat factor if we have air control
                                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iGunshipThreatFactorWanted = math.max(math.min(2.7, iGunshipThreatFactorWanted), iGunshipThreatFactorWanted * 0.8) end
                                             --Non-LOUD - Reduce gunship threat factor if we have T3 gunships and our overall threat factor means enemy wouldnt have more than 3 SAMs (even 4 SAMs shouldnt do enough damage to 1-shot a gunship)
-                                            if M28Utilities.bLoudModActive and bHaveT3Gunships and iGunshipThreatFactorWanted > 2.05 and (iOurGunshipThreat / iGunshipThreatFactorWanted <= 5000 or tSubtable[M28Map.subrefiDistance] <= 60) then --3 sams is 4800
+                                            if (not(M28Utilities.bLoudModActive) or (M28Utilities.bLCEActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < 10000)) and bHaveT3Gunships and iGunshipThreatFactorWanted > 2.05 and (iOurGunshipThreat / iGunshipThreatFactorWanted <= 5000 or tSubtable[M28Map.subrefiDistance] <= 60) then --3 sams is 4800
                                                 if M28Map.bIsCampaignMap then
                                                     iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted * 0.6)
                                                 else

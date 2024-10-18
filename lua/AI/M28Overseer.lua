@@ -459,6 +459,7 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
+        ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
         if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT then
             ForkThread(M28Economy.AdjustAIxOverwhelmRate)
         end
@@ -592,7 +593,6 @@ function Initialisation(aiBrain)
     aiBrain[refbInitialised] = true
     if bDebugMessages == true then LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)) end
     ForkThread(SetupNoRushDetails, aiBrain)
-    ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers)
     local iWaitCount = 0
     while not(aiBrain.M28Team) do
