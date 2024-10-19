@@ -6391,7 +6391,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                             end
                                             if bUseNormalLogic then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to move or attack move to target (or in some cases do manuyal attack), iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; GetEnemyCombatThreatInAdjacentZones='..GetEnemyCombatThreatInAdjacentZones()..'; Enemy indirect threat='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 'nil')..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase))..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; Unit DF threat='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite])) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to move or attack move to target (or in some cases do manuyal attack), iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; GetEnemyCombatThreatInAdjacentZones='..GetEnemyCombatThreatInAdjacentZones()..'; Enemy indirect threat='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 'nil')..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase))..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; Unit DF threat='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite])..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..'; Dist from this unit to last known position for the enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), (oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or {0,0,0}))..'; Can we see this unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), (oNearestEnemyToFriendlyBase or oUnit), false))) end
                                                 if  ((bMoveToStopPDConstruction and not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tEnemyEngineers, math.min(15, oUnit[M28UnitInfo.refiDFRange] - 4.5), iTeam, false, nil, nil))) or ((iAvailableCombatUnitThreat > 5000 or EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryFatboy, oUnit.UnitId)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]))) and
                                                         ((iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 5) or
                                                                 --If lots of T1 arti want to keep moving with experimentals/other units or theyll get slaughtered; similarly if lots of low order spam and nothing significant in range then keep moving; also keep moving if we have more threat than all enemy nearby units
@@ -6844,8 +6844,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         IncludeTMDAndShieldsInZone(tPlateauAndZone[2], tPlateauAndZone[1], iPrioritySearchCategory)
                     end
                 end
-                --Add upgrading enemy ACUs that are near this zone midpoint (will also have a check later on based on ACUs in this specific zone; benefit of below though is it covers adjacent zones)
-                if M28Utilities.IsTableEmpty(tPriorityMMLTargets) or table.getn(tPriorityMMLTargets) <= iMMLMassValue / 1200 then
+                --Add upgrading enemy ACUs that are near this zone midpoint (except in LOUD where ACUs have TMD) - (will also have a check later on based on ACUs in this specific zone; benefit of below though is it covers adjacent zones)
+                if not(M28Utilities.bLoudModActive) and (M28Utilities.IsTableEmpty(tPriorityMMLTargets) or table.getn(tPriorityMMLTargets) <= iMMLMassValue / 1200) then
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                             if M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading') and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 120 then
@@ -8533,6 +8533,11 @@ function AssignValuesToLandZones(iTeam)
                             iFriendlyBuildingValue = 0
                         end
 
+                        --Increase for value of enemy mexes if moddist >=25%
+                        if tLandZoneData[M28Map.refiModDistancePercent] >= 0.25 and tLandZoneData[M28Map.subrefLZMexCount] > 0 then
+                            iCurValue = iCurValue + math.min(0, (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) - (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) * 3)
+                        end
+
                         if tLZTeamData[M28Map.refbACUInTrouble] then
                             iCurValue = iCurValue + M28ACU.GetValueIncreaseForACUInTrouble(iTeam)
                         end
@@ -8543,8 +8548,8 @@ function AssignValuesToLandZones(iTeam)
                         tLZTeamData[M28Map.subrefLZbCoreBase] = nil
 
                         --Is this a core base land zone?
-                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue based on this zone='..iCurValue..'; iFriendlyBuildingValue='..iFriendlyBuildingValue..'; Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
-                        if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLZTeamData[M28Map.subrefbCoreBaseOverride] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue based on this zone='..iCurValue..'; iFriendlyBuildingValue='..iFriendlyBuildingValue..'; Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; tLZTeamData[M28Map.subrefLZSValue] (if nil will ignore core zone)='..(tLZTeamData[M28Map.subrefLZSValue] or 0)) end
+                        if (tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLZTeamData[M28Map.subrefbCoreBaseOverride]) and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or GetGameTimeSeconds() <= 300 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 1) then
                             tLZTeamData[M28Map.subrefLZbCoreBase] = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZTeamData[M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
                             if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau]) then

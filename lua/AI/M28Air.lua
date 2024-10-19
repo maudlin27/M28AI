@@ -5233,7 +5233,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
                     --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
                     if iOurGunshipThreat >= 10000 then
-                        if M28Utilities.bLoudModActive and (not(M28Utilities.bLCEActive) or M28Utilities.refiGunshipLosses >= 10000) then
+                        if M28Utilities.bLoudModActive and (not(M28Utilities.bLCEActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 10000) then
                             iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
                             if iOurGunshipThreat >= 20000 then
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
@@ -7940,7 +7940,7 @@ end
 
 function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConsiderAlwaysDropping)
     --Return bDropNow, bAlwaysDropAtTarget values (i.e. true if should drop now; false true if should proceed to target regardless since we are close; and false false if should either proceed with other logic such as retreating to rally (if no where to drop) or proceeding with the drop (if unit alreayd has drop order queued up and is close enough to be busy)
-    --bJustConsiderAlwaysDropping - if true, then will only consider the distance based check for this - i.e. intended where we have already considered whether to dropnow for the unit
+    --bJustConsiderAlwaysDropping - if this is true, then will only consider the distance based check for this - i.e. intended where we have already considered whether to dropnow for the unit
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShouldTransportDropEarlyOrAlwaysDropAtTarget'

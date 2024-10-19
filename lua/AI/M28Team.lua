@@ -1746,15 +1746,18 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         --Enemy based logic (first time considering)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply enemy based logic to the unit for the first time it is recognised, IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
                         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-                            if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) and (oUnit[M28UnitInfo.refiDFRange] or 0) >= 40 then --e.g. hoplite has 37 range
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
                                 --Exception if this is only the first sniperbot and we have multiple friendly ACUs
                                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
-                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) then
+                                    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                                    if iUnitTechLevel <= 2 and M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy doesnt have many sniperbots and theyre T2 or lower, so wont set flag yet') end
+                                    elseif M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true') end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true, sniperbot='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname) end
                                     end
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then

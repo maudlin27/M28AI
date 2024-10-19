@@ -760,9 +760,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 ForkThread(M28Team.RecordMobileTMLThreatForAllEnemyTeams, oUnit)
             end
 
-            --Update ACU upgrade count
+            --Update upgrade count
+            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
-                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
                 if sEnhancement == 'Teleporter' then
                     if bDebugMessages == true then LOG(sFunctionRef..': Flagging that unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has got teleporter upgrade and setting weapon prioritisation accordingly') end
                     oUnit[M28ACU.refbACUHasTeleport] = true

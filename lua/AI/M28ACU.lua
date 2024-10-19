@@ -1799,8 +1799,8 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                             if not(bWantToRun) then
                                 --Run if non-full share or last ACU, are past 15m in-game, mod dist is >=0.4, and we are far from base
                                 if tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 + 0.04*oACU[refiUpgradeCount] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iPercentageToFriendlyBase >= 0.35 and iDistToFriendlyBase >= (200 + 75 * oACU[refiUpgradeCount]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (GetGameTimeSeconds() >= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] > 1)) and (not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 25)
-                                    --Exception - if enemy isnt at t3 land yet, and we have a mobile shield assigned to guncom ACU with full health
-                                    and (oACU[refiUpgradeCount] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 30 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.6 or not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.97) then
+                                        --Exception - if enemy isnt at t3 land yet, and we have a mobile shield assigned to guncom ACU with full health
+                                        and (oACU[refiUpgradeCount] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 30 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.6 or not(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileShield])) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.97) then
                                     bWantToRun = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU owned by '..oACU:GetAIBrain().Nickname..' is getting a bit far from base so want to run, time='..GetGameTimeSeconds()) end
                                 end
@@ -1834,6 +1834,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 end
                                             end
                                         end
+
 
                                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                             --First get best enemy nearby range
@@ -1894,7 +1895,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                         if iMaxLRThreat == 0 and M28Utilities.IsTableEmpty(tOutrangedACUs) == false and iBestEnemyDFRange < oACU[M28UnitInfo.refiDFRange] then
                                             local iCurThreatReduction
                                             for iEnemyACU, oEnemyACU in tOutrangedACUs do
-                                                if oEnemyACU:IsUnitState('Building') or oEnemyACU:IsUnitState('Upgrading') then
+                                                if oEnemyACU:IsUnitState('Building') or (oEnemyACU:IsUnitState('Upgrading') and oEnemyACU:GetWorkProgress() <= 0.95) then
                                                     if M28UnitInfo.CanSeeUnit(oACU:GetAIBrain(), oEnemyACU, false) then
                                                         iCurThreatReduction = 0.8
                                                     else
