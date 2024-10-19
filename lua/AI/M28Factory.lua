@@ -925,24 +925,34 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
 end
 
 function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
+    local sFunctionRef = 'ConsiderFactoryEnhancement'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --Returns the enhancementID if we want to get an enhancement
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Are factory enhnacement preferences nil='..tostring(oFactory[reftsFactoryEnhancementPreferences] == nil)..'; Factory build count='..oFactory[refiTotalBuildCount]..'; Enemy air to ground in zone='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Enemies in LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Enemies in adj WZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Factory tech level='..M28UnitInfo.GetUnitTechLevel(oFactory)..'; is blueprint.enhnacmeents nil='..tostring(oFactory:GetBlueprint().Enhancements == nil)..'; Time='..GetGameTimeSeconds()) end
     if oFactory[reftsFactoryEnhancementPreferences] == nil then
         --Decide on if we want enhancements for the factory, and if so what order to get them in
         oFactory[reftsFactoryEnhancementPreferences] = false --default value
-        local oBP = oFactory:GetBlueprint()
-        if oBP.Enhancements and M28UnitInfo.GetUnitTechLevel(oFactory) >= 3 then
-            if oBP.Enhancements.ImprovedMateriels and oBP.Enhancements.AdvancedMateriels then
-                oFactory[reftsFactoryEnhancementPreferences] = {[1]='ImprovedMateriels', [2] = 'AdvancedMateriels'}
+        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refbPrimaryFactoryForIslandOrPond] then
+            local oBP = oFactory:GetBlueprint()
+            if oBP.Enhancements and M28UnitInfo.GetUnitTechLevel(oFactory) >= 3 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Is oBP.Enhancements.ImprovedMateriels nil='..tostring(oBP.Enhancements.ImprovedMateriels == nil)) end
+                if oBP.Enhancements.ImprovedMateriels and oBP.Enhancements.AdvancedMateriels then
+                    oFactory[reftsFactoryEnhancementPreferences] = {[1]='ImprovedMateriels', [2] = 'AdvancedMateriels'}
+                end
+                if oBP.Enhancements.ImprovedProduction and oBP.Enhancements.AdvancedProduction then
+                    if oFactory[reftsFactoryEnhancementPreferences] == false then oFactory[reftsFactoryEnhancementPreferences] = {} end
+                    table.insert(oFactory[reftsFactoryEnhancementPreferences], 'ImprovedProduction')
+                    table.insert(oFactory[reftsFactoryEnhancementPreferences], 'AdvancedMateriels')
+                end
+                if oFactory[reftsFactoryEnhancementPreferences] == false then M28Utilities.ErrorHandler('Have a factory '..oFactory.UnitId..' but dont recognise the enhnacement options so wont get any', true) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting enhancement preferences, oFactory[reftsFactoryEnhancementPreferences]='..repru(oFactory[reftsFactoryEnhancementPreferences])) end
             end
-            if oBP.Enhancements.ImprovedProduction and oBP.Enhancements.AdvancedProduction then
-                if oFactory[reftsFactoryEnhancementPreferences] == false then oFactory[reftsFactoryEnhancementPreferences] = {} end
-                table.insert(oFactory[reftsFactoryEnhancementPreferences], 'ImprovedProduction')
-                table.insert(oFactory[reftsFactoryEnhancementPreferences], 'AdvancedMateriels')
-            end
-            if oFactory[reftsFactoryEnhancementPreferences] == false then M28Utilities.ErrorHandler('Have a factory '..oFactory.UnitId..' but dont recognise the enhnacement options so wont get any', true) end
         end
+    end
     --Dont get enhancements if enemies in this zone
-    elseif oFactory[reftsFactoryEnhancementPreferences] and M28Utilities.IsTableEmpty(oFactory[reftsFactoryEnhancementPreferences]) == false and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
+    if oFactory[reftsFactoryEnhancementPreferences] and M28Utilities.IsTableEmpty(oFactory[reftsFactoryEnhancementPreferences]) == false and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         --We want to get enhancements for this factory, decide if we have built enough units to justify them at this stage
         local iBuildCountWanted = 10 + 5 * ((oFactory[M28ACU.refiUpgradeCount] or 0) + 1)
         local iTeam = oFactory:GetAIBrain().M28Team
@@ -952,7 +962,7 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
         end
         if oFactory[refiTotalBuildCount] >= iBuildCountWanted then
             --Check we have no other factories in this zone already doing an enhancement
-            local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1 - categories.TECH2, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local bHaveExistingUpgrade = false
             if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                 for iExistingFactory, oExistingFactory in tFactoriesInZone do
@@ -962,6 +972,7 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveExistingUpgrade in zone='..tostring(bHaveExistingUpgrade)) end
             if not(bHaveExistingUpgrade) then
                 --Want to get the upgrade - decide which upgrade to get
                 local tsEnhancementsThatDontHave = {}
@@ -973,7 +984,7 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                         table.insert(tsEnhancementsThatDontHave, sEnhancementWanted)
                     end
                 end
-
+                if bDebugMessages == true then LOG(sFunctionRef..': tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)..'; tsEnhancementsThatDoHave='..repru(tsEnhancementsThatDoHave)) end
                 if M28Utilities.IsTableEmpty(tsEnhancementsThatDontHave) then
                     --No more enhancements to get
                     oFactory[reftsFactoryEnhancementPreferences] = false
@@ -1007,11 +1018,14 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                             sEnhancementToGet = tsEnhancementsThatDontHave[1]
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering what enhancements to get, sEnhancementToGet='..(sEnhancementToGet or 'nil')) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return sEnhancementToGet
                 end
             end
         end
     end
-    return sEnhancementToGet
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
@@ -5444,7 +5458,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --Enhancements (LOUD)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    local sEnhancementWanted = ConsiderFactoryEnhancement(oFactory, tLZTeamData)
+    local sEnhancementWanted = ConsiderFactoryEnhancement(oFactory, tWZTeamData)
     if sEnhancementWanted then return sEnhancementWanted, true end
 
     --Cycle through each adjacent water zone
