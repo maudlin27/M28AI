@@ -1814,7 +1814,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         end
                     elseif oCurWeapon.Label == 'GapingMaw' or oCurWeapon.Label == 'ClawMelee' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Label == 'Laser' and FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
+                    elseif oCurWeapon.Label == 'Laser' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         --Manual unit BP based where above arent working:
                     elseif oUnit.UnitId == 'bel0307' then --Testing it doesnt fire at air units or underwater
