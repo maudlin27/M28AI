@@ -8533,6 +8533,11 @@ function AssignValuesToLandZones(iTeam)
                             iFriendlyBuildingValue = 0
                         end
 
+                        --Increase for value of enemy mexes if moddist >=25%
+                        if tLandZoneData[M28Map.refiModDistancePercent] >= 0.25 and tLandZoneData[M28Map.subrefLZMexCount] > 0 then
+                            iCurValue = iCurValue + math.min(0, (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) - (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) * 3)
+                        end
+
                         if tLZTeamData[M28Map.refbACUInTrouble] then
                             iCurValue = iCurValue + M28ACU.GetValueIncreaseForACUInTrouble(iTeam)
                         end
