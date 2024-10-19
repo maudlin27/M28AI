@@ -4845,7 +4845,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 40*60 then bDebugMessages = true end
+
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
@@ -7940,7 +7940,7 @@ end
 
 function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConsiderAlwaysDropping)
     --Return bDropNow, bAlwaysDropAtTarget values (i.e. true if should drop now; false true if should proceed to target regardless since we are close; and false false if should either proceed with other logic such as retreating to rally (if no where to drop) or proceeding with the drop (if unit alreayd has drop order queued up and is close enough to be busy)
-    --bJustConsiderAlwaysDropping - if true, then will only consider the distance based check for this - i.e. intended where we have already considered whether to dropnow for the unit
+    --bJustConsiderAlwaysDropping - if this is true, then will only consider the distance based check for this - i.e. intended where we have already considered whether to dropnow for the unit
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShouldTransportDropEarlyOrAlwaysDropAtTarget'

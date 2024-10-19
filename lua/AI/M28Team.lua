@@ -1739,7 +1739,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                         if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                             if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
                                 tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                             end
@@ -1757,7 +1756,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     elseif M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
-                                        bDebugMessages = true
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true, sniperbot='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname) end
                                     end
@@ -1770,7 +1768,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and not(tTeamData[iTeam][refbAssassinationOrSimilar]) and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
                                     else
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
                                         tTeamData[iTeam][refbDangerousForACUs] = true
                                     end
