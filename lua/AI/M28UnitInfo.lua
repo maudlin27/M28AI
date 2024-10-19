@@ -18,6 +18,8 @@ tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] =
 tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
 
 bDontConsiderCombinedArmy = true --shares same desc as M28Orders (for easier referencing)
+iBaseACUThreat = 1000 --i.e. approx 20 tanks
+iBaseACUExpectedHealth = 11000 --Used so we can adjust iBaseACUThreat to allow for mods that give high health to ACUs (up to double threat)
 
 --Factions
 refFactionUEF = 1
@@ -596,8 +598,11 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
     if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
         local iCurMassValue
         local iCurMassMod
-        local iBaseMassValue = 1000 --Approx 20 tanks
-        local iTotalMassValue = iBaseMassValue
+        local iTotalMassValue = iBaseACUThreat --Approx 20 tanks
+        local iBaseMaxHealth = oUnit:GetBlueprint().Defense.Health
+        if iBaseMaxHealth > iBaseACUExpectedHealth then
+            iTotalMassValue = iTotalMassValue * math.min(2, iBaseMaxHealth / iBaseACUExpectedHealth)
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': tPossibleUpgrades size='..table.getn(tPossibleUpgrades)) end
         if tPossibleUpgrades then
             for sCurUpgrade, tUpgrade in tPossibleUpgrades do
@@ -632,7 +637,7 @@ end
 function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
     --bJustGetMassValue - if thisi s true, will ignore things like health and just return the mass value (so none of the other values should matter if this is true - i.e. assumes tUnits is already filtered to those of interest)
-        --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
+    --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatThreatRating'
@@ -730,9 +735,19 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                 --Are we calculating blueprint threat (per code at start of game)?
                 if bBlueprintThreat then
                     local oBP = __blueprints[oUnit.UnitId]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')) end
-
-                    if bJustGetMassValue == true then iBaseThreat = (oBP.Economy.BuildCostMass or 0)
+                    local iMassCost = (oBP.Economy.BuildCostMass or 0)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
+                    --ACU override
+                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
+                        if iMassCost < iBaseACUThreat then iMassCost = iBaseACUThreat
+                        else
+                            --Adjust mass cost if it is too high
+                            iMassCost = math.max(iBaseACUThreat, math.min(iMassCost, iBaseACUThreat * math.min(2, oBP.Defense.Health / iBaseACUExpectedHealth)))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considered limiting ACU threat/mass cost (i.e. ignoring blueprint notional mass cost), iMassCost post adjustment='..iMassCost) end
+                        end
+                    end
+                    if bJustGetMassValue == true then iBaseThreat = iMassCost
                     else
                         local iMassMod = 0
                         --T3 and T4 arti - assign 0 combat value
@@ -860,7 +875,6 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                         if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                             iMassMod = iMassMod * 0.75
                         end
-                        local iMassCost = (oBP.Economy.BuildCostMass or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
                         iBaseThreat = iMassCost * iMassMod
                     end
@@ -1387,13 +1401,11 @@ function CalculateBlueprintThreatsByType()
                     local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     local tUnitRef = {['UnitId']=sUnitId}
                     RecordUnitRange(tUnitRef, true)
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..sUnitId..' with DF range='..(tUnitRef[refiDFRange] or 0)..'; iCurTechLevel='..iCurTechLevel) end
                     if (tUnitRef[refiDFRange] or 0) > 0 then
                         M28Building.tiWorstPDRangeByTech[iCurTechLevel] = math.min((M28Building.tiWorstPDRangeByTech[iCurTechLevel] or 200), tUnitRef[refiDFRange])
                         if bDebugMessages == true then LOG(sFunctionRef..': tiWorstPDRangeByTech after update='..repru(M28Building.tiWorstPDRangeByTech)) end
                     end
-                    bDebugMessages = false
                 end
 
                 if bCheckForVolatileUnits then
@@ -1802,7 +1814,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         end
                     elseif oCurWeapon.Label == 'GapingMaw' or oCurWeapon.Label == 'ClawMelee' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.Label == 'Laser' and FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
+                    elseif oCurWeapon.Label == 'Laser' and oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' and (oCurWeapon.Damage or 0) >= 5 then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         --Manual unit BP based where above arent working:
                     elseif oUnit.UnitId == 'bel0307' then --Testing it doesnt fire at air units or underwater
@@ -1819,8 +1831,12 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oUnit.UnitId == 'lab2320' then --barrarge artillery (not all of its weapons have indirect range cat)
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                    elseif oUnit.UnitId == 'lsb2320' then --T3 artillery building
+                        oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --Confirmed for brnt3shbm and brnt3shpd - unit itself can target air units; based on blueprint looks likely this is the riotgun for brnt3shbm, while for the pd it looks like it's all 8 of the main guns
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then --confirmed for Heavy cruiser bss0306 based on blueprint
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
@@ -2654,10 +2670,6 @@ function FixUnitResourceCheatModifiers(oUnit)
 
             local tPossibleUpgrades = oBP.Enhancements
             if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false and oUnit.HasEnhancement then
-                local iCurMassValue
-                local iCurMassMod
-                local iBaseMassValue = 1000 --Approx 20 tanks
-                local iTotalMassValue = iBaseMassValue
                 if bDebugMessages == true then LOG(sFunctionRef..': tPossibleUpgrades size='..table.getn(tPossibleUpgrades)) end
                 if tPossibleUpgrades then
                     for sCurUpgrade, tUpgrade in tPossibleUpgrades do
@@ -2717,7 +2729,6 @@ function CanSeeUnit(aiBrain, oUnit, bRequireVisualNotJustBlipToReturnTrue)
     local iUnitBrain = oUnit:GetAIBrain()
     if iUnitBrain == aiBrain then return true
     else
-        local bCanSeeUnit = false
         local iArmyIndex = aiBrain:GetArmyIndex()
         if not(oUnit.Dead) then
             if not(oUnit.GetBlip) then

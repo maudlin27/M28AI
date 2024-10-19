@@ -9289,6 +9289,35 @@ function ReassessPositionsForPlayerDeath(aiBrain)
             M28Team.tTeamData[iTeam][M28Team.refiTimeOfEnemiesDefeated] = GetGameTimeSeconds()
         end
     end
+    --Update our team's core bases if was M28 brain with teammates
+    if aiBrain.M28AI and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 0 then
+        local iTeam = aiBrain.M28Team
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
+            local iBrainStartPlateau, iBrainStartZone = GetClosestPlateauOrZeroAndZoneToPosition(GetPlayerStartPosition(aiBrain))
+            if iBrainStartPlateau and iBrainStartZone then
+                local iExistingEntries = 0
+                for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
+                    for iZone, bRecorded in tZones do
+                        iExistingEntries = iExistingEntries + 1
+                    end
+                end
+                if iExistingEntries > 1 then
+                    RemoveCoreZoneFlag(iBrainStartPlateau, iBrainStartZone, iTeam)
+                end
+            end
+        end
+    end
+end
+
+function RemoveCoreZoneFlag(iBrainStartPlateau, iBrainStartZone, iTeam)
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iBrainStartPlateau]) == false and iBrainStartPlateau > 0 then
+        local tLZData = tAllPlateaus[iBrainStartPlateau][subrefPlateauLandZones][iBrainStartZone]
+        local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
+        tLZTeamData[subrefLZbCoreBase] = false
+        tLZTeamData[subrefbCoreBaseOverride] = nil
+        M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iBrainStartPlateau][iBrainStartZone] = nil
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iBrainStartPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iBrainStartPlateau] = nil end
+    end
 end
 
 function RecordLurkerZonesForIsland(iPlateau, iIsland, iTeam)
