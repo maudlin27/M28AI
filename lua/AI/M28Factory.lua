@@ -926,7 +926,7 @@ end
 
 function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
     local sFunctionRef = 'ConsiderFactoryEnhancement'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Returns the enhancementID if we want to get an enhancement
