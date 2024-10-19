@@ -780,6 +780,8 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
+                oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true --makes sure we dont pause this factory in a mass stall now it has enhancements
             end
             --Fix AIx modifier
             if oUnit:GetAIBrain().CheatEnabled then

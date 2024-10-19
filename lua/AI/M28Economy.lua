@@ -434,7 +434,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                                 if M28Utilities.IsTableEmpty(tAllLandFacsInZone) == false then
                                     for iFactory, oFactory in tAllLandFacsInZone do
                                         if not(oFactory == oUnitJustBuilt) then
-                                            oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = false
+                                            if (oFactory[M28ACU.refiUpgradeCount] or 0) == 0 then
+                                                oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = false
+                                            end
                                         end
                                     end
                                 end
