@@ -18,6 +18,8 @@ tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] =
 tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
 
 bDontConsiderCombinedArmy = true --shares same desc as M28Orders (for easier referencing)
+iBaseACUThreat = 1000 --i.e. approx 20 tanks
+iBaseACUExpectedHealth = 11000 --Used so we can adjust iBaseACUThreat to allow for mods that give high health to ACUs (up to double threat)
 
 --Factions
 refFactionUEF = 1
@@ -596,8 +598,11 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
     if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
         local iCurMassValue
         local iCurMassMod
-        local iBaseMassValue = 1000 --Approx 20 tanks
-        local iTotalMassValue = iBaseMassValue
+        local iTotalMassValue = iBaseACUThreat --Approx 20 tanks
+        local iBaseMaxHealth = oUnit:GetBlueprint().Defense.Health
+        if iBaseMaxHealth > iBaseACUExpectedHealth then
+            iTotalMassValue = iTotalMassValue * math.min(2, iBaseMaxHealth / iBaseACUExpectedHealth)
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': tPossibleUpgrades size='..table.getn(tPossibleUpgrades)) end
         if tPossibleUpgrades then
             for sCurUpgrade, tUpgrade in tPossibleUpgrades do
@@ -632,7 +637,7 @@ end
 function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
     --bJustGetMassValue - if thisi s true, will ignore things like health and just return the mass value (so none of the other values should matter if this is true - i.e. assumes tUnits is already filtered to those of interest)
-        --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
+    --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatThreatRating'
@@ -730,9 +735,19 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                 --Are we calculating blueprint threat (per code at start of game)?
                 if bBlueprintThreat then
                     local oBP = __blueprints[oUnit.UnitId]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')) end
-
-                    if bJustGetMassValue == true then iBaseThreat = (oBP.Economy.BuildCostMass or 0)
+                    local iMassCost = (oBP.Economy.BuildCostMass or 0)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
+                    --ACU override
+                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
+                        if iMassCost < iBaseACUThreat then iMassCost = iBaseACUThreat
+                        else
+                            --Adjust mass cost if it is too high
+                            iMassCost = math.max(iBaseACUThreat, math.min(iMassCost, iBaseACUThreat * math.min(2, oBP.Defense.Health / iBaseACUExpectedHealth)))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considered limiting ACU threat/mass cost (i.e. ignoring blueprint notional mass cost), iMassCost post adjustment='..iMassCost) end
+                        end
+                    end
+                    if bJustGetMassValue == true then iBaseThreat = iMassCost
                     else
                         local iMassMod = 0
                         --T3 and T4 arti - assign 0 combat value
@@ -860,7 +875,6 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                         if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                             iMassMod = iMassMod * 0.75
                         end
-                        local iMassCost = (oBP.Economy.BuildCostMass or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
                         iBaseThreat = iMassCost * iMassMod
                     end
@@ -1387,7 +1401,6 @@ function CalculateBlueprintThreatsByType()
                     local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     local tUnitRef = {['UnitId']=sUnitId}
                     RecordUnitRange(tUnitRef, true)
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..sUnitId..' with DF range='..(tUnitRef[refiDFRange] or 0)..'; iCurTechLevel='..iCurTechLevel) end
                     if (tUnitRef[refiDFRange] or 0) > 0 then
                         M28Building.tiWorstPDRangeByTech[iCurTechLevel] = math.min((M28Building.tiWorstPDRangeByTech[iCurTechLevel] or 200), tUnitRef[refiDFRange])
@@ -2658,10 +2671,6 @@ function FixUnitResourceCheatModifiers(oUnit)
 
             local tPossibleUpgrades = oBP.Enhancements
             if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false and oUnit.HasEnhancement then
-                local iCurMassValue
-                local iCurMassMod
-                local iBaseMassValue = 1000 --Approx 20 tanks
-                local iTotalMassValue = iBaseMassValue
                 if bDebugMessages == true then LOG(sFunctionRef..': tPossibleUpgrades size='..table.getn(tPossibleUpgrades)) end
                 if tPossibleUpgrades then
                     for sCurUpgrade, tUpgrade in tPossibleUpgrades do
