@@ -6844,8 +6844,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         IncludeTMDAndShieldsInZone(tPlateauAndZone[2], tPlateauAndZone[1], iPrioritySearchCategory)
                     end
                 end
-                --Add upgrading enemy ACUs that are near this zone midpoint (will also have a check later on based on ACUs in this specific zone; benefit of below though is it covers adjacent zones)
-                if M28Utilities.IsTableEmpty(tPriorityMMLTargets) or table.getn(tPriorityMMLTargets) <= iMMLMassValue / 1200 then
+                --Add upgrading enemy ACUs that are near this zone midpoint (except in LOUD where ACUs have TMD) - (will also have a check later on based on ACUs in this specific zone; benefit of below though is it covers adjacent zones)
+                if not(M28Utilities.bLoudModActive) and (M28Utilities.IsTableEmpty(tPriorityMMLTargets) or table.getn(tPriorityMMLTargets) <= iMMLMassValue / 1200) then
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                             if M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading') and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 120 then
