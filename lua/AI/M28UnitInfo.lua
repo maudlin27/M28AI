@@ -1406,7 +1406,6 @@ function CalculateBlueprintThreatsByType()
                         M28Building.tiWorstPDRangeByTech[iCurTechLevel] = math.min((M28Building.tiWorstPDRangeByTech[iCurTechLevel] or 200), tUnitRef[refiDFRange])
                         if bDebugMessages == true then LOG(sFunctionRef..': tiWorstPDRangeByTech after update='..repru(M28Building.tiWorstPDRangeByTech)) end
                     end
-                    bDebugMessages = false
                 end
 
                 if bCheckForVolatileUnits then
@@ -2730,7 +2729,6 @@ function CanSeeUnit(aiBrain, oUnit, bRequireVisualNotJustBlipToReturnTrue)
     local iUnitBrain = oUnit:GetAIBrain()
     if iUnitBrain == aiBrain then return true
     else
-        local bCanSeeUnit = false
         local iArmyIndex = aiBrain:GetArmyIndex()
         if not(oUnit.Dead) then
             if not(oUnit.GetBlip) then
