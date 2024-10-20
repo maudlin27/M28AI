@@ -1200,10 +1200,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 60 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= (1 + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield)) * 16 then
             local iCurMobileShields = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandShield)
             if iCurMobileShields <= 35 and (iCurMobileShields * 250 <= math.max(2000, (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]))) then
-                --Allow 1 shield per 25 gross E income (50 for LOUD)
+                --Allow 1 shield per 40 gross E income (80 for LOUD)
 
-                if iCurMobileShields <= 3 or (iCurMobileShields * 25 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome] and (not(M28Utilities.bLoudModActive) or iCurMobileShields * 50 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome])) then
-                    bConsiderMobileShields = true
+                if (iCurMobileShields <= 2 and (iCurMobileShields == 0 or aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 50) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) > iCurMobileShields) or ((iCurMobileShields * 40 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome] and (not(M28Utilities.bLoudModActive) or iCurMobileShields * 80 <= aiBrain[M28Economy.refiGrossEnergyBaseIncome])) and (tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or iCurMobileShields < 8 or aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 150 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryMobileShield, false) < 1)) then
+                    --Seraphim - increase requirement; also be less likely to build if cant path to enemy
+                    if iFactoryTechLevel < 3 or not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) or iCurMobileShields <= 15 or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= iCurMobileShields * 150  then
+                        bConsiderMobileShields = true
+                    end
                 end
             end
         end
@@ -1280,6 +1283,23 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 end
+                --Dont upgrade lots of HQs at once outside the core zone for non-primary factories
+                if not(oFactory[refbPrimaryFactoryForIslandOrPond]) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    local iHQSearchCategory
+                    if iFactoryTechLevel == 1 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH1
+                    elseif iFactoryTechLevel == 2 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory
+                    end
+
+                    local iHQUpgradesOfThisAndLowerTech = M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iHQSearchCategory, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Non-primary factory considering upgrading but we already have an active upgrade of this or lower tech, iHQUpgradesOfThisAndLowerTech='..iHQUpgradesOfThisAndLowerTech) end
+                    if iHQUpgradesOfThisAndLowerTech >= 1 and (oFactory[refiTotalBuildCount] < 25 + 25 * iHQUpgradesOfThisAndLowerTech or (bHaveLowMass and M28Utilities.bLoudModActive)) then
+                        if bHaveLowMass or bHaveLowPower or aiBrain:GetEconomyStoredRatio('MASS') <= 0.15 + 0.05 * iHQUpgradesOfThisAndLowerTech or aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.99 then
+                            bConsiderUpgrading = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to upgrade factory yet due to not enough mass potentially and having lots of other factory upgrades active') end
+                        end
+                    end
+                end
+
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get more engineers before we upgrade') end
                 bConsiderUpgrading = false
