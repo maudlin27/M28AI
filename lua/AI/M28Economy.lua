@@ -1313,9 +1313,9 @@ function ManageMassStalls(iTeam)
     local sFunctionRef = 'ManageMassStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5 and GetGameTimeSeconds() >= 32*60 then bDebugMessages = true end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start at time'..GetGameTimeSeconds()..'; Is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start at time'..GetGameTimeSeconds()..'; Is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Net mass / gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         local bOnlyParagons = false
         if M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] then
@@ -1417,7 +1417,11 @@ function ManageMassStalls(iTeam)
                 if bPauseNotUnpause then
                     if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass])
                     else
-                        iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 0.8)
+                        if -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.8 then --almost 80% stall rate
+                            iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass])
+                        else
+                            iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 0.8)
+                        end
                     end
                 else
                     if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 30)
@@ -1626,24 +1630,29 @@ function ManageMassStalls(iTeam)
                                         --Do we actually want to pause the unit? check any category specific logic
                                         bApplyActionToUnit = true
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading'))..'; refbPrimaryFactoryForIslandOrPond='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
+                                            LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; bDontPauseUpgradingT1LandOrT2Land='..tostring(bDontPauseUpgradingT1LandOrT2Land)..'; Is unit upgrading='..tostring(oUnit:IsUnitState('Upgrading'))..'; refbPrimaryFactoryForIslandOrPond='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; oBrain[refiOurHighestLandFactoryTech]='..oBrain[refiOurHighestLandFactoryTech]..'; ')
                                         end
                                         --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
-                                        if oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ)) then
+                                        if oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ and (not(M28Utilities.bLoudModActive) or oBrain[refiOurHighestLandFactoryTech] <= M28UnitInfo.GetUnitTechLevel(oUnit)))) then
                                             bApplyActionToUnit = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Either 85% completion or pausing a land factory that hasnt built much') end
                                         elseif oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] then bApplyActionToUnit = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause primary factory for island/pond') end
                                             --Air HQ - dont pause first ever unit or transport
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
                                             bApplyActionToUnit = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause an air factory that hasnt built much') end
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and ((bDontPauseUpgradingT1LandOrT2Land and (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId or oUnit:IsUnitState('Upgrading'))) or oUnit[M28Factory.refiTotalBuildCount] <= 10)) then
 
                                             --Is this on a dif island to closest enemy base?
                                             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                             if tUnitLZTeamData and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnitLZTeamData[M28Map.reftClosestEnemyBase])) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ * 3 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Different island to closest enemy base, and we havent built a certain level of units') end
                                                 bApplyActionToUnit = false
                                             elseif bDontPauseUpgradingT1LandOrT2Land and ((oUnit:IsUnitState('Upgrading') and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2, oUnit.UnitId)) then
                                                 for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                     if oUnit == oFactory then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause an upgrading HQ') end
                                                         bApplyActionToUnit = false
                                                         break
                                                     end
@@ -2847,11 +2856,11 @@ end
 
 function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     --Called when we have just constructed a mex - considers upgrading the mex in the future if we have no active upgrades
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderFutureMexUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex) == 'xsb12025' then bDebugMessages = true end
+
 
     local iTimeToWait = iOverrideSecondsToWait
     local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oMex)
