@@ -1257,7 +1257,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     function ConsiderUpgrading()
         --If this is a support factory or T1 factory then only consider upgrading if we have spare idle factories in this LZ, subject to how many factories we have
         local bConsiderUpgrading = true
-        if iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId)) then
+        if iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId)) or M28Utilities.bLoudModActive or not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
             if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)) then
                 local iUpgradingLandFactories = 0
                 local iAvailableLandFactories = 0
@@ -1283,19 +1283,29 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 end
-                --Dont upgrade lots of HQs at once outside the core zone for non-primary factories
-                if not(oFactory[refbPrimaryFactoryForIslandOrPond]) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
-                    local iHQSearchCategory
-                    if iFactoryTechLevel == 1 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH1
-                    elseif iFactoryTechLevel == 2 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory
-                    end
+                --T2 fac to T3 - dont upgrade if not core zone, unless have T3 mex in the zone or lots of mass and no recent power stall
+                if bDebugMessages == true then LOG(sFunctionRef..': If we have T2 land fac in minor zone then wont upgrade unless either T3 mex in zone, or lots of mass, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Primary fac='..tostring(oFactory[refbPrimaryFactoryForIslandOrPond] or false)..'; tLZTeamData[M28Map.subrefMexCountByTech][3]='..(tLZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Condition part 1='..tostring(iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80))..'; Condition part2='..tostring((tLZData[M28Map.subrefLZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond]))..'; Condition part 3='..tostring((tLZData[M28Map.subrefLZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount] * 0.5)))) end
+                if iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80 and not((M28Map.bIsCampaignMap and not(bHaveLowMass)) or (tLZData[M28Map.subrefLZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (oFactory[refiTotalBuildCount] or 0) >= 10) or (tLZData[M28Map.subrefLZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount] * 0.5)))) then
+                    bConsiderUpgrading = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to go to T3 outside a core zone yet') end
+                elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) and iFactoryTechLevel >= aiBrain[refiOurHighestFactoryTechLevel] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
+                    bConsiderUpgrading = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want a minor LZ to get an HQ when our main base doesnt') end
+                else
+                    --Dont upgrade lots of HQs at once outside the core zone for non-primary factories
+                    if not(oFactory[refbPrimaryFactoryForIslandOrPond]) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                        local iHQSearchCategory
+                        if iFactoryTechLevel == 1 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH1
+                        elseif iFactoryTechLevel == 2 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory
+                        end
 
-                    local iHQUpgradesOfThisAndLowerTech = M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iHQSearchCategory, true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Non-primary factory considering upgrading but we already have an active upgrade of this or lower tech, iHQUpgradesOfThisAndLowerTech='..iHQUpgradesOfThisAndLowerTech) end
-                    if iHQUpgradesOfThisAndLowerTech >= 1 and (oFactory[refiTotalBuildCount] < 25 + 25 * iHQUpgradesOfThisAndLowerTech or (bHaveLowMass and M28Utilities.bLoudModActive)) then
-                        if bHaveLowMass or bHaveLowPower or aiBrain:GetEconomyStoredRatio('MASS') <= 0.15 + 0.05 * iHQUpgradesOfThisAndLowerTech or aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.99 then
-                            bConsiderUpgrading = false
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to upgrade factory yet due to not enough mass potentially and having lots of other factory upgrades active') end
+                        local iHQUpgradesOfThisAndLowerTech = M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iHQSearchCategory, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Non-primary factory considering upgrading but we already have an active upgrade of this or lower tech, iHQUpgradesOfThisAndLowerTech='..iHQUpgradesOfThisAndLowerTech) end
+                        if iHQUpgradesOfThisAndLowerTech >= 1 and (oFactory[refiTotalBuildCount] < 25 + 25 * iHQUpgradesOfThisAndLowerTech or (bHaveLowMass and M28Utilities.bLoudModActive)) then
+                            if bHaveLowMass or bHaveLowPower or aiBrain:GetEconomyStoredRatio('MASS') <= 0.15 + 0.05 * iHQUpgradesOfThisAndLowerTech or aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.99 then
+                                bConsiderUpgrading = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dont want to upgrade factory yet due to not enough mass potentially and having lots of other factory upgrades active') end
+                            end
                         end
                     end
                 end
