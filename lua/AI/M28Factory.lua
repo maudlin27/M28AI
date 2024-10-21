@@ -1288,7 +1288,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80 and not((M28Map.bIsCampaignMap and not(bHaveLowMass)) or (tLZData[M28Map.subrefLZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (oFactory[refiTotalBuildCount] or 0) >= 10) or (tLZData[M28Map.subrefLZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount] * 0.5)))) then
                     bConsiderUpgrading = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want to go to T3 outside a core zone yet') end
-                elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) and iFactoryTechLevel >= aiBrain[refiOurHighestFactoryTechLevel] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
+                elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
                     bConsiderUpgrading = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want a minor LZ to get an HQ when our main base doesnt') end
                 else
