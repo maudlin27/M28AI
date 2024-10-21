@@ -63,11 +63,11 @@ tReclaimSegmentsToUpdate = {} --[n] where n is the count, returns {segmentX,segm
 tiVeryHighValueReclaimSegments = {} --[x] = 1,2,3...; returns {SegmentX, SegmentZ}
 iVeryHighReclaimThreshold = 10000 --Will record any segemnts with at least this much reclaim in tiVeryHighValueReclaimSegments
 tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]
-    refReclaimTotalMass = 1
+    refReclaimTotalMass = 1 --RECLAIM SEGMENT not land zone
     refReclaimSegmentMidpoint = 2
-    refReclaimHighestIndividualMassReclaim = 3
-    refReclaimTotalSignificantMass = 4 --Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
-    refSegmentReclaimTotalEnergy = 8
+    refReclaimHighestIndividualMassReclaim = 3 --RECLAIM SEGMENT not land zone
+    refReclaimTotalSignificantMass = 4 --RECLAIM SEGMENT not land zone - Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
+    refSegmentReclaimTotalEnergy = 8 --RECLAIM SEGMENT not land zone
 iSignificantMassThreshold = 10 --global variable (not part of above table), being the threshold for recording mass reclaim as significant mass
 iLowestMassThreshold = 0.8 --E.g. covers some but not all individual trees on twin rivers; wont record any mass value for wrecks below this when updating segment info
 tiPlateauAndZonesToRefreshReclaimAgain = {} --[x] is the plateau or zero for water, [y] is 1,2,3....z, and returns the land/water zone
@@ -298,6 +298,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
             subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
+            subrefiTimeLastHadSpareEngiByTech = 'TmLsSE' --[1],[2] and [3], returns gametimeseconds that we last had spare engis for that tech level for this zone
             subreftiBPWantedByAction = 'BPByAct' --table of bp wanted for each action for a zone
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subreftbBPByFactionWanted = 'BPByFaction' --[x] = faction ref, returns true if we want engineers of that faction

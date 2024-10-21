@@ -1405,7 +1405,6 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
-        local tNearestCombatEnemies = {}
         iEnemyBestMobileDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)
         iEnemyBestStructureDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)
         iEnemyBestMobileIndirectRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
@@ -1416,10 +1415,12 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         local tMidpoint = tLZData[M28Map.subrefMidpoint]
         local iCurDistUntilInRange
         local iEnemyPDThreshold
+        local iAdjDistThresholdToIncludeInDFRange = 20 + 0.5 * math.max(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX], tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize --Want to include bit of an allowance as we might be managing units in the adjacent zone as well
+
         if bDebugMessages == true then LOG(sFunctionRef..': Best mobile DF range for this zone only='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]..'; Is table of adjacent LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
         function UpdateForAdjacentLandZone(tAltLZTeamData)
-            iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
-            iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
+            --iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
+            --iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
             --Record adjacent structures that have high (highest recorded or >=50) DF range
             iEnemyPDThreshold = math.min(50, math.max(     iEnemyBestMobileDFRange,iEnemyBestStructureDFRange))
             if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) >= iEnemyPDThreshold and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -1440,9 +1441,17 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                         iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                         if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then table.insert(toNearbyExperimentalsAndDistUntilInRange, {oUnit, iCurDistUntilInRange}) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in adjacent zone and if it is close to being in range, iCurDistUntilInRange='..iCurDistUntilInRange..'; iLowestDistUntilInRange='..iLowestDistUntilInRange..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                         if iCurDistUntilInRange < iLowestDistUntilInRange then
                             oLowestDFDistUntilInRange = oUnit
                             iLowestDistUntilInRange = iCurDistUntilInRange
+                        end
+                        if iCurDistUntilInRange <= iAdjDistThresholdToIncludeInDFRange then
+                            if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestMobileDFRange then iEnemyBestMobileDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                            else
+                                if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestStructureDFRange then iEnemyBestStructureDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                            end
                         end
                     end
                 end

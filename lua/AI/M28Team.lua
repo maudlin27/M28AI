@@ -2485,25 +2485,36 @@ function UpdateTeamHighestAndLowestFactories(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedCategory)
+function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedCategory, bReturnNumberInstead)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DoesBrainHaveActiveHQUpgradesOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Does our team have an empty table of upgrading HQs='..tostring(M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs]))) end
     if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs]) == false then
+        local iTotalUpgrading
         for iUpgrading, oUpgrading in tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs] do
             if EntityCategoryContains(iFactoryBeingUpgradedCategory, oUpgrading.UnitId) then
                 if M28UnitInfo.IsUnitValid(oUpgrading) and oUpgrading:GetAIBrain() == aiBrain then
                     if bDebugMessages == true then LOG(sFunctionRef..': The upgrading unit '..oUpgrading.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrading)..' brain is equal to aiBrain '..aiBrain.Nickname) end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
+                    if bReturnNumberInstead then
+                        iTotalUpgrading = (iTotalUpgrading or 0) + 1
+                    else
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
         end
+        if bReturnNumberInstead then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iTotalUpgrading
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
+    if bReturnNumberInstead then return 0 else
+        return false
+    end
 end
 
 function ConsiderPriorityLandFactoryUpgrades(iM28Team)
@@ -3716,6 +3727,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiAvailableMobileShieldThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateFactoryCount] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateMexCount] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefSpareBPByTech] = {}
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
