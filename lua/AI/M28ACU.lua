@@ -2730,7 +2730,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
     local sFunctionRef = 'ConsiderNearbyReclaimForACUOrEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     if EntityCategoryContains(categories.RECLAIM, oEngineer.UnitId) then
 
@@ -4769,7 +4769,7 @@ function GetACUOrder(aiBrain, oACU)
                                                     --Retreat
                                                     local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Not safe to get priority upgrade so want to retreat until it is. tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())) end
-                                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4U')
+                                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4UeNg')
                                                 end
                                             end
                                         end
@@ -5018,12 +5018,17 @@ function GetACUOrder(aiBrain, oACU)
                                                                                 end
                                                                             end
                                                                             --No nearby enemies - consider building power if have low level of it and lots of mass
-                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))) end
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, or want to attack nearby enemies, or get nearby reclaim, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
                                                                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU.HasEnhancement and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7) then
                                                                                 ACUActionBuildPower(aiBrain, oACU)
                                                                                 --Is there an enemy unit nearby that we want to attack?
                                                                             elseif (oACU[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Are close to enemy units so will attack rather than considering upgrades or building mexes etc.') end
+                                                                                --If lots of reclaim in this zone consider getting it
+                                                                            elseif GetGameTimeSeconds() >= 9*60 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, nil, nil, nil) then
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim so will stay here') end
+                                                                            elseif GetGameTimeSeconds() >= 9*60 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 40 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true, nil, nil, nil) then
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Getting reclaim in build radius') end
                                                                             else
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU unit state not important so we can consider doing other things, ACU state='..M28UnitInfo.GetUnitState(oACU)..'; Mass stored ratio='..aiBrain:GetEconomyStoredRatio('MASS')..'; Is unit state building='..tostring(oACU:IsUnitState('Building'))..'; Is unit state repairing='..tostring(oACU:IsUnitState('Repairing'))..'; Is unit state reclaiming='..tostring(oACU:IsUnitState('Reclaiming'))..'; Is unit state guarding='..tostring(oACU:IsUnitState('Guarding'))) end
                                                                                 if not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing')) then
@@ -5044,7 +5049,7 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                 --Retreat
                                                                                                 local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, oACU:GetAIBrain().M28Team, iPlateauOrZero, iLandOrWaterZone, 2)
                                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Not safe to get upgrade so want to retreat until it is. tRallyPoint='..repru(tRallyPoint)..'; ACU position='..repru(oACU:GetPosition())) end
-                                                                                                M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4U')
+                                                                                                M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4UGen')
                                                                                             end
                                                                                         end
                                                                                     else
