@@ -516,7 +516,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] >= 5 then iMaxSpareWanted = 0
             else iMaxSpareWanted = 1
             end
-            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 then iMaxSpareWanted = -1 end
+            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and GetGameTimeSeconds() >= 300 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 then iMaxSpareWanted = -1 end
             --tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or (
 
             if iMaxSpareWanted >= 0 and not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or oFactory[refiTotalBuildCount] <= 10 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) then
