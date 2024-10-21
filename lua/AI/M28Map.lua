@@ -63,11 +63,11 @@ tReclaimSegmentsToUpdate = {} --[n] where n is the count, returns {segmentX,segm
 tiVeryHighValueReclaimSegments = {} --[x] = 1,2,3...; returns {SegmentX, SegmentZ}
 iVeryHighReclaimThreshold = 10000 --Will record any segemnts with at least this much reclaim in tiVeryHighValueReclaimSegments
 tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]
-    refReclaimTotalMass = 1 --RECLAIM SEGMENT not land zone
+    refReclaimTotalMass = 1
     refReclaimSegmentMidpoint = 2
-    refReclaimHighestIndividualMassReclaim = 3 --RECLAIM SEGMENT not land zone
-    refReclaimTotalSignificantMass = 4 --RECLAIM SEGMENT not land zone - Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
-    refSegmentReclaimTotalEnergy = 8 --RECLAIM SEGMENT not land zone
+    refReclaimHighestIndividualMassReclaim = 3
+    refReclaimTotalSignificantMass = 4 --Total mass avlue of wrecks with a mass value above a hardcoded threshold (e.g. 10) so can ignore the distortion from trees
+    refSegmentReclaimTotalEnergy = 8
 iSignificantMassThreshold = 10 --global variable (not part of above table), being the threshold for recording mass reclaim as significant mass
 iLowestMassThreshold = 0.8 --E.g. covers some but not all individual trees on twin rivers; wont record any mass value for wrecks below this when updating segment info
 tiPlateauAndZonesToRefreshReclaimAgain = {} --[x] is the plateau or zero for water, [y] is 1,2,3....z, and returns the land/water zone
