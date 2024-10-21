@@ -484,8 +484,42 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         end
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
             --Engineers - dont build if we have spare engineers at our current LZ
-            local iMaxSpareWanted = 1
-            if not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) then
+            local iLastTimeOfSpareEngi
+            if iFactoryTechLevel >= 3 then iLastTimeOfSpareEngi = (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or -1000)
+            elseif iFactoryTechLevel == 2 then
+                iLastTimeOfSpareEngi = tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3]
+                if iLastTimeOfSpareEngi then
+                    if tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][2] then
+                        iLastTimeOfSpareEngi = math.min(iLastTimeOfSpareEngi, tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][2])
+                    end
+                else
+                    iLastTimeOfSpareEngi = (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or -1000)
+                end
+            else
+                iLastTimeOfSpareEngi = tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3]
+                if iLastTimeOfSpareEngi then
+                    if tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][2] then
+                        iLastTimeOfSpareEngi = math.min(iLastTimeOfSpareEngi, tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][2])
+                    end
+                else
+                    iLastTimeOfSpareEngi = (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or -1000)
+                end
+
+                if iLastTimeOfSpareEngi then
+                    if tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][1] then
+                        iLastTimeOfSpareEngi = math.min(iLastTimeOfSpareEngi, tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][1])
+                    end
+                end
+            end
+
+            local iMaxSpareWanted
+            if tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] >= 5 then iMaxSpareWanted = 0
+            else iMaxSpareWanted = 1
+            end
+            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 then iMaxSpareWanted = -1 end
+            --tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or (
+
+            if iMaxSpareWanted >= 0 and not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or oFactory[refiTotalBuildCount] <= 10 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
             if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetUnitTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then

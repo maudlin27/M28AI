@@ -9192,6 +9192,8 @@ function UpdateSpareEngineerNumber(tLZOrWZTeamData, toAvailableEngineersByTech)
                 if M28Config.M28ShowUnitNames then M28Orders.UpdateUnitNameForOrder(oUnit, 'Idle') end
             end
             tLZOrWZTeamData[M28Map.subrefSpareBPByTech][iTech] = iTotalBP
+            if not(tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech]) then tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech] = {} end
+            tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iTech] = GetGameTimeSeconds()
         end
     end
 end

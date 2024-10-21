@@ -3727,6 +3727,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefiAvailableMobileShieldThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateFactoryCount] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiNonM28TeammateMexCount] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefSpareBPByTech] = {}
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
