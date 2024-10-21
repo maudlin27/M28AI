@@ -780,6 +780,8 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
+                oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true --makes sure we dont pause this factory in a mass stall now it has enhancements
             end
             --Fix AIx modifier
             if oUnit:GetAIBrain().CheatEnabled then
@@ -2019,6 +2021,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                         if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] or 0) + 1
+                            oJustBuilt[M28UnitInfo.refiTimeMexConstructed] = GetGameTimeSeconds()
                             ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oJustBuilt, false, 10)
                             --If have storage owned by M28 on same team by this mex, gift it over
                             --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage

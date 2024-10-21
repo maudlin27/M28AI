@@ -72,6 +72,7 @@ reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement I
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
+refiTimeMexConstructed = 'M28MxTimCn' --For mexes, records when it was constructed
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit; false if it mustnt be reclaimed (e.g. campaign objective to defend); nil otherwise
 refiTeamsWithThisAsReclaimTarget = 'M28UnitTmsReclT' --[x] = 1,2,3...x; returns the M28Team ref (for any team that has this as a reclaim target via the normal 'on unit detected/add to zone' logic)
@@ -1889,6 +1890,17 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
             oUnit[refiIndirectRange] = oUnit[refiDFRange]
         end
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
+    end
+    --LOUD - doesnt record whether weapons for ACU are enabled by enhancement or not.  As a very simplistic measure, if the unit has an enhancement count of 0 then treat its range as being 30, or 36 with 1 enhancement, or the max DF range otherwise
+    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+        if (oUnit[M28ACU.refiUpgradeCount] or 0) == 0 then
+            oUnit[refiDFRange] = math.min(30, (oUnit[refiDFRange] or 0))
+            if oUnit[refiAntiNavyRange] then oUnit[refiAntiNavyRange] = 0 end
+            if oUnit[refiIndirectRange] then oUnit[refiIndirectRange] = 0 end
+        elseif oUnit[M28ACU.refiUpgradeCount] == 1 then
+            oUnit[refiDFRange] = math.min(36, (oUnit[refiDFRange] or 0))
+        end
     end
     --Record unit best range
     oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))

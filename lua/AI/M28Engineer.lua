@@ -8964,14 +8964,17 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         M28Utilities.ErrorHandler('Trying to assist upgrade but there are none for this LZ')
                     else
                         local oBestProgress
+                        local iMexProgressAdjust --If we are stalling mass and want to assist an upgrade then prioritise mex upgrades over factory upgrades
+                        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 5 then iMexProgressAdjust = 0.75 end
                         if vOptionalVariable and M28UnitInfo.IsUnitValid(vOptionalVariable) then
                             oBestProgress = vOptionalVariable
                         else
-                            local iBestProgress = 0
+                            local iBestProgress = -1
                             local iCurProgress
                             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetWorkProgress then
                                     iCurProgress = (oUnit:GetWorkProgress() or 0)
+                                    if iMexProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurProgress = iCurProgress + iMexProgressAdjust end
                                     if iCurProgress > iBestProgress then
                                         iBestProgress = iCurProgress
                                         oBestProgress = oUnit
@@ -9189,6 +9192,8 @@ function UpdateSpareEngineerNumber(tLZOrWZTeamData, toAvailableEngineersByTech)
                 if M28Config.M28ShowUnitNames then M28Orders.UpdateUnitNameForOrder(oUnit, 'Idle') end
             end
             tLZOrWZTeamData[M28Map.subrefSpareBPByTech][iTech] = iTotalBP
+            if not(tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech]) then tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech] = {} end
+            tLZOrWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iTech] = GetGameTimeSeconds()
         end
     end
 end
@@ -11706,20 +11711,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': bHaveSufficientTech='..tostring(bHaveSufficientTech)) end
         if not(bHaveSufficientTech) and (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4) then
             --Do we have an active factory upgrade?
-            local bHaveActiveHQUpgrade = false
+            local oActiveHQUpgradeToAssist
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                local iHighestCompletion = -1
                 for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
                     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) then
-                        bHaveActiveHQUpgrade = true
-                        break
+                        if oUpgrade:GetFractionComplete() > iHighestCompletion then
+                            oActiveHQUpgradeToAssist = oUpgrade
+                            iHighestCompletion = oUpgrade:GetFractionComplete()
+                        end
                     end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveActiveHQUpgrade='..tostring(bHaveActiveHQUpgrade)) end
-            if bHaveActiveHQUpgrade then
+            if oActiveHQUpgradeToAssist then
                 iBPWanted = 20
                 if not(bHaveLowPower) and not(bHaveLowMass) then iBPWanted = 40 end
-                HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
+                HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oActiveHQUpgradeToAssist)
                 if bDebugMessages == true then LOG(sFunctionRef..': We have an active HQ upgrade so will assist this') end
             else
                 --We need a priority upgrade, unless it is early game and the ACU is unupgraded and isnt trying to upgrade
