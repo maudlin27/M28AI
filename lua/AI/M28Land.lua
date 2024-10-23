@@ -45,7 +45,7 @@ iFatboyBaseMAACount = 5 --Number of MAA wanted as guards normally
 iFatboySafeMAACount = 10 --Number of MAA wanted as guards if worried about restorer deathball/equivalent
 refbFlaggedForPriorityScout = 'M28LndPrScFg' --true if we have flagged this unit wants a priority land scout
 refiTimeLastBuiltLandScoutForUnit = 'M28LndTmLstBultLS' --Gametimeseconds that we last built a high priority land scout because of this unit
-iIntelThresholdForPriorityScout = 30 --I.e. if have less than this radar coverage in a zone, then a skirmisher will consider flagging to ask for a priority scout
+iIntelThresholdForPriorityScout = 50 --I.e. if have less than this radar coverage in a zone, then a skirmisher will consider flagging to ask for a priority scout
 refbConsideredPotentialBPUpgrade = 'M28LndSCUbpUp'-- against SACU, true if we have included build power upgrade in ones we want
 
 --See M28navy for sonar equivalent
@@ -5125,6 +5125,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             bAttackWithSameRange = true
                         end
                     end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': If are in scenario 1 will consider disabling if we cant see the nearest enemy, bAreInScenario1='..tostring(bAreInScenario1)..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil'))
+                if oNearestEnemyToFriendlyBase then LOG(sFunctionRef..': Can see oNearestEnemyToFriendlyBase='..tostring(M28UnitInfo.CanSeeUnit(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]], oNearestEnemyToFriendlyBase, false))..'; tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]) end
+            end
+            if bAreInScenario1 and oNearestEnemyToFriendlyBase and not(M28UnitInfo.CanSeeUnit(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]], oNearestEnemyToFriendlyBase, false)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': we dont have intel of the closest enemy so dont want to be in scenario 1 afterall, will flag that we lack intel') end
+                bAreInScenario1 = false
+                if tLZTeamData[M28Map.refiRadarCoverage] < iIntelThresholdForPriorityScout then
+                    tLZTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] = GetGameTimeSeconds()
                 end
             end
 

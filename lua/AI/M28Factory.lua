@@ -713,6 +713,11 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
 
+    --Priority scouts
+    if tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] and bInSameIsland and tLZTargetTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTScoutsTravelingHere]) and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] <= 20 then
+        iBaseCategoryWanted = M28UnitInfo.refCategoryLandScout
+        if bDebugMessages == true then LOG(sFunctionRef..': We recently failed to get a land scout for this zone so want to get one now') end
+    end
 
     if (not(bDontGetCombat) and (tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect)) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport]) or (GetGameTimeSeconds() - (tLZTargetTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 and (not(M28Utilities.bLoudModActive) or tLZTargetTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28UnitInfo.GetUnitTechLevel(oFactory) >= 3)) then
         --First consider if we need MAA more urgently than indirect
@@ -933,24 +938,24 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                     iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
                 end
 
-                    --Absolver override
-                    if bConsiderAbsolvers then
-                        if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
-                            --Want absolvers unless we are already building some in this zone
-                            local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
-                            if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * M28UnitInfo.refCategoryAmphibious + iAbsolverCategory * categories.HOVER end
+                --Absolver override
+                if bConsiderAbsolvers then
+                    if M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllShieldUnits, tLZTargetTeamData[M28Map.subrefTEnemyUnits])) == false then
+                        --Want absolvers unless we are already building some in this zone
+                        local iAbsolverCategory = M28UnitInfo.refCategoryAbsolver
+                        if not(bInSameIsland) then iAbsolverCategory = iAbsolverCategory * M28UnitInfo.refCategoryAmphibious + iAbsolverCategory * categories.HOVER end
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
-                            --Can we actually build a unit with this categoyr?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get absolvers as enemy has some shield units') end
+                        --Can we actually build a unit with this categoyr?
 
-                            local sAbsolver = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAbsolverCategory, oFactory)
-                            if sAbsolver then
-                                iBaseCategoryWanted = iAbsolverCategory
-                            end
+                        local sAbsolver = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAbsolverCategory, oFactory)
+                        if sAbsolver then
+                            iBaseCategoryWanted = iAbsolverCategory
                         end
                     end
-                elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
                 end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
+            end
             if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
                 iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
             end
