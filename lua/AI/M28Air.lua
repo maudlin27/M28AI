@@ -905,6 +905,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                                     bProceed = false
                                                     table.insert(tInUseUnits, oUnit)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding to table of in use units') end
+                                                    --Update orders
+                                                    M28Orders.UpdateRecordedOrders(oUnit)
                                                 end
                                             end
                                         end
@@ -7407,12 +7409,12 @@ function ManageTransports(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, time='..GetGameTimeSeconds()..'; Is table of available transports empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))..'; tRallyPoint='..repru(tRallyPoint)..'; Is table of unavailable units empty='..tostring(M28Utilities.IsTableEmpty(tUnavailableUnits))) end
 
     --First manage 'busy' transports - i.e. consider dropping early
-    function ConsiderEmergencyDrops(tUnitsToConsider, bRemoveFromTableIfEmergencyDrop)
+    function ConsiderEmergencyDrops(tUnitsToConsider, bRemoveFromTableIfEmergencyDrop, bRefreshDropOrderIfNoUnitState)
         for iUnit, oUnit in tUnitsToConsider do
             local tCargo = oUnit:GetCargo()
             if M28Utilities.IsTableEmpty(tCargo) == false then
                 local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, false)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unavailable transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder subreftOrderPosition='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Cur unit position='..repru(oUnit:GetPosition())) end
                 if bDropNow then
                     --Drop early
                     M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergBDr', false)
@@ -7478,16 +7480,24 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
                     end
                 end
+                --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                    if tLastOrder[M28Orders.subrefiOrderType]
+                    M28Orders.UpdateRecordedOrders(oUnit)
+                    if
+                end--]]
             elseif oUnit[refbEmergencyDropActive] then oUnit[refbEmergencyDropActive] = nil --redundancy (shouldnt ever trigger)
             end
         end
     end
     if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
         ConsiderEmergencyDrops(tUnavailableUnits, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through unavailable units to decide if we should drop now') end
     end
 
     if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
         ConsiderEmergencyDrops(tAvailableTransports, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed cycling through available transports to see if we should drop now, is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))) end
         if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
             --Cycle through each transport, and decide the best island to try and drop to - first sort transports by distance so are less likely to have a far away transport go to a aplteau that a closer one can reach
 
