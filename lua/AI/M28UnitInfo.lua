@@ -1478,7 +1478,7 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCurrentAndMaximumShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oUnit.MyShield then
+    --if oUnit.MyShield then
         local iCurShield = 0
         local iMaxShield = 0
         if oUnit.MyShield then
@@ -1490,7 +1490,7 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
                 iCurShield = (oUnit:GetShieldRatio(false) or 0) * iMaxShield
             end
         end
-        if iCurShield > 0 then
+        if iCurShield > 0 and oUnit.MyShield then
             if not(bDontTreatLowPowerShieldAsZero) then
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
@@ -1512,10 +1512,10 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return iCurShield, iMaxShield
-    else
+    --[[else
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return 0, 0
-    end
+    end--]]
 end
 
 function IsUnitShieldEnabled(oUnit)
