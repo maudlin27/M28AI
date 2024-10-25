@@ -2354,7 +2354,9 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
     end
     local tOriginallyAssignedMobileShields = {}
-
+    local bRetreatShield, iDistToShieldTarget
+    local bCheckForEnemiesInsideShield = false
+    if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < math.max(200, (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 0.8) then bCheckForEnemiesInsideShield = true end
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
         if bDebugMessages == true then
@@ -2367,17 +2369,29 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             --Retreat
             table.insert(tShieldsToRetreat, oUnit)
         elseif oUnit[refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileShieldTarget]) then
-            if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.9 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoMobileShieldTarget]:GetPosition()) >= 30 and not(EntityCategoryContains(categories.COMMAND,oUnit[refoMobileShieldTarget].UnitId)) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, nil, nil, false) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to retreat shield due to risk enemy has units inbetween us and the target') end
+            bRetreatShield = false
+            if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.95 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and not(EntityCategoryContains(categories.COMMAND,oUnit[refoMobileShieldTarget].UnitId)) then
+                --Are we almost in range of enemy units?
+                iDistToShieldTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoMobileShieldTarget]:GetPosition())
+                if iDistToShieldTarget >= 30 or bCheckForEnemiesInsideShield then
+                                        --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                   iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                    if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true,                      nil,                    nil,                                oUnit,                                        nil,                            false) then
+                        if iDistToShieldTarget >= 30 then
+                            bRetreatShield = true
+                        elseif bCheckForEnemiesInsideShield and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= (oUnit:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.6 + 3 then
+                            --If enemy is almost inside our shield then want to retreat to try and save the mobile shield
+                            bRetreatShield = true
+                        end
+                    end
+                end
+            end
+            if bRetreatShield then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to retreat shield due to risk enemy has units inbetween us and the target, or enemy is about to get underneath our shield') end
                 table.insert(tShieldsToRetreat, oUnit)
                 oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] = true
             else
                 table.insert(tOriginallyAssignedMobileShields, oUnit)
             end
-            --[[
-            --make sure we are behind the target
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move behind the shield target '..oUnit[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoMobileShieldTarget])..'; Unit position='..repru(oUnit:GetPosition())..'; Target last order position='..repru(oUnit[refoMobileShieldTarget][M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])) end
-            MoveToShieldTarget(oUnit, tEnemyBase, tLZTeamData, tEnemyDFUnits, tRallyPoint)--]]
         else
             table.insert(tShieldsToAssign, oUnit)
             if oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] then oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] = nil end
