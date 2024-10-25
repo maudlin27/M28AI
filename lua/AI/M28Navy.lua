@@ -2794,7 +2794,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     end-- iRangeThreshold
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; bBlockedSoMove='..tostring(bBlockedSoMove)..'; tBlockedShotActualMoveLocation='..repru(tBlockedShotActualMoveLocation)..'; bConsiderGroundAttack='..tostring(bConsiderGroundAttack)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; bBlockedSoMove='..tostring(bBlockedSoMove)..'; tBlockedShotActualMoveLocation='..repru(tBlockedShotActualMoveLocation)..'; bConsiderGroundAttack='..tostring(bConsiderGroundAttack)..'; Time since refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                             if not (oBuildingToAttack) or (bBlockedSoMove and tBlockedShotActualMoveLocation) then
                                 --ToDo - figure out solution to both cliff temporarily blocking (where if we dont attack-move we are ok)
                                 --ToDo - and the converse where we are ok but if we move towards the target a cliff ends up blocking us until we move further away
@@ -2968,8 +2968,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local iBestAvailableSubmarineRange = 0
     local bHaveRunFromAir = false
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
-
+        local iCurTime = math.floor(GetGameTimeSeconds())
         --Retreat to rally point
+        if bDebugMessages == true then LOG(sFunctionRef..': Will retreat available combat units and subs to the rally point, si available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
             if iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > 0 and iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits) * 0.05 then
                 bHaveRunFromAir = true
@@ -3003,10 +3004,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         else
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': retreating sub '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to rally point or amphibious rally point') end
                     else
                         oUnit[refiCurrentWZAssignmentValue] = 0
                     end
                 end
+                tAvailableSubmarines = nil
             elseif bDebugMessages == true then LOG(sFunctionRef..': Wont retreat subs as not enough for a torp bomber threat')
             end
         end

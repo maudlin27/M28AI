@@ -701,10 +701,13 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
         local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
         if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
     elseif oTarget[M28Orders.refiOrderCount] > 0 then
-        local tLastOrder = oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]]
-        tCurDestination = tLastOrder[M28Orders.subreftOrderPosition]
-        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveFormMove then
-            bAttackMove = true
+        if oTarget[M28Orders.reftMoveDestinationIgnoredDueToMicro] then tCurDestination = {oTarget[M28Orders.reftMoveDestinationIgnoredDueToMicro][1], oTarget[M28Orders.reftMoveDestinationIgnoredDueToMicro][2], oTarget[M28Orders.reftMoveDestinationIgnoredDueToMicro][3]}
+        else
+            local tLastOrder = oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]]
+            tCurDestination = tLastOrder[M28Orders.subreftOrderPosition]
+            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveFormMove then
+                bAttackMove = true
+            end
         end
     end
 
@@ -729,9 +732,10 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
             iAngleAdjust = math.min(iAngleAdjust, 30)
         end
     end
+
     --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
-    if bDebugMessages == true then LOG(sFUnctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)) end
-    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)) end
+    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) or (oTarget[M28UnitInfo.refiTimeLastTriedRetreating] and GetGameTimeSeconds() - oTarget[M28UnitInfo.refiTimeLastTriedRetreating] <= math.max(2, M28Land.iTicksPerLandCycle * 0.1 + 0.1)) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3) then
         local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
         if bDebugMessages == true then LOG(sFunctionRef..': iAngleDifToDestination='..iAngleDifToDestination..'; iAngleAdjust='..iAngleAdjust) end
         if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then

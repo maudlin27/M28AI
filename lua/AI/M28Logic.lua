@@ -249,21 +249,22 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
     return bShotIsBlocked
 end
 
-function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
+function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsTargetUnderShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Determines if target is under a shield
-    --bCumulativeShieldHealth - if this is true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
+    --bCumulativeShieldHealth - if this is true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisCurHealth
 
 
 
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
         --Optimisation - only refresh shield checks periodically as late game this can soak up a lot of performance
         local iRef
+        if iIgnoreShieldsWithLessThanThisCurHealth == nil then iIgnoreShieldsWithLessThanThisCurHealth = 0 end
 
         if not(bReturnShieldHealthInstead) then --If want to return shield health then need to do the full calculation
-            iRef = aiBrain.M28Team + iIgnoreShieldsWithLessThanThisHealth
+            iRef = aiBrain.M28Team + iIgnoreShieldsWithLessThanThisCurHealth
             if bIgnoreMobileShields then iRef = iRef + 7 end
             if bTreatPartCompleteAsComplete then iRef = iRef + 13 end
             if bCumulativeShieldHealth then iRef = iRef + 29 end
@@ -280,7 +281,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
                 LOG(sFunctionRef..': oTarget is a shield but it doesnt have a .GetHealth property. target='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'reprs of shield='..reprs(oTarget.MyShield))
             end
         end
-        if iIgnoreShieldsWithLessThanThisHealth == nil then iIgnoreShieldsWithLessThanThisHealth = 0 end
+
         local bUnderShield = false
         local iShieldSearchRange = 46 --T3 sera shield is 46; bulwark is 120; will go with sera t3 for now; if changing here then also change reference in getmaxstrikedamage
         --Is the target an enemy?
@@ -304,6 +305,8 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
 
         local tNearbyShields
         local bDontDoDistanceCheck = false
+        local tShieldsCoveringTarget
+        if bReturnShieldsCovringTargetInstead then tShieldsCoveringTarget = {} end
 
         if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
             bDontDoDistanceCheck = true
@@ -356,18 +359,20 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
                             else iCurDistanceFromTarget = 0
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDistance to shield='..iCurDistanceFromTarget..'; iCurShieldRadius='..iCurShieldRadius..'; shield position='..repru(oUnit:GetPosition())..'; target position='..repru(tTargetPos)..'; bDontDoDistanceCheck='..tostring(bDontDoDistanceCheck)) end
-                            if iCurDistanceFromTarget <= (iCurShieldRadius + iShieldSizeAdjust) then --if dont increase by anything then half of unit might be under shield which means bombs cant hit it
+                            if iCurDistanceFromTarget <= (iCurShieldRadius + iShieldSizeAdjust) then --if dont increase by anything then half of unit might be under shield which means bombs cant hit it                                                                
                                 if bDebugMessages == true then LOG(sFunctionRef..': Shield is large enough to cover target, will check its health') end
                                 iShieldCurHealth, iShieldMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
                                 iTotalShieldCurHealth = iTotalShieldCurHealth + iShieldCurHealth
                                 iTotalShieldMaxHealth = iTotalShieldMaxHealth + iShieldMaxHealth
                                 if bTreatPartCompleteAsComplete or (oUnit:GetFractionComplete() >= 0.95 and oUnit:GetFractionComplete() < 1) then iShieldCurHealth = iShieldMaxHealth end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iShieldCurHealth='..iShieldCurHealth..'; iIgnoreShieldsWithLessThanThisHealth='..iIgnoreShieldsWithLessThanThisHealth) end
-                                if (not(bCumulativeShieldHealth) and iShieldCurHealth >= iIgnoreShieldsWithLessThanThisHealth) or (bCumulativeShieldHealth and iTotalShieldCurHealth >= iIgnoreShieldsWithLessThanThisHealth) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': iShieldCurHealth='..iShieldCurHealth..'; iIgnoreShieldsWithLessThanThisCurHealth='..iIgnoreShieldsWithLessThanThisCurHealth) end
+                                if (not(bCumulativeShieldHealth) and iShieldCurHealth >= iIgnoreShieldsWithLessThanThisCurHealth) or (bCumulativeShieldHealth and iTotalShieldCurHealth >= iIgnoreShieldsWithLessThanThisCurHealth) then
                                     bUnderShield = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Shield health more than threshold so unit is under a shield') end
-                                    if not(bReturnShieldHealthInstead) then break end
-                                end
+                                    if bReturnShieldsCovringTargetInstead then table.insert(tShieldsCoveringTarget, oUnit)
+                                    elseif not(bReturnShieldHealthInstead) then break
+                                    end                                
+                                end                                
                             end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Shield radius isnt >0')
                         end
@@ -383,6 +388,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         if bReturnShieldHealthInstead then
             return iTotalShieldCurHealth, iTotalShieldMaxHealth
+        elseif bReturnShieldsCovringTargetInstead then  return tShieldsCoveringTarget
         else
             if not(oTarget[reftiTimeOfLastShieldCheck]) then oTarget[reftiTimeOfLastShieldCheck] = {} oTarget[reftbLastShieldCheckResult] = {} end
             oTarget[reftiTimeOfLastShieldCheck][iRef] = GetGameTimeSeconds()
@@ -421,7 +427,7 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
                 --Is the unit within range of the aoe?
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) <= iAOE then
                     --Is the unit shielded by a non-mobile shield (mobile shields should take full damage I think)
-                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete)
+                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete)
                     if not(IsTargetUnderShield(aiBrain, oUnit, 800, false, true, false)) then
                         iActualDamage = iDamage
                         if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
@@ -683,7 +689,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 end
                 if iCurDist <= iAOE then
                     --Is the unit shielded by more than 90% of our damage?
-                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
+                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
                     if bCheckForShields and IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
                     if bDebugMessages == true then LOG(sFunctionRef..': Mass factor after considering if under shield='..iMassFactor..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')..'; Is target under shield='..tostring(IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck))) end
                     if iMassFactor > 0 then

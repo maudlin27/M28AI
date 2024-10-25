@@ -859,6 +859,21 @@ function OnShieldBubbleDamaged(self, instigator)
             end
             --LOG('instigator='..reprs(instigator))
             if M28UnitInfo.IsUnitValid(instigator) and instigator:GetAIBrain().M28AI and IsEnemy(oShield:GetAIBrain():GetArmyIndex(), instigator:GetAIBrain():GetArmyIndex()) then
+                local oUnitCausingDamage
+                if instigator and not(instigator:BeenDestroyed()) then
+                    if instigator.GetLauncher and instigator:GetLauncher() then
+                        oUnitCausingDamage = instigator:GetLauncher()
+                    elseif instigator.DamageData and not(instigator.unit) and not(instigator.UnitId) then
+                        --Can get errors for artillery shells when running IsProjectile
+                    elseif IsProjectile(instigator) or IsCollisionBeam(instigator) then
+                        if instigator.unit then
+                            oUnitCausingDamage = instigator.unit
+                        end
+                    elseif IsUnit(instigator) then
+                        oUnitCausingDamage = instigator
+                    end
+                end
+                oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) then
                     if EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) then
                         local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
