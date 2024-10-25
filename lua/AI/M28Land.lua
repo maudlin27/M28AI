@@ -4858,9 +4858,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if bDebugMessages == true then LOG(sFunctionRef..': oLowestHealthShield='..(oLowestHealthShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLowestHealthShield) or 'nil')) end
                                 if oLowestHealthShield then
                                     --Switch target to the shield
-                                    if true and GetGameTimeSeconds() >= 38*60 then
-                                        oManualAttackTarget = oLowestHealthShield
-                                    end
+                                    oManualAttackTarget = oLowestHealthShield
                                 end
                             end
                         end

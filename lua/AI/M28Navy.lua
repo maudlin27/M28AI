@@ -2222,7 +2222,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
     local sFunctionRef = 'AssignBombardmentActions'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryBattleship, tPotentialBombardmentUnits)) == false then bDebugMessages = true end
 
     if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false and not(tbOptionalPlateauAndLandZonesToConsider) and not(iOptionalRaidBaseWZ) and not(bOptionalDontTreatAsBombardment) then
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] = GetGameTimeSeconds()
@@ -2794,7 +2794,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     end-- iRangeThreshold
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; bBlockedSoMove='..tostring(bBlockedSoMove)..'; tBlockedShotActualMoveLocation='..repru(tBlockedShotActualMoveLocation)..'; bConsiderGroundAttack='..tostring(bConsiderGroundAttack)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; bBlockedSoMove='..tostring(bBlockedSoMove)..'; tBlockedShotActualMoveLocation='..repru(tBlockedShotActualMoveLocation)..'; bConsiderGroundAttack='..tostring(bConsiderGroundAttack)..'; Time since refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                             if not (oBuildingToAttack) or (bBlockedSoMove and tBlockedShotActualMoveLocation) then
                                 --ToDo - figure out solution to both cliff temporarily blocking (where if we dont attack-move we are ok)
                                 --ToDo - and the converse where we are ok but if we move towards the target a cliff ends up blocking us until we move further away
