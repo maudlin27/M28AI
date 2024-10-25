@@ -873,7 +873,7 @@ function OnShieldBubbleDamaged(self, instigator)
                         oUnitCausingDamage = instigator
                     end
                 end
-                oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds() end
+                oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) then
                     if EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) then
                         local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())

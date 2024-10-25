@@ -51,6 +51,7 @@ toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order
 refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an order to follow a path, then when its orders are refreshed this shoudl be updated based on what path we think is currently the target
 refiTimeOfLastRemovalUpgrade = 'M28OrdUpgRem' --if ACU given an upgrade that removes upgrades, then this will record the time, to help workaround an issue where the tracking for the new upgrade (post removal) goes through before tracking for the completion of the old (removal) upgrade
 refiLastUnloadAttemptTime = 'M28OrdUnlAtmp' --gametimeseconds we tried to unload (so can keep trying to unload)
+reftMoveDestinationIgnoredDueToMicro = 'M28OUnDIg' --{x,y,z} position that the unit was given a move order to go to, but ignored due to active micro
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
@@ -118,7 +119,7 @@ function IssueTrackedClearCommands(oUnit)
         end
         oUnit[reftiLastOrders] = nil
         oUnit[refiOrderCount] = 0
-
+        if oUnit[reftMoveDestinationIgnoredDueToMicro] then oUnit[reftMoveDestinationIgnoredDueToMicro] = nil end
         if oUnit[M28Engineer.reftUnitsWeAreReclaiming] and M28Utilities.IsTableEmpty(oUnit[M28Engineer.reftUnitsWeAreReclaiming]) == false then
             for iUnitBeingReclaimed, oUnitBeingReclaimed in oUnit[M28Engineer.reftUnitsWeAreReclaiming] do
                 if oUnitBeingReclaimed.UnitId and M28Utilities.IsTableEmpty(oUnitBeingReclaimed[M28Engineer.reftUnitsReclaimingUs]) == false then
@@ -253,35 +254,40 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
             end
         end
         --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01071' then LOG('IssueTrackedMove: Time='..GetGameTimeSeconds()..'; reprs of tLastOrder='..reprs(tLastOrder)..'; tOrderPosition='..repru(tOrderPosition)..'; iDistanceToReissueOrder='..iDistanceToReissueOrder..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false)..'; sOptionalOrderDesc='..(sOptionalOrderDesc or 'nil')..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
-        if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
-            local bChangedViaNavigator
-            if not(bAddToExistingQueue) then
-                if tLastOrder[subrefiOrderType] == refiOrderIssueMove and oUnit.GetNavigator and oUnit[refiOrderCount] <= 1 then
-                    local oNavigator = oUnit:GetNavigator()
-                    if oNavigator then
-                        local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
-                        if tCurNavigatorTarget and M28Utilities.GetDistanceBetweenPositions(tLastOrder[subreftOrderPosition], tCurNavigatorTarget) <= 3 then
-                            oNavigator:SetGoal(tOrderPosition)
-                            bChangedViaNavigator = true
-                            oUnit[reftiLastOrders] = {}
-                            oUnit[refiOrderCount] = 0
+        if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+            if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
+                local bChangedViaNavigator
+                if not(bAddToExistingQueue) then
+                    if tLastOrder[subrefiOrderType] == refiOrderIssueMove and oUnit.GetNavigator and oUnit[refiOrderCount] <= 1 then
+                        local oNavigator = oUnit:GetNavigator()
+                        if oNavigator then
+                            local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
+                            if tCurNavigatorTarget and M28Utilities.GetDistanceBetweenPositions(tLastOrder[subreftOrderPosition], tCurNavigatorTarget) <= 3 then
+                                oNavigator:SetGoal(tOrderPosition)
+                                bChangedViaNavigator = true
+                                oUnit[reftiLastOrders] = {}
+                                oUnit[refiOrderCount] = 0
+                            end
                         end
                     end
+                    if not(bChangedViaNavigator) then
+                        IssueTrackedClearCommands(oUnit)
+                    end
                 end
+                if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+                oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+                table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
                 if not(bChangedViaNavigator) then
-                    IssueTrackedClearCommands(oUnit)
+                    IssueMove({oUnit}, tOrderPosition)
                 end
+                --[[if oUnit.UnitId == 'xel0305' then
+                    LOG('Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea))
+                    M28Utilities.DrawLocation(tOrderPosition)
+                end--]]
+            else
+                --We cant move here because weh ave active micro and dont want to override it
+                oUnit[reftMoveDestinationIgnoredDueToMicro] = tOrderPosition
             end
-            if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
-            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
-            if not(bChangedViaNavigator) then
-                IssueMove({oUnit}, tOrderPosition)
-            end
-            --[[if oUnit.UnitId == 'xel0305' then
-                LOG('Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea))
-                M28Utilities.DrawLocation(tOrderPosition)
-            end--]]
         end
         if M28Config.M28ShowUnitNames and oUnit[reftiLastOrders][1] and (not(oUnit[M28UnitInfo.refbSpecialMicroActive]) or bOverrideMicroOrder) then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
