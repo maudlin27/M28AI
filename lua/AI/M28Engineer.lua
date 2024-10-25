@@ -18116,7 +18116,7 @@ function ConsiderBuildingMassFabOrGateway(iTeam, iZone, tLZTeamData, HaveActionT
         if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
             for iUnit, oUnit in tQuantumGateways do
                 if oUnit:GetFractionComplete() == 1 then
-                    iExistingGateways = iExistingT3MassFabs + 1
+                    iExistingGateways = iExistingGateways + 1
                 end
             end
         end
