@@ -3706,7 +3706,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetPreferredUnitsByCategory(aiBrain)
+function SetPriorityPreferredUnitsByCategory(aiBrain)
     --If have multiple units that can build for a particular category, this will specify what to build
     --special cases where want to prioritise one unit over another where multiple of same type satisfy the category
     --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
@@ -3751,6 +3751,10 @@ function SetPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
         aiBrain[reftBlueprintPriorityOverride]['xrl0302'] = -1000 --fire beetle (so build wagners instead if going for fast units)
         aiBrain[reftBlueprintPriorityOverride]['srs0219'] = -1 --Engineer ship (can get built and used as naval scouts instead of frigate)
+
+        --LOUD and LCE - Eliash (Aeon shorter range DF experimental that has a shield); also include experimental mobile arti
+        aiBrain[reftBlueprintPriorityOverride]['brot3ncm'] = 1
+        if categories.brot3ncm then aiBrain[reftBlueprintPriorityOverride]['sal0401'] = 1 end
 
         --AZ Orig LOUD unit mod suggestions (nonLCE)
         if not(M28Utilities.bLCEActive) then
