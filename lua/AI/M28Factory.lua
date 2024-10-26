@@ -3758,6 +3758,8 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['brot3ncm'] = 1
         if categories.brot3ncm then aiBrain[reftBlueprintPriorityOverride]['sal0401'] = 1 end
 
+        aiBrain[reftBlueprintPriorityOverride]['sel0324'] = -1000 --mobile omni (that also has AA so gets misused as an AA unit when
+
         --AZ Orig LOUD unit mod suggestions (nonLCE), and other LOUD adjustments
         if not(M28Utilities.bLCEActive) then
             aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per LCE discord
