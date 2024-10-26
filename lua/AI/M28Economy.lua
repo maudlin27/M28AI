@@ -524,14 +524,14 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
             end
             local iCategoryBeingConsidered
             if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustDestroyed.UnitId) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Land fac destroyed, iUnitTechLevel='..iUnitTechLevel..';  aiBrain[M28Economy.refiOurHighestLandFactoryTech] ='.. aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
-                if iUnitTechLevel >= (aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 0) then
-                    aiBrain[M28Economy.refiOurHighestLandFactoryTech] = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': Land fac destroyed, iUnitTechLevel='..iUnitTechLevel..';  aiBrain[refiOurHighestLandFactoryTech] ='.. aiBrain[refiOurHighestLandFactoryTech]) end
+                if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
+                    aiBrain[refiOurHighestLandFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
                         iCategoryBeingConsidered = M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY
                         if aiBrain:GetCurrentUnits(iCategoryBeingConsidered) > 0 and UnitsStillValid(iCategoryBeingConsidered) then
                             --Check these units are all still valid
-                            aiBrain[M28Economy.refiOurHighestLandFactoryTech] = iTechLevel
+                            aiBrain[refiOurHighestLandFactoryTech] = iTechLevel
                             if bDebugMessages == true then LOG(sFunctionRef..': Setting highets land fac tech to iTechLevel='..iTechLevel) end
                             break
                         end
@@ -565,7 +565,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
             end
 
             --Updated highest factory type across all types
-            aiBrain[refiOurHighestFactoryTechLevel] = math.max(aiBrain[M28Economy.refiOurHighestLandFactoryTech], aiBrain[refiOurHighestAirFactoryTech], aiBrain[refiOurHighestNavalFactoryTech])
+            aiBrain[refiOurHighestFactoryTechLevel] = math.max(aiBrain[refiOurHighestLandFactoryTech], aiBrain[refiOurHighestAirFactoryTech], aiBrain[refiOurHighestNavalFactoryTech])
 
             --Update team details
             M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
@@ -573,7 +573,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
         elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustDestroyed.UnitId) then
             M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, aiBrain[refiOurHighestAirFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestAirFactoryTech]..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestLandFactoryTech]..'; aiBrain[refiOurHighestNavalFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestNavalFactoryTech]..'; aiBrain[refiOurHighestFactoryTechLevel]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestFactoryTechLevel]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, aiBrain[refiOurHighestAirFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestAirFactoryTech]..'; aiBrain[refiOurHighestLandFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestLandFactoryTech]..'; aiBrain[refiOurHighestNavalFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestNavalFactoryTech]..'; aiBrain[refiOurHighestFactoryTechLevel]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestFactoryTechLevel]) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
