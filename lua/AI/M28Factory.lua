@@ -294,7 +294,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 -- In the future we should also check if our economy is good enough to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 -- We should also check if we have a large number of factories to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 if sBPIDToBuild == 'url0107' then --CybranLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.url0107) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.url0107) >= 40 then
                         if oFactory:CanBuild('brmt1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['url0107'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
@@ -303,7 +303,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'uel0201' then --UEFLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.uel0201) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.uel0201) >= 40 then
                         if oFactory:CanBuild('uel0108') then
                             aiBrain[reftBlueprintPriorityOverride]['uel0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
@@ -312,7 +312,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif (sBPIDToBuild == 'ual0201' or sBPIDToBuild == 'ual0108' or sBPIDToBuild == 'brot1bt') then --AeonLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.ual0201 + categories.ual0108 + categories.brot1bt)) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.ual0201 + categories.ual0108 + categories.brot1bt)) >= 40 then
                         if oFactory:CanBuild('brot1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['ual0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['ual0108'] = nil
@@ -323,7 +323,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'xsl0201' then --SeraphimLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.xsl0201) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.xsl0201) >= 40 then
                         if oFactory:CanBuild('brpt1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
@@ -332,7 +332,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'url0202' or sBPIDToBuild == 'brmt2ht' then --CybranLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0202 + categories.brmt2ht)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0202 + categories.brmt2ht)) >= 20 then
                         if oFactory:CanBuild('brmt2medm') then
                             aiBrain[reftBlueprintPriorityOverride]['url0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brmt2ht'] = nil
@@ -342,7 +342,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'uel0202' or sBPIDToBuild == 'brnt2mt' or sBPIDToBuild == 'bel0211' then --UEFLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0202 + categories.brnt2mt + categories.bel0211)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0202 + categories.brnt2mt + categories.bel0211)) >= 20 then
                         if oFactory:CanBuild('wel0304') then
                             aiBrain[reftBlueprintPriorityOverride]['uel0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brnt2mt'] = nil
@@ -353,7 +353,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'ual0202' then --AeonLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0202) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0202) >= 20 then
                         if oFactory:CanBuild('brot2asb') then
                             aiBrain[reftBlueprintPriorityOverride]['ual0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
@@ -362,7 +362,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'xsl0202' or sBPIDToBuild == 'wsl0202' then --SeraphimLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 20 then
                         if oFactory:CanBuild('brpt2btbot') then
                             aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = nil
