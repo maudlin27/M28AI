@@ -1686,7 +1686,7 @@ function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bE
                 local tFriendlyUnitsNearTarget = aiBrain:GetUnitsAroundPoint(iCategoriesToSearch, tTarget, iSearchArea, 'Ally')
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
-                        if not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId)) then
+                        if oUnit:GetAIBrain().M28AI and (not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
                             iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
                             local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
                             M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
