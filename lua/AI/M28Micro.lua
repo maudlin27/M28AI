@@ -1655,9 +1655,9 @@ function MoveAndKillAirUnit(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
+function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bEnemyNuke)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'MonitorNukeTargetForFriendlyUnits'
+    local sFunctionRef = 'MonitorNukeTargetForNukeWeHaveIntelOf'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
@@ -1686,15 +1686,65 @@ function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
                 local tFriendlyUnitsNearTarget = aiBrain:GetUnitsAroundPoint(iCategoriesToSearch, tTarget, iSearchArea, 'Ally')
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
-                        iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
-                        local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
-                        M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
-                        TrackTemporaryUnitMicro(oUnit, 1)
+                        if not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId)) then
+                            iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
+                            local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
+                            M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
+                            TrackTemporaryUnitMicro(oUnit, 1)
+                        end
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorEnemyNukeForIntel(oProjectile, iTeam)
+    --Intended for hostile nuke - want to try and take evasive action once we see hten uke being launched
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorEnemyNukeForIntel'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for iTeam='..iTeam..'; oProjectile.Launcher='..(oProjectile.Launcher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile.Launcher) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if aiBrain then
+            local iCurDist
+            local iTickDelayBetweenChecks = 1
+            if M28Land.iTicksPerLandCycle > 11 then iTickDelayBetweenChecks = math.floor(M28Land.iTickDelayBetweenChecks / 10) end
+            local bHaveIntel = false
+            while not(oProjectile:BeenDestroyed()) do
+                --Check if we have intel of this position (i.e. visual)
+                local tCurLZData, tCurLZTeamData = M28Map.GetLandOrWaterZoneData(oProjectile:GetPosition(), true, iTeam)
+                if bDebugMessages == true then
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oProjectile:GetPosition())
+                    LOG(sFunctionRef..': Considering if we have units in the zone where the missile is, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; is table of units empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Time='..GetGameTimeSeconds())
+                end
+                if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tCurMissilePosition = oProjectile:GetPosition()
+                    for iUnit, oUnit in tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurMissilePosition, oUnit:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; Dist less vision='..iCurDist - (oUnit:GetBlueprint().Intel.VisionRadius or 0)) end
+                            if iCurDist <= 100 and iCurDist - (oUnit:GetBlueprint().Intel.VisionRadius or 0) < 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have intel so aborting') end
+                                bHaveIntel = true
+                                break
+                            end
+                        end
+                    end
+                    if bHaveIntel then break end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(iTickDelayBetweenChecks)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Exited the projectile monitor loop, bHaveIntel='..tostring(bHaveIntel)..'; Time='..GetGameTimeSeconds()) end
+            if bHaveIntel then
+                MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oProjectile.Launcher, iTeam)
             end
         end
     end

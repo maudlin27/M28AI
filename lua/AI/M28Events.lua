@@ -1407,7 +1407,13 @@ function ProjectileCreated(oProjectile, inWater)
                 if M28UnitInfo.IsUnitValid(oLauncher) then
                     local iTeam = oLauncher:GetAIBrain().M28Team
                     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                        ForkThread(M28Micro.MonitorNukeTargetForFriendlyUnits, oProjectile, oLauncher, iTeam)
+                        ForkThread(M28Micro.MonitorNukeTargetForNukeWeHaveIntelOf, oProjectile, oLauncher, iTeam)
+                    end
+                    --Start a threat for each team with M28 in that isnt an ally to check if we have visual of the missile
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if not(iCurTeam == iTeam) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            ForkThread(M28Micro.MonitorEnemyNukeForIntel, oProjectile, iCurTeam)
+                        end
                     end
                 end
 
