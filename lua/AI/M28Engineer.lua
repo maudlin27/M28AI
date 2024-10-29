@@ -11410,7 +11410,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --More power if lowish power and high mass (to try and avoid overflow due to lack of power), but dont increase BP wanted
     iCurPriority = iCurPriority + 1
-    if true and GetGameTimeSeconds() >= 27*60 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5) then
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5) then
         --Are in danger of overflowing - assist either power (if we have low power) or factory (if we dont have low power)
         local iCategoryWanted
         local oBuildingToAssist
