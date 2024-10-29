@@ -118,6 +118,7 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
     subrefPlateauIslandLandZones = 'M28PlateauIslands' --[x] is the island, returns a table of land zones in that island for this plateau; the table returned has a key 1....x, and returns the land zone reference number
     subrefPlateauIslandMexCount = 'M28IslandMexCount' --[x] is the island, returns the number of mexes in the island
     subrefPlateauIslandLurkerZones = 'M28IslLurkZn' --[x] is the island, returns a tabe listing out any zones on the island that we want to consider assigning selens to in lurker mode
+    subrefPlateauIslandTimeLastFailedLandScoutByTeam = 'M28IslLstLSc' --[x] is the team, [y] is the island, returns the gametimeseconds that we last had scouts assigned to patrol due to a lack of zones for them to travel to
 
 --Plateaus - Land zone variables (still against tAllPlateaus[iPlateau]
     subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
