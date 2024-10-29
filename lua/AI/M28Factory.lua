@@ -1076,7 +1076,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'ueb02011' then bDebugMessages = true end
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
@@ -1283,6 +1283,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     function ConsiderBuildingCategory(iCategoryToBuild)
         --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil,             nil,        nil,        nil,                                    false)
+        if sBPIDToBuild and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild) then bDebugMessages = true M28Utilities.ErrorHandler('Land scout audit trail, currently have '..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)) end
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
