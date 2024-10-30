@@ -266,6 +266,15 @@ function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
             local tUnitsToRun = aiBrain:GetUnitsAroundPoint(iCategoriesToRun, tBombTarget, iRadiusSize, 'Ally')
             if M28Utilities.IsTableEmpty(tUnitsToRun) == false then
                 local tTemporaryDestination = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                if M28Utilities.IsTableEmpty(tTemporaryDestination) then
+                    --Campaign cutscene like fort clarke assault - wont exist yet
+                    if not(ScenarioInfo.OpEnded) then
+                        M28Utilities.ErrorHandler('Dont have an air rally point')
+                    end
+                    --Backup - try and get the start position of the first unit
+                    tTemporaryDestination = M28Map.GetPlayerStartPosition(tUnitsToRun[1]:GetAIBrain())
+                end
+
                 local tAltTempDestination
                 local oCurUnitBrain
                 local iTeam = aiBrain.M28Team
@@ -796,7 +805,7 @@ function EnableUnitMicroUntilManuallyTurnOff(oUnit, bLowerPriorityMicro)
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = -1
 end
 
-function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
+function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sOptionalAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
     --bLowerPriorityMicro - if this is true then this will be ignored by 'higher priority micro'
@@ -814,11 +823,11 @@ function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVa
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iSecondsActiveFor
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iSecondsActiveFor='..iSecondsActiveFor) end
-    ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sAdditionalTrackingVar)
+    ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sOptionalAdditionalTrackingVar)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalledFromResetChecker)
+function ForkedResetMicroFlag(oUnit, iTimeToWait, sOptionalAdditionalTrackingVar, bCalledFromResetChecker)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedResetMicroFlag'
 
@@ -833,14 +842,14 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
             oUnit[refbMicroResetChecker] = nil
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
             oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil
-            if sAdditionalTrackingVar then
-                oUnit[sAdditionalTrackingVar] = false
+            if sOptionalAdditionalTrackingVar then
+                oUnit[sOptionalAdditionalTrackingVar] = false
             end
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Will try waiting one more cycle to see if we need to reset the flag unless already got an active reset checker, MicroResetChecker='..tostring(oUnit[refbMicroResetChecker] or false)) end
             if not(oUnit[refbMicroResetChecker]) or bCalledFromResetChecker then
                 oUnit[refbMicroResetChecker] = true
-                ForkThread(ForkedResetMicroFlag,oUnit, math.max(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() - 0.01, 0.2), sAdditionalTrackingVar, true)
+                ForkThread(ForkedResetMicroFlag,oUnit, math.max(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() - 0.01, 0.2), sOptionalAdditionalTrackingVar, true)
             end
         end
     end

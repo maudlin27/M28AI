@@ -1476,7 +1476,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1953,6 +1953,16 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                     oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] = nil
                     if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from table of units wanting reclaiming in this zone for all teams') end
+                end
+            end
+            --Fort clarke assault - dont control seraphim bombers in the short period after cutscene ends and the main game starts if we have M28 taking control of allies
+        elseif ScenarioInfo.Seraphim and ScenarioInfo.CoopCDR and ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_1'] and (ScenarioInfo.Options.CampAI == 2 or ScenarioInfo.Options.CampAI == 4) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will disable orders for the experimental bombers') end
+            for iBomber = 1, 3 do
+                local oUnit = ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_'..iBomber]
+                if oUnit then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting micro flag for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 90, nil, false)
                 end
             end
         end
