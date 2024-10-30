@@ -171,6 +171,9 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE + categories.NAVALCARRIER * categories.MOBILE
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
 
+        --Amphibious - in LOUD engineers and ACUs lack the amphibious category
+        M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER
+
         --Az further changes for LCE
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
         if M28Utilities.bLCEActive then
