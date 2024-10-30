@@ -266,6 +266,15 @@ function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
             local tUnitsToRun = aiBrain:GetUnitsAroundPoint(iCategoriesToRun, tBombTarget, iRadiusSize, 'Ally')
             if M28Utilities.IsTableEmpty(tUnitsToRun) == false then
                 local tTemporaryDestination = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                if M28Utilities.IsTableEmpty(tTemporaryDestination) then
+                    --Campaign cutscene like fort clarke assault - wont exist yet
+                    if not(ScenarioInfo.OpEnded) then
+                        M28Utilities.ErrorHandler('Dont have an air rally point')
+                    end
+                    --Backup - try and get the start position of the first unit
+                    tTemporaryDestination = M28Map.GetPlayerStartPosition(tUnitsToRun[1]:GetAIBrain())
+                end
+
                 local tAltTempDestination
                 local oCurUnitBrain
                 local iTeam = aiBrain.M28Team
@@ -313,7 +322,8 @@ function DodgeBomb(oBomber, oWeapon, projectile)
 
     local tBombTarget = GetBombTarget(oWeapon, projectile)
     if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
-    if tBombTarget then
+    --LOUD - recall Sprouto saying that bombs home in on target, so dont try and dodge
+    if tBombTarget and (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) then
         oBomber[M28UnitInfo.refiLastDodgeBombEvent] = GetGameTimeSeconds()
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end
@@ -443,7 +453,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
             end
         end
     else
-        if bDebugMessages == true then LOG(sFunctionRef..': tBombTarget is nil') end
+        if bDebugMessages == true then LOG(sFunctionRef..': tBombTarget is nil or are in LOUD') end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -795,7 +805,7 @@ function EnableUnitMicroUntilManuallyTurnOff(oUnit, bLowerPriorityMicro)
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = -1
 end
 
-function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVar, bLowerPriorityMicro)
+function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sOptionalAdditionalTrackingVar, bLowerPriorityMicro)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
     --bLowerPriorityMicro - if this is true then this will be ignored by 'higher priority micro'
@@ -813,11 +823,11 @@ function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVa
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iSecondsActiveFor
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iSecondsActiveFor='..iSecondsActiveFor) end
-    ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sAdditionalTrackingVar)
+    ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sOptionalAdditionalTrackingVar)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalledFromResetChecker)
+function ForkedResetMicroFlag(oUnit, iTimeToWait, sOptionalAdditionalTrackingVar, bCalledFromResetChecker)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedResetMicroFlag'
 
@@ -832,14 +842,14 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalle
             oUnit[refbMicroResetChecker] = nil
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
             oUnit[M28UnitInfo.refbLowerPriorityMicroActive] = nil
-            if sAdditionalTrackingVar then
-                oUnit[sAdditionalTrackingVar] = false
+            if sOptionalAdditionalTrackingVar then
+                oUnit[sOptionalAdditionalTrackingVar] = false
             end
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Will try waiting one more cycle to see if we need to reset the flag unless already got an active reset checker, MicroResetChecker='..tostring(oUnit[refbMicroResetChecker] or false)) end
             if not(oUnit[refbMicroResetChecker]) or bCalledFromResetChecker then
                 oUnit[refbMicroResetChecker] = true
-                ForkThread(ForkedResetMicroFlag,oUnit, math.max(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() - 0.01, 0.2), sAdditionalTrackingVar, true)
+                ForkThread(ForkedResetMicroFlag,oUnit, math.max(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() - 0.01, 0.2), sOptionalAdditionalTrackingVar, true)
             end
         end
     end
@@ -1655,9 +1665,9 @@ function MoveAndKillAirUnit(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
+function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bEnemyNuke)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'MonitorNukeTargetForFriendlyUnits'
+    local sFunctionRef = 'MonitorNukeTargetForNukeWeHaveIntelOf'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
@@ -1686,15 +1696,65 @@ function MonitorNukeTargetForFriendlyUnits(oProjectile, oLauncher, iTeam)
                 local tFriendlyUnitsNearTarget = aiBrain:GetUnitsAroundPoint(iCategoriesToSearch, tTarget, iSearchArea, 'Ally')
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
-                        iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
-                        local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
-                        M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
-                        TrackTemporaryUnitMicro(oUnit, 1)
+                        if oUnit:GetAIBrain().M28AI and (not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
+                            iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
+                            local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
+                            M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
+                            TrackTemporaryUnitMicro(oUnit, 1)
+                        end
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorEnemyNukeForIntel(oProjectile, iTeam)
+    --Intended for hostile nuke - want to try and take evasive action once we see hten uke being launched
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorEnemyNukeForIntel'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for iTeam='..iTeam..'; oProjectile.Launcher='..(oProjectile.Launcher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile.Launcher) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if aiBrain then
+            local iCurDist
+            local iTickDelayBetweenChecks = 1
+            if M28Land.iTicksPerLandCycle > 11 then iTickDelayBetweenChecks = math.floor(M28Land.iTickDelayBetweenChecks / 10) end
+            local bHaveIntel = false
+            while not(oProjectile:BeenDestroyed()) do
+                --Check if we have intel of this position (i.e. visual)
+                local tCurLZData, tCurLZTeamData = M28Map.GetLandOrWaterZoneData(oProjectile:GetPosition(), true, iTeam)
+                if bDebugMessages == true then
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oProjectile:GetPosition())
+                    LOG(sFunctionRef..': Considering if we have units in the zone where the missile is, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; is table of units empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Time='..GetGameTimeSeconds())
+                end
+                if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tCurMissilePosition = oProjectile:GetPosition()
+                    for iUnit, oUnit in tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurMissilePosition, oUnit:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; Dist less vision='..iCurDist - (oUnit:GetBlueprint().Intel.VisionRadius or 0)) end
+                            if iCurDist <= 100 and iCurDist - (oUnit:GetBlueprint().Intel.VisionRadius or 0) < 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have intel so aborting') end
+                                bHaveIntel = true
+                                break
+                            end
+                        end
+                    end
+                    if bHaveIntel then break end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(iTickDelayBetweenChecks)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Exited the projectile monitor loop, bHaveIntel='..tostring(bHaveIntel)..'; Time='..GetGameTimeSeconds()) end
+            if bHaveIntel then
+                MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oProjectile.Launcher, iTeam)
             end
         end
     end

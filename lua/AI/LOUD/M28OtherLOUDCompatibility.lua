@@ -41,7 +41,7 @@ function AddReprCommands()
                             elseif type(variable) == 'table' then
                                 local sCombinedTable = ''
                                 for iEntry, vValue in variable do
-                                    if iCurSubtableLevel and iCurSubtableLevel >= 1 then
+                                    if iCurSubtableLevel and iCurSubtableLevel >= 2 then
                                         sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
                                     else
                                         sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
@@ -80,7 +80,7 @@ function AddReprCommands()
                         elseif type(variable) == 'table' then
                             local sCombinedTable = ''
                             for iEntry, vValue in variable do
-                                if iCurSubtableLevel and iCurSubtableLevel >= 3 then
+                                if iCurSubtableLevel and iCurSubtableLevel >= 4 then
                                     sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
                                 else
                                     sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
@@ -170,6 +170,9 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryMissileShip = M28UnitInfo.refCategoryMissileShip + categories.NAVAL * categories.MOBILE * categories.INDIRECTFIRE * categories.BOMBARDMENT - categories.SUBMERSIBLE
         M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE + categories.NAVALCARRIER * categories.MOBILE
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
+
+        --Amphibious - in LOUD engineers and ACUs lack the amphibious category
+        M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER
 
         --Az further changes for LCE
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')

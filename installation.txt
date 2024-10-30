@@ -5,24 +5,29 @@ For the best experience with M28AI it is recommended you play on Forged Alliance
 
 Installation:
 Forged Alliance Forever (FAF):
--Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
--If downloading via Github, copy the M28AI folder to the FAF mods folder, e.g.:
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI), moddb, or from the mod section of the FAF vault (accessible using the FAF client).
+-If downloading via Github, copy the M28AI folder to the FAF mods folder (and rename from "M28AI-main" to "M28AI"), e.g.:
 C:\ProgramData\FAForever\user\My Games\Gas Powered Games\Supreme Commander Forged Alliance\mods
 -Go to the mod manager when hosting a game, and make sure the M28AI mod is enabled
 -Select M28AI or M28Easy as a 'player' in the game lobby
 
 
 LOUD:
--Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
--Copy the M28AI folder to the LOUD usermods folder, e.g. (depending on where the forged alliance exe is installed):
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI), moddb, or from the mod section of the FAF vault (accessible using the FAF client).
+-Open the downloaded folder/zip file, and copy/extract the "M28AI" folder to the LOUD usermods folder, e.g. (depending on where the forged alliance exe is installed):
 C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\LOUD\usermods
+
+If you have downloaded from github, you'll need to rename the folder from "M28AI-main" to "M28AI".
+I.e. the mod_info.lua file should be located at C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\LOUD\usermods\M28AI\mod_info.lua
+
 -Go to the mod manager when hosting a game, and make sure the M28AI mod is enabled
 -Select M28AI or M28Easy as a 'player' in the game lobby
 -Note: Additional game options should appear in the game options part of the lobby when re-loading the LOUD forged alliance exe after the first time M28AI was enabled (expected to be changed/improved in a future version of LOUD)
 
 
 Steam:
--Download M28AI either from Github (https://github.com/maudlin27/M28AI) or from the mod section of the FAF vault (accessible using the FAF client).
+-Download M28AI either from Github (https://github.com/maudlin27/M28AI), moddb, or from the mod section of the FAF vault (accessible using the FAF client).
+-If you've downloaded from Github, rename the "M28AI-main" folder to "M28AI"
 -Open up the mods archive using software such as 7Zip; the location of this will depend on where forged alliance is saved, e.g.:
 C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\gamedata\mods.scd\
 -Open up the mods folder in this archive
@@ -30,7 +35,6 @@ C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\
 -When creating a game in forged alliance, go to the mod manager and enable the M28AI mod
 -Select AI: Easy for 'M28EasyAI', and AI: Normal for normal M28AI (and similarly the AIx versions of these to apply bonus resources or build rate modifiers to the AI)
 -If the SorianAI mod is also included, then additional game options should show up to configure M28AI further
-
 
 GOG:
 M28AI should work on GOG similarly to steam (see above) - i.e. add the M28AI folder to the mods.scd archive.

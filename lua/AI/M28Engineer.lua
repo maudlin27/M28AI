@@ -11408,7 +11408,62 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --More power if lowish power and high mass (to try and avoid overflow due to lack of power), but dont increase BP wanted
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5) then
+        --Are in danger of overflowing - assist either power (if we have low power) or factory (if we dont have low power)
+        local iCategoryWanted
+        local oBuildingToAssist
+        local iClosestToCompletion = -1
 
+        iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * (3 + math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] - 0.4) * 10))
+
+
+        if bWantMorePower and (bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.05 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.99)) then
+            iCategoryWanted = M28UnitInfo.refCategoryPower
+        else
+            iCategoryWanted = M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory
+            --LOUD specific - get quantum gateways if at T3 since they use up 15 mass/s by a t3 engineer, vs 2 mass/s for an air fac, if evenflow is enabled
+            if M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+                --Do we have at least 2 gateways in this zone?
+                local tFriendlyGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local iGateways = 0
+                if M28Utilities.IsTableEmpty(tFriendlyGateways) == false then
+                    for iGateway, oGateway in tFriendlyGateways do
+                        if oGateway:GetFractionComplete() < 1 then
+                            oBuildingToAssist = oGateway
+                            break
+                        else
+                            iGateways = iGateways + 1
+                        end
+                    end
+                end
+                if iGateways < 2 or (iGateways < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) then
+                    HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+                    iCategoryWanted = nil
+                end
+            end
+        end
+        --Increase build power from what have assigned every cycle, as a separate action
+        if iCategoryWanted and not(oBuildingToAssist) then
+            local tFriendlyBuildings = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tFriendlyBuildings) == false then
+                for iBuilding, oBuilding in  tFriendlyBuildings do
+                    if oBuilding:GetFractionComplete() < 1 and oBuilding:GetFractionComplete() > iClosestToCompletion then
+                        oBuildingToAssist = oBuilding
+                        iClosestToCompletion = oBuilding:GetFractionComplete()
+                    end
+                end
+            end
+            if oBuildingToAssist then
+                --Old code when wanted to just assign 1 engi each cycle:
+                --HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oBuildingToAssist, true, true, nil, false, false)
+                --Revised will try out variable no. of engineers instead of increasing by 1 each cycle, to avoid too many engineers assigned to this task
+                HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oBuildingToAssist, true, true, nil, false, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will start increasing the build power to assign to building power or factory by repairing the closest pgen or factory to completion as we have lots of mass stored and want more power, oBuildingToAssist='..oBuildingToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist)..'; Fraction complete='..oBuildingToAssist:GetFractionComplete()) end
+            end
+        end
+    end
 
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
     iCurPriority = iCurPriority + 1
@@ -12279,28 +12334,42 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Second power builder to help scale power late game if high on mass
+    --Second power builder to help scale power late game if high on mass, or earlier on if getting lots of mass and low power and already have a number of pgens of current tech
     iCurPriority = iCurPriority + 1
-    if bWantMorePower and not(bHaveLowMass) and not(bSaveMassForMML) and (not(bPrioritiseProduction) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35) and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 120 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.25 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Second power builder check, bWantMorePower='..tostring(bWantMorePower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bSaveMassForMML='..tostring(bSaveMassForMML)..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir]='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 'nil')) end
+    if bWantMorePower and not(bHaveLowMass) and not(bSaveMassForMML) and (not(bPrioritiseProduction) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.15)) and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 0.5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 40 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.25 or bHaveLowPower) then
         iBPWanted = tiBPByTech[(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1)] * 10
         --reduce BP wanted if dont have massive amount of mass
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 then iBPWanted = iBPWanted * 0.6 end
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 500 then
             iBPWanted = iBPWanted * 0.5 --i.e. want to have construction started so primary power builder can build sooner but not as worried about building this really fast
         end
-        --If havent built the first Pgen of this tech level yet then wait
-        local bNotBuiltAnyPowerYet = false
+        --If havent built 2 Pgen of this tech level yet then wait
+        local bNotBuiltEnoughPowerYet = false
         local oPowerToAssistInstead
         local iClosestToCompletion = 0
-        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) == 1 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] then
+                bNotBuiltEnoughPowerYet = true
+                local tFriendlyPowerOfTechWanted = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyPowerOfTechWanted) == false and table.getn(tFriendlyPowerOfTechWanted) >= 9 then
+                    --T1 pgens - want to ignore if dont have lots already, and dont want to bother about assisting an existing onea s they should compelte relatively quickly with normal pgen builders
+                    bNotBuiltEnoughPowerYet = false
+                end
+            end
+        elseif (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 350 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
             local tFriendlyPowerOfTechWanted = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(math.min(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], 3)), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            bNotBuiltAnyPowerYet = true
+            bNotBuiltEnoughPowerYet = true
             if M28Utilities.IsTableEmpty(tFriendlyPowerOfTechWanted) == false then
+                local iConstructedPower = 0
                 for iUnit, oUnit in tFriendlyPowerOfTechWanted do
                     if oUnit:GetFractionComplete() == 1 then
-                        bNotBuiltAnyPowerYet = false
-                        oPowerToAssistInstead = nil
-                        break
+                        iConstructedPower = iConstructedPower + 1
+                        if iConstructedPower >= 2 then
+                            bNotBuiltEnoughPowerYet = false
+                            oPowerToAssistInstead = nil
+                            break
+                        end
                     elseif oUnit:GetFractionComplete() > iClosestToCompletion then
                         oPowerToAssistInstead = oUnit
                         iClosestToCompletion = oUnit:GetFractionComplete()
@@ -12308,7 +12377,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
-        if bNotBuiltAnyPowerYet then
+        if bNotBuiltEnoughPowerYet then
             if bDebugMessages == true then LOG(sFunctionRef..': Normally would want to start second power builder but we havent built first yet so will focus on completing that, iClosestToCompletion='..iClosestToCompletion..'; oPowerToAssistInstead='..(oPowerToAssistInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPowerToAssistInstead) or 'nil')) end
             if oPowerToAssistInstead then
                 HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oPowerToAssistInstead)

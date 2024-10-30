@@ -1124,8 +1124,6 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
 
-
-
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -1571,6 +1569,22 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                 iLandFactoriesHave = table.getn(tLandFactories)
             end
         end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestAirFactoryTech][M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)) end
+
+        --Early game where ACU wants to go second air - build air fac if low on mass to avoid a case where we stall mass while trying to build 2 different factories at once
+        if GetGameTimeSeconds() <= 240 then
+            local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+            if bDebugMessages == true then LOG(sFunctionRef..': Mass stored for brain '..aiBrain.Nickname..'='..aiBrain:GetEconomyStored('MASS')..'; Net mass income='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+            if aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 and aiBrain[M28Economy.refbGoingSecondAir] and aiBrain:GetEconomyStored('MASS') <= 40 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 2 and M28Map.iMapSize >= 512 and iLandFactoriesHave > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
+                --We have a land fac and no air fac, and are in the early game; get the ACU and if it is still doing its initial build order, then check if it is trying to build a land or an air fac
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to go second air') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        end
+
+
         --Recently failed to build anything at air fac, and either dont have low power or are on the same island as the nearest enemy base, or have dangerous enemies nearby, or are overflowing mass
         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 0) > 0
                 and ((GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeAirFacHadNothingToBuild] or -100) <= 5 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or (not(HaveLowPower(iTeam) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 1.5)))
