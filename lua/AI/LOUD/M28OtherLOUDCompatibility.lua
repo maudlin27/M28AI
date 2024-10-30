@@ -41,7 +41,7 @@ function AddReprCommands()
                             elseif type(variable) == 'table' then
                                 local sCombinedTable = ''
                                 for iEntry, vValue in variable do
-                                    if iCurSubtableLevel and iCurSubtableLevel >= 1 then
+                                    if iCurSubtableLevel and iCurSubtableLevel >= 2 then
                                         sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
                                     else
                                         sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)
@@ -80,7 +80,7 @@ function AddReprCommands()
                         elseif type(variable) == 'table' then
                             local sCombinedTable = ''
                             for iEntry, vValue in variable do
-                                if iCurSubtableLevel and iCurSubtableLevel >= 3 then
+                                if iCurSubtableLevel and iCurSubtableLevel >= 4 then
                                     sCombinedTable = sCombinedTable..'['..iEntry..']='..'Value (stopped for performance)'
                                 else
                                     sCombinedTable = sCombinedTable..'['..iEntry..']='..GetVariableTypeOrValue(vValue, (iCurSubtableLevel or 0) + 1)

@@ -7776,8 +7776,10 @@ function ManageTransports(iTeam, iAirSubteam)
                                         --If we are close to the engineer then instead get the engineer to give an order to load onto this transport, if we dont have such an engineer recorded
 
                                         if iClosestLoadingEngineerDist <= 12 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get closest loading engineer to load onto transport, unit state='..M28UnitInfo.GetUnitState(oClosestLoadingEngineer)) end
+                                            bDebugMessages = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get closest loading engineer to load onto transport, unit state='..M28UnitInfo.GetUnitState(oClosestLoadingEngineer)..'; Time='..GetGameTimeSeconds()) end
                                             M28Orders.IssueTrackedTransportLoad(oClosestLoadingEngineer, oUnit, false, 'TrLEng', false)
+                                            bDebugMessages = false
                                         else
                                             M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TRlWtE',            false)
                                         end

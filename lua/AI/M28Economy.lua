@@ -38,7 +38,7 @@ refiOurHighestFactoryTechLevel = 'M28EOurHighestFactoryTech' --against aiBrain
 refiOurHighestAirFactoryTech = 'M28EOurHighestAirFactoryTech' --against aiBrain
 refiOurHighestLandFactoryTech = 'M28EOurHighestLandFactoryTech' --against aiBrain
 refiOurHighestNavalFactoryTech = 'M28EOurHighestNavalFactoryTech' --against aiBrain
-
+refbGoingSecondAir = 'M28EGo2ndA' --true if ACU will be going second air
 
 
 --Against unit variables:
