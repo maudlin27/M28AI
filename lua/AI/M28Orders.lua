@@ -1186,7 +1186,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
     --oOrderTarget is the transport
     if bDontConsiderCombinedArmy or oUnit.M28Active then
         local sFunctionRef = 'IssueTrackedTransportLoad'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
