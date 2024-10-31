@@ -1112,9 +1112,20 @@ function AssignAIPersonalityAndRating(aiBrain)
             local iPersonality = tsPersonalityByName[aiBrain.Nickname] or tsPersonalityByName[aiBrain.Name]
             if iPersonality then aiBrain[refiAssignedPersonality] = iPersonality end
         end
+
+        --Assign special brain types
+        local sPersonality = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
+        if sPersonality == 'm28aiair' or sPersonality == 'm28aiaircheat' then aiBrain[M28Overseer.refbPrioritiseLand] = true
+        elseif sPersonality == 'm28ailand' or sPersonality == 'm28ailandcheat' then aiBrain[M28Overseer.refbPrioritiseAir] = true
+        elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
+        elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
+        elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning AI personality, brain='..aiBrain.Nickname..'; sPersonality='..sPersonality..'; Prioritise land='..tostring(aiBrain[M28Overseer.refbPrioritiseLand] or false)..'; Prioritise air='..tostring(aiBrain[M28Overseer.refbPrioritiseAir] or false)..'; Low tech='..tostring(aiBrain[M28Overseer.refbPrioritiseLowTech] or false)..'; High tech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; Defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)) end
     end
     if aiBrain.M28AI then
-        LOG('AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname)
+        --Below would assign rating if not specified in scenarioinfo - so code shoudl be obsolete for FAF now, but left in for completeness
+        if bDebugMessages == true then LOG(sFunctionRef..': AI rating='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; Name='..aiBrain.Nickname) end
         if M28Utilities.bFAFActive and (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AIx gets stuff in priority to AI
             local iBaseRating = 750
             local iApproxRating

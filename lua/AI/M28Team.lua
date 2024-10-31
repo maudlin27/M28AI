@@ -697,6 +697,7 @@ function CreateNewTeam(aiBrain)
                     if oRecorded == oBrain then bAlreadyRecordedBrain = true break end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; bAlreadyRecordedBrain='..tostring(bAlreadyRecordedBrain)) end
             if not(bAlreadyRecordedBrain) then
 
                 --Check we have the same enemies if this is a campaign AI
@@ -731,6 +732,7 @@ function CreateNewTeam(aiBrain)
                     if not(oBrain.M28Team) or oBrain.M28Team == iTotalTeamCount then --e.g. campaign might change team part-way through, dont want to change team of existing players or breaks their logic
                         oBrain.M28Team = iTotalTeamCount
                         table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add brain to table of friendly active M28 brains if it is an M28AI brain, oBrain.M28AI='..tostring(oBrain.M28AI)) end
                         if oBrain.M28AI then
                             table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                             tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
@@ -785,7 +787,9 @@ function CreateNewTeam(aiBrain)
         UpdateTeamHighestAndLowestFactories(iTotalTeamCount)
 
         --Group allies into AirSubteams based on nearest enemy; then split the air subteam between land subteams if they are in different plateaus
+        if bDebugMessages == true then LOG(sFunctionRef..': will group allies into air subteams, is table of active M28 brains empty for this team='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]))) end
         for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brains in team '..iTotalTeamCount..', oBrain='..(oBrain.Nickname or 'nil')..'; .M28AirSubteam='..(oBrain.M28AirSubteam or 'nil')..'; if was nil then will assign a new one') end
             if not(oBrain.M28AirSubteam) then
                 CreateNewAirSubteam(oBrain)
                 local tiIslandBrainsInSubteam = {}

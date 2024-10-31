@@ -3324,3 +3324,9 @@ function IsUnitLongRangeThreat(oUnit)
         return true
     end
 end
+
+function IsM28AIPersonality(aiBrain)
+    local sPersonality = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
+    if string.sub(sPersonality, 1, 3) == 'm28' then return true else return false end
+    --Prev code: (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat')
+end
