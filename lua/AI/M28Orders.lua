@@ -1257,9 +1257,11 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
                 end
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit last order='..reprs(tLastOrder)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Transport state='..M28UnitInfo.GetUnitState(oOrderTarget)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit last order='..reprs(tLastOrder)..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Transport state='..M28UnitInfo.GetUnitState(oOrderTarget)) end
 
-            if bDontTryBackup or (not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+            if bDontTryBackup or (not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) or
+                --Further redudnancy added v138 to try and combat another case where an engineer was stuck trying to load onto a transport from 7 dist away; the transport unit state showed as blank, the engi state showed as loading, and the transport would just bob up and down for minutes
+                (oUnit[M28Air.refiTimeLastGivenOrderToLoadOntoTransport] and tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget] and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastGivenOrderToLoadOntoTransport] >= 15 and M28Utilities.GetDistanceBetweenPositions(oOrderTarget:GetPosition(),oUnit:GetPosition()) >= 4 and M28UnitInfo.GetUnitState(oOrderTarget) == '' and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
                 if not(bAddToExistingQueue) or M28Utilities.IsTableEmpty(   tLastOrder) then
                     --if not(bDontUpdateUnitBeingLoaded) then
                     IssueTrackedClearCommands(oOrderTarget) --Jip mentioned you can need to clear a transport's existing queue for a new load order to work

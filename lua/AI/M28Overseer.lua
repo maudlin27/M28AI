@@ -1955,6 +1955,16 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from table of units wanting reclaiming in this zone for all teams') end
                 end
             end
+            --Fort clarke assault - dont control seraphim bombers in the short period after cutscene ends and the main game starts if we have M28 taking control of allies
+        elseif ScenarioInfo.Seraphim and ScenarioInfo.CoopCDR and ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_1'] and (ScenarioInfo.Options.CampAI == 2 or ScenarioInfo.Options.CampAI == 4) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will disable orders for the experimental bombers') end
+            for iBomber = 1, 3 do
+                local oUnit = ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_'..iBomber]
+                if oUnit then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting micro flag for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 90, nil, false)
+                end
+            end
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
