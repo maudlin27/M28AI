@@ -360,7 +360,7 @@ function AirSubteamInitialisation(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AirSubteamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()..'; will call air subteamoverseer') end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
     ForkThread(AirSubteamOverseer, iTeam, iAirSubteam)
