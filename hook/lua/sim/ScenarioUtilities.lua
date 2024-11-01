@@ -73,7 +73,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 --if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems') then
     --OrigInitializeSkirmishSystems = InitializeSkirmishSystems
     InitializeSkirmishSystems = function(self)
-        local bDebugMessages = true
+        local bDebugMessages = false
         local sFunctionRef = 'InitializeSkirmishSystems' --Limited usage - wont do profiling
 
         if bDebugMessages == true then LOG(sFunctionRef..': Hook active for InitializeSkirmishSystems') end
