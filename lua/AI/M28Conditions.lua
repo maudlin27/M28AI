@@ -1109,6 +1109,11 @@ function ZoneWantsT1Spam(tLZTeamData, iTeam)
         return true
     elseif IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) and GetGameTimeSeconds() <= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] <= 2 then
         return true
+    elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 then
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if aiBrain[M28Overseer.refbPrioritiseLowTech] and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] < 2 then
+            return true
+        end
     end
     return false
 end
@@ -1613,7 +1618,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
         --Early game where ACU wants to go second air - build air fac if low on mass to avoid a case where we stall mass while trying to build 2 different factories at once
         if GetGameTimeSeconds() <= 240 then
             if bDebugMessages == true then LOG(sFunctionRef..': Mass stored for brain '..aiBrain.Nickname..'='..aiBrain:GetEconomyStored('MASS')..'; Net mass income='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
-            if aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 and aiBrain[M28Economy.refbGoingSecondAir] and aiBrain:GetEconomyStored('MASS') <= 40 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 2 and M28Map.iMapSize >= 512 and iLandFactoriesHave > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
+            if aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 and aiBrain[M28Economy.refbGoingSecondAir] and aiBrain:GetEconomyStored('MASS') <= 40 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 2 and M28Map.iMapSize >= 512 and iLandFactoriesHave > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) then
                 --We have a land fac and no air fac, and are in the early game; get the ACU and if it is still doing its initial build order, then check if it is trying to build a land or an air fac
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to go second air') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2622,6 +2627,9 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                     iBuildCountAdjust = iBuildCountAdjust + 10
                 end
             end
+            if aiBrain[M28Overseer.refbPrioritiseLowTech] then iBuildCountAdjust = iBuildCountAdjust + math.max(10, iBuildCountAdjust * 0.5)
+            elseif aiBrain[M28Overseer.refbPrioritiseHighTech] then iBuildCountAdjust = iBuildCountAdjust - math.min(10, iBuildCountAdjust * 0.5)
+            end
 
             if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 + iBuildCountAdjust or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 + iBuildCountAdjust and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel) + iBuildCountAdjust) then
                 if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; Brain='..aiBrain.Nickname..'; Want BP='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false)..'; Engineer lifetime build count for brain='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)..'; Mexes in zone='..(tLZOrWZData[M28Map.subrefLZMexCount] or 0)) end
@@ -2699,11 +2707,11 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
-            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive then
+            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
-                if oFactory[M28Factory.refiTotalBuildCount] >= 60 then
+                if oFactory[M28Factory.refiTotalBuildCount] >= 60 + iBuildCountAdjust then
                     bWantMoreMexes = false
                 elseif iFactoryTechLevel == 1 then
                     if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= math.min(3, (tLZOrWZData[M28Map.subrefLZMexCount] or 0)) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 + iLifetimeCount or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 + iLifetimeCount)) then
