@@ -1115,8 +1115,8 @@ function AssignAIPersonalityAndRating(aiBrain)
 
         --Assign special brain types
         local sPersonality = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
-        if sPersonality == 'm28aiair' or sPersonality == 'm28aiaircheat' then aiBrain[M28Overseer.refbPrioritiseLand] = true
-        elseif sPersonality == 'm28ailand' or sPersonality == 'm28ailandcheat' then aiBrain[M28Overseer.refbPrioritiseAir] = true
+        if sPersonality == 'm28aiair' or sPersonality == 'm28aiaircheat' then aiBrain[M28Overseer.refbPrioritiseAir] = true
+        elseif sPersonality == 'm28ailand' or sPersonality == 'm28ailandcheat' then aiBrain[M28Overseer.refbPrioritiseLand] = true
         elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
         elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
         elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
