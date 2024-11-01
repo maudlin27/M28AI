@@ -757,7 +757,7 @@ function CreateNewTeam(aiBrain)
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
-                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)) --Dont know the land and air subteams yet
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)) --Dont know the land and air subteams yet
                     end
                 end
             end

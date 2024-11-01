@@ -73,7 +73,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 --if OrigInitializeSkirmishSystems then --safeGetGlobal('InitializeSkirmishSystems') then
     --OrigInitializeSkirmishSystems = InitializeSkirmishSystems
     InitializeSkirmishSystems = function(self)
-        local bDebugMessages = false
+        local bDebugMessages = true
         local sFunctionRef = 'InitializeSkirmishSystems' --Limited usage - wont do profiling
 
         if bDebugMessages == true then LOG(sFunctionRef..': Hook active for InitializeSkirmishSystems') end
@@ -83,7 +83,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
             LoudCompatibility.UpdateUnitCategories()
             LoudCompatibility.UpdateOtherLOUDInformation()
             local oBrain = self
-            if bDebugMessages == true then LOG(sFunctionRef..': oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..' and faction='..oBrain:GetArmyFaction()..'; ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false)..'; oBrain.CheatValue='..(oBrain.CheatValue or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oBrain='..(oBrain.Nickname or 'nil')..' with index='..oBrain:GetArmyIndex()..' ; ArmyIsCivilian(oBrain)='..tostring(ArmyIsCivilian(oBrain:GetArmyIndex()))..'; Brain type is AI='..tostring( oBrain.BrainType == 'AI')..'; .CheatValue='..(oBrain.CheatValue or 'nil')..'; .CheatingAI='..tostring(oBrain.CheatingAI or false)..'; oBrain.CheatValue='..(oBrain.CheatValue or 'nil')) end
             if (oBrain.BrainType == 'AI' and not(ArmyIsCivilian(oBrain:GetArmyIndex()))) or (oBrain.BrainType == 'Human' and  not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2)) then
                 --If we have no team, or our team is an odd number, then use M28
                 local iTeam = oBrain.Team or ScenarioInfo.ArmySetup[oBrain.Name].Team or -1
