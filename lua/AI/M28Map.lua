@@ -5054,7 +5054,7 @@ function SetWhetherCanPathToEnemy(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetWhetherCanPathToEnemy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain index'..aiBrain:GetArmyIndex()..'; Nickname='..(aiBrain.Nickname or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defeated='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain index'..aiBrain:GetArmyIndex()..'; Nickname='..(aiBrain.Nickname or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; Air subteam='..(aiBrain.M28AirSubteam or 'nil')..'; Are all enemies defeated='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated]) then
         local tEnemyStartPosition = GetPrimaryEnemyBaseLocation(aiBrain)
         local tOurBase = GetPlayerStartPosition(aiBrain)

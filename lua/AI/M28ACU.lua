@@ -603,6 +603,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     end
 
                 end
+                --Personality override
+                if bGoSecondAir and (aiBrain[M28Overseer.refbPrioritiseLand] or aiBrain[M28Overseer.refbPrioritiseLowTech]) then bGoSecondAir = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding on min energy wanted, bGoSecondAir='..tostring(bGoSecondAir)..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                 if bGoSecondAir then
                     aiBrain[M28Economy.refbGoingSecondAir] = true

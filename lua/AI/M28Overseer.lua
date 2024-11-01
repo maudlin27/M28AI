@@ -66,6 +66,13 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 refiCombatLandScoutThreshold = 'M28OvsrCLnS' --number of aeon land scouts to use in a combat role
+--Brain style variables to affect behaviour - set to true if to apply to the brain
+refbPrioritiseLand = 'M28PersLand'
+refbPrioritiseAir = 'M28PersAir'
+refbPrioritiseLowTech = 'M28PesLowTech'
+refbPrioritiseHighTech = 'M28PersHighTech'
+refbPrioritiseDefence = 'M28PersDef'
+
 
 
 --Global other variables

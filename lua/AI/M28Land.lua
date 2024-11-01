@@ -3830,6 +3830,8 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
                     end
+                    if not(M28UnitInfo.IsUnitValid(oUnit)) then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) return nil end
+
 
                     --Ticks to wait:
                     --With no 'move 5 degrees towards rally' logic: 3 tick delay meant this only worked sometimes, and failed in one case with a fatboy; 4-7 tick delay failed initially when fatboy was moving forwards but didn't have issues after that, 8 ticks worked more reliably; velocity when 8 ticks worked: X-0.10995483398438 Y0 Z0.13614654541016; with 5 degree logic also still neededed to wait 8 ticks instead of 4 to move backwards
@@ -3870,7 +3872,9 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to issue an interim move order after the first, will first wait '..math.ceil(iTicksPerLandCycle * 0.5)..' ticks') end
                     WaitTicks(math.ceil(iTicksPerLandCycle * 0.5))
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, will issue interim order now for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                    BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
+                    end
                 end
             end
         end
