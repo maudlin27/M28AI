@@ -358,8 +358,12 @@ function ForkedCheckForAnotherMissile(oUnit)
                     if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
                     if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles) end
                     if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
-                        oUnit:SetPaused(false)
-                        oUnit:SetAutoMode(true)
+
+                        --oUnit:SetPaused(false)
+                        --oUnit:SetAutoMode(true)
+                        M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+                        M28UnitInfo.SetUnitMissileAutoBuildStatus(true)
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused') end
                         break
                     end
@@ -369,7 +373,11 @@ function ForkedCheckForAnotherMissile(oUnit)
 
             end
         else
-            if M28UnitInfo.IsUnitValid(oUnit) then oUnit:SetPaused(false) end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                --oUnit:SetPaused(false)
+                M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+                M28UnitInfo.SetUnitMissileAutoBuildStatus(true)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2486,9 +2494,11 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                                 M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
                                 if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
-                                    oLauncher:SetAutoMode(true)
+                                    --oLauncher:SetAutoMode(true)
+                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oLauncher, true)
                                 end
-                                oLauncher:SetPaused(false)
+                                --oLauncher:SetPaused(false)
+                                M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oLauncher, false)
                                 if bDebugMessages == true then
                                     local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), 31, true)
                                     tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
@@ -2553,8 +2563,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 --Dont pause if we have loads of resources
                                 if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
                                     oLauncher[refbPausedAsNoTargets] = true
-                                    oLauncher:SetAutoMode(false)
-                                    oLauncher:SetPaused(true)
+                                    --oLauncher:SetAutoMode(false)
+                                    --oLauncher:SetPaused(true)
+                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oLauncher, bAutoBuild)
+                                    M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oLauncher, true)
                                     if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
                                 end

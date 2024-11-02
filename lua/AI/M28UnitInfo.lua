@@ -2300,6 +2300,25 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
 
 end
 
+--WARNING - careful using below function - added it in place of a manual :SetPaused usage that came across, but expect it will cause issues if used more generally
+function PauseOrUnpauseUnitWithoutTracking(oUnit, bPauseNotUnpause)
+    --WARNING - see above
+    if bDontConsiderCombinedArmy or oUnit.M28Active then
+        oUnit[refbPaused] = bPauseNotUnpause
+        if M28Utilities.bLoudModActive then
+            ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
+        else
+            oUnit:SetPaused(bPauseNotUnpause)
+        end
+    end
+end
+
+function SetUnitMissileAutoBuildStatus(oUnit, bAutoBuild)
+    if (bDontConsiderCombinedArmy or oUnit.M28Active) and oUnit.SetAutoMode then
+        oUnit:SetAutoMode(bAutoBuild)
+    end
+end
+
 function GetFactionFromBP(oBlueprint)
     --Returns faction number for oBlueprint
     --1: UEF, 2: Aeon, 3: Cybran, 4: Seraphim, 5: Nomads, 6 = not recognised

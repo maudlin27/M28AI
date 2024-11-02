@@ -1485,8 +1485,10 @@ function OnMissileBuilt(self, weapon)
                         --Dont pause if overflowing
                         if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
-                            self:SetPaused(true)
-                            if self.SetAutoMode then self:SetAutoMode(false) end
+                            --self:SetPaused(true)
+                            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(self, true)
+                            M28UnitInfo.SetUnitMissileAutoBuildStatus(self, false)
+                            --if self.SetAutoMode then self:SetAutoMode(false) end
 
                             --Recheck every minute
                             ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
@@ -3675,7 +3677,9 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                         local iCurMissiles
                         for iLauncher, oLauncher in tMissileLaunchers do
                             --LOG('Forked consideration of launching missile Delay6')
-                            M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                            if oLauncher:GetAIBrain().M28AI then --redundancy
+                                M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                            end
                         end
                     end
                 end

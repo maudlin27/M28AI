@@ -1550,8 +1550,10 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                             local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
                             if M28Utilities.IsTableEmpty(tSMD) == false then
                                 for iUnit, oUnit in tSMD do
-                                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam)
-                                    oUnit:SetAutoMode(true)
+                                    --M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam)
+                                    M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+                                    --oUnit:SetAutoMode(true)
                                 end
                             end
                         end
