@@ -2868,9 +2868,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
     local sFunctionRef = 'GetT3ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
+    if oArti.UnitId == 'ueb2401' then bDebugMessages = true end
     if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; bCalledFromSalvoSize='..tostring(bCalledFromSalvoSize or false)..'; oArti[refbSalvoDelayActive]='..tostring(oArti[refbSalvoDelayActive] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(oArti[refbSalvoDelayActive]) then
         local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oArti:GetPosition())
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -3024,6 +3024,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each plateau and zone in range now, is oArti[reftiPlateauAndZonesInRange] empty='..tostring(M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]))) end
 
             for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
                 local tAltLZOrWZData
