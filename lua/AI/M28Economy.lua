@@ -124,8 +124,9 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         end
 
         --Clear any pausing of the unit
-        oUnitToUpgrade:SetPaused(false)
-        oUnitToUpgrade[M28UnitInfo.refbPaused] = false
+        M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnitToUpgrade, false)
+        --oUnitToUpgrade:SetPaused(false)
+        --oUnitToUpgrade[M28UnitInfo.refbPaused] = false
         if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to false for unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
 
         if bUpdateUpgradeTracker then

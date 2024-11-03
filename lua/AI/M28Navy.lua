@@ -1047,12 +1047,35 @@ function ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                         ShieldUnitsInWaterZone(tTeamTargetWZData, tShieldsToAssign, true)
                     end
                     if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any water zones with friendly combat units of a high enough value so have nowhere to assign mobile shields/shield boats; will send them all to the nearest rally point instead') end
-                        local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
-                        for iUnit, oUnit in tShieldsToAssign do
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSBckup'..iWaterZone)
+                        local tHoverShields = EntityCategoryFilterDown(categories.HOVER + M28UnitInfo.refCategoryAmphibious, tShieldsToAssign)
+                        if M28Utilities.IsTableEmpty(tHoverShields) == false then
+                            tShieldsToAssign = EntityCategoryFilterDown(categories.ALLUNITS - categories.HOVER - M28UnitInfo.refCategoryAmphibious, tShieldsToAssign)
+                            --Cycle through nearby zones looking for those wanting shielding
+                            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                                if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                                    for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                                        local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                                        local tAltLZTeamData = tAltLZ[M28Map.subrefLZTeamData][iTeam]
+                                        if tAltLZTeamData[M28Map.refbLZWantsMobileShield] then
+                                            M28Land.ShieldUnitsInLandZone(tAltLZTeamData, tHoverShields, false)
+                                        end
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tHoverShields) == false then
+                                    for iHoverShield, oHoverShield in tHoverShields do
+                                        table.insert(tShieldsToAssign, oHoverShield)
+                                    end
+                                end
+                            end
                         end
-                        M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] = GetGameTimeSeconds()
+                        if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any water zones with friendly combat units of a high enough value so have nowhere to assign mobile shields/shield boats; will send them all to the nearest rally point instead') end
+                            local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
+                            for iUnit, oUnit in tShieldsToAssign do
+                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSBckup'..iWaterZone)
+                            end
+                            M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] = GetGameTimeSeconds()
+                        end
 
                     end
 
@@ -1479,8 +1502,6 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         local tMissileShips = {}
         local iCurWZValue = tWZTeamData[M28Map.subrefWZTValue]
 
-        local iOurBestDFRange = 0
-        local iOurBestIndirectRange = 0
         local bIncludeUnit
 
         local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(0, iWaterZone, iTeam)
@@ -1493,6 +1514,13 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         local iMobileStealthLowerThresholdCount = 0 --Used to avoid assigning too many mobile stealth at once to units not exceeding the higher mass threshold
         local iLZIslandGivingOrder, iLZIslandTravelingTo
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
+        local iShieldCategory = M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3 * categories.HOVER
+        --if water isnt too deep include amphibious T3 mobile shields (e.g. LOUD modded unit)
+        if GetSurfaceHeight(M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][1],  M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][3]) - GetTerrainHeight(M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][1],  M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][3]) <= 10 then
+            iShieldCategory = iShieldCategory + categories.TECH3 * categories.AMPHIBIOUS * M28UnitInfo.refCategoryMobileLandShield
+            if bDebugMessages == true then LOG(sFunctionRef..': If amphibious t3 shields are an option then these should be included for shield management') end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Difference between surface height and terrain height for pond midpoint='..GetSurfaceHeight(M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][1],  M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][3]) - GetTerrainHeight(M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][1],  M28Map.tPondDetails[iPond][M28Map.subrefPondMidpoint][3])) end
 
         function RecordIfUnitWantsShieldOrStealth(oUnit)
             iUnitMassCost = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
@@ -1516,7 +1544,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if oUnit:GetFractionComplete() == 1 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Is this a T3 mobile shield or shield boat='..tostring(EntityCategoryContains(iShieldCategory, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
                 if oUnit[refbActiveRaider] then
                     --Consider if want shielding or stealth
                     RecordIfUnitWantsShieldOrStealth(oUnit)
@@ -1534,7 +1562,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) or (bUseFrigatesAsScouts and EntityCategoryContains(M28UnitInfo.refCategoryFrigate, oUnit.UnitId)) then
                             table.insert(tScouts, oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Including as a land scout') end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
+                        elseif EntityCategoryContains(iShieldCategory, oUnit.UnitId) then
                             table.insert(tMobileShields, oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Including as a mobile shield') end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryStealthBoat, oUnit.UnitId) then
@@ -1631,6 +1659,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of tMobileShields empty='..tostring(M28Utilities.IsTableEmpty(tMobileShields))) end
         if M28Utilities.IsTableEmpty(tMobileShields) == false then
             ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tMobileShields)
         end

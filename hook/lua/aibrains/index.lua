@@ -19,3 +19,5 @@ keyToBrain['m28aiturtle'] = M28Brain.NewAIBrain
 keyToBrain['m28aiturtlecheat'] = M28Brain.NewAIBrain
 keyToBrain['m28airush'] = M28Brain.NewAIBrain
 keyToBrain['m28airushcheat'] = M28Brain.NewAIBrain
+keyToBrain['m28airandom'] = M28Brain.NewAIBrain
+keyToBrain['m28airandomcheat'] = M28Brain.NewAIBrain
