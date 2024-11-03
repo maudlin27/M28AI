@@ -1048,7 +1048,7 @@ function ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                     end
                     if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
                         local tHoverShields = EntityCategoryFilterDown(categories.HOVER + M28UnitInfo.refCategoryAmphibious, tShieldsToAssign)
-                        if M28Utilities.IsTableEmpty(tHoverShields) == false and GetGameTimeSeconds() >= 37*60 then
+                        if M28Utilities.IsTableEmpty(tHoverShields) == false then
                             tShieldsToAssign = EntityCategoryFilterDown(categories.ALLUNITS - categories.HOVER - M28UnitInfo.refCategoryAmphibious, tShieldsToAssign)
                             --Cycle through nearby zones looking for those wanting shielding
                             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
@@ -1199,7 +1199,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     local sFunctionRef = 'MoveUnassignedLandUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 37*60 and iWaterZone == 18 then bDebugMessages = true end
+
 
     --Decides where to send any units that are part of this water zone (ignores those from an adjacent waterzone that were available)
     --local tAmphibiousLabelUnits = {}
@@ -1442,7 +1442,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 37*60 and iWaterZone == 18 then bDebugMessages = true end
+
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]

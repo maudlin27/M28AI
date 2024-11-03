@@ -2880,7 +2880,6 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
     local sFunctionRef = 'GetT3ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oArti.UnitId == 'ueb2401' then bDebugMessages = true end
     if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; bCalledFromSalvoSize='..tostring(bCalledFromSalvoSize or false)..'; oArti[refbSalvoDelayActive]='..tostring(oArti[refbSalvoDelayActive] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(oArti[refbSalvoDelayActive]) then

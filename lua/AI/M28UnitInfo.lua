@@ -1137,7 +1137,6 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             end
                         else
                             --Non-air pathing type
-                            if bIncludeGroundToAir and (sCurUnitBP == 'urs0201' or oUnit.UnitId == 'urs0201') then bDebugMessages = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
                             if bIncludeGroundToAir == true then
                                 --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
