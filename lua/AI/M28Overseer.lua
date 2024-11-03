@@ -69,6 +69,7 @@ refiCombatLandScoutThreshold = 'M28OvsrCLnS' --number of aeon land scouts to use
 --Brain style variables to affect behaviour - set to true if to apply to the brain
 refbPrioritiseLand = 'M28PersLand'
 refbPrioritiseAir = 'M28PersAir'
+refbPrioritiseNavy = 'M28PersNavy'
 refbPrioritiseLowTech = 'M28PesLowTech'
 refbPrioritiseHighTech = 'M28PersHighTech'
 refbPrioritiseDefence = 'M28PersDef'
