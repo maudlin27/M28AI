@@ -221,7 +221,7 @@ AI = {
             }
         },
         {
-            key = 'm28aiturtlecheat',
+            key = 'm28aiturtlecheat', --need to update index.lua in aibrains folder hook with the keys of all ais being added
             name = 'AIx: M28 Turtle',
             rating = 800,
             ratingCheatMultiplier = 1300.0, --This is multiplied to the value, so 1.0 will give this amount
@@ -237,7 +237,7 @@ AI = {
             }
         },
         {
-            key = 'm28airandomcheat',
+            key = 'm28airandomcheat', --need to update index.lua in aibrains folder hook with the keys of all ais being added
             name = 'AIx: M28 Random',
             rating = 800,
             ratingCheatMultiplier = 0.0,

@@ -1120,6 +1120,17 @@ function AssignAIPersonalityAndRating(aiBrain)
         elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
         elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
         elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+        elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' then
+            bDebugMessages = true
+            local iRand = math.random(1, 6)
+            --1 - adaptive - default
+            if iRand == 2 then aiBrain[M28Overseer.refbPrioritiseAir] = true
+            elseif iRand == 3 then aiBrain[M28Overseer.refbPrioritiseLand] = true
+            elseif iRand == 4 then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
+            elseif iRand == 5 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
+            elseif iRand == 6 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand) end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning AI personality, brain='..aiBrain.Nickname..'; sPersonality='..sPersonality..'; Prioritise land='..tostring(aiBrain[M28Overseer.refbPrioritiseLand] or false)..'; Prioritise air='..tostring(aiBrain[M28Overseer.refbPrioritiseAir] or false)..'; Low tech='..tostring(aiBrain[M28Overseer.refbPrioritiseLowTech] or false)..'; High tech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; Defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)) end
     end
