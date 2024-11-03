@@ -1049,6 +1049,32 @@ function SendAudioMessage(sCue, sBank, iDelayInSeconds, iOptionalTeamArmyIndex)
     ForkThread(SendForkedAudioMessage, sCue, sBank, iDelayInSeconds, iOptionalTeamArmyIndex)
 end
 
+function DelayedNavyPersonalityReassess(aiBrain)
+    while not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bHaveRecordedPonds) do
+        WaitSeconds(1)
+        if GetGameTimeSeconds() >= 6 then break end
+    end
+    local bHavePondToExpandTo = false
+    if M28Map.bWaterZoneInitialCreation and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiPriorityPondValues]) == false then
+        for iPond, iValue in M28Team.tTeamData[aiBrain.M28Team][M28Team.refiPriorityPondValues] do
+            if iValue >= 4 then
+                bHavePondToExpandTo = true
+                break
+            end
+        end
+    end
+    if not(bHavePondToExpandTo) then
+        aiBrain[M28Overseer.refbPrioritiseNavy] = false
+        local tsPotentialMessages = {}
+        table.insert(tsPotentialMessages, 'What is this, some sort of sick joke? I cant go navy on this map!')
+        table.insert(tsPotentialMessages, 'Ummm...yeah I\'m not going to go navy on this map')
+        table.insert(tsPotentialMessages, 'Time to try out land and air, cause navy looks like it sucks on this map')
+        local iRand = math.random(1, table.getn(tsPotentialMessages))
+
+        SendMessage(aiBrain, 'NavyPers', tsPotentialMessages[iRand], 10, 1000, false, true)
+    end
+end
+
 function AssignAIPersonalityAndRating(aiBrain)
     local sFunctionRef = 'AssignAIPersonalityAndRating'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1120,6 +1146,7 @@ function AssignAIPersonalityAndRating(aiBrain)
         elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
         elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
         elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+        elseif sPersonality == 'm28ainavy' or sPersonality == 'm28ainavycheat' then aiBrain[M28Overseer.refbPrioritiseNavy] = true
         elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' then
             local iRand = math.random(1, 6)
             --1 - adaptive - default
@@ -1130,6 +1157,10 @@ function AssignAIPersonalityAndRating(aiBrain)
             elseif iRand == 6 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand) end
+        end
+        if aiBrain[M28Overseer.refbPrioritiseNavy] then
+            --dont want to go navy if map doesnt support it
+            ForkThread(DelayedNavyPersonalityReassess, aiBrain)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning AI personality, brain='..aiBrain.Nickname..'; sPersonality='..sPersonality..'; Prioritise land='..tostring(aiBrain[M28Overseer.refbPrioritiseLand] or false)..'; Prioritise air='..tostring(aiBrain[M28Overseer.refbPrioritiseAir] or false)..'; Low tech='..tostring(aiBrain[M28Overseer.refbPrioritiseLowTech] or false)..'; High tech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; Defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)) end
     end
