@@ -15952,6 +15952,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
                 end
+                if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iFactoriesWanted = iFactoriesWanted + 1 end
                 if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
                     iBPWanted = 30
                     if bHaveLowMass then
@@ -16134,6 +16135,8 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': iMaxFactories=' .. iMaxFactories .. '; iExistingWaterFactory=' .. iExistingWaterFactory..'; Pond segment size='..M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount])
                 end
+
+                if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iMaxFactories = iMaxFactories + 1 end
                 if iExistingWaterFactory < iMaxFactories or (iExistingWaterFactory > 0 and not(bHaveFactoryHQ)) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Lower priority builder - We want to build a naval factory')
@@ -16195,12 +16198,16 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
     --Experimental naval unit for very high mass levels (higher priority than naval fac assist so engis stop assisting naval fac and start building this)
+        --If have navy prioritising brain that is closest, then will be much more likely to build a naval experimental
 
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Experimental navy builder - core base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Low power=' .. tostring(bHaveLowPower) .. '; Mass%=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Gross mass=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] .. '; Net mass=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; Naval tehc=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] .. '; Enemies in adjacent QZ=' .. tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) .. '; Ally combat total=' .. tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal])
     end
-    if tWZTeamData[M28Map.subrefWZbCoreBase] and not (bHaveLowMass) and not (bHaveLowPower) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 35 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 and (not (tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 8000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7)))) then
+    if tWZTeamData[M28Map.subrefWZbCoreBase] and (not (bHaveLowMass) or (aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 30 * aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond]) or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] >= 60 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllNavy * categories.EXPERIMENTAL) == 0))) and not (bHaveLowPower)
+        and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 35 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 and (not (tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 8000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7))))
+            or (aiBrain[M28Overseer.refbPrioritiseNavy] and (aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAllNavy * categories.TECH3) >= 5)))
+        then
         --Likely have the eco to get an experimental naval unit, check if we have a lifetime build count of at least 2 T3 naval units
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Think we have enough eco for experimental navy builder, lifetime battleship count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBattleship))
@@ -16383,6 +16390,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and not(bHaveLowPower) then iFactoriesWanted = 3 end
                         if aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
                     end
+                    if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iFactoriesWanted = iFactoriesWanted + 1 end
                     --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
