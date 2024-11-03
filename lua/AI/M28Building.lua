@@ -2565,7 +2565,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     oLauncher[refbPausedAsNoTargets] = true
                                     --oLauncher:SetAutoMode(false)
                                     --oLauncher:SetPaused(true)
-                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oLauncher, bAutoBuild)
+                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oLauncher, false)
                                     M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oLauncher, true)
                                     if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end

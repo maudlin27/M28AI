@@ -1121,7 +1121,6 @@ function AssignAIPersonalityAndRating(aiBrain)
         elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
         elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
         elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' then
-            bDebugMessages = true
             local iRand = math.random(1, 6)
             --1 - adaptive - default
             if iRand == 2 then aiBrain[M28Overseer.refbPrioritiseAir] = true

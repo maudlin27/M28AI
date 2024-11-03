@@ -4150,7 +4150,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Do we have eco to support an upgrade?
                 if bDebugMessages == true then LOG(sFunctionRef..': Low power Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; % E stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass gross brain inc='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                 if iFactoryTechLevel == 1 then
-                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[refiNetEnergyBaseIncome] >= 4*aiBrain[M28Economy.refiBrainResourceMultiplier])) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 4*aiBrain[M28Economy.refiBrainResourceMultiplier])) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                         --Do we have a decent number of engis in this zone already?
                         local bWantMoreEngisInstead = false
                         if tLZTeamData[M28Map.subrefTbWantBP] and not(bHaveLowMass) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 then
@@ -4173,7 +4173,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         end
                     end
                 else --T2 to T3 air
-                    if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[refiNetEnergyBaseIncome] >= 15*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 95*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                    if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 15*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 95*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to get low power priority upgrade to T3 air for safe zone') end
                         if ConsiderUpgrading() then return sBPIDToBuild end
                         if bDebugMessages == true then LOG(sFunctionRef..': Want more engis before we go to t3 air') end
@@ -4285,7 +4285,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             --Get gunships/bombers even though it's underwater at the moment
                             if bDebugMessages == true then LOG(sFunctionRef..': enemy has nearby exp so will go and get gunship or bomber') end
                             if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter - M28UnitInfo.refCategoryBomber * categories.TECH3) then return sBPIDToBuild end
-                            if ConsiderBuildingCategory(M28UnitInfo.iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
                             if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                         else
                             --Get torp bombers unless we have lots already
@@ -4700,7 +4700,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                                 if iClosestLandExp <= 200 then
                                     --Get gunships/bombers even though it's underwater at the moment
                                     if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter - M28UnitInfo.refCategoryBomber * categories.TECH3) then return sBPIDToBuild end
-                                    if ConsiderBuildingCategory(M28UnitInfo.iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
+                                    if ConsiderBuildingCategory(iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
                                     if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                                 else
                                     --Get torp bombers unless we have lots already
@@ -4712,7 +4712,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                                 if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
-                                if ConsiderBuildingCategory(M28UnitInfo.iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+                                if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                             end
                         end
@@ -4744,14 +4744,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         --Do we have eco to support an upgrade?
                         if bDebugMessages == true then LOG(sFunctionRef..': Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; % E stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass gross brain inc='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         if iFactoryTechLevel == 1 then
-                            if (aiBrain:GetEconomyStored('ENERGY') >= 4950 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[refiNetEnergyBaseIncome] >= 4*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]))
+                            if (aiBrain:GetEconomyStored('ENERGY') >= 4950 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 4*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]))
                             and (not(aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseLand]) or aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3)
                             then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T2 air for safe zone') end
                                 if ConsiderUpgrading() then return sBPIDToBuild end
                             end
                         else --T2 to T3 air
-                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[refiNetEnergyBaseIncome] >= 15*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 95*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 25*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 15*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 95*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5*aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T3 air for safe zone') end
                                 if ConsiderUpgrading() then return sBPIDToBuild end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want some more engis before we go to t3 air') end
@@ -5025,7 +5025,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                                     --Get gunships/bombers even though it's underwater at the moment
                                     if bDebugMessages == true then LOG(sFunctionRef..': Nearby land exp so will get gunships or bombers') end
                                     if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter - M28UnitInfo.refCategoryBomber * categories.TECH3) then return sBPIDToBuild end
-                                    if ConsiderBuildingCategory(M28UnitInfo.iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
+                                    if ConsiderBuildingCategory(iNormalBomberCategoryToBuild - categories.TECH3) then return sBPIDToBuild end
                                     if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                                 else
                                     --Get torp bombers unless we have lots already
