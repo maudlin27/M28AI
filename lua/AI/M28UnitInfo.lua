@@ -1098,10 +1098,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                                     end
                                                 end
                                             end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': AirAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
                                             if bCanShootAir then
                                                 iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                                iCurDPS = math.min(tWeapon.Damage, 6000) * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                                iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
                                                 iAADPS = iAADPS + iCurDPS
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDPS for this weapon='..iCurDPS) end
                                             end
                                         end
                                         --Cap AA DPS at 200 for ACUs (i.e. for LOUD) as wont have all upgrades initially
@@ -1135,6 +1137,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             end
                         else
                             --Non-air pathing type
+                            if bIncludeGroundToAir and (sCurUnitBP == 'urs0201' or oUnit.UnitId == 'urs0201') then bDebugMessages = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
                             if bIncludeGroundToAir == true then
                                 --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
@@ -1147,7 +1150,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
                                             for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
-                                                if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                if sTargets == 'Air' then --and tWeapon.CannotAttackGround then
                                                     bCanShootAir = true
                                                     break
                                                 elseif sTargets == 'Air|Land|Water|Seabed' then
@@ -1156,9 +1159,10 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                                 end
                                             end
                                         end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': GroundAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
                                         if bCanShootAir then
                                             iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                            iCurDPS = math.min(tWeapon.Damage, 6000) * (tWeapon.ProjectilesPerOnFire or 1) / (tWeapon.RateOfFire or 1)
+                                            iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
                                             iAADPS = iAADPS + iCurDPS
                                         end
                                     end
@@ -1195,7 +1199,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
                                     local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
                                     if iHealthPerMass >= 6 then
-                                        iMassAAFactor = iMassAAFactor * math.min(2, (iHealthPerMass - 6) / 12 + 1) --e.g. if have double the expected health, threat only increase by 50%, as main threat of an AA unit is the damage not the health
+                                        local iMaxHealthFactor = 2.2
+                                        if M28Utilities.bLoudModActive then iMaxHealthFactor = 2.5 end
+                                        iMassAAFactor = iMassAAFactor * math.min(iMaxHealthFactor, (iHealthPerMass - 6) / 12 + 1) --Main threat of AA unit is the damage, not the health, so cap the amount threat is increased by unit health (e.g. dont want ythotha deterring air attacks just because its high health)
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
 
