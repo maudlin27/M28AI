@@ -1065,13 +1065,17 @@ function DelayedNavyPersonalityReassess(aiBrain)
     end
     if not(bHavePondToExpandTo) then
         aiBrain[M28Overseer.refbPrioritiseNavy] = false
-        local tsPotentialMessages = {}
-        table.insert(tsPotentialMessages, 'What is this, some sort of sick joke? I cant go navy on this map!')
-        table.insert(tsPotentialMessages, 'Ummm...yeah I\'m not going to go navy on this map')
-        table.insert(tsPotentialMessages, 'Time to try out land and air, cause navy looks like it sucks on this map')
-        local iRand = math.random(1, table.getn(tsPotentialMessages))
+        --If this wasnt an M28Random then send a message
+        local sPersonality = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
+        if not(sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat') then
+            local tsPotentialMessages = {}
+            table.insert(tsPotentialMessages, 'What is this, some sort of sick joke? I cant go navy on this map!')
+            table.insert(tsPotentialMessages, 'Ummm...yeah I\'m not going to go navy on this map')
+            table.insert(tsPotentialMessages, 'Time to try out land and air, cause navy looks like it sucks on this map')
+            local iRand = math.random(1, table.getn(tsPotentialMessages))
 
-        SendMessage(aiBrain, 'NavyPers', tsPotentialMessages[iRand], 10, 1000, false, true)
+            SendMessage(aiBrain, 'NavyPers', tsPotentialMessages[iRand], 10, 1000, false, true)
+        end
     end
 end
 
@@ -1148,13 +1152,14 @@ function AssignAIPersonalityAndRating(aiBrain)
         elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
         elseif sPersonality == 'm28ainavy' or sPersonality == 'm28ainavycheat' then aiBrain[M28Overseer.refbPrioritiseNavy] = true
         elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' then
-            local iRand = math.random(1, 6)
+            local iRand = math.random(1, 7)
             --1 - adaptive - default
             if iRand == 2 then aiBrain[M28Overseer.refbPrioritiseAir] = true
             elseif iRand == 3 then aiBrain[M28Overseer.refbPrioritiseLand] = true
             elseif iRand == 4 then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
             elseif iRand == 5 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
             elseif iRand == 6 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+            elseif iRand == 7 then aiBrain[M28Overseer.refbPrioritiseNavy] = true
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand) end
         end
