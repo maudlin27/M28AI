@@ -10290,17 +10290,26 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         elseif M28Utilities.bLoudModActive then
             iLifetimeCountVar = 20
         end
-        if aiBrain[M28Overseer.refbPrioritiseAir] then
-            iLifetimeCountCategory = M28UnitInfo.refCategoryAirNonScout * categories.TECH3
-            if M28Conditions.TeamHasLowMass(iTeam) then
-                iLifetimeCountVar = math.max((iLifetimeCountVar or 30), 50)
-            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 or M28Conditions.HaveLowPower(iTeam) then
-                iLifetimeCountVar = math.max((iLifetimeCountVar or 15), 40)
+        if bIsWaterZone then
+            if aiBrain[M28Overseer.refbPrioritiseNavy] then
+                iLifetimeCountVar = 5
             else
-                iLifetimeCountVar = math.max((iLifetimeCountVar or 15), 30)
+                iLifetimeCountVar = 10
             end
-        elseif aiBrain[M28Overseer.refbPrioritiseLand] then
-            iLifetimeCountCategory = M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3
+            iLifetimeCountCategory = M28UnitInfo.refCategoryAllNavy * (categories.TECH3 + categories.EXPERIMENTAL)
+        else
+            if aiBrain[M28Overseer.refbPrioritiseAir] then
+                iLifetimeCountCategory = M28UnitInfo.refCategoryAirNonScout * categories.TECH3
+                if M28Conditions.TeamHasLowMass(iTeam) then
+                    iLifetimeCountVar = math.max((iLifetimeCountVar or 30), 50)
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 or M28Conditions.HaveLowPower(iTeam) then
+                    iLifetimeCountVar = math.max((iLifetimeCountVar or 15), 40)
+                else
+                    iLifetimeCountVar = math.max((iLifetimeCountVar or 15), 30)
+                end
+            elseif aiBrain[M28Overseer.refbPrioritiseLand] then
+                iLifetimeCountCategory = M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3
+            end
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Experimental construction override check, iLifetimeCountVar='..(iLifetimeCountVar or 'nil')..'; Exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Lifetime iLifetimeCountCategory count='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, iLifetimeCountCategory)..'; M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel]='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; bPrioritiseSniperBots='..tostring(bPrioritiseSniperBots or false)..'; Team has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Primary aiBrain='..aiBrain.Nickname..'; aiBrain[M28Overseer.refbPrioritiseAir]='..tostring(aiBrain[M28Overseer.refbPrioritiseAir] or false)) end
@@ -10374,6 +10383,14 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             --do nothing
             if bDebugMessages == true then LOG(sFunctionRef..': Are stalling power so wont build T3 navy or experimental and instead will build more power') end
             fnHaveActionToAssign(refActionBuildSecondPower,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+        elseif bIsWaterZone and iLifetimeCountVar and M28Conditions.GetTeamLifetimeBuildCount(iTeam, iLifetimeCountCategory) < iLifetimeCountVar then
+            local oFactoryToAssist = GetFactoryToAssist(M28UnitInfo.refCategoryNavalFactory)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will either assist existing naval fac, or build a new one, oFactoryToAssist='..(oFactoryToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssist) or 'nil')) end
+            if oFactoryToAssist then
+                fnHaveActionToAssign(refActionAssistNavalFactory, (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), oFactoryToAssist, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            else
+                fnHaveActionToAssign(refActionBuildNavalFactory, (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            end
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental type action, iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')) end
             fnHaveActionToAssign((iActionToAssign or refActionBuildExperimental),  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
