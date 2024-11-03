@@ -3287,8 +3287,11 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     if bDebugMessages == true then LOG(sFunctionRef..': Scenario 1 main unit loop, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Antinavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iScenario1AntiNavyRangeThreshold='..(iScenario1AntiNavyRangeThreshold or 'nil')) end
                     if oUnit[M28UnitInfo.refiAntiNavyRange] > iScenario1AntiNavyRangeThreshold then
                         table.insert(tUnitsToSupport, oUnit)
-                        --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat
-                        if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                        --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat (unless are in bombardment mode for atlantis)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and
+                            --No enemy air units so want to submerge (unless are in bombardment mode and either have an atlantis, or any enemy air unit)
+                            ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)) >= 30 or (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))))
+                                or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
                             M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
                             --Consider kiting logic unless want to use shot blocked override logic
                         elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
@@ -4031,17 +4034,21 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             local tSubRallyPoint
                             local sMessage
                             local bConsiderAmphibiousRally = true
+                            local bAttackMoveIfRallyPointIsClose = false
                             if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough threat to attack with surface naval units, will see if we want to consolidate in this zone, iAvailableCombatThreat='..iAvailableCombatThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; Want to attack with navy='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAvailableCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat,  iOurAntiNavyThreat ))) end
                             if iAvailableCombatThreat > iAdjacentAlliedCombatThreat and M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAvailableCombatThreat, iAdjacentEnemyCombatThreat, true, iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat,  iOurAntiNavyThreat) then
                                 sMessage = 'WSfConsR'
                                 tSubRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
                                 bConsiderAmphibiousRally = false
+                                bAttackMoveIfRallyPointIsClose = true
                             else
                                 sMessage = 'WSfRetr'
                                 tSubRallyPoint = tRallyPoint
+                                if M28Map.GetWaterZoneFromPosition(tSubRallyPoint) == iWaterZone then bAttackMoveIfRallyPointIsClose = true end
                             end
                             local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                             local iAmphibiousRallyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tAmphibiousRallyPoint)
+
 
                             for iUnit, oUnit in tCombatUnitsOfUse do
                                 if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
@@ -4056,7 +4063,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, sMessage..'_AmpR'..iWaterZone)
                                         end
                                     else
-                                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
+                                        --If close to rally point then attackmove
+                                        if bAttackMoveIfRallyPointIsClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSubRallyPoint) <= 10 then
+                                            M28Orders.IssueTrackedAttackMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, sMessage..'AM'..iWaterZone)
+                                        else
+                                            ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tSubRallyPoint, iPond, sMessage..iWaterZone, false, nil, nil, true)
+                                        end
                                         --M28Orders.IssueTrackedMove(oUnit, tSubRallyPoint, iOrderReissueDistToUse, false, sMessage..iWaterZone)
                                     end
                                 else

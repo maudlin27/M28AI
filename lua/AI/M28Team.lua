@@ -3133,6 +3133,9 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                         end
                     end
                 end
+                if oBrain[M28Overseer.refbPrioritiseNavy] and oBrain[M28Economy.refiOurHighestNavalFactoryTech] == 1 then
+                    tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalHQ, false, true)
+                end
             end
         end
     end

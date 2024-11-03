@@ -56,6 +56,14 @@ Tooltips = {
         title = "AIx: M28 Turtle",
         description = "Cheating AI that prefers point defences and defensive play",
     },
+    aitype_m28ainavy = {
+        title = "AI: M28 Navy",
+        description = "M28 AI that prefers navy to land and air",
+    },
+    aitype_m28aiturtlecheat = {
+        title = "AIx: M28 Navy",
+        description = "Cheating AI that prefers navy to land and air",
+    },
     aitype_m28airandom = {
         title = "AI: M28 Random",
         description = "Selects a random AI personality at the start of the game",

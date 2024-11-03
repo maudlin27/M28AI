@@ -2246,6 +2246,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, oJustBuilt.UnitId) then
                             --I.e. for energy storage units not caught by energy storage above or experimental level (paragon) - i.e. first two categories are just a redundancy
                             M28Team.TeamEconomyRefresh(iTeam)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oJustBuilt.UnitId) then
+                            --Navy personality - assign all naval facs to it if it is the primary brain for this zone
+                            if not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId)) and not(oJustBuilt:GetAIBrain()[M28Overseer.refbPrioritiseNavy]) then
+                                local tWZData, tWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                if ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseNavy] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will gift naval fac to the brain prioritising navy') end
+                                    ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex], false)
+                                end
+                            end
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
