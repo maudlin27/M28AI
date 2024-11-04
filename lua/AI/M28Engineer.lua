@@ -10390,8 +10390,9 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             --do nothing
             if bDebugMessages == true then LOG(sFunctionRef..': Are stalling power so wont build T3 navy or experimental and instead will build more power') end
             fnHaveActionToAssign(refActionBuildSecondPower,  (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
-        elseif bIsWaterZone and iLifetimeCountVar and M28Conditions.GetTeamLifetimeBuildCount(iTeam, iLifetimeCountCategory) < iLifetimeCountVar then
-            local oFactoryToAssist = GetFactoryToAssist(M28UnitInfo.refCategoryNavalFactory)
+        elseif bIsWaterZone and not(iActionToAssign == refActionAssistNavalFactory) and iLifetimeCountVar and M28Conditions.GetTeamLifetimeBuildCount(iTeam, iLifetimeCountCategory) < iLifetimeCountVar then
+            local oFactoryToAssist
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then oFactoryToAssist = GetFactoryToAssist(M28UnitInfo.refCategoryNavalFactory) end
             if bDebugMessages == true then LOG(sFunctionRef..': Will either assist existing naval fac, or build a new one, oFactoryToAssist='..(oFactoryToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssist) or 'nil')) end
             if oFactoryToAssist then
                 fnHaveActionToAssign(refActionAssistNavalFactory, (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), oFactoryToAssist, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
