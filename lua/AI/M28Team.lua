@@ -1550,8 +1550,10 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                             local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
                             if M28Utilities.IsTableEmpty(tSMD) == false then
                                 for iUnit, oUnit in tSMD do
-                                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam)
-                                    oUnit:SetAutoMode(true)
+                                    --M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam)
+                                    M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+                                    M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+                                    --oUnit:SetAutoMode(true)
                                 end
                             end
                         end
@@ -3130,6 +3132,9 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                             end
                         end
                     end
+                end
+                if oBrain[M28Overseer.refbPrioritiseNavy] and oBrain[M28Economy.refiOurHighestNavalFactoryTech] == 1 then
+                    tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalHQ, false, true)
                 end
             end
         end

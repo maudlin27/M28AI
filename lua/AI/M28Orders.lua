@@ -1358,9 +1358,11 @@ function IssueTrackedNukeMissileLaunch(oUnit, tOrderPosition, iDistanceToReissue
         if oUnit[M28Building.refbPausedAsNoTargets] then
             oUnit[M28Building.refbPausedAsNoTargets] = false
             if M28UnitInfo.GetMissileCount(oUnit) <= 1 then
-                oUnit:SetAutoMode(true)
+                --oUnit:SetAutoMode(true)
+                M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
             end
-            oUnit:SetPaused(false)
+            --oUnit:SetPaused(false)
+            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
         end
         local iTeam = oUnit:GetAIBrain().M28Team
         import('/mods/M28AI/lua/AI/M28Building.lua').RecordNukeTarget(iTeam, tOrderPosition)

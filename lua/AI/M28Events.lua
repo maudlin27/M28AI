@@ -1485,8 +1485,10 @@ function OnMissileBuilt(self, weapon)
                         --Dont pause if overflowing
                         if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
-                            self:SetPaused(true)
-                            if self.SetAutoMode then self:SetAutoMode(false) end
+                            --self:SetPaused(true)
+                            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(self, true)
+                            M28UnitInfo.SetUnitMissileAutoBuildStatus(self, false)
+                            --if self.SetAutoMode then self:SetAutoMode(false) end
 
                             --Recheck every minute
                             ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
@@ -2244,6 +2246,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics, oJustBuilt.UnitId) then
                             --I.e. for energy storage units not caught by energy storage above or experimental level (paragon) - i.e. first two categories are just a redundancy
                             M28Team.TeamEconomyRefresh(iTeam)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oJustBuilt.UnitId) then
+                            --Navy personality - assign all naval facs to it if it is the primary brain for this zone
+                            if not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId)) and not(oJustBuilt:GetAIBrain()[M28Overseer.refbPrioritiseNavy]) then
+                                local tWZData, tWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                if ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseNavy] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will gift naval fac to the brain prioritising navy') end
+                                    ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex], false)
+                                end
+                            end
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
                             ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
@@ -3675,7 +3686,9 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                         local iCurMissiles
                         for iLauncher, oLauncher in tMissileLaunchers do
                             --LOG('Forked consideration of launching missile Delay6')
-                            M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                            if oLauncher:GetAIBrain().M28AI then --redundancy
+                                M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                            end
                         end
                     end
                 end

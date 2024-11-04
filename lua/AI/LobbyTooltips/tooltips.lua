@@ -21,7 +21,7 @@ Tooltips = {
         description = "M28 AI that prefers air units over land units",
     },
     aitype_m28aiaircheat = {
-        title = "AI: M28 Air",
+        title = "AIx: M28 Air",
         description = "Cheating AI that prefers air units over land units",
     },
     aitype_m28ailand = {
@@ -29,7 +29,7 @@ Tooltips = {
         description = "M28 AI that prefers land units over air units",
     },
     aitype_m28aiaircheat = {
-        title = "AI: M28 Land",
+        title = "AIx: M28 Land",
         description = "Cheating AI that prefers land units over air units",
     },
     aitype_m28airush = {
@@ -37,7 +37,7 @@ Tooltips = {
         description = "M28 AI that prefers large amounts of lower tech land units",
     },
     aitype_m28airushcheat = {
-        title = "AI: M28 Rush",
+        title = "AIx: M28 Rush",
         description = "Cheating AI that prefers large amounts of lower tech land units",
     },
     aitype_m28aitech = {
@@ -45,7 +45,7 @@ Tooltips = {
         description = "M28 AI that tries to win with more advanced technology",
     },
     aitype_m28aitechcheat = {
-        title = "AI: M28 Tech",
+        title = "AIx: M28 Tech",
         description = "Cheating AI that tries to win with more advanced technology",
     },
     aitype_m28aiturtle = {
@@ -53,7 +53,23 @@ Tooltips = {
         description = "M28 AI that prefers point defences and defensive play",
     },
     aitype_m28aiturtlecheat = {
-        title = "AI: M28 Tech",
+        title = "AIx: M28 Turtle",
         description = "Cheating AI that prefers point defences and defensive play",
+    },
+    aitype_m28ainavy = {
+        title = "AI: M28 Navy",
+        description = "M28 AI that prefers navy to land and air",
+    },
+    aitype_m28aiturtlecheat = {
+        title = "AIx: M28 Navy",
+        description = "Cheating AI that prefers navy to land and air",
+    },
+    aitype_m28airandom = {
+        title = "AI: M28 Random",
+        description = "Selects a random AI personality at the start of the game",
+    },
+    aitype_m28airandomcheat = {
+        title = "AIx: M28 Random",
+        description = "Cheating AI that selects a random AI personality at the start of the game",
     },
 }
