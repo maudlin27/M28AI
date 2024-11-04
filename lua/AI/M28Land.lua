@@ -9777,6 +9777,8 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
     local sFunctionRef = 'CompareNearbyAlliedAndEnemyLandThreats'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iMaxModDistance = 0.6
     local iMaxTravelDist = M28Map.iMapSize * 0.75
     local bHaveTeammates = false
@@ -9804,7 +9806,9 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
         end
     end
     M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] = iOurMobileDFThreat
+    if bDebugMessages == true then LOG(sFunctionRef..': iOurMobileDFThreat='..iOurMobileDFThreat..'; M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide]='..M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide]) end
     M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] = iEnemyMobileDFThreat
+    if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] after doing enemy threat='..M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide]) end
     M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] = iEnemyGroundAAThreat
 
     --Decide if we want to prioritise production over ecoing temporarily
@@ -9841,7 +9845,7 @@ function CompareNearbyAlliedAndEnemyLandThreats(iTeam, iLandSubteam, iStartPlate
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyNetMobileDFCloseToBase='..iEnemyNetMobileDFCloseToBase..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for land subteam '..iLandSubteam..' on team '..iTeam..', iOurMobileDFThreat='..iOurMobileDFThreat..'; iEnemyMobileDFThreat='..iEnemyMobileDFThreat..'; ur gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iEnemyGroundAAThreat='..iEnemyGroundAAThreat..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; Gross mass inc on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; iEnemyNetMobileDFCloseToBase='..iEnemyNetMobileDFCloseToBase..'; M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide='..(M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] or 'nil')..'; M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]='..M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]..'; Time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

@@ -282,6 +282,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local iCurEngineers
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
@@ -580,8 +581,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
         --If just ctrlKd in last 60s and are ctrlking t3 land or engis then dont build naything (relevant e.g. for engineers from air fac, as land fac aborts much earlier)
         if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
-        if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount then
-            if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+        if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount or (iCurEngineers >= 20 and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)) and aiBrain[M28Economy.refiHighestFactoryBuildCount] >= 3) then
+            if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)))) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
                 if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2597,7 +2598,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and (iLandFactoriesInLZ >= 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 3) and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7)))
             --AI brain specific adjustments
-            and (not(aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseNavy]) or (not(bHaveLowMass) and iFactoryTechLevel < aiBrain[refiOurHighestLandFactoryTech]) or iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] - 1 or iFactoryTechLevel < aiBrain[refiOurHighestAirFactoryTech] - 1)
+            and (not(aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseNavy]) or (not(bHaveLowMass) and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]) or iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] - 1 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] - 1)
             then
                 --Dont upgrade to T2 if we have T1 mexes in the LZ, no upgrading mexes, and less than 35 gross mass per tick
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 3 >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
