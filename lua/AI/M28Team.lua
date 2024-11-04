@@ -304,8 +304,8 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     refbConsideredScoutFactionRestrictions = 'M28LSTSctRest' --true if we have applied subrefBlueprintBlacklist for land scouts yet
     reftoPriorityUnitsWantingLandScout = 'M28LSTPrLnSc' --table of units wanting a land scout as a priority
     refiAllyMobileDFThreatNearOurSide = 'M28LSTAlDFOS' --total allied DF in zones <=0.6 mod dist
-    refiEnemyMobileDFThreatNearOurSide = 'M28LSTAlDFOS' --total enemy DF in zones <=0.6 mod dist
-    refiEnemyGroundAAThreatNearOurSide = 'M28LSTAlDFOS' --total enemy groundAA in zones <=0.6 mod dist
+    refiEnemyMobileDFThreatNearOurSide = 'M28LSTEnDFOS' --total enemy DF in zones <=0.6 mod dist
+    refiEnemyGroundAAThreatNearOurSide = 'M28LSTAADFOS' --total enemy groundAA in zones <=0.6 mod dist
     refbPrioritiseProduction = 'M28LSTPrPdn' --true if due to the enemy mobile threat vs ours we want to prioritise production over ecoing
 
 --Other variables dependent on above:
