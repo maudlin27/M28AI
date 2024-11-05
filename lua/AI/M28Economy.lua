@@ -178,7 +178,7 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
     local sFunctionRef = 'UpdateZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandOrWaterZone == 6 and iPlateauOrZero == 135 then bDebugMessages = true end
 
     local tLZOrWZTeamData
     local tLZOrWZData
@@ -235,7 +235,10 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
         if iMexCount > 0 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false and iMexCount > table.getn( tLZOrWZData[M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
-                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]: T1='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..';T2='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
+                --Mind games - has an extra mex in one of the zones, so dont show this error message on campaign maps
+                if not(M28Map.bIsCampaignMap) then
+                    M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; table.getn( tLZOrWZData[M28Map.subrefLZMexLocations])='..table.getn( tLZOrWZData[M28Map.subrefLZMexLocations])..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]: T1='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..';T2='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Have an inconsistent number of mexes so will call this function again with a wait, time='..GetGameTimeSeconds()) end
             ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, oOptionalUnitThatDied, 15)
