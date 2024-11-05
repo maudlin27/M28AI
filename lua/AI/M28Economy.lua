@@ -235,7 +235,7 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
         if iMexCount > 0 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false and iMexCount > table.getn( tLZOrWZData[M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
-                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZOrWZTeamData[M28Map.subrefMexCountByTech]))
+                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]: T1='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..';T2='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Have an inconsistent number of mexes so will call this function again with a wait, time='..GetGameTimeSeconds()) end
             ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, oOptionalUnitThatDied, 15)
