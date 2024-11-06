@@ -178,7 +178,7 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
     local sFunctionRef = 'UpdateZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandOrWaterZone == 6 and iPlateauOrZero == 135 then bDebugMessages = true end
+
 
     local tLZOrWZTeamData
     local tLZOrWZData
