@@ -934,6 +934,11 @@ LobbyGlobalOptions = {
                 help = 'MOBA mode - AI controls everything except your ACU',
                 key = 3,
             },
+            {
+                text = 'No (hide button)',
+                help = 'Disable combined armies, and dont show the UI button in-game',
+                key = 4,
+            },
         },
     },
     {

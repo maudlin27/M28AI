@@ -2829,6 +2829,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --M28Active flag (enable for all M28AI units)
                         if bDebugMessages == true then LOG('Considering if we want to set M28Active flag, tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)='..tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)..'; Is unit an ACU='..tostring(EntityCategoryContains(categories.COMMAND, oUnit.UnitId))..'; Is brain human='..tostring(oUnit:GetAIBrain().BrainType == 'Human')..'; M28Orders.bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy or false)) end
                         if not(M28Orders.bDontConsiderCombinedArmy) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Toggling M28CombinedArmiesShowUI option via consideringcombinedarmy') end
+                            oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                             if not(oUnit:GetAIBrain().BrainType == 'Human') then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
                                 oUnit.M28Active = true
@@ -2844,7 +2846,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
                                 oUnit.M28Active = true
                                 oUnit:UpdateStat('M28Active', 1)
+                            else
+                                oUnit:UpdateStat('M28Active', 0)
                             end
+                        elseif not(ScenarioInfo.Options.M28CombinedArmy == 4) then --if is option 4, then user wants the UI button hidden
+                            if bDebugMessages == true then LOG(sFunctionRef..': Toggling M28CombinedArmiesShowUI option') end
+                            oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                         end
 
                         --Check for upgrading unit transferred to us
@@ -3081,6 +3088,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
                         end
+                    elseif M28Orders.bDontConsiderCombinedArmy and ScenarioInfo.Options.M28CombinedArmy == 2 then --Non-M28AI brain, but combined armies is disabled with UI button still to be shown (so people aware of hte option), so flag so the button gets shown
+                        oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                     end
                 end
             end

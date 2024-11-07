@@ -5,7 +5,7 @@
 ---
 ---
 Callbacks.M28TestCallback = function(data, units)
-    if not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then
+    if not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then --i.e. option 1 enables; 2 and 4 disable (shouldnt be able to get here if are option 4), and 3 is moba mode
         local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
         local aiBrain
         for _, oUnit in units or {} do
@@ -16,7 +16,7 @@ Callbacks.M28TestCallback = function(data, units)
         end
         if aiBrain then
             if tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2 then
-                M28Chat.SendMessage(aiBrain, 'SharedAI', 'You need to enable combined AI-Human armies in game settings for this option to work', 0, 1, nil, false, nil, nil, aiBrain)
+                M28Chat.SendMessage(aiBrain, 'SharedAI', 'You need to enable combined AI-Human armies in game settings for this option to work.  You can also hide this button in the game settings', 0, 1, nil, false, nil, nil, aiBrain)
                 LOG('We havent enabled M28AI combined armies in game settings')
             else
                 M28Chat.SendMessage(aiBrain, 'SharedAI', 'In MOBA mode M28AI logic always applies to non-ACU units, and never applies to the ACU', 0, 1, nil, false, nil, nil, aiBrain)

@@ -230,17 +230,21 @@ function CreateAltOrders(availableOrders, availableToggles, units)
     end --nomads ACU--]]
     local M28Units = EntityCategoryFilterDown(iCategoriesToSearch, units)
     if not table.empty(M28Units) then
-        assistingUnitList['M28Toggle'] = {}
-        for _, Unit in M28Units do
+        --LOG('TEMPCODE First unit M28Toggle value='..(M28Units[1]:GetStat('M28Toggle', 0).Value or 'nil')..'; First unit M28CombinedArmiesShowUI value='..(M28Units[1]:GetStat('M28CombinedArmiesShowUI', 0).Value or 'nil'))
+        if (M28Units[1]:GetStat('M28CombinedArmiesShowUI', 0).Value or 0) == 1 then --looks like by default values will be 0; will set this to 1 via oncreate if combinedarmies is active
+            assistingUnitList['M28Toggle'] = {}
+            for _, Unit in M28Units do
 
-            --LOUD tempest has a drone button that conflicts with M28's button, so dont try and add in such a case
-            --if Unit:GetBlueprint().General.OrderOverrides.RULEUTC_SpecialToggle then
-            --Dont add to avoid a conflict
-            --else
-            table.insert(assistingUnitList['M28Toggle'], Unit:GetCreator())
-            --end
+                --LOUD tempest has a drone button that conflicts with M28's button, so dont try and add in such a case
+                --if Unit:GetBlueprint().General.OrderOverrides.RULEUTC_SpecialToggle then
+                --Dont add to avoid a conflict
+                --else
+
+                table.insert(assistingUnitList['M28Toggle'], Unit:GetCreator())
+                --end
+            end
+            table.insert(availableOrders, 'M28Toggle')
         end
-        table.insert(availableOrders, 'M28Toggle')
     end
     ----------------------------------END OF ADDED CODE------------------------
 
