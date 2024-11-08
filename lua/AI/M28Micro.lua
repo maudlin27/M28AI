@@ -1805,6 +1805,11 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     local bAbortIfTooFar = false
                     if iEnemySpeed >= iOurSpeed * 0.95 then bAbortIfTooFar = true end
                     local iReorderDist
+                    local iDistToMoveTowardsTarget, iAngleToMove
+                    local iMaxTimeBetweenShotsWanted = oUnit[M28UnitInfo.refiTimeBetweenAirAAShots]
+                    if not(iMaxTimeBetweenShotsWanted) then iMaxTimeBetweenShotsWanted = 5
+                    else iMaxTimeBetweenShotsWanted = iMaxTimeBetweenShotsWanted + math.max(0.5, iMaxTimeBetweenShotsWanted * 0.15)
+                    end
                     WaitTicks(1)
                     local bManualAttack
                     while M28UnitInfo.IsUnitValid(oTarget) and M28UnitInfo.IsUnitValid(oUnit) do
@@ -1837,39 +1842,84 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                                 if iCurAngleDif > 15 then
                                     iReorderDist = 0.1
                                     --Turn towards target - decide which is closest way
-                                    if iCurAngleToTarget > iCurFacingAngle then
-                                        if iCurAngleToTarget - 180 <= iCurFacingAngle then
-                                            --We are a larger angle than enemy, and turning anti-clockwise would mean we become smaller than them, so should turn anti-clockwise
-                                            bTurnClockwise = false
+                                    if GetGameTimeSeconds() <= 34*60 then
+                                        if iCurAngleToTarget > iCurFacingAngle then
+                                            if iCurAngleToTarget - 180 <= iCurFacingAngle then
+                                                --We are a larger angle than enemy, and turning anti-clockwise would mean we become smaller than them, so should turn anti-clockwise
+                                                bTurnClockwise = false
+                                            else
+                                                bTurnClockwise = true
+                                            end
                                         else
-                                            bTurnClockwise = true
+                                            if iCurAngleToTarget + 180 >= iCurFacingAngle then
+                                                --We are a smaller angle than enemy, and turning clockwise would mean we become larger than them sooner than if we had turned anti-clockwwise
+                                                bTurnClockwise = true
+                                            else
+                                                bTurnClockwise = false
+                                            end
                                         end
                                     else
-                                        if iCurAngleToTarget + 180 >= iCurFacingAngle then
-                                            --We are a smaller angle than enemy, and turning clockwise would mean we become larger than them sooner than if we had turned anti-clockwwise
-                                            bTurnClockwise = true
-                                        else
-                                            bTurnClockwise = false
+                                        if iCurAngleToTarget > iCurFacingAngle then
+                                            if iCurAngleToTarget - iCurFacingAngle > 180 then
+                                                --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
+                                                bTurnClockwise = false
+                                            else
+                                                bTurnClockwise = true
+                                            end
+                                        else --curfacingangle is >= angle to target
+                                            if iCurFacingAngle - iCurAngleToTarget > 180 then
+                                                --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
+                                                bTurnClockwise = true
+                                            else
+                                                bTurnClockwise = false
+                                            end
                                         end
                                     end
-                                    if bTurnClockwise then
-                                        tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + 15, 0.1, true, false, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will turn towards target, bTurnClockwise='..tostring(bTurnClockwise)) end
+
+                                    if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > iMaxTimeBetweenShotsWanted then
+                                        if iCurDistToTarget >= 10 then
+                                            iDistToMoveTowardsTarget = math.max(2, iCurDistToTarget * 0.3)
+                                        else
+                                            bManualAttack = true --issues with asfs not turning properly when facing a target when they have got too close, so if we are close to a taret and facing the wrong direction, will switch to a manual attack
+                                        end
+                                        iAngleToMove = 15
                                     else
-                                        tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle - 15, 0.1, true, false, false)
+                                        iDistToMoveTowardsTarget = 0.1
+                                        iAngleToMove = 15
+                                    end
+                                    if bManualAttack then
+                                        tMoveViaPoint = nil
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will switch to manual attack as been a while since we have moved') end
+                                    else
+                                        if bTurnClockwise then
+                                            tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                                        else
+                                            tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle - iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                                        end
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef..': Dist to tMoveViaPoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMoveViaPoint)..'; Angle='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tMoveViaPoint)..'; Time between shots='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; iDistToMoveTowardsTarget='..iDistToMoveTowardsTarget)
+                                            M28Utilities.DrawLocation(oUnit:GetPosition(), 2)
+                                            M28Utilities.DrawLocation(tMoveViaPoint, 1)
+                                        end
                                     end
                                 elseif iCurDistToTarget < iHalfDistThreshold then
                                     --Move a fraction of the way towards target
                                     iReorderDist = 0.1
                                     tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleToTarget, 0.1, true, false, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance but with the correct angle') end
                                 else
                                     --Move 25% towards target
                                     iReorderDist = math.min(iCurDistToTarget * 0.25, iCurDistToTarget - iHalfDistThreshold)
 
                                     tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
                                     if iReorderDist > 5 then iReorderDist = 5 end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': will move 25% of the way towards the target') end
                                 end
                             end
                         end
+                        iReorderDist = nil
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit cur position='..repru(oUnit:GetPosition())..'; tMoveViaPoint='..repru(tMoveViaPoint)..'; Time='..GetGameTimeSeconds()..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                         if tMoveViaPoint then
                             M28Orders.IssueTrackedMove(oUnit, tMoveViaPoint, iReorderDist, false, 'AAHvM', true)
                         elseif bManualAttack then
