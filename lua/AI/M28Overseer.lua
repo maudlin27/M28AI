@@ -2607,7 +2607,7 @@ function SetM28ActiveFlag()
     local sFunctionRef = 'SetM28ActiveFlag'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if not(M28Orders.bDontConsiderCombinedArmy == false) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2) then
+    if not(M28Orders.bDontConsiderCombinedArmy == false) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2) and not(ScenarioInfo.Options.M28CombinedArmy == 4) then
         M28Orders.bDontConsiderCombinedArmy = false
         M28UnitInfo.bDontConsiderCombinedArmy = false
         --Go through every human brain and treat it as an M28AI brain

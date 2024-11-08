@@ -2056,25 +2056,36 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
                                 --Check if teammate has enough factories that we should give this to them - require mex to be closer to their base and for them to have factories in the zone, and for us to have no T2+ mexes
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
+                                    local iMexPlateau, iMexZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
-                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= 3 then
+                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= math.max(3, (tLZData[M28Map.subrefLZMexCount] or 0) * 0.5) then
                                         local iClosestNonM28BrainDistBase = 100000
                                         local oClosestNonM28Brain
                                         local iClosestM28BrainDistBase = 100000
+                                        local bInSameZoneAsNonM28AIStart
+                                        local iBrainPlateau, iBrainZone
 
                                         local iCurDist
                                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                                             if not(oBrain:IsDefeated()) then
                                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oJustBuilt:GetPosition(), M28Map.GetPlayerStartPosition(oBrain))
                                                 if oBrain.M28AI then iClosestM28BrainDistBase = math.min(iClosestM28BrainDistBase, iCurDist)
-                                                elseif iClosestNonM28BrainDistBase > iCurDist then
-                                                    iClosestNonM28BrainDistBase = iCurDist
-                                                    oClosestNonM28Brain = oBrain
+                                                else
+                                                    if iClosestNonM28BrainDistBase > iCurDist then
+                                                        iClosestNonM28BrainDistBase = iCurDist
+                                                        oClosestNonM28Brain = oBrain
+                                                    end
+                                                    if iClosestNonM28BrainDistBase <= 200 and not(bInSameZoneAsNonM28AIStart) then
+                                                        iBrainPlateau, iBrainZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(oBrain))
+                                                        if iBrainPlateau == iMexPlateau and iBrainZone == iMexZone then
+                                                            bInSameZoneAsNonM28AIStart = true
+                                                        end
+                                                    end
                                                 end
                                             end
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
-                                        if iClosestNonM28BrainDistBase <= 200 and iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase then
+                                        if iClosestNonM28BrainDistBase <= 200 and (bInSameZoneAsNonM28AIStart or iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase) then
                                             if M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active then
                                                 ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
                                                 M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
@@ -2818,6 +2829,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --M28Active flag (enable for all M28AI units)
                         if bDebugMessages == true then LOG('Considering if we want to set M28Active flag, tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)='..tonumber(ScenarioInfo.Options.M28CombinedArmy or 2)..'; Is unit an ACU='..tostring(EntityCategoryContains(categories.COMMAND, oUnit.UnitId))..'; Is brain human='..tostring(oUnit:GetAIBrain().BrainType == 'Human')..'; M28Orders.bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy or false)) end
                         if not(M28Orders.bDontConsiderCombinedArmy) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Toggling M28CombinedArmiesShowUI option via consideringcombinedarmy') end
+                            oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                             if not(oUnit:GetAIBrain().BrainType == 'Human') then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Set .M28Active to true for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname) end
                                 oUnit.M28Active = true
@@ -2833,7 +2846,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
                                 oUnit.M28Active = true
                                 oUnit:UpdateStat('M28Active', 1)
+                            else
+                                oUnit:UpdateStat('M28Active', 0)
                             end
+                        elseif not(ScenarioInfo.Options.M28CombinedArmy == 4) then --if is option 4, then user wants the UI button hidden
+                            if bDebugMessages == true then LOG(sFunctionRef..': Toggling M28CombinedArmiesShowUI option') end
+                            oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                         end
 
                         --Check for upgrading unit transferred to us
@@ -3070,6 +3088,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
                         end
+                    elseif M28Orders.bDontConsiderCombinedArmy and ScenarioInfo.Options.M28CombinedArmy == 2 then --Non-M28AI brain, but combined armies is disabled with UI button still to be shown (so people aware of hte option), so flag so the button gets shown
+                        oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                     end
                 end
             end
