@@ -124,6 +124,7 @@ refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 refiTimeBetweenDFShots = 'M28DFTime'
 refiTimeBetweenIFShots = 'M28IFTime'
+refiTimeBetweenAirAAShots = 'M28AATim' --intended for asfs that might be microing
 refiTimeBetweenBombs = 'M28BmTime' --Time in seconds based on the bomb weapon's rate of fire
 reftoEnemyProjectiles = 'M28UntProj' --table of projectiles targeting the unit
 refbProjectilesMeanShouldRefuel = 'M28UnPrjRf' --true if we wanted the unit to refuel due to expected projectile damage
@@ -1685,6 +1686,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
     local bReplaceValues, bIgnoreValues
+    local bUpdateAirAA = EntityCategoryContains(refCategoryAirAA, oUnit.UnitId)
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
@@ -1729,6 +1731,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' or oCurWeapon.WeaponCategory == 'Anti Air' then
                     oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                    if bUpdateAirAA and oCurWeapon.RateOfFire then
+                        if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                        oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                    end
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
                     --GC tractor claws - dont want to include as indirect fire weapon since logic is on the assumption indirect fire is good vs structures
                     if (oCurWeapon.Damage or 0) > 0.01 or not(oCurWeapon.WeaponCategory == 'Experimental') then
@@ -1777,6 +1783,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         --LOUD Additional checks since often units dont have a range category for a weapon - use FireTargetLayerCapsTable to help differentiate between AA; torpedo; and ground attacks (with damaged used to ignore most 'cosmetic' and special countermeasure type weapons:
                     elseif (oCurWeapon.FireTargetLayerCapsTable.Air and oCurWeapon.CannotAttackGround) or (oCurWeapon.FireTargetLayerCapsTable.Air == 'Air' and not(oCurWeapon.FireTargetLayerCapsTable.Land)) or oCurWeapon.FireTargetLayerCapsTable.Land == 'Air' or oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), (oCurWeapon.MaxRadius or 0))
+                        if bUpdateAirAA and oCurWeapon.RateOfFire then
+                            if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                            oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                        end
                     elseif oCurWeapon.FireTargetLayerCapsTable.Sub and oCurWeapon.FireTargetLayerCapsTable.Water and oCurWeapon.Damage >= 4 then
                         oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Damage >= 2 and not(oCurWeapon.FireTargetLayerCapsTable.Air) and (oCurWeapon.FireTargetLayerCapsTable.Land == 'Land|Water|Seabed' or (oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' and not(oCurWeapon.FireTargetLayerCapsTable.Sub))) and EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
@@ -1792,6 +1802,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
+                        if bUpdateAirAA and oCurWeapon.RateOfFire then
+                            if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                            oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                        end
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
                         oUnit[refbHasTorpedoDefence] = true
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
@@ -1800,6 +1814,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Air and (oCurWeapon.Label == 'EXAA02' or oCurWeapon.Label == 'EXAA03' or oCurWeapon.Label == 'EXAA04' or oCurWeapon.Label == 'AAGun' or oCurWeapon.Label == 'AAMissile' or oCurWeapon.Label == 'AAMissle' or oCurWeapon.Label == 'GatlingCannon' or oCurWeapon.Label == 'PhalanxGun') then
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        if bUpdateAirAA and oCurWeapon.RateOfFire then
+                            if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                            oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                        end
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo2' or oCurWeapon.Label == 'AntiTorpedo3' then
@@ -1813,6 +1831,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         if EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
                             oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                            if bUpdateAirAA and oCurWeapon.RateOfFire then
+                                if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                                oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                            end
                         elseif EntityCategoryContains(categories.DIRECTFIRE + categories.OVERLAYDIRECTFIRE, oUnit.UnitId) or not(EntityCategoryContains(categories.ARTILLERY + categories.INDIRECTFIRE + categories.OVERLAYINDIRECTFIRE, oUnit.UnitId)) then
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else
@@ -1829,6 +1851,10 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         if oCurWeapon.Label == 'GatlingCannon' then --fires at air and ground, but not underwater
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                             oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                            if bUpdateAirAA and oCurWeapon.RateOfFire then
+                                if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                                oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                            end
                         else --redundancy
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         end
@@ -1842,8 +1868,16 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --Confirmed for brnt3shbm and brnt3shpd - unit itself can target air units; based on blueprint looks likely this is the riotgun for brnt3shbm, while for the pd it looks like it's all 8 of the main guns
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        if bUpdateAirAA and oCurWeapon.RateOfFire then
+                            if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                            oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                        end
                     elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Air' then --confirmed for Heavy cruiser bss0306 based on blueprint
                         oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
+                        if bUpdateAirAA and oCurWeapon.RateOfFire then
+                            if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
+                            oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
+                        end
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
