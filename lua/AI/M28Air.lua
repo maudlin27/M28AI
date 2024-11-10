@@ -3000,12 +3000,22 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         end
 
         local bDontCheckPacifistArea = not(M28Overseer.bPacifistModeActive)
+        local iLowerPriorityEnemyAirAADefaultThreshold
+        local iHigherPriorityEnemyAirAADefaultThreshold
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+            iLowerPriorityEnemyAirAADefaultThreshold = math.max(40000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat])
+            iHigherPriorityEnemyAirAADefaultThreshold = iLowerPriorityEnemyAirAADefaultThreshold
+        else
+            --Dont want to engage as we lack air control
+            iLowerPriorityEnemyAirAADefaultThreshold = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.25
+            iHigherPriorityEnemyAirAADefaultThreshold = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.8
+        end
 
 
         function AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
 
-            if bDebugMessages == true then LOG(sFunctionRef..': refiAASearchType='..(refiAASearchType or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]='..tostring(tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone] or false)..'; bAddAdjacentZones='..tostring(bAddAdjacentZones or false)..'; tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]='..tostring(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone] or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': refiAASearchType='..(refiAASearchType or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]='..tostring(tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone] or false)..'; bAddAdjacentZones='..tostring(bAddAdjacentZones or false)..'; tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]='..tostring(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone] or false)..'; iLowerPriorityEnemyAirAADefaultThreshold='..iLowerPriorityEnemyAirAADefaultThreshold..'; iHigherPriorityEnemyAirAADefaultThreshold='..iHigherPriorityEnemyAirAADefaultThreshold) end
             if not(tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]) and (bAddAdjacentZones or not(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone])) then
                 if not(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau]) then
                     if not(tbPlateauAndLandZonesConsidered[refiAASearchType]) then tbPlateauAndLandZonesConsidered[refiAASearchType] = {} end
@@ -3015,10 +3025,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 if bDebugMessages == true then LOG(sFunctionRef..': LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]))..'; Playable area='..repru(M28Map.rMapPlayableArea)..'; Is zone table of enemy air unit sempty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.reftLZEnemyAirUnits]))) end
                 if bDontCheckPacifistArea or not(M28Conditions.AdjacentToPacifistZone(iPlateau, iLandZone)) then
-                    local iAlongPathAAThreshold = iOptionalAirThreatThresholdOverride
-                    if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then iAlongPathAAThreshold = math.max(40000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
-                    --if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then --will handle via individual targeting as e.g. for transports we could try intercepting the destination
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+
+                    local iAlongPathAAThreshold = iOptionalAirThreatThresholdOverride
+                    if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then
+                        if tLZTeamData[M28Map.refiModDistancePercent] <= 0.25 or tLZTeamData[M28Map.subrefLZSValue] >= 2000 or ( tLZTeamData[M28Map.subrefLZSValue] >= 10 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.4) then
+                            iAlongPathAAThreshold = iHigherPriorityEnemyAirAADefaultThreshold
+                        else
+                            iAlongPathAAThreshold = iLowerPriorityEnemyAirAADefaultThreshold
+                        end
+                    end
+                    --if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then --will handle via individual targeting as e.g. for transports we could try intercepting the destination
                     local iGroundAAThreshold = iOptionalGroundThreatThresholdOverride
                     if (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTransport, tLZTeamData[M28Map.reftLZEnemyAirUnits])) then
                         --Are presumably only targeting scouts so avoid AA
@@ -3041,9 +3058,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck))) end
                         local iMinDistToEnemyBase
-                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
-                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will add all enemy air as potential targets') end
+                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
+                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add all enemy air as potential targets, iAlongPathAAThreshold='..(iAlongPathAAThreshold or 'nil')) end
                             for iUnit, oUnit in (toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
                                     if bDebugMessages == true then
@@ -3110,6 +3127,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 if bDontCheckPacifistArea or not(M28Conditions.AdjacentToPacifistZone(0, iWaterZone)) then
                     --if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then --will handle via individual targeting as e.g. for transports we could try intercepting the destination
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+
                     local iGroundAAThreshold = iOptionalGroundThreatThresholdOverride
                     if (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftLZEnemyAirUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTransport, tWZTeamData[M28Map.reftLZEnemyAirUnits])) then
                         --Are presumably only targeting scouts so avoid AA
@@ -3118,6 +3136,15 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty for this WZ='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
 
                     if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                        local iAlongPathAAThreshold = iOptionalAirThreatThresholdOverride
+                        if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then
+                            if tWZTeamData[M28Map.refiModDistancePercent] <= 0.25 or tWZTeamData[M28Map.subrefLZSValue] >= 2000 or ( tWZTeamData[M28Map.subrefLZSValue] >= 10 and tWZTeamData[M28Map.refiModDistancePercent] <= 0.4) then
+                                iAlongPathAAThreshold = iHigherPriorityEnemyAirAADefaultThreshold
+                            else
+                                iAlongPathAAThreshold = iLowerPriorityEnemyAirAADefaultThreshold
+                            end
+                        end
+
                         --Add air units unless too much enemy AA
                         local bUseDetailedCheck = false
                         if tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone or mod dist is low
@@ -3138,8 +3165,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
 
                         local iMinDistToEnemyBase
-                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
-                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck)) then
+                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
+                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck)) then
                             for iUnit, oUnit in (toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tEnemyAirTargets unless it is too far away, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])) end
@@ -3148,8 +3175,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                            local iAlongPathAAThreshold = iOptionalAirThreatThresholdOverride
-                            if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then iAlongPathAAThreshold = math.max(40000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
                             --AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAirAAThreshold, iGroundAAThreshold, iMaxModDistPercent)
                             AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAlongPathAAThreshold, (iGroundAAThreshold or 0), tWZTeamData[M28Map.refiModDistancePercent] + 0.025, iMinDistToEnemyBase)
                         end
