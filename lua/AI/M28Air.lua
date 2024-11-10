@@ -1524,7 +1524,6 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local tPreferredRallyPoint
         local iPlateau, iLandZone, iWaterZone
-        local iPossibleWaterZone
         local iBestRallyValue = -100000
         local iCurRallyValue
         local bDontMoveCloserToEnemyBase = false
@@ -1967,17 +1966,36 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             local iRevisedSegmentX, iRevisedSegmentZ
             if not(iSupportPlateau) then
                 local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tSupportRallyPoint)
+                iSupportLZOrWZ = nil
                 if bDebugMessages == true then LOG(sFunctionRef..': Trying to move support rally point to a location that is on a valid land or water zone, iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; tSupportRallyPoint before change='..repru(tSupportRallyPoint)) end
                 for iAdjustBase = 1, 30 do
                     for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
                         for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
                             if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                                if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iSupportLZOrWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef..': Considering iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; Position='..repru(M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))..'; M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]='..(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')..'; iAdjustBase='..iAdjustBase)
+                                    if not(M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]) and not(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                        M28Utilities.DrawLocation(M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ), 2)
+                                    end
+                                end
+                                if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and not(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                    iSupportPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a water zone segment='..(M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')..'; iSupportPlateau='..(iSupportPlateau or 'nil')) end
+                                    if iSupportPlateau then
+                                        iSupportLZOrWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        iRevisedSegmentX = iCurSegmentX
+                                        iRevisedSegmentZ = iCurSegmentZ
+                                        break
+                                    end
                                 elseif M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
-                                    iSupportLZOrWZ = M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
-                                    iRevisedSegmentX = iCurSegmentX
-                                    iRevisedSegmentZ = iCurSegmentZ
-                                    break
+                                    iSupportPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a land zone segment='..(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')..'; iSupportPlateau='..(iSupportPlateau or 'nil')) end
+                                    if iSupportPlateau then
+                                        iSupportLZOrWZ = M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        iRevisedSegmentX = iCurSegmentX
+                                        iRevisedSegmentZ = iCurSegmentZ
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -1988,12 +2006,22 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
                         for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
                             if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                                if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iSupportLZOrWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break
+                                if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                    iSupportPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                    if iSupportPlateau then
+                                        iRevisedSegmentX = iCurSegmentX
+                                        iRevisedSegmentZ = iCurSegmentZ
+                                        iSupportLZOrWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        break
+                                    end
                                 elseif M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
-                                    iSupportLZOrWZ = M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
-                                    iRevisedSegmentX = iCurSegmentX
-                                    iRevisedSegmentZ = iCurSegmentZ
-                                    break
+                                    iSupportPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                    if iSupportPlateau then
+                                        iSupportLZOrWZ = M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        iRevisedSegmentX = iCurSegmentX
+                                        iRevisedSegmentZ = iCurSegmentZ
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -2006,7 +2034,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     tSupportRallyPoint = nil
                 else
                     --Update tSupportRallyPoint
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will use segment nearby that has a valid zone, iCurSegment: X'..iRevisedSegmentX..'Z'..iRevisedSegmentZ..' at position '..repru(M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will use segment nearby that has a valid zone, iCurSegment: X'..iRevisedSegmentX..'Z'..iRevisedSegmentZ..' at position '..repru(M28Map.GetPositionFromPathingSegments(iRevisedSegmentX, iRevisedSegmentZ))) end
                     tSupportRallyPoint = M28Map.GetPositionFromPathingSegments(iRevisedSegmentX, iRevisedSegmentZ)
                 end
             end
