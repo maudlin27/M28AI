@@ -1206,10 +1206,37 @@ function AssignAIPersonalityAndRating(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendStartOfGameMessage(aiBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
+function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
     local sFunctionRef = 'SendStartOfGameMessage'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --If this is a human brain, check if we have non-human M28AI in the game; if we do, then dont send a start of game message for this team
+    local aiBrain
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oOrigBrain='..oOrigBrain.Nickname..'; BrainType='..oOrigBrain.BrainType) end
+    if oOrigBrain.BrainType == 'Human' then
+        --Are there M28 non-human players on this team?
+        local oFriendlyM28AI
+        local bEnemyNonHumanM28AI = false
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.M28AI and not(oBrain.BrainType == 'Human') then
+                if oBrain.M28Team == oOrigBrain.M28Team  then
+                    oFriendlyM28AI = oBrain
+                    break
+                else
+                    bEnemyNonHumanM28AI = true
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to abort sending message, bEnemyNonHumanM28AI='..tostring(bEnemyNonHumanM28AI or false)..'; oFriendlyM28AI nickname='..(oFriendlyM28AI.Nickname or 'nil')) end
+        if bEnemyNonHumanM28AI and not(oFriendlyM28AI) then --Dont send start of game message
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+        if oFriendlyM28AI then oOrigBrain = oFriendlyM28AI end
+    end
+    if not(aiBrain) then aiBrain = oOrigBrain end
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain to use='..aiBrain.Nickname) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(20)
