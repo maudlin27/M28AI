@@ -49,6 +49,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refoTransportUnitTryingToLoad = 'M28TrUnLd' --When a unit is given an order to load into a transport directly,  it gets recorded against this for the transport
     refbEmergencyDropActive = 'M28TrEmDrp' --true if transport has to do an emergency drop, to reduce risk that it might choose to emergency drop>60 away (e.g. combat drop avoiding PD) and so treated as 'available' and so get stuck in a cycle
     refiTimeLastGivenOrderToLoadOntoTransport = 'M28ATrTimUL' --gametimeseconds unit was told to load onto transport
+    refiTargetPlateauForDrop = 'M28TrnTgPlt' --Plateau (for land) or 0 (for water) of target drop
     refiTargetIslandForDrop = 'M28TrnTgIsl' --Target island for a transport to drop
     refiTargetZoneForDrop = 'M28TrnTgLZ' --target zone for a transport to drop (e.g. it may be dropping the same island its currently on but further away)
     refiLastIslandDrop = 'M28ALstIsD' --When a unit is dropped by a transport, it should be assigned the island ref the transport was trying to drop to
@@ -7408,13 +7409,42 @@ function ManageTransports(iTeam, iAirSubteam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, time='..GetGameTimeSeconds()..'; Is table of available transports empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))..'; tRallyPoint='..repru(tRallyPoint)..'; Is table of unavailable units empty='..tostring(M28Utilities.IsTableEmpty(tUnavailableUnits))) end
 
+    function RemoveDropFromShortlist(iTargetPlateau, iTargetIsland, iTargetZone)
+        local bRemovedEntry = false
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')..'; iTargetIsland='..(iTargetIsland or 'nil')..'; will check if on island drop hsortlist') end
+            if iTargetIsland then
+                for iEntry, tPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
+                    if tPlateauAndIsland[1] == iTargetPlateau and tPlateauAndIsland[2] == iTargetIsland then
+                        bRemovedEntry = true
+                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
+                        break
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false then
+            for iEntry, tPlateauAndLZ in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
+                if tPlateauAndLZ[1] == iTargetPlateau and tPlateauAndLZ[2] == iTargetZone then
+                    bRemovedEntry = true
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
+                    break
+                end
+            end
+        end
+        return bRemovedEntry
+    end
+
     --First manage 'busy' transports - i.e. consider dropping early
-    function ConsiderEmergencyDrops(tUnitsToConsider, bRemoveFromTableIfEmergencyDrop, bRefreshDropOrderIfNoUnitState)
+    function ConsiderEmergencyDrops(tUnitsToConsider, bRemoveFromTableIfEmergencyDrop, bRefreshDropOrderIfNoUnitState, bRemoveFromShortlist)
         for iUnit, oUnit in tUnitsToConsider do
             local tCargo = oUnit:GetCargo()
             if M28Utilities.IsTableEmpty(tCargo) == false then
+                if bRemoveFromShortlist and oUnit[refiTargetPlateauForDrop] then
+                    RemoveDropFromShortlist(oUnit[refiTargetPlateauForDrop], (oUnit[refiTargetIslandForDrop] or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition] or M28Map.GetPlayerStartPosition(oUnit:GetAIBrain())))), (oUnit[refiTargetZoneForDrop] or 0))
+                end
                 local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, false)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder subreftOrderPosition='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Cur unit position='..repru(oUnit:GetPosition())) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder subreftOrderPosition='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Cur unit position='..repru(oUnit:GetPosition())..'; Transport target drop=P'..(oUnit[refiTargetPlateauForDrop] or 'nil')..'Z'..(oUnit[refiTargetZoneForDrop] or 'nil')..'; bRemoveFromShortlist='..tostring(bRemoveFromShortlist or false)) end
                 if bDropNow then
                     --Drop early
                     M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergBDr', false)
@@ -7491,16 +7521,15 @@ function ManageTransports(iTeam, iAirSubteam)
         end
     end
     if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
-        ConsiderEmergencyDrops(tUnavailableUnits, false)
+        ConsiderEmergencyDrops(tUnavailableUnits, false, false, true)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through unavailable units to decide if we should drop now') end
     end
 
     if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
-        ConsiderEmergencyDrops(tAvailableTransports, true)
+        ConsiderEmergencyDrops(tAvailableTransports, true, false, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Finsihed cycling through available transports to see if we should drop now, is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))) end
         if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
             --Cycle through each transport, and decide the best island to try and drop to - first sort transports by distance so are less likely to have a far away transport go to a aplteau that a closer one can reach
-
 
             if table.getn(tAvailableTransports) > 1 then
                 --Multiple transports can have issues with being stuck in a loop depending on the location of the drop target; therefore want to exclude any avaialble tranpsorts that have been given an unload order
@@ -7510,32 +7539,11 @@ function ManageTransports(iTeam, iAirSubteam)
                     local oTransport = tAvailableTransports[iCurTransportEntry]
                     M28Orders.UpdateRecordedOrders(oTransport)
                     local tLastOrder = oTransport[M28Orders.reftiLastOrders][oTransport[M28Orders.refiOrderCount]]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..'; last order type='..(tLastOrder[M28Orders.subrefiOrderType] or 'nil')..'; refiTargetZoneForDrop='..(oTransport[refiTargetZoneForDrop] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering available oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..' owned by brain '..oTransport:GetAIBrain().Nickname..'; last order type='..(tLastOrder[M28Orders.subrefiOrderType] or 'nil')..'; refiTargetZoneForDrop='..(oTransport[refiTargetZoneForDrop] or 'nil')) end
                     if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport and oTransport[refiTargetZoneForDrop] and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then
                         local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrder[M28Orders.subreftOrderPosition])
                         if iTargetZone == oTransport[refiTargetZoneForDrop] then
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false then
-                                local iTargetIsland = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLastOrder[M28Orders.subreftOrderPosition])
-                                if bDebugMessages == true then LOG(sFunctionRef..': iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')..'; iTargetIsland='..(iTargetIsland or 'nil')..'; will check if on island drop hsortlist') end
-                                if iTargetIsland then
-                                    for iEntry, tPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
-                                        if tPlateauAndIsland[1] == iTargetPlateau and tPlateauAndIsland[2] == iTargetIsland then
-                                            bRemovedEntry = true
-                                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false then
-                                for iEntry, tPlateauAndLZ in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
-                                    if tPlateauAndLZ[1] == iTargetPlateau and tPlateauAndLZ[2] == iTargetZone then
-                                        bRemovedEntry = true
-                                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
-                                        break
-                                    end
-                                end
-                            end
+                            bRemovedEntry = RemoveDropFromShortlist((oTransport[refiTargetPlateauForDrop] or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLastOrder[M28Orders.subreftOrderPosition])), (oTransport[refiTargetIslandForDrop] or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLastOrder[M28Orders.subreftOrderPosition])), oTransport[refiTargetZoneForDrop])
                         end
                         local bAbort = false
                         if not(bRemovedEntry) then
@@ -7603,7 +7611,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 local bTravelToSameIsland = false
                 local iWaterZoneToTravelTo
                 iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': iUnitRef='..iUnitRef..'; Considering transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistance='..iDistance..'; iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iPlateauToTravelTo='..(iPlateauToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iUnitRef='..iUnitRef..'; Considering transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; iDistance to rally point='..iDistance..'; iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iPlateauToTravelTo='..(iPlateauToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
                 if not(iIslandToTravelTo) then
 
                     iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
@@ -7617,7 +7625,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 else
                     --Consider far away land zones with 3+ mexes in them if the target plateau only has 1 mex
                     if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
-                    if iPlateauToTravelTo and iLandZoneToTravelTo and M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] <= 1 then
+                    if iPlateauToTravelTo and iLandZoneToTravelTo and (M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] or 0) <= 1 then
                         local bUseFarAwayZoneInstead = false
                         local iOrigIsland, iOrigPlateau, iOrigLZ
                         iOrigIsland = iIslandToTravelTo
@@ -7816,6 +7824,7 @@ function ManageTransports(iTeam, iAirSubteam)
                     if not(bGetMoreUnits) then
                         oUnit[refiTransportTimeSpentWaiting] = 0
                         --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
+                        oUnit[refiTargetPlateauForDrop] = iPlateauToTravelTo
                         oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
                         oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo or iWaterZoneToTravelTo --must set before calling the transportunload order
                         M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
