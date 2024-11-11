@@ -1348,8 +1348,9 @@ end
 end--]]
 
 function ProjectileCreated(oProjectile, inWater)
+    --LOG('TEMPCODE projectile created, oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; Is .Launcher nil='..tostring(oProjectile.Launcher == nil)..'; .GetLauncher is nil='..tostring(oProjectile.GetLauncher == nil)..';  oProjectile.BeenDestroyed is nil='..tostring( oProjectile.BeenDestroyed == nil))
     --[[if oProjectile.GetCurrentTargetPosition then
-        LOG('TEMP TEST will draw projectile created target')
+        LOG('TEMPCODE will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
     end--]]
     if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) then
@@ -1400,6 +1401,24 @@ function ProjectileCreated(oProjectile, inWater)
         end
         if not(bTrackingProjectile) then
             --LOG('reprs of oProjectile='..reprs(oProjectile)..'; reprs of oProjectile.Launcher='..reprs(oProjectile.Launcher)..'; oProjectile.InnerRing is nil='..tostring(oProjectile.InnerRing == nil)..'; oProjectile.OuterRing is nil='..tostring(oProjectile.OuterRing == nil)..'; Is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)))
+            if not(oProjectile.Launcher) and not(M28Utilities.bFAFActive) and oProjectile.GetLauncher then
+                oProjectile.Launcher = oProjectile:GetLauncher()
+                --Consider adding inner and outer rings if this is a nuke launcher
+                if oProjectile.Launcher.UnitId and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) and not(oProjectile.InnerRing) then
+                    local oLauncherBP = oProjectile.Launcher:GetBlueprint()
+                    if oLauncherBP.Weapon then
+                        for iWeapon, tWeapon in oLauncherBP.Weapon do
+                            if tWeapon.NukeInnerRingRadius then
+                                --LOG('TEMPCODE setting nuke inner and outer radius')
+                                oProjectile.InnerRing = tWeapon.NukeInnerRingRadius
+                                oProjectile.OuterRing = (tWeapon.NukeOuterRingRadius or 40)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            --LOG('TEMPCODE oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; oProjectile.InnerRing='..(oProjectile.InnerRing or 'nil')..'; oProjectile.OuterRing='..(oProjectile.OuterRing or 'nil')..'; Launcher is SML='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, (oProjectile.Launcher.UnitId or 'uel0001'))))
             if oProjectile.Launcher.UnitId and oProjectile.InnerRing and oProjectile.OuterRing and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) then
                 --Have a nuke missile that has just been fired
                 local oLauncher = oProjectile.Launcher
