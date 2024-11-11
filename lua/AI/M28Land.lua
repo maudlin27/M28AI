@@ -22,7 +22,7 @@ local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
-local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -7885,7 +7885,15 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(aiBrain) or aiBrain.M28IsDefeated then
+        --if Brain hasn't died in the last couple of ticks then give error message
+        if GetGameTimeSeconds() - (M28Overseer.iTimeLastPlayerDefeat or 0) >= 0.3 then M28Utilities.ErrorHandler('Trying to run M28 logic on a defeated brain') end
+        aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if not(aiBrain) or aiBrain.M28IsDefeated then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+    end
 
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -8757,7 +8765,14 @@ function ManageAllLandZones(aiBrain, iTeam, bIgnoreMinorPlateaus, iCurMinorPlate
                             WaitTicks(1)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                             iCurTicksWaited = iCurTicksWaited + 1
-                            if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting 1 tick as reached iCurCycleRefreshCount='..iCurCycleRefreshCount) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting 1 tick as reached iCurCycleRefreshCount='..iCurCycleRefreshCount..'; aiBrain.M28IsDefeated='..tostring(aiBrain.M28IsDefeated or false)..'; aiBrain='..(aiBrain.Nickname or 'nil')) end
+                            if aiBrain.M28IsDefeated or not(aiBrain) then
+                                aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                                if not(aiBrain) or aiBrain.M28IsDefeated then
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return nil
+                                end
+                            end
                         end
                     end
                 end

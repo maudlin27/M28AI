@@ -110,7 +110,8 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                     end
                     --If have assigned an AIX modifier then enable cheats
 
-
+                    --Add LOUD specific data to avoid certain errors
+                    import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua').LOUDBrainCreateStartVariables(oBrain)
                     ForkThread(M28Events.OnCreateBrain, oBrain, nil, false)
                 end
             end

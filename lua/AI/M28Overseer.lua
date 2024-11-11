@@ -461,9 +461,19 @@ function M28BrainCreated(aiBrain)
         M28Utilities.bM28AIInGame = true
         --LOG('M28 in game 3')
 
+        --Get the first non-human M28Brain
+        local oChatBrain = aiBrain
+        if aiBrain.BrainType == 'Human' then
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28AI and not(oBrain.BrainType == 'Human') then oChatBrain = oBrain break end
+            end
+        end
+
         --Send a message warning players this could take a while
-        M28Chat.SendMessage(aiBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
-        ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
+        M28Chat.SendMessage(oChatBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
+
+        ForkThread(GameSettingWarningsChecksAndInitialChatMessages, oChatBrain)
+        if bDebugMessages == true then LOG(sFunctionRef..': oChatBrain='..oChatBrain.Nickname..'; ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')) end
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)
