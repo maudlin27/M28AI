@@ -632,11 +632,11 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
         local bHaveTeammates = false
         local bLastM28OnTeamToDie = false
         local bTeamHadM28AI = false
-        if oBrainDefeated.M28AI then bLastM28OnTeamToDie = true end
+        if oBrainDefeated.M28AI and oBrainDefeated.BrainType == 'AI' then bLastM28OnTeamToDie = true end
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[oBrainDefeated.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                if oBrain.M28AI then bTeamHadM28AI = true end
+                if oBrain.M28AI and oBrain.BrainType == 'AI' then bTeamHadM28AI = true end
                 if not(oBrain == oBrainDefeated) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
                     bHaveTeammates = true
                     if oBrain.M28AI then bLastM28OnTeamToDie = false end
@@ -818,7 +818,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     local oEnemyM28AIBrain
                     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
                         for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) then
+                            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) and oBrain.BrainType == 'AI' then
                                 oEnemyM28AIBrain = oBrain
                                 break
                             end
@@ -913,7 +913,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     elseif bTeamHadM28AI then
                         --M28s team lost (but M28 died a while ago) - get an M28AI player on our team
                         for iCurBrain, oBrain in ArmyBrains do
-                            if oBrain.M28AI and oBrain.M28Team == oBrainDefeated.M28Team then
+                            if oBrain.M28AI and oBrain.M28Team == oBrainDefeated.M28Team and oBrain.BrainType == 'AI' then
                                 oBrainToSendMessage = oBrain
                                 break
                             end
@@ -1208,7 +1208,7 @@ end
 
 function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
     local sFunctionRef = 'SendStartOfGameMessage'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --If this is a human brain, check if we have non-human M28AI in the game; if we do, then dont send a start of game message for this team
