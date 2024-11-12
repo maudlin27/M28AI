@@ -412,6 +412,13 @@ function ManageAllWaterZones(aiBrain, iTeam)
                         WaitTicks(1)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         iCurTicksWaited = iCurTicksWaited + 1
+                        if not(aiBrain) or aiBrain.M28IsDefeated then
+                            aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                            if not(aiBrain) or aiBrain.M28IsDefeated then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return nil
+                            end
+                        end
                     end
                 end
                 if not(bAlreadyUsingFrigatesAsScouts) and not(bHaveCoreWZWithAdjacentEnemies) then
@@ -1442,7 +1449,15 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(aiBrain) or aiBrain.M28IsDefeated then
+        --if Brain hasn't died in the last couple of ticks then give error message
+        if GetGameTimeSeconds() - (M28Overseer.iTimeLastPlayerDefeat or 0) >= 0.3 then M28Utilities.ErrorHandler('Trying to run M28 logic on a defeated brain') end
+        aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if not(aiBrain) or aiBrain.M28IsDefeated then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+    end
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]

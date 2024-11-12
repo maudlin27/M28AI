@@ -222,24 +222,26 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                             end
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
-                                --Scathis special message if killed by UEF
-                                if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
-                                    ForkThread(M28Chat.SendMessage, oKillerUnit:GetAIBrain(), 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
-                                    --Dont trigger if killed via nuke
-                                elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
-                                    --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
-                                    local bConsiderMessage = true
-                                    if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
-                                        bConsiderMessage = false
-                                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
-                                        if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
-                                            bConsiderMessage = true
+                                if M28Orders.bDontConsiderCombinedArmy or oKillerUnit.M28Active then
+                                    --Scathis special message if killed by UEF
+                                    if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
+                                        ForkThread(M28Chat.SendMessage, oKillerUnit:GetAIBrain(), 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
+                                        --Dont trigger if killed via nuke
+                                    elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
+                                        --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
+                                        local bConsiderMessage = true
+                                        if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
+                                            bConsiderMessage = false
+                                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
+                                            if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
+                                                bConsiderMessage = true
+                                            end
                                         end
-                                    end
-                                    if bConsiderMessage then
-                                        if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
-                                            ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                        if bConsiderMessage then
+                                            if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                                ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                            end
                                         end
                                     end
                                 end
@@ -248,7 +250,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                 end
                 --Consider message if this was a significant unit
-                if oUnitKilled:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
+                if oUnitKilled:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnitKilled.M28Active) and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
                         local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
                         --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
@@ -1015,7 +1017,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         end
                     end
                     if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
-                        ForkThread(M28Chat.PartCompleteExperimentalDamaged, self, oUnitCausingDamage)
+                        if (M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active) then
+                            ForkThread(M28Chat.PartCompleteExperimentalDamaged, self, oUnitCausingDamage)
+                        end
                     end
                 end
 
@@ -1036,7 +1040,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                     elseif self[M28Air.refiTargetZoneForDrop] and EntityCategoryContains(M28UnitInfo.refCategoryTransport, self.UnitId) then
                         self[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
                     elseif oUnitCausingDamage.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.CYBRAN * categories.EXPERIMENTAL, oUnitCausingDamage.UnitId) and self:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
-                        ForkThread(M28Chat.SendMessage, self:GetAIBrain(), 'SoulripperDmgFatboy', LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!'), 1, 600, false, true, 'X05_Fletcher_M02_04945', 'X05_VO')
+                        if M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active then
+                            ForkThread(M28Chat.SendMessage, self:GetAIBrain(), 'SoulripperDmgFatboy', LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!'), 1, 600, false, true, 'X05_Fletcher_M02_04945', 'X05_VO')
+                        end
                     end
                     --General - if enemy has non-long range direct fire structure that hit an M28 unit, then check if it is in the same or adjacen tzone, so can record if it isnt
                     if oUnitCausingDamage.GetPosition and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitCausingDamage.UnitId) and oUnitCausingDamage[M28UnitInfo.refiDFRange] and oUnitCausingDamage[M28UnitInfo.refiDFRange] < 100 and oUnitCausingDamage[M28UnitInfo.refiDFRange] > 0 and self.GetPosition then
@@ -1312,7 +1318,7 @@ function OnWeaponFired(oWeapon)
                                 oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed --For an SMD this will effectively mean we think the SMD isnt loaded anymore; below acts as a basic check to approximate scenarios where SMD has been around a while (ideally if improving on this would just use a dif variable to refiTimeOfLastCheck so can track the actual values wanted)
                             end
                             --If this was an Aeon SMD owned by vendetta personality then send voice taunt
-                            if oUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiVendetta then
+                            if oUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiVendetta and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
                                 ForkThread(M28Chat.SendMessage, oUnit:GetAIBrain(), 'VendettaSMD', LOC('<LOC X06_T01_560_010>[{i Vendetta}]: Nice try.'), 1, 600, false, true, 'X06_Vedetta_T01_03018', 'X06_VO')
                             end
                         end
@@ -1348,8 +1354,9 @@ end
 end--]]
 
 function ProjectileCreated(oProjectile, inWater)
+    --LOG('TEMPCODE projectile created, oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; Is .Launcher nil='..tostring(oProjectile.Launcher == nil)..'; .GetLauncher is nil='..tostring(oProjectile.GetLauncher == nil)..';  oProjectile.BeenDestroyed is nil='..tostring( oProjectile.BeenDestroyed == nil))
     --[[if oProjectile.GetCurrentTargetPosition then
-        LOG('TEMP TEST will draw projectile created target')
+        LOG('TEMPCODE will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
     end--]]
     if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) then
@@ -1400,6 +1407,24 @@ function ProjectileCreated(oProjectile, inWater)
         end
         if not(bTrackingProjectile) then
             --LOG('reprs of oProjectile='..reprs(oProjectile)..'; reprs of oProjectile.Launcher='..reprs(oProjectile.Launcher)..'; oProjectile.InnerRing is nil='..tostring(oProjectile.InnerRing == nil)..'; oProjectile.OuterRing is nil='..tostring(oProjectile.OuterRing == nil)..'; Is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)))
+            if not(oProjectile.Launcher) and not(M28Utilities.bFAFActive) and oProjectile.GetLauncher then
+                oProjectile.Launcher = oProjectile:GetLauncher()
+                --Consider adding inner and outer rings if this is a nuke launcher
+                if oProjectile.Launcher.UnitId and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) and not(oProjectile.InnerRing) then
+                    local oLauncherBP = oProjectile.Launcher:GetBlueprint()
+                    if oLauncherBP.Weapon then
+                        for iWeapon, tWeapon in oLauncherBP.Weapon do
+                            if tWeapon.NukeInnerRingRadius then
+                                --LOG('TEMPCODE setting nuke inner and outer radius')
+                                oProjectile.InnerRing = tWeapon.NukeInnerRingRadius
+                                oProjectile.OuterRing = (tWeapon.NukeOuterRingRadius or 40)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            --LOG('TEMPCODE oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; oProjectile.InnerRing='..(oProjectile.InnerRing or 'nil')..'; oProjectile.OuterRing='..(oProjectile.OuterRing or 'nil')..'; Launcher is SML='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, (oProjectile.Launcher.UnitId or 'uel0001'))))
             if oProjectile.Launcher.UnitId and oProjectile.InnerRing and oProjectile.OuterRing and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) then
                 --Have a nuke missile that has just been fired
                 local oLauncher = oProjectile.Launcher

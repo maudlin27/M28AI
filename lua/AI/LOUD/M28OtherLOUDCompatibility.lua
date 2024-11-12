@@ -186,3 +186,10 @@ function UpdateUnitCategories()
         end
     end
 end
+
+function LOUDBrainCreateStartVariables(aiBrain)
+    --LOUD adds this info later on; however this wont solve certain issues such as score not appearing where M28AI+LOUD share a team - it's hoped this will be fixed in the next LOUD release (7.17)
+    local X, Z = aiBrain:GetArmyStartPos()
+    aiBrain.StartPosX = X
+    aiBrain.StartPosZ = Z
+end

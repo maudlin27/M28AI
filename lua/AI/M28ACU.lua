@@ -1489,10 +1489,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 --LOUD support where ACU upgrades dont show as improving max radius
             else
                 local tsOtherUpgradeNames = {
-                    'EXRipperBooster',
-                    'EXZephyrBooster',
-                    'EXChronotronBooster',
-                    'EXDisruptorrBooster',
+                    'EXRipperBooster', --Cybran
+                    'EXZephyrBooster', --UEF
+                    'EXChronotronBooster', --Seraphim
+                    'EXDisruptorrBooster', --Aeon
                 }
                 for iPotentialUpgrade, sPotentialUpgrade in tsOtherUpgradeNames do
                     if oBP.Enhancements[sPotentialUpgrade] then
@@ -1500,6 +1500,33 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                         oACU[reftPreferredUpgrades] = { sPotentialUpgrade}
                         break
                     end
+                end
+            end
+
+            --Add support for (blackops?) ACU upgrades, e.g. based on LOUD
+            local tsModUpgradesToConsider = {
+                --Shield (UEF and Aeon)
+                'EXShieldBubble', --UEF and Aeon shield (blueprints have the same reference)
+
+                --RH slot:
+                'EXL1Lambda', --Seraphim lambda field - Destroys some incoming projectiles (so a defensive buff)
+                'EXL2Lambda', --Seraphim lambda field that redirects the projectiles
+
+                --LH slot:
+                'EXCombatEngineering', --Gives HP buff and slight regen, although fairly expensive
+
+                --Other weapons (that would replace the main gun so have held off getting)
+                --[['EXMasor', --Cybran laser (cheap version)
+                'EXEMPArray', --Cybran EMP weapon
+                'EXGattlingEnergyCannon', --UEF Gatling weapon
+                'EXRapidCannon', --Seraphim gatling weapon
+                'EXStormCannon', --Seraphim storm cannon weapon
+                'EXBeamPhason', --Aeon laser (cheap version)--]]
+            }
+            for iPotentialUpgrade, sPotentialUpgrade in  tsModUpgradesToConsider do
+                if oBP.Enhancements[sPotentialUpgrade] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Blackops ACU upgrades - adding upgrade '..sPotentialUpgrade..' to ACU owned by player '..oACU:GetAIBrain().Nickname) end
+                    table.insert(oACU[reftPreferredUpgrades], sPotentialUpgrade)
                 end
             end
         end
