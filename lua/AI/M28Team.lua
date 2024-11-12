@@ -3560,6 +3560,12 @@ function TeamEconomyRefresh(iM28Team)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for team '..iM28Team..' at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
     if M28Map.bMapLandSetupComplete and M28Map.bWaterZoneInitialCreation then
+        local bIncludeHumanBrains = true
+        if not(M28Orders.bDontConsiderCombinedArmy) then
+            for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                if oBrain.BrainType == 'AI' then bIncludeHumanBrains = false break end
+            end
+        end
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
         tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
         tTeamData[iM28Team][subrefiTeamGrossMass] = 0
@@ -3577,34 +3583,36 @@ function TeamEconomyRefresh(iM28Team)
 
 
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + (oBrain[M28Economy.refiGrossEnergyBaseIncome] or 0)
-            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + (oBrain[M28Economy.refiGrossMassBaseIncome] or 0)
-            --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
-            --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
-                M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
-                oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
-            end--]]
+            if bIncludeHumanBrains or oBrain.BrainType == 'AI' then
+                tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + (oBrain[M28Economy.refiGrossEnergyBaseIncome] or 0)
+                tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + (oBrain[M28Economy.refiGrossMassBaseIncome] or 0)
+                --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
+                --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
+                    M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
+                    oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
+                end--]]
 
-            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + (oBrain[M28Economy.refiNetEnergyBaseIncome] or 0)
-            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + (oBrain[M28Economy.refiNetMassBaseIncome] or 0)
+                tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + (oBrain[M28Economy.refiNetEnergyBaseIncome] or 0)
+                tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + (oBrain[M28Economy.refiNetMassBaseIncome] or 0)
 
 
-            if oBrain:GetEconomyStored('ENERGY') > 0 then
-                iEnergyPercentTotal = iEnergyPercentTotal + oBrain:GetEconomyStoredRatio('ENERGY')
-                tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
-                iEnergyBrainCount = iEnergyBrainCount + 1
+                if oBrain:GetEconomyStored('ENERGY') > 0 then
+                    iEnergyPercentTotal = iEnergyPercentTotal + oBrain:GetEconomyStoredRatio('ENERGY')
+                    tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
+                    iEnergyBrainCount = iEnergyBrainCount + 1
+                end
+
+                if oBrain:GetEconomyStored('MASS') > 0 then
+                    tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
+                    iMassPercentTotal = iMassPercentTotal + oBrain:GetEconomyStoredRatio('MASS')
+                    iMassBrainCount = iMassBrainCount + 1
+                end
+
+                --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
+                --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
+                tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
             end
-
-            if oBrain:GetEconomyStored('MASS') > 0 then
-                tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
-                iMassPercentTotal = iMassPercentTotal + oBrain:GetEconomyStoredRatio('MASS')
-                iMassBrainCount = iMassBrainCount + 1
-            end
-
-            --tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
-            --tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamAverageMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
-            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage + M28UnitInfo.refCategoryParagon + M28UnitInfo.refCategoryQuantumOptics))
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal..'; oBrain:IsDefeated()='..tostring(oBrain:IsDefeated())..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')..'; iMassPercentTotal='..iMassPercentTotal..'; iEnergyPercentTotal='..iEnergyPercentTotal..'; oBrain:IsDefeated()='..tostring(oBrain:IsDefeated())..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; bIncludeHumanBrains='..tostring(bIncludeHumanBrains)) end
         end
         tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] = iMassPercentTotal / math.max(1, iMassBrainCount)
         tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] = iEnergyPercentTotal / math.max(1, iEnergyBrainCount)
