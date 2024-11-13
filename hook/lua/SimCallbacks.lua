@@ -4,7 +4,7 @@
 --- DateTime: 25/08/2024 17:35
 ---
 ---
-Callbacks.M28TestCallback = function(data, units)
+Callbacks.M28SharedArmiesCallback = function(data, units)
     if not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 1) then --i.e. option 1 enables; 2 and 4 disable (shouldnt be able to get here if are option 4), and 3 is moba mode
         local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
         local aiBrain
@@ -25,7 +25,7 @@ Callbacks.M28TestCallback = function(data, units)
     else
         for _, oUnit in units or {} do
             if IsEntity(oUnit) then
-                --LOG('M28TestCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false)..'; unit is owned by brain '..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds())
+                --LOG('M28SharedArmiesCallback for unit with ID='..(oUnit.UnitId or 'nil')..'; data.auto='..tostring(data.Enable or false)..'; unit is owned by brain '..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds())
                 oUnit.M28Active = data.Enable
                 local iValue = 0
                 if data.Enable then iValue = 1 end
