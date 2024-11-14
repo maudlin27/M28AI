@@ -713,7 +713,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     --LOUD - disable MMLs if enemy has TMD
     if M28Utilities.bLoudModActive and not(bDontGetIndirect) and (M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftoEnemyTMD]) == false or tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and M28UnitInfo.GetUnitTechLevel(oFactory) <= 2 and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 180) then bDontGetIndirect = true end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; tLZTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships]='..(tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] or 'nil')) end
 
     --Priority scouts
     if not(bDontConsiderLandScouts) and tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] and bInSameIsland and tLZTargetTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTScoutsTravelingHere]) and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] <= 20 then
@@ -721,8 +721,19 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
         if bDebugMessages == true then LOG(sFunctionRef..': We recently failed to get a land scout for this zone so want to get one now') end
     end
 
+    --MAA due to units retreating from gunships recently
+    if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] <= 20 then
+        if M28Conditions.WantT3MAAInsteadOfT2(oFactory, iTeam) then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
+        else
+            iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
+        end
+        if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA0') end
+    end
+
     --Indirect support relatively early on - disable the indirectfire builder if the zone is flagged that it wants indirectfire support, but it already has some nearby and its only against T1 PD
-    if tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect) and tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] < 30 and oFactory:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] <= 2 and M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
+    if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect) and tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] < 30 and oFactory:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] <= 2 and M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
         local iBestAdjEnemyPDRange = tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]
         local iEnemyPDThreat = tLZTargetTeamData[M28Map.subrefThreatEnemyDFStructures]
         local iOurIndirectThreat = tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
@@ -742,7 +753,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
         end
     end
 
-    if (not(bDontGetCombat) and (tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect)) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport]) or (GetGameTimeSeconds() - (tLZTargetTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 and (not(M28Utilities.bLoudModActive) or tLZTargetTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28UnitInfo.GetUnitTechLevel(oFactory) >= 3)) then
+    if not(iBaseCategoryWanted) and (not(bDontGetCombat) and (tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect)) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport]) or (GetGameTimeSeconds() - (tLZTargetTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 and (not(M28Utilities.bLoudModActive) or tLZTargetTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28UnitInfo.GetUnitTechLevel(oFactory) >= 3)) then
         --First consider if we need MAA more urgently than indirect
         local bWantMAANotIndirect = false
         if not(bDontConsiderBuildingMAA) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 150 and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] then
