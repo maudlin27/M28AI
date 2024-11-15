@@ -1106,7 +1106,7 @@ end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -2121,12 +2121,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
-        --Engineers if overflowing and at T3 and no ground enemies in this zone
+        --Engineers if overflowing and at T3 (or early game in core base with far away enemy base) and no ground enemies in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': Engineers when about to overflow, [M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]=' .. tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Want more BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Gross mass=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7 then
+        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and (iFactoryTechLevel >= 3 or (tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 500)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45)) and (iFactoryTechLevel < 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7) then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Will try and get more engieners')
+                LOG(sFunctionRef .. ': Will try and get more engieners to avoid overflow')
             end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                 return sBPIDToBuild
