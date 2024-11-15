@@ -400,7 +400,7 @@ function IsBuildLocationBlockedByResources(tLZOrWZData, iBuildingRadius, tTarget
     return false
 end
 
-function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
+function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
     --iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding and bCheckForOverlappingBuildings are optional
     --iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone: If specified, then will check this zone for queued units, if bCheckForQueuedBuildings is true
     --bCheckBlacklistIfNoGameEnder - will checkblacklist if either this is true, or the zone contains a gameender
@@ -418,7 +418,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
 
 
     local bCanBuildStructure = false
-    if aiBrain.CanBuildStructureAt and (aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation)))) then
+    if aiBrain.CanBuildStructureAt and (aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (bConsideringResourceLocation and (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation))))) then
         bCanBuildStructure = true
         if tsExtraBlueprintsToCheck[sBlueprintToBuild] then
             for iEntry, sAltBlueprint in tsExtraBlueprintsToCheck[sBlueprintToBuild] do
@@ -468,7 +468,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                     M28Utilities.ErrorHandler('If we want to check for queued buildings then we need to specify the plateau and land zone')
                 end
             end
-            if bCanBuildStructure then
+            if bCanBuildStructure and not(bConsideringResourceLocation) then
                 --Check in case scathis is blocking us
                 if M28Utilities.IsTableEmpty(tAllScathis) == false then
                     for iUnit, oUnit in tAllScathis do
@@ -507,7 +507,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                 end
                 if not(bCanBuildStructure) and bDebugMessages == true then LOG(sFunctionRef..': Skirt size is overlaping with a building that could have upgraded so will return false') end
             end
-            if bCanBuildStructure and (bCheckBlacklistIfNoGameEnder or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding]) then
+            if bCanBuildStructure and not(bConsideringResourceLocation) and (bCheckBlacklistIfNoGameEnder or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding]) then
                 local iPlateau = iOptionalPlateauGroupOrZero
                 local iLandZone = iOptionalLandOrWaterZone
                 if not(iOptionalLandOrWaterZone) or not(iOptionalPlateauGroupOrZero) then
@@ -658,8 +658,8 @@ function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZ
         for iSize, sGenericBlueprint in sBlueprintTable do
 
             if iSize > iHighestCurSize then
-                --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
-                if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition,     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          true) then
+                --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation))
+                if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition,     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          true,                           false) then
                     if not(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX]) then
                         if not(tLZOrWZData[M28Map.subrefBuildableSizeBySegment]) then tLZOrWZData[M28Map.subrefBuildableSizeBySegment] = {} end
                         tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX] = {}
@@ -728,17 +728,17 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
                         break
                     else
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Checking if buildable for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iSize='..iSize..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; bCheckBlacklistIfNoGameEnder='..tostring(bCheckBlacklistIfNoGameEnder)..'; Can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder)))
+                            LOG(sFunctionRef..': Checking if buildable for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iSize='..iSize..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; bCheckBlacklistIfNoGameEnder='..tostring(bCheckBlacklistIfNoGameEnder)..'; Can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false)))
                             --T3 pgen size - show buildable in blue nonbuildable in red
                             if iSize == 8 then
-                                local bCanBuild = CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder)
+                                local bCanBuild = CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false)
                                 if bCanBuild then M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1)
                                 else
                                     M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 2)
                                 end
                             end
                         end
-                        if CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder) then
+                        if CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false) then
                             --No change needed, location is still valid
                             iLastValidSize = iSize
                         else
@@ -1040,7 +1040,8 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                 for iZFactor = -1, 1, 2 do
                     iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
                     for iCurX = tAdjacencyBuildingPosition[1] - iCycleSize, tAdjacencyBuildingPosition[1] + iCycleSize, 1 do
-                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true) then
+                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone,                     nil,                false,                              true,                   false,                          true,                           false) then
                             if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea({iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}) then
                                 table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
                                 if bStopWhenHaveValidLocation then bAbort = true break end
@@ -1057,7 +1058,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                     for iXFactor = -1, 1, 2 do
                         iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
                         for iCurZ = tAdjacencyBuildingPosition[3] - iCycleSize, tAdjacencyBuildingPosition[3] + iCycleSize, 1 do
-                            if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true) then
+                            if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true, false) then
                                 if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea({iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}) then
                                     table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
                                     if bStopWhenHaveValidLocation then bAbort = true break end
@@ -1380,14 +1381,15 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 for iCurResource, tCurResource in tResourceLocations do
                     if bDebugMessages == true then
                         --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
-                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; Can we build just using the brain function check='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurResource))..'; Is table of units in rect around tCurResource empty='..tostring(M28Utilities.IsTableEmpty(GetUnitsInRect(M28Utilities.GetRectAroundLocation(tCurResource, 0.49))))..'; will draw locations we can build on in blue, and those we cant in red. bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false))
-                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero, iLandOrWaterZone, nil, false, bCheckForQueuedBuildings, false, false, false) then
+                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero,              iLandOrWaterZone,          nil,                    false,                          bCheckForQueuedBuildings,   false,                          false,                      true))..'; Can we build just using the brain function check='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurResource))..'; Is table of units in rect around tCurResource empty='..tostring(M28Utilities.IsTableEmpty(GetUnitsInRect(M28Utilities.GetRectAroundLocation(tCurResource, 0.49))))..'; will draw locations we can build on in blue, and those we cant in red. bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false))
+                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero,              iLandOrWaterZone,          nil,                    false,                          bCheckForQueuedBuildings,   false,                          false,                      true) then
                             M28Utilities.DrawLocation(tCurResource, 1)
                         else
                             M28Utilities.DrawLocation(tCurResource, 2)
                         end
                     end
-                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero, iLandOrWaterZone, nil, false, bCheckForQueuedBuildings, false, false) then
+                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero, iLandOrWaterZone, nil, false, bCheckForQueuedBuildings, false, false, true) then
                         if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea(tCurResource) then
                             table.insert(tPotentialBuildLocations, tCurResource)
                         end
@@ -1595,22 +1597,24 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local iBuilderRange = (oEngiBP.Economy.MaxBuildDistance or 5) + math.min(oEngiBP.SizeX, oEngiBP.SizeZ) + iNewBuildingRadius - 0.5
     local aiBrain = oEngineer:GetAIBrain()
 
+    local bResource = EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)
+
     if bTryToBuildAtTarget then
         local iPlateauOrZero, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetLocation)
-        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
-        if bDebugMessages == true then LOG(sFunctionRef..': want to see if we can build at the target itself, CanBuildAtLocation='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true))) end
-        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true) then
+        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+        if bDebugMessages == true then LOG(sFunctionRef..': want to see if we can build at the target itself, CanBuildAtLocation='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true, bResource))) end
+        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iPlateauOrZero,              iZone,                      nil, false, true, true, true, bResource) then
             if bDebugMessages == true then LOG(sFunctionRef..': We can build at the target location so will build here') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return tTargetLocation
-        else
+        elseif not(bResource) then
             local tAltNearTargetLocation
             for iAdjX = -iNewBuildingRadius, iNewBuildingRadius, iNewBuildingRadius do
                 for iAdjZ = -iNewBuildingRadius, iNewBuildingRadius, iNewBuildingRadius do
                     if not(iAdjX == 0) or not(iAdjZ == 0) then
                         tAltNearTargetLocation = {tTargetLocation[1] + iAdjX, 0, tTargetLocation[3] + iAdjZ}
                         tAltNearTargetLocation[2] = GetSurfaceHeight(tAltNearTargetLocation[1], tAltNearTargetLocation[3])
-                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, iPlateauOrZero, iZone, nil, false, true, true, true) then
+                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, iPlateauOrZero, iZone, nil, false, true, true, true, bResource) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We can build right by the target location so will build here') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return tTargetLocation
@@ -2189,7 +2193,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
         --Check we're not trying to buidl a mex or hydro or mass storage or mass fab
         local bMexHydroOrStorage = false
-        if EntityCategoryContains(refCategoryMex, sBlueprintToBuild) or EntityCategoryContains(refCategoryHydro, sBlueprintToBuild) or EntityCategoryContains(M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryMassFab, sBlueprintToBuild)  then
+        if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryMassFab, sBlueprintToBuild)  then
             bMexHydroOrStorage = true
         end
 
@@ -2337,8 +2341,8 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                                 bFindRandomLocation = not(bNeverBuildRandom)
                             else
                                 bFindRandomLocation = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have determined the best build location for target to be '..repru(tTargetLocation)..'; will double-check we can build here, can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true))) end
-                                if not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have determined the best build location for target to be '..repru(tTargetLocation)..'; will double-check we can build here, can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true, false))) end
+                                if not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, false, true, false)) then
                                     --if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == false or not(M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][M28Utilities.ConvertLocationToReference(tTargetLocation)])) then
                                     M28Utilities.ErrorHandler('Cant build '..sBlueprintToBuild..' on adjacency location tTargetLocation='..repru({tTargetLocation[1], tTargetLocation[2],tTargetLocation[3]}))
                                     bFindRandomLocation = not(bNeverBuildRandom)
@@ -2491,7 +2495,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
             --First check in build area for the best location assuming the target location isnt far away
             if M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tEngineerPosition) <= 30 then tTargetLocation = GetBestBuildLocationForTarget(tTargetLocation, nil, sBlueprintToBuild, true, aiBrain, true, tTargetLocation, iMaxAreaToSearch, iBuilderRange, false, true, bBuildNearToEnemy, not(bBuildNearToEnemy), false) end
-            if M28Utilities.IsTableEmpty(tTargetLocation) == true or not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, true)) then
+            if M28Utilities.IsTableEmpty(tTargetLocation) == true or not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, nil, nil, nil, false, bLookForQueuedBuildings, true, nil, false)) then
                 --if M28Utilities.IsTableEmpty(tTargetLocation) == true or not(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)) or not(M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][M28Utilities.ConvertLocationToReference(tTargetLocation)])) then
                 if M28Utilities.IsTableEmpty(tTargetLocation) then tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition) end
                 if bDebugMessages == true then
@@ -17867,8 +17871,8 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
                     if bDebugMessages == true then LOG(sFunctionRef..': Can engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' that has just built unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' at position '..repru(oJustBuilt:GetPosition())..' build at tTargetLocation '..repru(tTargetLocation)..'='..tostring(CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true))..'; Simple can build check='..tostring(aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
                     if (iPlateau or 0) > 0 and (iLandZone or 0) > 0 then
-                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
-                        if CanBuildAtLocation(aiBrain, sWallBP,         tTargetLocation,     iPlateau,                  iLandZone, nil, false, true, false, true) then
+                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+                        if CanBuildAtLocation(aiBrain, sWallBP,         tTargetLocation,     iPlateau,                  iLandZone, nil, false, true, false, true, false) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return tTargetLocation
                         end

@@ -3927,7 +3927,9 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                 end
                 if iUnitSpeed * iTicksPerLandCycle * 0.1 > iDistToMove * 0.75 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to issue an interim move order after the first, will first wait '..math.ceil(iTicksPerLandCycle * 0.5)..' ticks') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(math.ceil(iTicksPerLandCycle * 0.5))
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, will issue interim order now for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)

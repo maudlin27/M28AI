@@ -8045,6 +8045,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
                         --If combat drop then require us to be dropping on land
                         if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater({oUnit:GetPosition()[1], GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]), oUnit:GetPosition()[3]}))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true, false
                         end
                     end
@@ -9686,7 +9687,9 @@ function LoadCombatUnitOntoTransport(oJustBuilt)
                         end
                         break
                     end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
                 tLZTeamData[M28Map.refbActiveCombatUnitLoader] = false
                 --Redundancy:
