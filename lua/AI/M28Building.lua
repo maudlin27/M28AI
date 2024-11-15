@@ -3462,7 +3462,7 @@ function ReserveLocationsForGameEnder(oUnit)
                 for iCurX = tAdjacencyBuildingPosition[1] - iCornerAdjust, tAdjacencyBuildingPosition[1] + iCornerAdjust, 1 do
                     if iCurMod > 0 then
                         iCurMod = iCurMod - 1
-                    elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                    elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true, false) then
                         tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
                         tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
                         iCurMod = iCurMod + iNewBuildingDiameter - 1
@@ -3488,7 +3488,7 @@ function ReserveLocationsForGameEnder(oUnit)
                     for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
                         if iCurMod > 0 then
                             iCurMod = iCurMod - 1
-                        elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                        elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true, false) then
                             tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
                             tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
                             iCurMod = iCurMod + iNewBuildingDiameter - 1
@@ -3532,7 +3532,7 @@ function ReserveLocationsForGameEnder(oUnit)
                         for iShieldOption, tShieldLocations in tiShieldBuildLocationOptions do
                             if not(iShieldOption == iBestOptionCountRef) then
                                 for iLocation, tLocation in tShieldLocations do
-                                    if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
+                                    if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true, false) then
                                         iRecordedCount = iRecordedCount + 1
                                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                                         --Blacklist the location

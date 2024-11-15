@@ -295,7 +295,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 -- In the future we should also check if our economy is good enough to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 -- We should also check if we have a large number of factories to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 if sBPIDToBuild == 'url0107' then --CybranLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.url0107) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.url0107) >= 30 then
                         if oFactory:CanBuild('brmt1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['url0107'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brmt1exm1'] = 1
@@ -304,7 +304,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'uel0201' then --UEFLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.uel0201) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.uel0201) >= 30 then
                         if oFactory:CanBuild('uel0108') then
                             aiBrain[reftBlueprintPriorityOverride]['uel0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['uel0108'] = 1
@@ -313,7 +313,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif (sBPIDToBuild == 'ual0201' or sBPIDToBuild == 'ual0108' or sBPIDToBuild == 'brot1bt') then --AeonLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.ual0201 + categories.ual0108 + categories.brot1bt)) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.ual0201 + categories.ual0108 + categories.brot1bt)) >= 30 then
                         if oFactory:CanBuild('brot1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['ual0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['ual0108'] = nil
@@ -324,7 +324,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'xsl0201' then --SeraphimLightT1DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.xsl0201) >= 40 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT1] and oFactory[refiTotalBuildCount] >= 10) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and oFactory[refiTotalBuildCount] >= 10) or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.xsl0201) >= 30 then
                         if oFactory:CanBuild('brpt1exm1') then
                             aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1
@@ -333,7 +333,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'url0202' or sBPIDToBuild == 'brmt2ht' then --CybranLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0202 + categories.brmt2ht)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0202 + categories.brmt2ht)) >= 20 then
                         if oFactory:CanBuild('brmt2medm') then
                             aiBrain[reftBlueprintPriorityOverride]['url0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brmt2ht'] = nil
@@ -343,7 +343,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'uel0202' or sBPIDToBuild == 'brnt2mt' or sBPIDToBuild == 'bel0211' then --UEFLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0202 + categories.brnt2mt + categories.bel0211)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0202 + categories.brnt2mt + categories.bel0211)) >= 20 then
                         if oFactory:CanBuild('wel0304') then
                             aiBrain[reftBlueprintPriorityOverride]['uel0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brnt2mt'] = nil
@@ -354,7 +354,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'ual0202' then --AeonLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0202) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0202) >= 20 then
                         if oFactory:CanBuild('brot2asb') then
                             aiBrain[reftBlueprintPriorityOverride]['ual0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brot2asb'] = 1
@@ -363,7 +363,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'xsl0202' or sBPIDToBuild == 'wsl0202' then --SeraphimLightT2DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 20 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 20 then
                         if oFactory:CanBuild('brpt2btbot') then
                             aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = nil
@@ -373,7 +373,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'url0303' or sBPIDToBuild == 'brmt3bt' then --CybranLightT3DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0303 + categories.brmt3bt)) >= 10 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.url0303 + categories.brmt3bt)) >= 10 then
                         if oFactory:CanBuild('xrl0305') or oFactory:CanBuild('brl0307') or oFactory:CanBuild('srl0310') or oFactory:CanBuild('brmt3bm2') then
                             aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
                             aiBrain[reftBlueprintPriorityOverride]['brmt3bt'] = nil --Mastodon
@@ -386,7 +386,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'uel0303' or sBPIDToBuild == 'brnt3bt' then --UEFLightT3DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0303 + categories.brnt3bt)) >= 10 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.uel0303 + categories.brnt3bt)) >= 10 then
                         if oFactory:CanBuild('xel0305') or oFactory:CanBuild('bel0307') or oFactory:CanBuild('wel0305') then
                             aiBrain[reftBlueprintPriorityOverride]['uel0303'] = nil --Titan
                             aiBrain[reftBlueprintPriorityOverride]['brnt3bt'] = nil --Bull
@@ -398,7 +398,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'ual0303' then --AeonLightT3DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0303) >= 10 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.ual0303) >= 10 then
                         if oFactory:CanBuild('sal0311') or oFactory:CanBuild('bal0310') then
                             aiBrain[reftBlueprintPriorityOverride]['ual0303'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['sal0311'] = 1
@@ -408,7 +408,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                 elseif sBPIDToBuild == 'wsl0308' or sBPIDToBuild == 'ssl0311' then --SeraphimLightT3DF
-                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.wsl0308 + categories.ssl0311)) >= 10 then
+                    if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] and oFactory[refiTotalBuildCount] >= 10) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.wsl0308 + categories.ssl0311)) >= 10 then
                         if oFactory:CanBuild('xsl0303') or oFactory:CanBuild('bsl0310') or oFactory:CanBuild('brpt3bot') then
                             aiBrain[reftBlueprintPriorityOverride]['wsl0308'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['ssl0311'] = nil
@@ -713,7 +713,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
     --LOUD - disable MMLs if enemy has TMD
     if M28Utilities.bLoudModActive and not(bDontGetIndirect) and (M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftoEnemyTMD]) == false or tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and M28UnitInfo.GetUnitTechLevel(oFactory) <= 2 and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 180) then bDontGetIndirect = true end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; tLZTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships]='..(tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] or 'nil')) end
 
     --Priority scouts
     if not(bDontConsiderLandScouts) and tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] and bInSameIsland and tLZTargetTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTScoutsTravelingHere]) and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] <= 20 then
@@ -721,8 +721,19 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
         if bDebugMessages == true then LOG(sFunctionRef..': We recently failed to get a land scout for this zone so want to get one now') end
     end
 
+    --MAA due to units retreating from gunships recently
+    if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] <= 20 then
+        if M28Conditions.WantT3MAAInsteadOfT2(oFactory, iTeam) then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
+        else
+            iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
+        end
+        if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * M28UnitInfo.refCategoryAmphibious + iBaseCategoryWanted * categories.HOVER end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA0') end
+    end
+
     --Indirect support relatively early on - disable the indirectfire builder if the zone is flagged that it wants indirectfire support, but it already has some nearby and its only against T1 PD
-    if tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect) and tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] < 30 and oFactory:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] <= 2 and M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
+    if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect) and tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] < 30 and oFactory:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] <= 2 and M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
         local iBestAdjEnemyPDRange = tLZTargetTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]
         local iEnemyPDThreat = tLZTargetTeamData[M28Map.subrefThreatEnemyDFStructures]
         local iOurIndirectThreat = tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
@@ -742,7 +753,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
         end
     end
 
-    if (not(bDontGetCombat) and (tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect)) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport]) or (GetGameTimeSeconds() - (tLZTargetTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 and (not(M28Utilities.bLoudModActive) or tLZTargetTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28UnitInfo.GetUnitTechLevel(oFactory) >= 3)) then
+    if not(iBaseCategoryWanted) and (not(bDontGetCombat) and (tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and not(bDontGetIndirect)) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport]) or (GetGameTimeSeconds() - (tLZTargetTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 and (not(M28Utilities.bLoudModActive) or tLZTargetTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28UnitInfo.GetUnitTechLevel(oFactory) >= 3)) then
         --First consider if we need MAA more urgently than indirect
         local bWantMAANotIndirect = false
         if not(bDontConsiderBuildingMAA) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 150 and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] then
@@ -2110,12 +2121,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
-        --Engineers if overflowing and at T3 and no ground enemies in this zone
+        --Engineers if overflowing and at T3 (or early game in core base with far away enemy base) and no ground enemies in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': Engineers when about to overflow, [M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]=' .. tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Want more BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Gross mass=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7 then
+        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and (iFactoryTechLevel >= 3 or (tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 500)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45)) and (iFactoryTechLevel < 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7) then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Will try and get more engieners')
+                LOG(sFunctionRef .. ': Will try and get more engieners to avoid overflow')
             end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                 return sBPIDToBuild
@@ -2718,7 +2729,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Indirect threat ratio, bCanPathToEnemyWithLand='..tostring(bCanPathToEnemyWithLand)..', M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; iIndirectRatioWanted='..iIndirectRatioWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Cur T3 DF and skrimisher count='..aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * categories.TECH3)) end
-                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 30)) then
+                --Reduce threat value due to ACU
+                if bCanPathToEnemyWithLand and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - 1500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted and (not (bHaveLowMass) or (iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * iIndirectRatioWanted * 2 and aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 30)) and (iFactoryTechLevel > 1 or GetGameTimeSeconds() >= 600 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) >= 10) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Will try to build more indirect fire units if arent building any of this tech level or higher in this LZ')
                     end
