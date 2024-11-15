@@ -1162,9 +1162,7 @@ function AssignAIPersonalityAndRating(aiBrain)
             elseif iRand == 6 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
             elseif iRand == 7 then aiBrain[M28Overseer.refbPrioritiseNavy] = true
             end
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand..' to brain='..aiBrain.Nickname) end
-            bDebugMessages = false
         end
         if aiBrain[M28Overseer.refbPrioritiseNavy] then
             --dont want to go navy if map doesnt support it
