@@ -3994,6 +3994,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local bIgnoreEnemiesInThisZone = false
     local tbAdjacentZoneEnemiesToIgnoreByZone = {}
     local bConsiderEnemiesInAtLeastOneAdjacentZone = true
+    local tUnitsNearFatboyInFurtherAwayZones
 
     --First record the range of enemy units, and which units in adjacent zones are nearest to us:
     UpdateBestEnemyRangesForThisLandZone(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
@@ -4405,7 +4406,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     if not(bGivenCombatUnitsOrders) then
 
         --If we have a fatboy in our available combat units, then do getunitsaroundpoint to check for signficant threats that might not be in an adjacent zone, and then add them as direct fire units against this zone so they get incorporated into checks for nearby enemies
-        local tUnitsNearFatboyInFurtherAwayZones
         local iVisibleDFMassInFatboyRange = 0
         if iFriendlyBestMobileDFRange >= 90 then
             --Get fatboy closest to enemy base
