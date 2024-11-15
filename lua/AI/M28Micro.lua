@@ -1810,7 +1810,9 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     if not(iMaxTimeBetweenShotsWanted) then iMaxTimeBetweenShotsWanted = 5
                     else iMaxTimeBetweenShotsWanted = iMaxTimeBetweenShotsWanted + math.max(0.5, iMaxTimeBetweenShotsWanted * 0.15)
                     end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     local bManualAttack
                     while M28UnitInfo.IsUnitValid(oTarget) and M28UnitInfo.IsUnitValid(oUnit) do
                         local tMoveViaPoint

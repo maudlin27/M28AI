@@ -853,7 +853,8 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                             if bHadEnemyHuman then
                                 AddPotentialMessage( 'Maybe you should lower the AIx modifier next time!')
                                 if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
-                                    AddPotentialMessage( 'I thought you were being overconfident challenging me when I had this big a resource bonus')
+                                    AddPotentialMessage( 'I thought you were being overconfident challenging me when I had this big a resource bonus, looks like I was right')
+                                    AddPotentialMessage( 'Better to try and fail than not try at all, better luck next time!')
                                 end
                             end
 
@@ -1161,7 +1162,7 @@ function AssignAIPersonalityAndRating(aiBrain)
             elseif iRand == 6 then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
             elseif iRand == 7 then aiBrain[M28Overseer.refbPrioritiseNavy] = true
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Assigned random personality based on iRand='..iRand..' to brain='..aiBrain.Nickname) end
         end
         if aiBrain[M28Overseer.refbPrioritiseNavy] then
             --dont want to go navy if map doesnt support it
