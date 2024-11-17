@@ -8333,11 +8333,11 @@ function RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmen
 end
 
 
-function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
+function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ, bOptionalUseDoubleStraightLineDistAsBackup)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    --bOptionalUseDoubleStraightLineDistAsBackup - set to true if the logic calling this has already checked the two z ones are in the same island; otherwise dont set this to true due to risk we are calling locations on dif islands and end up saying they can travel to each other
 
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
 
@@ -8348,6 +8348,12 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
         if not(tStartLZData[subrefMidpoint]) then RecordMidpointAndOtherDataForZone(iPlateau, iStartLZ, tStartLZData) end --redundancy
         if bDebugMessages == true then LOG(sFunctionRef..': About to record travel distance for iPlateau '..(iPlateau or 'nil')..'; iStartLZ '..(iStartLZ or 'nil')..'; iEndLZ='..(iEndLZ or 'nil')..'; start midpoint='..repru(tStartLZData[subrefMidpoint])..'; End LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint])) end
         tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint], refPathingTypeLand)
+        if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
+            --Doublecheck - if we have same island ref then use a basic value for distance
+            if bOptionalUseDoubleStraightLineDistAsBackup or tStartLZData[subrefLZIslandRef] == tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefLZIslandRef] then
+                tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint]) * 2
+            end
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
