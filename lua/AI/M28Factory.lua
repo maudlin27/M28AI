@@ -2819,7 +2819,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         iDistToEnemyBaseToConsider = math.max(iDistToEnemyBaseToConsider, 250)
 
                     else
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG('About to get iDistToEnemyBaseToConsider for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')) end
                         iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
+                        bDebugMessages = false
                     end
                 else
                     --enemy base is a dif island to ours or for some reason doesnt have a land zone, so want to control all of our island (within reason)
@@ -5199,7 +5202,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                     elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]) * 0.5 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try to build our preferred unti category (gunship or bomber) as have air control and dont have low mass') end
-                        if ConsiderBuildingCategory(M28UnitInfo.iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
+                        if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                     end
                 end
 
@@ -6416,7 +6419,7 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             --Build strat bomber otherwise if have loads of mass
             if (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 600 and (M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.25)) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.97 and aiBrain:GetEconomyStored('MASS') >= 2000) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get strats') end
-                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild
+                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
             end
             --Czar - for some reason it is categorised as a Tech3 unit
