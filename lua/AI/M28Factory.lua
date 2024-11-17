@@ -2807,22 +2807,20 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) == iIsland and (iEnemyLandZone or 0) > 0 then
                     if not (bHaveLowMass) then
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
-                            iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone)
+                            iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone, true)
                             --Campaign specific - if no active upgrades then increase the dist further (as we may be tech capped/unable to build experimentals)
                             if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) and not(M28Conditions.HaveLowPower(iTeam)) then
                                 iDistToEnemyBaseToConsider = math.max(500, iDistToEnemyBaseToConsider)
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': About to get travel distance to use based on dist to enemy base, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')) end
-                            iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
+                            iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone, true) * 0.75
                         end
                         iDistToEnemyBaseToConsider = math.max(iDistToEnemyBaseToConsider, 250)
 
                     else
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG('About to get iDistToEnemyBaseToConsider for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')) end
-                        iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
-                        bDebugMessages = false
+                        iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone, true) * 0.5
                     end
                 else
                     --enemy base is a dif island to ours or for some reason doesnt have a land zone, so want to control all of our island (within reason)
@@ -4501,7 +4499,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --Try and get an upgrade if dont have low mass
             if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap and factory isnt highest tech level so will only build if dont have low mass, bHaveLowMass='..tostring(bHaveLowMass)) end
             if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
-                if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and (not(aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseLand]) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and not(bHaveLowPower))) (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
+                if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and (not(aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseLand]) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and not(bHaveLowPower))) and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 1 or oFactory[refiTotalBuildCount] >= 25) then
                     if ConsiderUpgrading() then return sBPIDToBuild end
                 end
             end

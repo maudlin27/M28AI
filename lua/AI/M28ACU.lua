@@ -3308,10 +3308,13 @@ function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTea
                         local tAltLZTeamData = tAltLZData[M28Map.subrefLZTeamData][iTeam]
                         --Require at least 1 more shield at the target zone than in this zone, otherwise hte first zone to get a shield will have all ACUs going towards it
                         if (tAltLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) >= iMinShieldsWanted and tAltLZTeamData[M28Map.subrefLZbCoreBase] and not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                            iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iZone)
-                            bDebugMessages = true
+                            if tAltLZData[M28Map.subrefLZIslandRef] == tLZOrWZData[M28Map.subrefLZIslandRef] then
+                                iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iZone, true)
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Zone on dif island so significantly increasing the distance') end
+                                iCurDist = 100 + M28Utilities.GetDistanceBetweenPositions(tAltLZData[M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Alternative zone '..iZone..' has shield constructed count '..(tAltLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0)..'; iCurDist='..repru(iCurDist)..'; iMinShieldsWanted='..iMinShieldsWanted..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
-                            bDebugMessages = false
                             if iCurDist < iClosestCoreZoneWithShield then
                                 --Is the target zone not significantly closer to the nearest enemy base?
                                 if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest base from target zone='..M28Utilities.GetDistanceBetweenPositions(tAltLZData[M28Map.subrefMidpoint], tAltLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to enemy base from cur zone='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
