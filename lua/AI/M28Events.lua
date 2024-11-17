@@ -2791,7 +2791,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) or (oUnit.HasEnhancement and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and (oUnit:HasEnhancement('ResourceAllocation') or oUnit:HasEnhancement('ResourceAllocationAdvanced'))) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
-                    elseif M28Utilities.bLoudModActive and oUnit:GetAIBrain().CheatEnabled then
+                    elseif oUnit:GetAIBrain().CheatEnabled and (M28Utilities.bLoudModActive or (not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT)) then
                         ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit)
                     end
 

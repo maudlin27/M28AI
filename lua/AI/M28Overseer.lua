@@ -1250,16 +1250,19 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
 end
 
 function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetBuildAndResourceCheatModifiers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain='..aiBrain.Nickname..'; iBuildModifier='..iBuildModifier..'; iResourceModifier='..iResourceModifier) end
+    --Force build modifier and resource modifier to be numeric
+    iBuildModifier = tonumber(iBuildModifier)
+    iResourceModifier = tonumber(iResourceModifier)
     --Note - see also FixUnitResourceCheatModifiers(oUnit) for a function intended to try and fix SACU FAF issue with AIx
     if not(bDontChangeScenarioInfo) then
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
         ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
     end
-    local FAFBuffs = import('/lua/sim/Buff.lua')
+    --local FAFBuffs = import('/lua/sim/Buff.lua')
     local sCheatBuildRate = 'CheatBuildRate'..aiBrain:GetArmyIndex()
     local sCheatIncome = 'CheatIncome'..aiBrain:GetArmyIndex()
     --local AdjBuffFuncs = import('/lua/sim/adjacencybufffunctions.lua')
@@ -1311,8 +1314,9 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
     Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.EnergyProduction.Mult = iResourceModifier
     Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.MassProduction.Mult = iResourceModifier
     if not(bDontApplyToUnits) then
-        local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit, false, false)
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing units empty='..tostring(M28Utilities.IsTableEmpty(tExistingUnits))) end
+        --Want both resource producing units, and units that can be upgraded
+        local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryProductionUnit, false, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing units empty='..tostring(M28Utilities.IsTableEmpty(tExistingUnits))..'; Brain='..aiBrain.Nickname..'; Buffs[\'CheatBuildRate\'..aiBrain:GetArmyIndex()].Affects.BuildRate.Mult='..(Buffs['CheatBuildRate'..aiBrain:GetArmyIndex()].Affects.BuildRate.Mult or 'nil')..'; Time='..GetGameTimeSeconds()) end
         if M28Utilities.IsTableEmpty(tExistingUnits) == false then
             for iUnit, oUnit in tExistingUnits do
                 M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)

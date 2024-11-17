@@ -159,6 +159,8 @@ refCategoryT2Mex = refCategoryMex * categories.TECH2
 refCategoryT3Mex = refCategoryMex * categories.TECH3
 refCategoryHydro = categories.HYDROCARBON - categories.NAVAL
 refCategoryResourceUnit = categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION --i.e. includes SACU
+refCategoryProductionUnit = categories.ENGINEER + categories.FACTORY + categories.STRUCTURE * (categories.TECH2 + categories.TECH1) + categories.REPAIR + categories.SILO --i.e. includes buildings that can upgrade; done so if fixing a modifier it can affect build rate
+if categories.urb4206 then refCategoryProductionUnit = refCategoryProductionUnit + categories.urb4206 end --ED4 shield
 
 refCategoryPower = categories.STRUCTURE * categories.ENERGYPRODUCTION - categories.EXPERIMENTAL - categories.HYDROCARBON
 refCategoryT1Power = categories.STRUCTURE * categories.ENERGYPRODUCTION * categories.TECH1 - categories.EXPERIMENTAL - categories.HYDROCARBON
@@ -2729,10 +2731,11 @@ function FixUnitResourceCheatModifiers(oUnit)
     if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
         local FAFBuffs = import('/lua/sim/Buff.lua')
         --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
-        local iResourceModifier = (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier) end
+        local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+        local iBuildModifier = (ScenarioInfo.Options.BuildMult or 1.5)
+        local oBP = oUnit:GetBlueprint()
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate) end
         if iResourceModifier > 0 then
-            local oBP = oUnit:GetBlueprint()
             local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
             local iBaseEnergyPerSec = (oBP.Economy.ProductionPerSecondEnergy or 0)
             local iUpgradeMassPerSec = 0
@@ -2753,23 +2756,21 @@ function FixUnitResourceCheatModifiers(oUnit)
             if iUpgradeMassPerSec > 0 or iUpgradeEnergyPerSec > 0 or iBaseMassPerSec > 0 or iBaseEnergyPerSec > 0 then
                 --Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
                 local iIndex = oUnit:GetAIBrain():GetArmyIndex()
-                if not(Buffs['CheatIncome'..iIndex]) or not(Buffs['CheatBuildRate'..iIndex]) then
+                if not(Buffs['CheatIncome'..iIndex]) then
                     local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
-                    M28Overseer.SetBuildAndResourceCheatModifiers(oUnit:GetAIBrain(), (oUnit:GetAIBrain().CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5)), iResourceModifier, true, nil, true, false)
+                    M28Overseer.SetBuildAndResourceCheatModifiers(oUnit:GetAIBrain(), iBuildModifier, iResourceModifier, true, nil, true, false)
                 end
-                Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
-                Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
+                --Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult = iResourceModifier
+                --Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult = iResourceModifier
                 --Check if have a buff
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': unit.Buffs.BuffTable='..reprs(oUnit.Buffs.BuffTable))
+                    LOG(sFunctionRef..': unit.Buffs.BuffTable='..reprs(oUnit.Buffs.BuffTable)..'; Buffs[\'CheatIncome\'..iIndex].Affects.EnergyProduction.Mult='..(Buffs['CheatIncome'..iIndex].Affects.EnergyProduction.Mult or 'nil'))
                 end
                 if M28Utilities.IsTableEmpty(oUnit.Buffs.BuffTable) == false then
                     for sBuffType, tBuffInfo in oUnit.Buffs.BuffTable do
                         for sBuffRef, tBuffValues in tBuffInfo do
-
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering sBuffType='..sBuffType..'; sBuffRef='..sBuffRef..'; tBuffValues='..repru(tBuffValues)) end
-
-                            if sBuffRef == 'CheatIncome' or sBuffRef == 'CheatIncome'..iIndex or sBuffRef == 'CheatBuildRate' or sBuffRef == 'CheatBuildRate'..iIndex then
+                            if sBuffRef == 'CheatIncome' or sBuffRef == 'CheatIncome'..iIndex then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Revoving buff '..sBuffRef) end
                                 FAFBuffs.RemoveBuff(oUnit, sBuffRef, true)
                             end
@@ -2779,7 +2780,6 @@ function FixUnitResourceCheatModifiers(oUnit)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatIncome'..iIndex, true)
                 FAFBuffs.ApplyBuff(oUnit, 'CheatIncome'..iIndex)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate'..iIndex, true)
-                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
                 oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
                 oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
                 --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
@@ -2787,7 +2787,33 @@ function FixUnitResourceCheatModifiers(oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier..'; Brain='..oUnit:GetAIBrain().Nickname..'; Buffs[CheatIncome].Affects.MassProduction.Mult='..(Buffs['CheatIncome'..iIndex].Affects.MassProduction.Mult or 'nil')) end
             end
         end
+        if iBuildModifier > 0 then
+            if oBP.Economy.BuildRate then
+                local iIndex = oUnit:GetAIBrain():GetArmyIndex()
+                if not(Buffs['CheatBuildRate'..iIndex]) then
+                    local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+                    M28Overseer.SetBuildAndResourceCheatModifiers(oUnit:GetAIBrain(), iBuildModifier, iResourceModifier, true, nil, true, false)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': unit.Buffs.BuffTable='..reprs(oUnit.Buffs.BuffTable)..'; Buffs[\'BuildRate\'..iIndex].Affects.BuildRate.Mult='..(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult or 'nil'))
+                    end
+                end
+                if M28Utilities.IsTableEmpty(oUnit.Buffs.BuffTable) == false then
+                    for sBuffType, tBuffInfo in oUnit.Buffs.BuffTable do
+                        for sBuffRef, tBuffValues in tBuffInfo do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sBuffType='..sBuffType..'; sBuffRef='..sBuffRef..'; tBuffValues='..repru(tBuffValues)) end
+                            if sBuffRef == 'CheatBuildRate' or sBuffRef == 'CheatBuildRate'..iIndex then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Revoving buff '..sBuffRef) end
+                                FAFBuffs.RemoveBuff(oUnit, sBuffRef, true)
+                            end
+                        end
+                    end
+                end
+                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
+                if bDebugMessages == true then LOG(sFunctionRef..': Applied build rate buff of '..(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult or 'nil')..' to the unit') end
+            end
+        end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
