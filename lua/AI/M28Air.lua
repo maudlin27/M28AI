@@ -2322,7 +2322,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
             local iClosestAirStagingDist, iCurDist, iClosestAirStagingRef
             local iCurSize
             for iUnit, oAirUnit in tUnitsForRefueling do
-                if M28UnitInfo.IsUnitValid(oAirUnit) then
+                if M28UnitInfo.IsUnitValid(oAirUnit) and not(oAirUnit:IsUnitState('Attached')) then
                     if EntityCategoryContains(categories.CANNOTUSEAIRSTAGING + categories.EXPERIMENTAL, oAirUnit.UnitId) then
                         table.insert(tUnitsUnableToRefuel, oAirUnit)
                     else

@@ -2573,7 +2573,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                             for iShield, oShield in tOriginallyAssignedMobileShields do
 
                                 if not(EntityCategoryContains(categories.COMMAND, oShield[refoMobileShieldTarget].UnitId)) then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), oClosestEnemyToMidpoint:GetPosition())
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), tComparisonPosition)
                                     if iCurDist > iFurthestShieldedDistToEnemy then
                                         iFurthestShieldedDistToEnemy = iCurDist
                                         oFurthestShieldToEnemy = oShield
