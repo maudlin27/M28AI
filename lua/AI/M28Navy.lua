@@ -3304,9 +3304,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         table.insert(tUnitsToSupport, oUnit)
                         --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat (unless are in bombardment mode for atlantis)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and
-                            --No enemy air units so want to submerge (unless are in bombardment mode and either have an atlantis, or any enemy air unit)
-                            ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)) >= 30 or (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))))
-                                or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                --No enemy air units so want to submerge (unless are in bombardment mode and either have an atlantis, or any enemy air unit)
+                                ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and ((GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)) >= 30 or (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))))
+                                        or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
                             M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
                             --Consider kiting logic unless want to use shot blocked override logic
                         elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
@@ -4202,7 +4202,26 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'A'..iWaterZone)
         else
-            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'N'..iWaterZone)
+            --Naval AA - Are we close to an enemy unit, and the rally point we would be using isn't in the opposite direction?
+            local bMovedInOppositeDirectionInstead = false
+            if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+                local iAngleToEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToEnemy) <= 65 then
+                    local tRunFromEnemyPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToEnemy + 180, 15, true, false, M28Map.bIsCampaignMap)
+                    if M28Utilities.IsTableEmpty(tRunFromEnemyPosition) == false then
+                        local iRunSegmentX, iRunSegmentZ = M28Map.GetPathingSegmentFromPosition(tRunFromEnemyPosition)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering running away from nearest enemy, Pond of run position='..( M28Map.tPondBySegment[iRunSegmentX][iRunSegmentZ] or 'nil')..'; iPond='..(iPond)) end
+                        if M28Map.tPondBySegment[iRunSegmentX][iRunSegmentZ] == iPond then
+                            bMovedInOppositeDirectionInstead = true
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'Aw'..iWaterZone)
+                        end
+                    end
+                end
+            end
+            if not(bMovedInOppositeDirectionInstead) then
+                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'N'..iWaterZone)
+            end
         end
     end
 
@@ -4246,7 +4265,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 end
             end
             --                      CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,nil                                        ,nil                                    ,true) then
+            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true) then
                 RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, 'RunDF')
             else
                 --Check not in range of T2 arti
