@@ -2315,7 +2315,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         local iBombardmentBuildingCategory = M28UnitInfo.refCategoryStructure
         local bIgnoreLowThreats = false
         if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 6500 or iOurBestIndirectRange >= 175 then
-            iBombardmentBuildingCategory = iBombardmentBuildingCategory - categories.TECH1 + M28UnitInfo.refCategoryTorpedoLauncher
+            iBombardmentBuildingCategory = iBombardmentBuildingCategory - categories.TECH1 + M28UnitInfo.refCategoryTorpedoLauncher + M28UnitInfo.refCategoryHoverPD
         end
 
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)

@@ -75,7 +75,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'url020823' then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFactory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; is iCategoryCondition nil='..tostring(iCategoryCondition == nil)..'; Time='..GetGameTimeSeconds()) end
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option) - disabled as causing issues with not getting skirmisher type units
     --if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
@@ -5734,7 +5734,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                             end
 
                             --T1 factory - upgrade to t2 navy if enemy has torp launchers, or just abort if we already have an active HQ in this zone and have low mass
-                            if iFactoryTechLevel == 1 and tOtherWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] >= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher, tOtherWZTeamData[M28Map.subrefTEnemyUnits])) == false then
+                            if iFactoryTechLevel == 1 and tOtherWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] >= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher + M28UnitInfo.refCategoryHoverPD, tOtherWZTeamData[M28Map.subrefTEnemyUnits])) == false then
                                 local iActiveFactoryUpgrades = 0
                                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                                     for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do

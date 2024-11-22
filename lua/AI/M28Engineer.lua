@@ -208,7 +208,7 @@ tiActionCategory = {
     [refActionBuildWall] = M28UnitInfo.refCategoryWall,
     [refActionBuildT3MassFab] = M28UnitInfo.refCategoryMassFab * categories.TECH3,
     [refActionBuildT1TorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher * categories.TECH1,
-    [refActionBuildTorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher,
+    [refActionBuildTorpLauncher] = M28UnitInfo.refCategoryTorpedoLauncher + M28UnitInfo.refCategoryHoverPD,
     [refActionManageGameEnderTemplate] = refActionManageGameEnderTemplate, --Special case where if a category is equal to this variable then will apply this logic; done this way so we can convert a 'build experimental' action into this action
     [refActionBuildAirExperimental] = categories.AIR * categories.EXPERIMENTAL - M28UnitInfo.refCategoryTransport,
     [refActionAssistQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
@@ -1151,7 +1151,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iOptionalEngineerAction == refActionBuildTorpLauncher and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 then bDebugMessages = true end
 
     if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 and bBuildCheapestStructure then
         --We might also choose to build t1 pgens if we had no T2+ available (i.e. this t2 engi might have been doing a lower priority task so was unavailable, and has been repurposed to building power), in which case switch
@@ -15932,7 +15932,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                         iBPWanted = math.max(40, math.min(100, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10))
                     end
                     iMinTechWanted = 1
-                    local tExistingTorpLauncher = EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    local tExistingTorpLauncher = EntityCategoryFilterDown(tiActionCategory[refActionBuildTorpLauncher], tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     local iExistingTorpThreat = 0
                     if M28Utilities.IsTableEmpty(tExistingTorpLauncher) == false then
                         iExistingTorpThreat = M28UnitInfo.GetCombatThreatRating(tExistingTorpLauncher, false, false, false, true)
