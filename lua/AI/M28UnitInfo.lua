@@ -1898,6 +1898,8 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
                             oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
                         end
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
