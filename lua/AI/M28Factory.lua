@@ -75,7 +75,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'url020823' then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFactory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; is iCategoryCondition nil='..tostring(iCategoryCondition == nil)..'; Time='..GetGameTimeSeconds()) end
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option) - disabled as causing issues with not getting skirmisher type units
     --if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end

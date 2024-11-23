@@ -1151,7 +1151,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iOptionalEngineerAction == refActionBuildTorpLauncher and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 then bDebugMessages = true end
+
 
     if iOptionalEngineerAction == refActionBuildPower and M28UnitInfo.GetUnitTechLevel(oEngineer) >= 2 and bBuildCheapestStructure then
         --We might also choose to build t1 pgens if we had no T2+ available (i.e. this t2 engi might have been doing a lower priority task so was unavailable, and has been repurposed to building power), in which case switch
@@ -2826,7 +2826,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))..'; (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0)='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiFriendlyGameEnderCount] or 0))
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, nil, nil, false, nil)
                 LOG(sFunctionRef..': Checking if already building exp in other zones, iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental..'; iMassToComplete='..iMassToComplete..'; Team net mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass]..'; Team gross mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; % mass stored='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored])
-                if iOtherLandZonesWithExperimental > 0 then M28Utilities.ErrorHandler('Audit trail', true, true) end
             end
             --Land priority - usually but not always prefer land experimental
             local bPrioritiseLand = false
