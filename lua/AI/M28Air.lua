@@ -4902,7 +4902,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
+    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL + M28UnitInfo.refCategoryAAGunship, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
 
@@ -4955,82 +4955,115 @@ function ManageGunships(iTeam, iAirSubteam)
                     iAngleFromRallyToGunship = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
                     local iRallyPlateauOrZero, iRallyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
                     if iRallyPlateauOrZero and iRallyLandOrWaterZone then
-                        --Is there significant enemy ground to air threat along this path? assume gunships will continue moving towards the end a small bit before the check (to reduce cases where we retreat somewhere more dangerous due to a threat miscalculation/ignore a normal path that would be relatively safe); also because front gunship usually isn't the most accurate choice and want somewwhere closer to the current gunship grouping midpoint
+                        --Is there significant enemy ground to air threat along this path? If so consider via points; assume gunships will continue moving towards the end a small bit before the check (to reduce cases where we retreat somewhere more dangerous due to a threat miscalculation/ignore a normal path that would be relatively safe); also because front gunship usually isn't the most accurate choice and want somewwhere closer to the current gunship grouping midpoint
                         if bDebugMessages == true then LOG(sFunctionRef..': Front gunship position='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; Angle from rally to gunship='..iAngleFromRallyToGunship..'; Rally position='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
                         local tAssumedGunshipPositionShortly = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship + 180, 20, true, false, M28Map.bIsCampaignMap)
-                        if M28Conditions.IsLocationInPlayableArea(tAssumedGunshipPositionShortly) then --E.g. for campaign map gunship might be outside playable area leading to issues
+                        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbIgnoreGunshipViaPoints]) and M28Conditions.IsLocationInPlayableArea(tAssumedGunshipPositionShortly) then --E.g. for campaign map gunship might be outside playable area leading to issues
                             local iEnemyGroundAAAlongPath = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iRallyPlateauOrZero, iRallyLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, (tAssumedGunshipPositionShortly or M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition()))
                             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAAlongPath='..iEnemyGroundAAAlongPath..'; Front gunship position='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; iGunshipPlateauOrZero='..iGunshipPlateauOrZero..'; iGunshipLandOrWaterZone='..iGunshipLandOrWaterZone..'; front gunship last recorded='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) or 'nil')) end
                             if iEnemyGroundAAAlongPath >= math.min(3600, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.2) then
                                 --If we try moving at 90 degrees for a moderate distance both from rally point and front gunship, do we significantly reduce the groundAA?
-                                local tRallyViaPoint1 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleFromRallyToGunship + 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
-                                local iMaxGroundAA
-                                if M28Conditions.IsLocationInPlayableArea(tRallyViaPoint1) then
-                                    local iRally1ViaPlateau, iRally1ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyViaPoint1)
-                                    iMaxGroundAA = iEnemyGroundAAAlongPath * 0.75 --no point taking longer detour if not significantly decreasing AA threat
+                                --If we already have a gunship via point, then use this
+                                if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint]) == false and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint]) == false then
+                                    tViaFromRallyPoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint][3]}
+                                    tViaFromFrontGunshipPoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint][3]}
+                                    --Check if we actually want to use this as a via point, or abort all rally points
+                                    local iMaxGroundAA = iEnemyGroundAAAlongPath * 0.9
+                                    local iRally1ViaPlateau, iRally1ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tViaFromRallyPoint)
                                     local iGroundAAThreatForPoint1 = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLandOrWaterZone, iRally1ViaPlateau, iRally1ViaZone, true, 0, nil, false, iAirSubteam, true, true)
-                                    local tGunshipViaPoint1
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 just for rally to rally via='..iGroundAAThreatForPoint1..'; tRallyViaPoint1='..repru(tRallyViaPoint1)) end
                                     if iGroundAAThreatForPoint1 < iMaxGroundAA then
-                                        tGunshipViaPoint1 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship - 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
-                                        local iGunshipViaPlateau, iGunshipViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tGunshipViaPoint1)
+                                        local iGunshipViaPlateau, iGunshipViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tViaFromFrontGunshipPoint)
                                         iGroundAAThreatForPoint1 = iGroundAAThreatForPoint1 + DoesEnemyHaveAAThreatAlongPath(iTeam, iRally1ViaPlateau, iRally1ViaZone, iGunshipViaPlateau, iGunshipViaZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 with rally via to gunship via added='..iGroundAAThreatForPoint1..'; tGunshipViaPoint1='..repru(tGunshipViaPoint1)) end
-                                        if iGroundAAThreatForPoint1 < iMaxGroundAA then
-                                            iGroundAAThreatForPoint1 = iGroundAAThreatForPoint1 + DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipViaPlateau, iGunshipViaZone, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 with remaining via added='..iGroundAAThreatForPoint1) end
-                                        end
                                     end
-
-                                    local tRallyViaPoint2 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleFromRallyToGunship - 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
-                                    if M28Conditions.IsLocationInPlayableArea(tRallyViaPoint2) then
-                                        local iRally2ViaPlateau, iRally2ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyViaPoint2)
-                                        local iGroundAAThreatForPoint2 = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLandOrWaterZone, iRally2ViaPlateau, iRally2ViaZone, true, 0, nil, false, iAirSubteam, true, true)
-                                        local tGunshipViaPoint2
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 just for rally to rally via='..iGroundAAThreatForPoint2..'; tRallyViaPoint2='..repru(tRallyViaPoint2)) end
-                                        if iGroundAAThreatForPoint2 < iMaxGroundAA then
-                                            --MoveInDirection(tStart,                                                                   iAngle,                         iDistance,  bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
-                                            tGunshipViaPoint2 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship + 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
-                                            local iGunshipViaPlateau, iGunshipViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tGunshipViaPoint2)
-                                            iGroundAAThreatForPoint2 = iGroundAAThreatForPoint2 + DoesEnemyHaveAAThreatAlongPath(iTeam, iRally2ViaPlateau, iRally2ViaZone, iGunshipViaPlateau, iGunshipViaZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 with via to via='..iGroundAAThreatForPoint2..'; tGunshipViaPoint2='..repru(tGunshipViaPoint2)) end
-                                            if iGroundAAThreatForPoint2 < iMaxGroundAA then
-                                                iGroundAAThreatForPoint2 = iGroundAAThreatForPoint2 + DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipViaPlateau, iGunshipViaZone, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 with remainder='..iGroundAAThreatForPoint2) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering previously recorded via point, iGroundAAThreatForPoint1='..iGroundAAThreatForPoint1..'; iMaxGroundAA='..iMaxGroundAA) end
+                                    if iGroundAAThreatForPoint1 >= iMaxGroundAA then
+                                        --Abort rally point
+                                        tViaFromRallyPoint = nil
+                                        tViaFromFrontGunshipPoint = nil
+                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbIgnoreGunshipViaPoints] = true
+                                        M28Utilities.DelayChangeVariable(M28Team.tAirSubteamData[iAirSubteam], M28Team.refbIgnoreGunshipViaPoints, false, 60)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will no longer consider gunship via points') end
+                                    end
+                                else
+                                    local tRallyViaPoint1 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleFromRallyToGunship + 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
+                                    local iMaxGroundAA
+                                    if M28Conditions.IsLocationInPlayableArea(tRallyViaPoint1) then
+                                        local iRally1ViaPlateau, iRally1ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyViaPoint1)
+                                        iMaxGroundAA = iEnemyGroundAAAlongPath * 0.75 --no point taking longer detour if not significantly decreasing AA threat
+                                        local iGroundAAThreatForPoint1 = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLandOrWaterZone, iRally1ViaPlateau, iRally1ViaZone, true, 0, nil, false, iAirSubteam, true, true)
+                                        local tGunshipViaPoint1
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 just for rally to rally via='..iGroundAAThreatForPoint1..'; tRallyViaPoint1='..repru(tRallyViaPoint1)) end
+                                        if iGroundAAThreatForPoint1 < iMaxGroundAA then
+                                            tGunshipViaPoint1 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship - 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
+                                            local iGunshipViaPlateau, iGunshipViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tGunshipViaPoint1)
+                                            iGroundAAThreatForPoint1 = iGroundAAThreatForPoint1 + DoesEnemyHaveAAThreatAlongPath(iTeam, iRally1ViaPlateau, iRally1ViaZone, iGunshipViaPlateau, iGunshipViaZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 with rally via to gunship via added='..iGroundAAThreatForPoint1..'; tGunshipViaPoint1='..repru(tGunshipViaPoint1)) end
+                                            if iGroundAAThreatForPoint1 < iMaxGroundAA then
+                                                iGroundAAThreatForPoint1 = iGroundAAThreatForPoint1 + DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipViaPlateau, iGunshipViaZone, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint1 with remaining via added='..iGroundAAThreatForPoint1) end
                                             end
                                         end
-                                        if iGroundAAThreatForPoint1 < iMaxGroundAA then
-                                            if iGroundAAThreatForPoint2 < iGroundAAThreatForPoint1 then
+
+                                        local tRallyViaPoint2 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleFromRallyToGunship - 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
+                                        if M28Conditions.IsLocationInPlayableArea(tRallyViaPoint2) then
+                                            local iRally2ViaPlateau, iRally2ViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyViaPoint2)
+                                            local iGroundAAThreatForPoint2
+                                            local tGunshipViaPoint2
+                                            if iRally2ViaPlateau and iRally2ViaZone then
+                                                iGroundAAThreatForPoint2 = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLandOrWaterZone, iRally2ViaPlateau, iRally2ViaZone, true, 0, nil, false, iAirSubteam, true, true)
+                                            else
+                                                iGroundAAThreatForPoint2 = 100000000
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 just for rally to rally via='..iGroundAAThreatForPoint2..'; tRallyViaPoint2='..repru(tRallyViaPoint2)..'; iRally2ViaZone='..(iRally2ViaZone or 'nil')) end
+                                            if iGroundAAThreatForPoint2 < iMaxGroundAA then
+                                                --MoveInDirection(tStart,                                                                   iAngle,                         iDistance,  bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
+                                                tGunshipViaPoint2 = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), iAngleFromRallyToGunship + 90, iDistToMoveToAltPoint, true, false, M28Map.bIsCampaignMap)
+                                                local iGunshipViaPlateau, iGunshipViaZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tGunshipViaPoint2)
+                                                if iGunshipViaPlateau and iGunshipViaZone then
+                                                    iGroundAAThreatForPoint2 = iGroundAAThreatForPoint2 + DoesEnemyHaveAAThreatAlongPath(iTeam, iRally2ViaPlateau, iRally2ViaZone, iGunshipViaPlateau, iGunshipViaZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 with via to via='..iGroundAAThreatForPoint2..'; tGunshipViaPoint2='..repru(tGunshipViaPoint2)) end
+                                                    if iGroundAAThreatForPoint2 < iMaxGroundAA then
+                                                        iGroundAAThreatForPoint2 = iGroundAAThreatForPoint2 + DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipViaPlateau, iGunshipViaZone, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, true, 0, nil, false, iAirSubteam, true, true, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatForPoint2 with remainder='..iGroundAAThreatForPoint2) end
+                                                    end
+                                                else
+                                                    iGroundAAThreatForPoint2 = 100000000
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Couldnt get plateau or zero close to gunship via point 2, so will abort considering point 2') end
+                                                end
+                                            end
+                                            if iGroundAAThreatForPoint1 < iMaxGroundAA then
+                                                if iGroundAAThreatForPoint2 < iGroundAAThreatForPoint1 then
+                                                    --use point 2
+                                                    tViaFromRallyPoint = {tRallyViaPoint2[1], tRallyViaPoint2[2], tRallyViaPoint2[3]}
+                                                    tViaFromFrontGunshipPoint = {tGunshipViaPoint2[2], tGunshipViaPoint2[2], tGunshipViaPoint2[3]}
+                                                else
+                                                    --Use point 1
+                                                    tViaFromRallyPoint = {tRallyViaPoint1[1], tRallyViaPoint1[2], tRallyViaPoint1[3]}
+                                                    tViaFromFrontGunshipPoint = {tGunshipViaPoint1[2], tGunshipViaPoint1[2], tGunshipViaPoint1[3]}
+                                                end
+                                            elseif iGroundAAThreatForPoint2 < iMaxGroundAA then
                                                 --use point 2
                                                 tViaFromRallyPoint = {tRallyViaPoint2[1], tRallyViaPoint2[2], tRallyViaPoint2[3]}
                                                 tViaFromFrontGunshipPoint = {tGunshipViaPoint2[2], tGunshipViaPoint2[2], tGunshipViaPoint2[3]}
-                                            else
-                                                --Use point 1
-                                                tViaFromRallyPoint = {tRallyViaPoint1[1], tRallyViaPoint1[2], tRallyViaPoint1[3]}
-                                                tViaFromFrontGunshipPoint = {tGunshipViaPoint1[2], tGunshipViaPoint1[2], tGunshipViaPoint1[3]}
                                             end
-                                        elseif iGroundAAThreatForPoint2 < iMaxGroundAA then
-                                            --use point 2
-                                            tViaFromRallyPoint = {tRallyViaPoint2[1], tRallyViaPoint2[2], tRallyViaPoint2[3]}
-                                            tViaFromFrontGunshipPoint = {tGunshipViaPoint2[2], tGunshipViaPoint2[2], tGunshipViaPoint2[3]}
                                         end
                                     end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint='..repru(tViaFromFrontGunshipPoint)..'; iMaxGroundAA='..(iMaxGroundAA or 'nil')) end
-                                --move from gunship via to the rally via
-                                if tViaFromFrontGunshipPoint then
-                                    tViaFromFrontGunshipPoint = M28Utilities.MoveInDirection(tViaFromFrontGunshipPoint, iAngleFromRallyToGunship + 180, iDistToMoveToAltPoint, true)
-                                    --If this is close to the gunship front position then make the gunship via point the rally via point
-                                    if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint after moving towards rally some more='..repru(tViaFromFrontGunshipPoint)..'; iAngleFromRallyToGunship='..iAngleFromRallyToGunship..'; Is tViaFromFrontGunshipPoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint))..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from front gunship to front gunship via point='..M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; If distance is too close then will replace gunship via point with rally via point')
-                                        LOG(sFunctionRef..': Normal rally point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; will draw normal rally point in blue')
-                                        M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
-                                        LOG(sFunctionRef..': Will draw tViaFromFrontGunshipPoint in red, and tViaFromRallyPoint in gold')
-                                        M28Utilities.DrawLocation(tViaFromFrontGunshipPoint, 2)
-                                        M28Utilities.DrawLocation(tViaFromRallyPoint, 4)
-                                    end
-                                    if M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition()) <= math.max(30, math.min(iCloseToFrontThreshold, iDistToMoveToAltPoint - 5)) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Front gunship via point is too close so will use rally via point instead') end
-                                        tViaFromFrontGunshipPoint = tViaFromRallyPoint
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint='..repru(tViaFromFrontGunshipPoint)..'; iMaxGroundAA='..(iMaxGroundAA or 'nil')) end
+                                    --move from gunship via to the rally via
+                                    if tViaFromFrontGunshipPoint then
+                                        tViaFromFrontGunshipPoint = M28Utilities.MoveInDirection(tViaFromFrontGunshipPoint, iAngleFromRallyToGunship + 180, iDistToMoveToAltPoint, true)
+                                        --If this is close to the gunship front position then make the gunship via point the rally via point
+                                        if bDebugMessages == true then LOG(sFunctionRef..': tViaFromFrontGunshipPoint after moving towards rally some more='..repru(tViaFromFrontGunshipPoint)..'; iAngleFromRallyToGunship='..iAngleFromRallyToGunship..'; Is tViaFromFrontGunshipPoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint))..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from front gunship to front gunship via point='..M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())..'; If distance is too close then will replace gunship via point with rally via point')
+                                            LOG(sFunctionRef..': Normal rally point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; will draw normal rally point in blue')
+                                            M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                                            LOG(sFunctionRef..': Will draw tViaFromFrontGunshipPoint in red, and tViaFromRallyPoint in gold')
+                                            M28Utilities.DrawLocation(tViaFromFrontGunshipPoint, 2)
+                                            M28Utilities.DrawLocation(tViaFromRallyPoint, 4)
+                                        end
+                                        if M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition()) <= math.max(30, math.min(iCloseToFrontThreshold, iDistToMoveToAltPoint - 5)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Front gunship via point is too close so will use rally via point instead') end
+                                            tViaFromFrontGunshipPoint = tViaFromRallyPoint
+                                        end
                                     end
                                 end
                             end
@@ -5377,7 +5410,7 @@ function ManageGunships(iTeam, iAirSubteam)
         --Snipe target
         local bUsingSnipePriority = false
         local iClosestSnipeTarget = 100000
-        if not(bRetreatFromAhwassa) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+        if not(bRetreatFromAhwassa) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iOurGunshipThreat > 0 then
             local iAvailableGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true)
             if not(tNewlyAddedEnemies) then tNewlyAddedEnemies = {} end
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
@@ -5757,9 +5790,9 @@ function ManageGunships(iTeam, iAirSubteam)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
                                                 elseif M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
-                                                        --iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1 --Prev used for LCE
+                                                    --iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1 --Prev used for LCE
 
-                                                        iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
+                                                    iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
                                                 end
                                             else
                                                 if tSubtable[M28Map.subrefiDistance] <= 200 then
@@ -5876,6 +5909,8 @@ function ManageGunships(iTeam, iAirSubteam)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering gunships targets for all land and water zones, will send any remaining gunships to refuel or go to rally (or support point if we have air control). M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
                 if M28Utilities.IsTableEmpty(tAvailableGunships) == false then --redundancy
                     if tViaFromRallyPoint and M28Conditions.IsLocationInPlayableArea(tViaFromRallyPoint) and tViaFromFrontGunshipPoint and M28Conditions.IsLocationInPlayableArea(tViaFromFrontGunshipPoint) then
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint] = {tViaFromFrontGunshipPoint[1], tViaFromFrontGunshipPoint[2], tViaFromFrontGunshipPoint[3]}
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint] = {tViaFromRallyPoint[1], tViaFromRallyPoint[2], tViaFromRallyPoint[3]}
                         --Risk flying over lots of AA if we go directly to the rally point
 
                         if bDebugMessages == true then
@@ -5890,12 +5925,21 @@ function ManageGunships(iTeam, iAirSubteam)
                             end
                         end
                         if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false then
+                            local iCurAngleToVia, iCurAngleToRally
                             for iUnit, oUnit in tGunshipsNotNearFront do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Sending gunship that is not near front, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from gunship to via='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint)) end
-                                M28Orders.IssueTrackedMove(oUnit, tViaFromRallyPoint, 10, false, 'GSViaR', false)
+                                iCurAngleToVia = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)
+                                iCurAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                                if bDebugMessages == true then LOG(sFunctionRef..': Sending gunship that is not near front, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from gunship to via='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to via point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to rally point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
+                                if M28Utilities.GetAngleDifference(iCurAngleToVia, iCurAngleToRally) >= 150 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint) > 1.2 * M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) then
+                                    M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'GSViaXR', false)
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tViaFromRallyPoint, 10, false, 'GSViaR', false)
+                                end
                             end
                         end
                     else
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint] = nil
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint] = nil
                         local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                         --DOnt wnat to move to support point, as support point is based in part on front gunship, so end up with a circular logic
                         if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
@@ -6058,6 +6102,8 @@ function ManageGunships(iTeam, iAirSubteam)
         end
     else
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint] = nil
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaRallyPoint] = nil
     end
 
     --Clear assignment flags for any refueling gunships

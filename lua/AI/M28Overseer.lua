@@ -1250,7 +1250,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
 end
 
 function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetBuildAndResourceCheatModifiers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain='..aiBrain.Nickname..'; iBuildModifier='..iBuildModifier..'; iResourceModifier='..iResourceModifier) end

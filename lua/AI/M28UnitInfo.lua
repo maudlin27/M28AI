@@ -135,9 +135,10 @@ refbAttackMoveInsteadOfKiting = 'M28UAMinK' --true if we want to attackmove inst
 refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityGunshipShield = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'STRUCTURE SHIELD', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'COMMAND', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityGunshipSnipe = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL, COMMAND', 'STRUCTURE SHIELD', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
-refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
+refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SHIELD MOBILE', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityBattleShip = {'EXPERIMENTAL NAVAL, TECH3 NAVAL', 'TECH2 NAVAL', 'STRUCTURE SHIELD', 'STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
+refWeaponPrioritySub = {'SHIELD NAVAL', 'SHIELD MOBILE', 'SUBMERSIBLE', 'ANTINAVY SUBMERSIBLE MOBILE', 'ANTINAVY', 'ALLUNITS'}
 refWeaponPriorityTeleSnipeInclACU = {'COMMAND', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
 refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'COMMAND', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
 refWeaponPriorityT2Arti = {'ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'CRUISER, ANTISHIELD', 'INDIRECTFIRE', 'SHIELD', 'VOLATILE', 'TECH3 STRUCTURE', 'TECH3 MOBILE', 'ALLUNITS'}
@@ -317,6 +318,7 @@ refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - cat
 refCategoryBomber = categories.AIR * categories.BOMBER - refCategoryAntiNavy - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL
 refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
+refCategoryAAGunship = categories.ANTIAIR * categories.MOBILE * categories.AIR - refCategoryAirAA - categories.HIGHALTAIR - categories.BOMBER --to support blackops experimental air fortress (slow moving air experimental unit)
 refCategoryGunship = categories.AIR * categories.GROUNDATTACK + categories.TARGETCHASER - refCategoryCzar --Targetchaser only used by czar, but some unit mods have it for units that dont have groundattack catgory (e.g. extreme wars)
 refCategoryTorpBomber = categories.AIR * categories.BOMBER * refCategoryAntiNavy + (categories.AIR * refCategoryAntiNavy - categories.EXPERIMENTAL)
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
@@ -330,6 +332,7 @@ refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCza
 --Naval units
 refCategoryFrigate = categories.NAVAL * categories.FRIGATE - categories.ENGINEER --LOUD mod has an engineering ship which is treated as a frigate
 refCategoryTorpedoLauncher = refCategoryAntiNavy * categories.STRUCTURE
+refCategoryHoverPD = refCategoryPD * categories.HOVER --to support LOUD which allows T2+ PD to be built on water or land
 refCategoryNavalSurface = categories.NAVAL + refCategoryTorpedoLauncher - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
 refCategoryMobileNavalSurface = refCategoryNavalSurface * categories.MOBILE
 refCategoryAllNavy = categories.NAVAL + refCategoryTorpedoLauncher - categories.UNSELECTABLE - categories.UNTARGETABLE
@@ -344,7 +347,7 @@ refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.N
 refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
 refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + refCategoryStealthBoat --Intended for units we dont want on frontline unless in bombardment mode
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
-refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
+--refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
 refCategoryTorpedoLandAndNavy = refCategoryAntiNavy * categories.LAND + refCategoryAntiNavy * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + refCategoryAntiNavy * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
 refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLESHIP * categories.INDIRECTFIRE - categories.BATTLESHIP * categories.SERAPHIM + categories.SERAPHIM * categories.CRUISER * categories.INDIRECTFIRE + categories.SERAPHIM * categories.CARRIER * categories.OVERLAYINDIRECTFIRE * categories.TECH3  --i.e. UEF+Sera cruisers, and nukesubs
@@ -1410,10 +1413,23 @@ function CalculateBlueprintThreatsByType()
                     local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     local tUnitRef = {['UnitId']=sUnitId}
                     RecordUnitRange(tUnitRef, true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..sUnitId..' with DF range='..(tUnitRef[refiDFRange] or 0)..'; iCurTechLevel='..iCurTechLevel) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording unit '..sUnitId..' with DF range='..(tUnitRef[refiDFRange] or 0)..'; iCurTechLevel='..iCurTechLevel..'; is oBP.Physics.BuildOnLayerCaps nil='..tostring(oBP.Physics.BuildOnLayerCaps == nil)) end
                     if (tUnitRef[refiDFRange] or 0) > 0 then
                         M28Building.tiWorstPDRangeByTech[iCurTechLevel] = math.min((M28Building.tiWorstPDRangeByTech[iCurTechLevel] or 200), tUnitRef[refiDFRange])
                         if bDebugMessages == true then LOG(sFunctionRef..': tiWorstPDRangeByTech after update='..repru(M28Building.tiWorstPDRangeByTech)) end
+                    end
+                    --If is amphibious then record accordingly (e.g. for LOUD) - FAF doesnt have BuildOnLayerCaps recorded
+                    if oBP.Physics.BuildOnLayerCaps then
+                        if bDebugMessages == true then LOG(sFunctionRef..': oBP.Physics.BuildOnLayerCaps[LAYER_Land]='..tostring(oBP.Physics.BuildOnLayerCaps['LAYER_Land'] or false)..'; LAYER_water='..tostring(oBP.Physics.BuildOnLayerCaps['LAYER_Water'] or false)..'; repru of oBP.Physics.BuildOnLayerCaps='..repru(oBP.Physics.BuildOnLayerCaps)..'; oBP.General.Icon='..(oBP.General.Icon or 'nil')) end
+                        if oBP.Physics.BuildOnLayerCaps['LAYER_Water'] or (oBP.General.Icon == 'amph' and M28Utilities.bLoudModActive) then
+                            if refCategoryHoverPD == refCategoryPD * categories.HOVER then refCategoryHoverPD = categories[sUnitId]
+                            else refCategoryHoverPD = refCategoryHoverPD + categories[sUnitId]
+                            end
+                            refCategoryAllAmphibiousAndNavy = refCategoryAllAmphibiousAndNavy + categories[sUnitId]
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Recorded that PD unit '..sUnitId..' can be built on both land and water, list of blueprints that meet the engineer build torp luancher cat='..repru(EntityCategoryGetUnitList(import('/mods/M28AI/lua/AI/M28Engineer.lua').tiActionCategory[import('/mods/M28AI/lua/AI/M28Engineer.lua').refActionBuildTorpLauncher]))..'; List of unit blueprints in refCategoryHoverPD='..repru(EntityCategoryGetUnitList(refCategoryHoverPD)))
+                            end
+                        end
                     end
                 end
 
@@ -1431,6 +1447,10 @@ function CalculateBlueprintThreatsByType()
                 end
             end
         end
+
+        --Update engineer categories
+        local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+        M28Engineer.tiActionCategory[M28Engineer.refActionBuildTorpLauncher] = refCategoryTorpedoLauncher + refCategoryHoverPD
 
         --Special eco checks - e.g. for mods that adjust resource mod of all units - will use UEF t3 mass fab as a rough proxy for this, if they both have the same ratio then will use this
         local oBP = __blueprints['ueb1303']
@@ -1880,6 +1900,8 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             if not(oUnit[refiTimeBetweenAirAAShots]) then oUnit[refiTimeBetweenAirAAShots] = 1000000 end
                             oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
                         end
+                    elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water' then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
@@ -2204,7 +2226,13 @@ end
 
 function ForkedPauseUnit(oUnit, bPauseNotUnpause)
     --Even adding a not(oUnit.Dead) check can still have an error in LOUD; however forked thread so shoudlnt matter
-    oUnit:SetPaused(bPauseNotUnpause)
+    --Other things tried is checking unit fraction is complete, and not trying to pause if :IsPaused is already true, but this didnt work in LOUD - i.e. would have an error when trying to pause an already paused factory
+
+    --if not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 then
+        --if not(oUnit.IsPaused and bPauseNotUnpause and oUnit:IsPaused()) then
+            oUnit:SetPaused(bPauseNotUnpause)
+        --end
+    --end
 end
 
 function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPausePriority)
