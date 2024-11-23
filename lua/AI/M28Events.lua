@@ -3092,6 +3092,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAlliedQuantumOptics], oUnit)
                                 ForkThread(M28Building.QuantumOpticsManager, aiBrain, oUnit)
                             end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
+                            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPrioritySub, false) --Dont want to check if can attack ground
                         end
 
 

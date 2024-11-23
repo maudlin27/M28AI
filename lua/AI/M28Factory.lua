@@ -5126,7 +5126,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         local tOurSubs = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySubmarine, false, true)
                         if M28Utilities.IsTableEmpty(tOurSubs) == false then
                             local iOurSubThreat = M28UnitInfo.GetMassCostOfUnits(tOurSubs)
-                            local iFactor = math.min(1, 0.25 + 0.25 * math.max(1, table.getn(M28Team.tAirSubbteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains])))
+                            local iFactor = math.min(1, 0.25 + 0.25 * math.max(1, table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains])))
                             if bDebugMessages == true then LOG(sFunctionRef..': iOurSubThreat='..iOurSubThreat..'; iFactor='..iFactor..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
                             if iOurSubThreat * iFactor > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
                                 if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
@@ -5734,7 +5734,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                             end
 
                             --T1 factory - upgrade to t2 navy if enemy has torp launchers, or just abort if we already have an active HQ in this zone and have low mass
-                            if iFactoryTechLevel == 1 and tOtherWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] >= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher, tOtherWZTeamData[M28Map.subrefTEnemyUnits])) == false then
+                            if iFactoryTechLevel == 1 and tOtherWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] >= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher + M28UnitInfo.refCategoryHoverPD, tOtherWZTeamData[M28Map.subrefTEnemyUnits])) == false then
                                 local iActiveFactoryUpgrades = 0
                                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                                     for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do

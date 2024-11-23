@@ -7,6 +7,7 @@ UnitBlueprint {
     Categories = { 'INVULNERABLE', 'UNTARGETABLE', 'NAVAL', 'NAVALCARRIER', 'EXTERNALFACTORY', 'STEALTHFIELD', 'STEALTH'},
        Defense = { Health = 0, MaxHealth = 0 },
        Display = { Mesh = { LODs = { { LODCutoff = 1, ShaderName = 'Unit'} } }, HideLifebars = true },
+       Economy = { BuildRate = 1},
      Footprint = {
                          SizeX = 22,
                          SizeZ = 22,

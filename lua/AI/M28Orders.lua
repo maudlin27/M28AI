@@ -892,7 +892,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if have existing platoon for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingPlatoon is nil?='..tostring(oExistingPlatoon == nil)..'; Is getplan nil='..tostring(oExistingPlatoon.GetPlan == nil)) end
                     if oExistingPlatoon then
                         local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
-                        M28Overseer.RemoveUnitsFromPlatoon(oExistingPlatoon, { oUnit }, false, nil)
+                        ForkThread(M28Overseer.RemoveUnitsFromPlatoon, oExistingPlatoon, { oUnit }, false, nil)
                         if bDebugMessages == true then LOG(sFunctionRef..': Tried to remove unit from existing platoon') end
                     end
                 end
