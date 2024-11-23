@@ -5126,7 +5126,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         local tOurSubs = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySubmarine, false, true)
                         if M28Utilities.IsTableEmpty(tOurSubs) == false then
                             local iOurSubThreat = M28UnitInfo.GetMassCostOfUnits(tOurSubs)
-                            local iFactor = math.min(1, 0.25 + 0.25 * math.max(1, table.getn(M28Team.tAirSubbteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains])))
+                            local iFactor = math.min(1, 0.25 + 0.25 * math.max(1, table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains])))
                             if bDebugMessages == true then LOG(sFunctionRef..': iOurSubThreat='..iOurSubThreat..'; iFactor='..iFactor..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
                             if iOurSubThreat * iFactor > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
                                 if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
