@@ -51,11 +51,25 @@ function ConsiderIfLoudActive()
                 return true
             end
         end
+        local NavUtilsCheck
+        local bAddNonFafFunctions = false
         if file_exists('/lua/sim/navutils.lua') then
-            bFAFActive = true
-            bLoudModActive = false --redundancy
-            bSteamActive = false --redundancy
+            NavUtilsCheck = import('/lua/sim/navutils.lua')
+            if NavUtilsCheck and rawget(NavUtilsCheck, 'DetailedPathTo') then
+                bFAFActive = true
+                bLoudModActive = false --redundancy
+                bSteamActive = false --redundancy
+            else
+                --Mod that has some FAF characteristics - want to apply FAF balance, but also add non-faf functions
+                bAddNonFafFunctions = true
+                bFAFActive = true
+                bLoudModActive = false --redundancy
+                bSteamActive = false --redundancy
+            end
         else
+            bAddNonFafFunctions = true
+        end
+        if bAddNonFafFunctions then
             --Either steam or LOUD is active
             if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
                 bLoudModActive = true
@@ -81,9 +95,13 @@ function ConsiderIfLoudActive()
                 end
                 LOG('M28AI: Flagging that LOUD mod is active, does LCE file exist='..tostring(file_exists('/mods/LOUD-Community-Edition/mod_info.lua'))..'; bLCEActive='..tostring(bLCEActive))
             else
-                --Assume steam version
-                bSteamActive = true
-                LOG('M28AI: Flagging that STEAM version of the game is being used')
+                if not(NavUtilsCheck) then
+                    --Assume steam version
+                    bSteamActive = true
+                    LOG('M28AI: Flagging that STEAM version of the game is being used')
+                else
+                    LOG('M28AI: Have a FAF-like mod active')
+                end
             end
             --Add in functionality from FAF:
             --Run 1-off setup
@@ -190,9 +208,17 @@ local file_exists = function(name)
 end
 
 NavUtils = false
-if file_exists('/lua/sim/navutils.lua') then NavUtils = import('/lua/sim/navutils.lua')
-else NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
+if file_exists('/lua/sim/navutils.lua') then
+    NavUtils = import('/lua/sim/navutils.lua')
+    if NavUtils and rawget(NavUtils, 'DetailedPathTo') then
+        --FAF appears to be active
+    else
+        NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
+    end
+else
+    NavUtils = import('/mods/M28AI/lua/AI/LOUD/M28NavUtils.lua')
 end
+
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 --local NavUtils = import("/lua/sim/navutils.lua")
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
