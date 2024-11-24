@@ -1547,7 +1547,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Are recording an underconstruction SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Fraction complete='..oUnit:GetFractionComplete()..'; Time='..GetGameTimeSeconds()) end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Just registered oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for team '..iTeam..' at time='..GetGameTimeSeconds()..'; SMD fraction complete='..oUnit:GetFractionComplete()..'; oUnit[M28UnitInfo.refiTimeOfLastCheck]='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
-                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) or oUnit.UnitId == 'uese0001' then
                         --Unpause any paused SMD
                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                             local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
@@ -2070,6 +2070,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                     --Air units - always assign to air groups, and also to land zones if in one
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a non-engineer air unit, will record as new air unit if not already considered, bPreviouslyConsidered='..tostring(bPreviouslyConsidered)) end
                         if not(bPreviouslyConsidered) then
                             M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
                         end
@@ -2098,6 +2099,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         end
                     else
                         if oUnit:IsUnitState('Attached') then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit state is attached so will try reassigning in a bit') end
                             --Try reassigning in a bit
                             ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
                         else
@@ -2228,6 +2230,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                                 else
                                     --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No valid plateau for unit') end
                                     ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
                                 end
                             end

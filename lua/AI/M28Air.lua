@@ -83,23 +83,33 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
             sTeamTableRef = M28Team.reftoEnemyAirAA
         elseif EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) then
             sTeamTableRef = M28Team.reftoEnemyTorpBombers
+        elseif oUnit.UnitId == 'uese0001' then
+            --Special unit that is a bit like a novax satellite, except it can be targeted by SMD
+            if not(M28Utilities.DoesCategoryContainCategory(categories.uese0001, M28Team.tEnemyBigThreatCategories[M28Team.reftEnemyNukeLaunchers], false)) then
+                M28Team.tEnemyBigThreatCategories[M28Team.reftEnemyNukeLaunchers] = M28Team.tEnemyBigThreatCategories[M28Team.reftEnemyNukeLaunchers] + categories.uese0001
+            end
+            M28Team.AddUnitToBigThreatTable(iTeam, oUnit)
+            --Also track as mobile TML
+            M28Team.RecordMobileTMLThreatForAllEnemyTeams(oUnit)
         else
             sTeamTableRef = M28Team.reftoEnemyAirOther
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to insert unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; into table sTeamTableRef='..sTeamTableRef) end
-        table.insert(M28Team.tTeamData[iTeam][sTeamTableRef], oUnit)
-        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], oUnit)
+        if sTeamTableRef then
+            if bDebugMessages == true then LOG(sFunctionRef..': About to insert unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; into table sTeamTableRef='..sTeamTableRef) end
+            table.insert(M28Team.tTeamData[iTeam][sTeamTableRef], oUnit)
+            table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], oUnit)
 
-        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-        if aiBrain then
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if aiBrain then
 
-            if iPlateauOrZero == 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to water zone, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
-                M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, true)
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to land zone, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')) end
-                M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, true)
+                if iPlateauOrZero == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to water zone, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
+                    M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, true)
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to land zone, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')) end
+                    M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, true)
+                end
             end
         end
         --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false, nil)
@@ -140,6 +150,9 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
                     M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, false)
                 end
             end
+        end
+        if oUnit.UnitId == 'uese0001' then
+            ForkThread(ManageSpaceship, iTeam, oUnit)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -9311,6 +9324,131 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function GiveOrderToSpaceship(iTeam, oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GiveOrderToSpaceship'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local aiBrain = oUnit:GetAIBrain()
+        --Retreat if have shield and low shield
+        local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+        local iCheckForSMDBuildDelay = 120 --Normally will try and kill newly constructed SMD if not low health
+        local iSMDRangeMod = 10
+        local bRunIfNoTarget = false
+        if iMaxShield > 0 and iCurShield / iMaxShield < 0.5 then
+            --Retreat if nearby SMD
+            bRunIfNoTarget = true
+            iCheckForSMDBuildDelay = 60
+            iSMDRangeMod = 30
+            if iCurShield / iMaxShield < 0.1 or M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
+                iCheckForSMDBuildDelay = 0
+                iSMDRangeMod = 50
+            end
+        end
+
+        --First get current location - if not valid, then continue with last order (unless we are almost at destination, in which case switch toa ttack-move, and then if very close return to base)
+        local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+        local bConsiderBackupOrder = false
+        --If this is a valid plateau+LZ then look for a target:
+        if not(tStartLZOrWZTeamData) then
+            bConsiderBackupOrder = true
+        else
+            --Find nearest significant enemy building that isnt underwater and attack it:
+            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target') end
+                local tGroundTarget
+                local iHighestStructureZoneMass = 0
+                local iCurDamage, tCurTarget, oBestTarget
+                local iBestDamage = 0
+                local iAOE, iDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oUnit)
+                local bNoSMDToAvoid = true
+                for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                    local tOtherZoneLZOrWZData
+                    local tOtherZoneLZOrWZTeamData
+                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                        tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                        tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    else
+                        tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                        tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    end
+
+                    if (tOtherZoneLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > iHighestStructureZoneMass then
+                        --Check for a high mass building to target that isnt underwater (if dealing with water zone)
+                        if M28Utilities.IsTableEmpty(tOtherZoneLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            local tEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tOtherZoneLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemyBuildings) == false then
+                                --Is there SMD covering hte midpoint of this zone?
+                                bNoSMDToAvoid = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if there is SMD that would prevent us targeting target zone PlatOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Zone='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Is SMD blocking='..tostring(M28Building.IsSMDBlockingTarget(aiBrain, tOtherZoneLZOrWZData[M28Map.subrefMidpoint], oUnit:GetPosition(), 240, 80, false))) end
+                                if M28Building.IsSMDBlockingTarget(aiBrain, tOtherZoneLZOrWZData[M28Map.subrefMidpoint], oUnit:GetPosition(), iCheckForSMDBuildDelay, iSMDRangeMod, false) then
+                                    bNoSMDToAvoid = false
+                                end
+                                if bNoSMDToAvoid then
+                                    for iBuilding, oBuilding in tEnemyBuildings do
+                                        if not(oBuilding.Dead) and M28UnitInfo.GetUnitMassCost(oBuilding) >= 100 and (not(tSubtable[M28Map.subrefbIsWaterZone]) or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                                                            --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                                            tCurTarget, iCurDamage = M28Logic.GetBestAOETarget(aiBrain, oBuilding:GetPosition(), iAOE, iDamage, false, nil, nil, nil, 0, 0, nil, nil, nil, nil)
+                                            if iCurDamage > iBestDamage then
+                                                iBestDamage = iCurDamage
+                                                tGroundTarget = {tCurTarget[1], tCurTarget[2], tCurTarget[3]}
+                                                oBestTarget = oBuilding
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target oBuilding='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)..'; Mass cost='..M28UnitInfo.GetUnitMassCost(oBuilding)..'; iDamage='..iDamage..'; iBestDamage='..iBestDamage) end
+                                        end
+                                    end
+                                    iHighestStructureZoneMass = tOtherZoneLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
+                                    if iHighestStructureZoneMass >= 2000 and tGroundTarget and iBestDamage > 0 then break end
+                                end
+                            end
+                        end
+
+                    end
+                end
+                if tGroundTarget then
+                    local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tGroundTarget)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a target, iDistToTarget='..iDistToTarget..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
+                    if iDistToTarget <= math.max(30, (oUnit[M28UnitInfo.refiDFRange] or 0) + 5) then
+                        M28Orders.IssueTrackedGroundAttack(oUnit, tGroundTarget, 1, false, 'SpcshAG', false, oBestTarget)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tGroundTarget, 5, false, 'SpcshMv', false)
+                    end
+                else
+                    bConsiderBackupOrder = true
+                end
+            else
+                bConsiderBackupOrder = true
+            end
+        end
+        if bConsiderBackupOrder then
+            if bRunIfNoTarget then
+                --Retreat to rally point
+                if bDebugMessages == true then LOG(sFunctionRef..': Will retreat so can heal up') end
+                M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 5, false, 'SpcshRt', false)
+            else
+                local tLastOrderPosition = oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]
+                if M28Utilities.IsTableEmpty(tLastOrderPosition) or M28Utilities.GetDistanceBetweenPositions(tLastOrderPosition, oUnit:GetPosition()) <= 10 then
+                    --Go to enemy base
+                    M28Orders.IssueTrackedAttackMove(oUnit, M28Map.GetPrimaryEnemyBaseLocation(oUnit:GetAIBrain()), 5, false, 'SpcshEnB', false)
+                else
+                    --Just let it continue with last order
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageSpaceship(iTeam, oUnit)
+    while M28UnitInfo.IsUnitValid(oUnit) do
+        ForkThread(GiveOrderToSpaceship, iTeam, oUnit)
+        WaitTicks(M28Land.iTicksPerLandCycle)
+    end
+end
+
 
 function ManageOtherAir(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
