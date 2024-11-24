@@ -193,19 +193,19 @@ AIOpts = {
     {
         default = 1,
         label = "M28: Prioritise stronger units?",
-        help = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
+        help = 'By default M28 will always build certain T1-T3 land and certain experimental units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
         key = 'M28PrioritiseBPs',
         value_text = "",
-        value_help = "Apply land unit prioritisation?",
+        value_help = "Apply unit prioritisation?",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
-                help = 'Apply land unit prioritisation',
+                help = 'Apply unit prioritisation',
                 key = 1,
             },
             {
                 text = 'No',
-                help = 'Dont prioritise certain land units',
+                help = 'Dont prioritise certain units',
                 key = 2,
             },
         },

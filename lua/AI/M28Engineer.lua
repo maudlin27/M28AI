@@ -3165,8 +3165,31 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting yolona') end
                             end
 
+                            --Get random experimental unit if disabled unit prioritisation (as user would prefer more randomness over specific faction logic
+                        elseif ScenarioInfo.Options.M28PrioritiseBPs == 2 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 and math.random(1,2) == 1 then
+                            if bPrioritiseLand and math.random(1,3) <= 2 then
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                            elseif aiBrain[M28Overseer.refbPrioritiseAir] or not(bCanPathAmphibiously) then
+                                if aiBrain[M28Overseer.refbPrioritiseAir] and math.random(1,2) == 1 then
+                                    iCategoryWanted = M28UnitInfo.refCategoryAirNonScout * categories.EXPERIMENTAL
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Not prioritising units but are an air brain so will just get experimental air level unit') end
+                                else
+                                    iCategoryWanted = M28UnitInfo.refCategoryAirNonScout * categories.EXPERIMENTAL + M28UnitInfo.refCategoryExperimentalStructure
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Not prioritising units but either are air brain or cant path amphibiously so will just get experimental building or air') end
+                                end
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not prioritising units so will just get experimental level unit') end
+                            end
+                            --Exclude game-enders
+                            if bDontConsiderGameEnderInMostCases then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will exclude gameenders from the random experimental unit') end
+                                iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryGameEnder
+                            end
+                            --Exclude experimental PD
+                            iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryPD
 
-                            --UEF EXPERIMENTAL CHOICE
+                                --UEF EXPERIMENTAL CHOICE
                         elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] then
                             --Decide between fatboy and novax, or (with v.high eco) mavor
                             iFactionRequired = M28UnitInfo.refFactionUEF
@@ -3747,6 +3770,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     if M28Utilities.IsTableEmpty(tsBlueprintsOfCategory) == false then
                         local iMaxMassCostThreshold = math.max(25000 + 15000 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * 80)
                         local iMinMassCostThreshold = math.min(17000, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 9000)
+                        --Adjust thresholds if not prioritising
+                        if ScenarioInfo.Options.M28PrioritiseBPs == 2 then
+                            iMaxMassCostThreshold = iMaxMassCostThreshold * 1.5
+                            iMinMassCostThreshold = iMinMassCostThreshold * 0.65
+                        end
                         if iMaxMassCostThreshold < 180000 then
                             local iCurMassThreshold
                             local iCurMinMassThreshold, bHaveOptionAboveMinMassThreshold

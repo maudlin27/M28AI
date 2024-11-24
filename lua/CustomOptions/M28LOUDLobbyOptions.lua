@@ -873,7 +873,7 @@ LobbyGlobalOptions = {
     {
         default = 1,
         label = "M28: Prioritise stronger units?",
-        help = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
+        help = 'By default M28 will always build certain T1-T3 land and certain experimental units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
         key = 'M28PrioritiseBPs',
         pref = 'pref_M28PrioritiseBPs',
         bUseKeyAsValueInScenarioInfo = true,
